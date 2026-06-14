@@ -1,6 +1,5 @@
 use rusqlite::{Connection, Result, params};
 use log::info;
-use std::path::Path;
 
 /// Manages the SQLite database connection and schema.
 pub struct Database {

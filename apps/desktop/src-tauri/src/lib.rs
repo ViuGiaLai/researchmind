@@ -130,9 +130,9 @@ pub fn run() {
 
     let db = init_app();
     let search_config = SearchConfig::default();
-    let search = SearchEngine::new(search_config);
+    let search_engine = SearchEngine::new(search_config);
 
-    let state = Arc::new(Mutex::new(AppState { db, search }));
+    let state = Arc::new(Mutex::new(AppState { db, search: search_engine }));
 
     tauri::Builder::default()
         .manage(state)

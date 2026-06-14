@@ -10,7 +10,7 @@ impl RelationExtractor {
 
     /// Extract relations from a file's content and filename.
     /// This creates the initial graph nodes and edges during indexing.
-    pub fn extract(&self, file_id: &str, filename: &str, _content: &str) {
+    pub fn extract(&self, _file_id: &str, filename: &str, _content: &str) {
         // Extract topics from filename
         let topics = self.extract_topics_from_filename(filename);
 

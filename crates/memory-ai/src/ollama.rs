@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::error;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 

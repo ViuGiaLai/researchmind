@@ -1,7 +1,6 @@
 pub mod db;
 pub mod pipeline;
 
-use memory_core::FileInfo;
 use serde::{Deserialize, Serialize};
 
 /// Progress of the indexing process.

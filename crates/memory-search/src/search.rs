@@ -1,6 +1,6 @@
-use crate::{SearchConfig, SearchFilters, SearchQuery, SearchResult};
+use crate::{SearchConfig, SearchQuery, SearchResult};
 use log::error;
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection};
 
 /// Full-text and semantic search engine.
 pub struct SearchEngine {

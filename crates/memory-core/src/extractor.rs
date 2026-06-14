@@ -1,5 +1,5 @@
 use crate::{ExtractionResult, FileType};
-use log::{error, warn};
+use log::error;
 use std::fs;
 use std::path::Path;
 
@@ -35,20 +35,42 @@ impl TextExtractor {
 
     /// Extract text from PDF.
     fn extract_pdf(&self, file_id: &str, path: &str) -> ExtractionResult {
-        match pdf_extract::extract_text(path) {
-            Ok(text) => ExtractionResult {
-                file_id: file_id.to_string(),
-                content: text,
-                success: true,
-                error: None,
-            },
+        match lopdf::Document::load(path) {
+            Ok(doc) => {
+                let page_numbers: Vec<u32> = doc.get_pages().keys().copied().collect();
+                if page_numbers.is_empty() {
+                    return ExtractionResult {
+                        file_id: file_id.to_string(),
+                        content: String::new(),
+                        success: true,
+                        error: None,
+                    };
+                }
+                match doc.extract_text(&page_numbers) {
+                    Ok(text) => ExtractionResult {
+                        file_id: file_id.to_string(),
+                        content: text,
+                        success: true,
+                        error: None,
+                    },
+                    Err(e) => {
+                        error!("Failed to extract text from PDF {}: {}", path, e);
+                        ExtractionResult {
+                            file_id: file_id.to_string(),
+                            content: String::new(),
+                            success: false,
+                            error: Some(format!("PDF text extraction failed: {}", e)),
+                        }
+                    }
+                }
+            }
             Err(e) => {
-                error!("Failed to extract PDF {}: {}", path, e);
+                error!("Failed to load PDF {}: {}", path, e);
                 ExtractionResult {
                     file_id: file_id.to_string(),
                     content: String::new(),
                     success: false,
-                    error: Some(format!("PDF extraction failed: {}", e)),
+                    error: Some(format!("Failed to load PDF: {}", e)),
                 }
             }
         }
@@ -56,7 +78,20 @@ impl TextExtractor {
 
     /// Extract text from DOCX.
     fn extract_docx(&self, file_id: &str, path: &str) -> ExtractionResult {
-        match docx_rs::read_docx(path) {
+        let bytes = match fs::read(path) {
+            Ok(b) => b,
+            Err(e) => {
+                error!("Failed to read DOCX file {}: {}", path, e);
+                return ExtractionResult {
+                    file_id: file_id.to_string(),
+                    content: String::new(),
+                    success: false,
+                    error: Some(format!("Failed to read file: {}", e)),
+                };
+            }
+        };
+
+        match docx_rs::read_docx(&bytes) {
             Ok(doc) => {
                 let content = doc
                     .document
@@ -64,19 +99,30 @@ impl TextExtractor {
                     .iter()
                     .filter_map(|child| {
                         if let docx_rs::DocumentChild::Paragraph(p) = child {
-                            Some(
-                                p.children
-                                    .iter()
-                                    .filter_map(|run| {
-                                        if let docx_rs::ParagraphChild::Run(r) = run {
-                                            Some(r.text.clone())
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect::<Vec<_>>()
-                                    .join(""),
-                            )
+                            let paragraph_text: String = p
+                                .children
+                                .iter()
+                                .filter_map(|pc| {
+                                    if let docx_rs::ParagraphChild::Run(run) = pc {
+                                        Some(
+                                            run.children
+                                                .iter()
+                                                .filter_map(|rc| {
+                                                    if let docx_rs::RunChild::Text(t) = rc {
+                                                        Some(t.text.clone())
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect::<String>(),
+                                        )
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" ");
+                            Some(paragraph_text)
                         } else {
                             None
                         }

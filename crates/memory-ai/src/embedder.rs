@@ -1,5 +1,4 @@
 use crate::ollama::OllamaClient;
-use log::error;
 
 /// Generates vector embeddings for text chunks using a local model.
 pub struct Embedder {

@@ -1,10 +1,10 @@
 use crate::db::Database;
-use crate::{IndexProgress, IndexStats, FileTypeCount};
+use crate::IndexProgress;
 use log::{error, info};
 use memory_ai::embedder::Embedder;
 use memory_core::{ExtractionResult, FileInfo, FileScanner, ScanConfig, TextExtractor};
 use memory_graph::{relation::RelationExtractor, timeline::TimelineEngine, KnowledgeGraph};
-use memory_search::{search::SearchEngine, SearchConfig};
+use memory_search::search::SearchEngine;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -82,7 +82,7 @@ impl IndexingPipeline {
                 break;
             }
 
-            let progress = IndexProgress {
+            let _progress = IndexProgress {
                 total_files: total,
                 indexed_files: indexed,
                 failed_files: failed,
@@ -202,14 +202,10 @@ impl IndexingPipeline {
 
     fn generate_embeddings(&self, embedder: &Embedder, file_id: &str, content: &str) {
         const CHUNK_SIZE: usize = 512;
-        let chunks: Vec<&str> = content
-            .split_whitespace()
-            .collect::<Vec<_>>()
+        let words: Vec<&str> = content.split_whitespace().collect();
+        let chunks: Vec<String> = words
             .chunks(CHUNK_SIZE)
             .map(|c| c.join(" "))
-            .collect::<Vec<_>>()
-            .iter()
-            .map(|s| s.as_str())
             .collect();
 
         for (i, chunk) in chunks.iter().enumerate() {

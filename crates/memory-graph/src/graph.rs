@@ -1,5 +1,4 @@
 use crate::{GraphData, GraphEdge, GraphNode};
-use log::info;
 use rusqlite::{params, Connection};
 use uuid::Uuid;
 
