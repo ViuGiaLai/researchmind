@@ -1,0 +1,44 @@
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+out/
+
+# Vite
+.vite/
+
+# Tauri
+src-tauri/target/
+target/
+
+# Rust
+Cargo.lock
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary
+tmp/
+temp/
+
+# Generated files
+coverage/

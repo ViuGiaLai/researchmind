@@ -1,0 +1,42 @@
+:root {
+  /* Colors */
+  --color-bg: #0f0f13;
+  --color-surface: #1a1a23;
+  --color-surface-hover: #242433;
+  --color-border: #2a2a3d;
+  --color-primary: #6c5ce7;
+  --color-primary-hover: #7c6df7;
+  --color-text: #e8e8f0;
+  --color-text-secondary: #8888a0;
+  --color-text-muted: #555570;
+  --color-success: #00d68f;
+  --color-warning: #ffaa00;
+  --color-error: #ff6b6b;
+  --color-highlight: rgba(108, 92, 231, 0.2);
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Font */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+}

@@ -1,0 +1,16 @@
+[workspace]
+members = [
+    "crates/memory-core",
+    "crates/memory-indexer",
+    "crates/memory-search",
+    "crates/memory-ai",
+    "crates/memory-graph",
+    "crates/memory-security",
+    "apps/desktop/src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
