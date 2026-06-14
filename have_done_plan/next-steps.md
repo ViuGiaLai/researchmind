@@ -6,7 +6,11 @@
 
 ## 🥇 Bước 1: Kiểm Tra Build (LÀM NGAY)
 
-```bash
+> ✅ **Đã fix:** Thêm `"apps/desktop/src-tauri"` vào `workspace.members` trong root `Cargo.toml`
+
+Chạy từ **PowerShell** (không phải WSL/bash):
+
+```powershell
 # 1. Kiểm tra Rust workspace có compile không
 cd D:\all_my_project\memoryOS
 cargo check --workspace
