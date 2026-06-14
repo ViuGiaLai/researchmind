@@ -53,3 +53,25 @@ pub struct TimelineSummary {
     pub count: i64,
     pub total_size: i64,
 }
+
+/// A file-based timeline entry (from the files table).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimelineFileEntry {
+    pub date: String,
+    pub file_id: String,
+    pub filename: String,
+    pub path: String,
+    pub extension: String,
+    pub size: i64,
+    pub event_type: String,
+}
+
+/// Combined timeline response for the UI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimelineData {
+    pub files: Vec<TimelineFileEntry>,
+    pub summary: Vec<TimelineSummary>,
+    pub total_days: i64,
+    pub total_files: i64,
+    pub total_size: i64,
+}

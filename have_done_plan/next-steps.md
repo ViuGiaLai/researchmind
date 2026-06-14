@@ -46,41 +46,27 @@ pnpm tauri dev
 
 ## 🥇 Bước 3: Tạo UI Components Còn Thiếu
 
-Sau khi app chạy được, tạo các component theo thứ tự:
+> ✅ **Đã hoàn thành các components:**
+> - FolderPicker, FolderList (folder selection)
+> - ScanButton, ScanProgress (scan lifecycle)
+> - ChatPanel, ChatMessage, ChatInput (AI chat)
+> - SearchFilters (filter by type/date/folder)
+> - **Icons.tsx** (Lucide icon library + 3D CSS styling — thay thế toàn bộ emoji)
+> 
+> ✅ **Rust commands đã implement:**
+> - `add_folder`, `get_folders`, `remove_folder` (folder management)
+> - `start_scan`, `stop_scan`, `get_scan_progress` (scan lifecycle)
+> - `chat`, `get_chat_history`, `clear_chat_history` (AI chat)
+> - `search`, `get_preview`, `get_suggestions`, `get_stats` (search)
 
-### 3.1 FolderPicker + ScanProgress
-
-```bash
-# Tạo thư mục components
-mkdir -p apps/desktop/src/components/folder
-mkdir -p apps/desktop/src/components/scan
-
-# File cần tạo:
-apps/desktop/src/components/folder/FolderPicker.tsx
-apps/desktop/src/components/folder/FolderList.tsx
-apps/desktop/src/components/scan/ScanButton.tsx
-apps/desktop/src/components/scan/ScanProgress.tsx
-```
-
-### 3.2 Tauri Commands Cho Scan
-
-```bash
-# File cần tạo trong src-tauri/src/commands/:
-commands/scan.rs   → start_scan, stop_scan, get_scan_progress
-commands/index.rs  → delete_index
-commands/chat.rs   → chat, get_chat_history
-```
-
-### 3.3 AI Chat + Timeline + Graph
+### 3.4 Timeline + Graph (chưa làm)
 
 ```bash
 # Components:
-src/components/chat/ChatPanel.tsx
 src/components/timeline/TimelineView.tsx
 src/components/graph/GraphView.tsx
 
 # Commands:
-commands/chat.rs      → chat()
 commands/timeline.rs   → get_timeline()
 commands/graph.rs     → get_graph()
 ```

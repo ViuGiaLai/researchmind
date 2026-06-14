@@ -1,4 +1,5 @@
 import React from "react";
+import { IconSearch, IconCheck, IconError, IconSpinner, IconStop } from "../Icons";
 
 interface ScanButtonProps {
   status: "idle" | "scanning" | "completed" | "error" | "stopped";
@@ -19,7 +20,7 @@ export const ScanButton: React.FC<ScanButtonProps> = ({
   if (isScanning) {
     return (
       <button className="scan-btn scan-btn-stop" onClick={onStop} title="Dừng quét">
-        <span className="scan-btn-spinner">⏳</span>
+        <IconSpinner size={18} />
         <span>Đang quét...</span>
       </button>
     );
@@ -37,7 +38,13 @@ export const ScanButton: React.FC<ScanButtonProps> = ({
       }
     >
       <span className="scan-btn-icon">
-        {status === "completed" ? "✅" : status === "error" ? "❌" : "🔍"}
+        {status === "completed" ? (
+          <IconCheck size={18} />
+        ) : status === "error" ? (
+          <IconError size={18} />
+        ) : (
+          <IconSearch size={18} />
+        )}
       </span>
       <span>
         {status === "completed"

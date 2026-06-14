@@ -1,4 +1,5 @@
 import React from "react";
+import { IconFolderOpen, IconSpinner } from "../Icons";
 
 interface FolderPickerProps {
   onAddFolder: () => void;
@@ -18,10 +19,10 @@ export function FolderPicker({ onAddFolder, isAdding }: FolderPickerProps) {
       title="Chọn thư mục để index"
     >
       {isAdding ? (
-        <span className="folder-picker-loading">⏳</span>
+        <IconSpinner size={18} />
       ) : (
         <>
-          <span className="folder-picker-icon">📂</span>
+          <IconFolderOpen size={18} />
           <span className="folder-picker-text">Chọn thư mục</span>
         </>
       )}

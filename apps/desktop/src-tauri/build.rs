@@ -1,41 +1,51 @@
 fn main() {
-    // Auto-generate a placeholder icon if icons directory doesn't exist
-    // This avoids build failures when icons haven't been created yet
+    // Auto-generate a placeholder icon if icons directory doesn't exist.
+    // Windows Resource Compiler (RC) requires at least v3.00 format (32x32).
     let icon_path = std::path::Path::new("icons").join("icon.ico");
     if !icon_path.exists() {
         let _ = std::fs::create_dir_all("icons");
-        // Minimal valid 1x1 32-bit ICO file (blue pixel)
-        let ico_data: &[u8] = &[
-            0x00, 0x00, // reserved
-            0x01, 0x00, // type: icon
-            0x01, 0x00, // count: 1
-            // Directory entry
-            0x01,       // width: 1
-            0x01,       // height: 1
-            0x00,       // colors
-            0x00,       // reserved
-            0x01, 0x00, // planes: 1
-            0x20, 0x00, // bpp: 32
-            0x30, 0x00, 0x00, 0x00, // size: 48 bytes
-            0x16, 0x00, 0x00, 0x00, // offset: 22 bytes
-            // BITMAPINFOHEADER (40 bytes)
-            0x28, 0x00, 0x00, 0x00, // biSize: 40
-            0x01, 0x00, 0x00, 0x00, // biWidth: 1
-            0x02, 0x00, 0x00, 0x00, // biHeight: 2 (XOR + AND)
-            0x01, 0x00,             // biPlanes: 1
-            0x20, 0x00,             // biBitCount: 32
-            0x00, 0x00, 0x00, 0x00, // biCompression: 0
-            0x00, 0x00, 0x00, 0x00, // biSizeImage: 0
-            0x00, 0x00, 0x00, 0x00, // biXPelsPerMeter
-            0x00, 0x00, 0x00, 0x00, // biYPelsPerMeter
-            0x00, 0x00, 0x00, 0x00, // biClrUsed: 0
-            0x00, 0x00, 0x00, 0x00, // biClrImportant: 0
-            // XOR mask: 1 pixel BGRA (blue, opaque)
-            0x00, 0x00, 0xFF, 0xFF,
-            // AND mask: padded to 4 bytes
-            0x00, 0x00, 0x00, 0x00,
-        ];
-        let _ = std::fs::write(&icon_path, ico_data);
+
+        let mut ico = Vec::new();
+
+        // --- ICO header (6 bytes) ---
+        ico.extend_from_slice(&[0x00, 0x00]); // reserved
+        ico.extend_from_slice(&[0x01, 0x00]); // type: 1 = icon
+        ico.extend_from_slice(&[0x01, 0x00]); // count: 1 image
+
+        // --- Directory entry (16 bytes) ---
+        let img_size: u32 = 40 + (32 * 32 * 4) + (4 * 32); // BMPINFOHEADER + XOR mask + AND mask
+        let img_offset: u32 = 6 + 16; // header + directory
+
+        ico.push(32);                 // width
+        ico.push(32);                 // height
+        ico.push(0);                  // colors
+        ico.push(0);                  // reserved
+        ico.extend_from_slice(&1u16.to_le_bytes());  // planes
+        ico.extend_from_slice(&32u16.to_le_bytes()); // bpp
+        ico.extend_from_slice(&img_size.to_le_bytes());
+        ico.extend_from_slice(&img_offset.to_le_bytes());
+
+        // --- BITMAPINFOHEADER (40 bytes) ---
+        ico.extend_from_slice(&40u32.to_le_bytes()); // biSize
+        ico.extend_from_slice(&32i32.to_le_bytes()); // biWidth
+        ico.extend_from_slice(&64i32.to_le_bytes()); // biHeight (double: XOR + AND)
+        ico.extend_from_slice(&1u16.to_le_bytes());  // biPlanes
+        ico.extend_from_slice(&32u16.to_le_bytes()); // biBitCount
+        ico.extend_from_slice(&[0u8; 24]);           // compression + rest (zeros)
+
+        // --- XOR mask: 32x32 pixels, BGRA, bottom-up ---
+        let purple_bgra = [0x8B, 0x5C, 0xF6, 0xFF]; // BGRA purple
+        for _ in 0..(32 * 32) {
+            ico.extend_from_slice(&purple_bgra);
+        }
+
+        // --- AND mask: 1-bit per pixel, opaque (all zeros) ---
+        let and_row = [0u8; 4]; // 32 bits = 4 bytes per row, all zeros = opaque
+        for _ in 0..32 {
+            ico.extend_from_slice(&and_row);
+        }
+
+        let _ = std::fs::write(&icon_path, &ico);
     }
     tauri_build::build()
 }

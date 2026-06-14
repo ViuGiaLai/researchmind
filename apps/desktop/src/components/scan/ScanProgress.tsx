@@ -1,4 +1,5 @@
 import React from "react";
+import { IconFileText, IconError, IconCheck, IconStop, IconSparkle } from "../Icons";
 
 interface ScanProgress {
   total_files: number;
@@ -39,10 +40,13 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({ progress, status }) 
       <div className="scan-progress-stats">
         <span className="scan-progress-percentage">{formatPercent(progress.percentage)}</span>
         <span className="scan-progress-files">
-          📄 {progress.indexed_files}/{progress.total_files}
+          <IconFileText size={12} style={{ marginRight: 4 }} />
+          {progress.indexed_files}/{progress.total_files}
         </span>
         {progress.failed_files > 0 && (
-          <span className="scan-progress-failed">❌ {progress.failed_files}</span>
+          <span className="scan-progress-failed">
+            <IconError size={12} style={{ marginRight: 2 }} /> {progress.failed_files}
+          </span>
         )}
       </div>
 
@@ -50,7 +54,7 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({ progress, status }) 
       <div className="scan-progress-current">
         {isScanning && progress.current_file && (
           <>
-            <span className="scan-progress-file-icon">📄</span>
+            <IconFileText size={12} />
             <span className="scan-progress-file-name" title={progress.current_file}>
               {progress.current_file}
             </span>
@@ -58,17 +62,20 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({ progress, status }) 
         )}
         {!isScanning && status === "completed" && (
           <span className="scan-progress-done">
-            ✅ Đã hoàn thành! {progress.indexed_files} file đã được index.
+            <IconCheck size={14} style={{ marginRight: 4 }} />
+            Đã hoàn thành! {progress.indexed_files} file đã được index.
           </span>
         )}
         {!isScanning && status === "error" && (
           <span className="scan-progress-error">
-            ❌ {progress.current_file || "Có lỗi xảy ra."}
+            <IconError size={14} style={{ marginRight: 4 }} />
+            {progress.current_file || "Có lỗi xảy ra."}
           </span>
         )}
         {!isScanning && status === "stopped" && (
           <span className="scan-progress-stopped">
-            ⏹️ Đã dừng. {progress.indexed_files} file đã được index.
+            <IconStop size={14} style={{ marginRight: 4 }} />
+            Đã dừng. {progress.indexed_files} file đã được index.
           </span>
         )}
       </div>

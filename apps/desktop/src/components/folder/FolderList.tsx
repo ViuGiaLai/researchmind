@@ -1,4 +1,5 @@
 import React from "react";
+import { IconFolder, IconClose, IconSpinner } from "../Icons";
 
 interface FolderListProps {
   folders: string[];
@@ -13,7 +14,8 @@ export function FolderList({ folders, onRemoveFolder, isLoading }: FolderListPro
   if (isLoading) {
     return (
       <div className="folder-list-loading">
-        <span>Đang tải...</span>
+        <IconSpinner size={16} />
+        <span style={{ marginLeft: 8 }}>Đang tải...</span>
       </div>
     );
   }
@@ -34,10 +36,10 @@ export function FolderList({ folders, onRemoveFolder, isLoading }: FolderListPro
       {folders.map((folder) => (
         <div key={folder} className="folder-item">
           <div className="folder-item-info">
-            <span className="folder-item-icon">📁</span>
+            <IconFolder size={18} className="icon-folder" />
             <div className="folder-item-path">
               <span className="folder-item-name">
-                {folder.split("\\").pop() || folder}
+                {folder.split(/[\\/]/).pop() || folder}
               </span>
               <span className="folder-item-fullpath">{folder}</span>
             </div>
@@ -47,7 +49,7 @@ export function FolderList({ folders, onRemoveFolder, isLoading }: FolderListPro
             onClick={() => onRemoveFolder(folder)}
             title="Xóa thư mục này"
           >
-            ✕
+            <IconClose size={12} />
           </button>
         </div>
       ))}

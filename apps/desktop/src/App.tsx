@@ -2,10 +2,32 @@ import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useFolders } from "./hooks/useFolders";
 import { useScan } from "./hooks/useScan";
+import { useChat } from "./hooks/useChat";
+import { useSearchFilters } from "./hooks/useSearchFilters";
+import { useOllamaConfig } from "./hooks/useOllamaConfig";
+import { SearchFilters } from "./components/search/SearchFilters";
+import { SettingsPanel } from "./components/settings/SettingsPanel";
+import {
+  IconBrain,
+  IconSearch,
+  IconMenu,
+  IconClose,
+  IconChart,
+  IconChat,
+  IconSettings,
+  IconFolder,
+  IconFileText,
+  IconLock,
+  IconFolderOpen,
+  IconCalendar,
+  getFileIcon,
+} from "./components/Icons";
 import { FolderPicker } from "./components/folder/FolderPicker";
 import { FolderList } from "./components/folder/FolderList";
 import { ScanButton } from "./components/scan/ScanButton";
 import { ScanProgress } from "./components/scan/ScanProgress";
+import { ChatPanel } from "./components/chat/ChatPanel";
+import TimelineView from "./components/timeline/TimelineView";
 
 // Types for search results
 interface SearchResult {
@@ -50,6 +72,37 @@ function App() {
     stopScan,
   } = useScan();
 
+  const {
+    messages: chatMessages,
+    isLoading: chatLoading,
+    sendMessage,
+    clearMessages,
+    retryLastMessage,
+  } = useChat();
+
+  const {
+    filters,
+    isOpen: filtersOpen,
+    hasActiveFilters,
+    toggleExtension,
+    setDatePreset,
+    setCustomDate,
+    setFolder,
+    resetFilters,
+    toggleOpen: toggleFilters,
+    toApiFilters,
+  } = useSearchFilters();
+
+  const {
+    config: ollamaConfig,
+    health: ollamaHealth,
+    healthLabel: ollamaHealthLabel,
+    saving: ollamaSaving,
+    loadConfig: loadOllamaConfig,
+    checkHealth: checkOllamaHealth,
+    saveConfig: saveOllamaConfig,
+  } = useOllamaConfig();
+
   // Refresh stats when scan completes
   useEffect(() => {
     if (scanStatus === "completed" || scanStatus === "stopped") {
@@ -72,12 +125,19 @@ function App() {
   };
 
   const handleSearch = async () => {
-    if (!query.trim()) return;
+    const searchText = query.trim();
+    if (!searchText) return;
     setIsSearching(true);
 
     try {
+      const apiFilters = toApiFilters();
       const searchResults = await invoke<SearchResult[]>("search", {
-        query: { text: query, limit: 20, offset: 0, filters: null },
+        query: {
+          text: searchText,
+          limit: 20,
+          offset: 0,
+          filters: hasActiveFilters ? apiFilters : null,
+        },
       });
       setResults(searchResults);
     } catch (e) {
@@ -97,16 +157,9 @@ function App() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
-  const getFileIcon = (ext: string): string => {
-    const icons: Record<string, string> = {
-      pdf: "📄",
-      docx: "📝",
-      txt: "📃",
-      md: "📑",
-      jpg: "🖼️",
-      png: "🖼️",
-    };
-    return icons[ext] || "📁";
+  const FileIconComponent: React.FC<{ ext: string; size?: number }> = ({ ext, size = 20 }) => {
+    const Icon = getFileIcon(ext);
+    return <Icon size={size} />;
   };
 
   return (
@@ -118,16 +171,19 @@ function App() {
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title="Mở thư mục"
           >
-            {sidebarOpen ? "✕" : "☰"}
+            {sidebarOpen ? <IconClose size={18} /> : <IconMenu size={18} />}
           </button>
-          <h1 className="logo">🧠 MemoryOS</h1>
+          <h1 className="logo">
+            <IconBrain size={24} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
+            MemoryOS
+          </h1>
         </div>
         <div className="header-right">
           <button
             className={`nav-btn ${selectedView === "search" ? "active" : ""}`}
             onClick={() => setSelectedView("search")}
           >
-            🔍 Tìm kiếm
+            <IconSearch size={16} style={{ marginRight: 4 }} /> Tìm kiếm
           </button>
           <button
             className={`nav-btn ${selectedView === "stats" ? "active" : ""}`}
@@ -136,9 +192,26 @@ function App() {
               loadStats();
             }}
           >
-            📊 Thống kê
+            <IconChart size={16} style={{ marginRight: 4 }} /> Thống kê
           </button>
-          <button className="nav-btn">⚙️</button>
+          <button
+            className={`nav-btn ${selectedView === "timeline" ? "active" : ""}`}
+            onClick={() => setSelectedView("timeline")}
+          >
+            <IconCalendar size={16} style={{ marginRight: 4 }} /> Timeline
+          </button>
+          <button
+            className={`nav-btn ${selectedView === "chat" ? "active" : ""}`}
+            onClick={() => setSelectedView("chat")}
+          >
+            <IconChat size={16} style={{ marginRight: 4 }} /> Chat AI
+          </button>
+          <button
+            className={`nav-btn ${selectedView === "settings" ? "active" : ""}`}
+            onClick={() => setSelectedView("settings")}
+          >
+            <IconSettings size={16} />
+          </button>
         </div>
       </header>
 
@@ -146,11 +219,11 @@ function App() {
         {/* Sidebar */}
         <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
           <div className="sidebar-section">
-            <h3 className="sidebar-title">📂 Thư mục</h3>
+            <h3 className="sidebar-title"><IconFolderOpen size={14} style={{ marginRight: 4 }} /> Thư mục</h3>
             <FolderPicker onAddFolder={addFolder} isAdding={foldersAdding} />
           </div>
           <div className="sidebar-section sidebar-scan">
-            <h3 className="sidebar-title">🔍 Quét & Index</h3>
+            <h3 className="sidebar-title"><IconSearch size={14} style={{ marginRight: 4 }} /> Quét & Index</h3>
             <ScanButton
               status={scanStatus}
               folderCount={folders.length}
@@ -170,17 +243,17 @@ function App() {
             <div className="sidebar-section sidebar-stats-preview">
               <h3 className="sidebar-title">📊 Tổng quan</h3>
               <div className="sidebar-stat-row">
-                <span>📄 File</span>
+                <span><IconFileText size={14} style={{ marginRight: 4 }} /> File</span>
                 <span className="sidebar-stat-value">{stats.total_files}</span>
               </div>
               <div className="sidebar-stat-row">
-                <span>📐 Dung lượng</span>
+                <span><IconChart size={14} style={{ marginRight: 4 }} /> Dung lượng</span>
                 <span className="sidebar-stat-value">
                   {formatSize(stats.total_size)}
                 </span>
               </div>
               <div className="sidebar-stat-row">
-                <span>📁 Thư mục</span>
+                <span><IconFolder size={14} style={{ marginRight: 4 }} /> Thư mục</span>
                 <span className="sidebar-stat-value">
                   {stats.folders.length}
                 </span>
@@ -203,10 +276,23 @@ function App() {
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
                   />
-                  <button className="search-btn" onClick={handleSearch}>
+                  <button className="search-btn" onClick={() => handleSearch()}>
                     {isSearching ? "⏳" : "🔍"}
                   </button>
                 </div>
+
+                <SearchFilters
+                  filters={filters}
+                  isOpen={filtersOpen}
+                  hasActiveFilters={hasActiveFilters}
+                  folders={folders}
+                  onToggleExtension={toggleExtension}
+                  onSetDatePreset={setDatePreset}
+                  onSetCustomDate={setCustomDate}
+                  onSetFolder={setFolder}
+                  onReset={resetFilters}
+                  onToggleOpen={toggleFilters}
+                />
               </div>
 
               <div className="results-section">
@@ -221,7 +307,7 @@ function App() {
                     {results.map((result) => (
                       <div key={result.file_id} className="result-card">
                         <div className="result-icon">
-                          {getFileIcon(result.extension)}
+                          <FileIconComponent ext={result.extension} size={24} />
                         </div>
                         <div className="result-content">
                           <div className="result-header">
@@ -263,6 +349,32 @@ function App() {
             </>
           )}
 
+          {selectedView === "chat" && (
+            <ChatPanel
+              messages={chatMessages}
+              isLoading={chatLoading}
+              onSend={sendMessage}
+              onClear={clearMessages}
+              onRetry={retryLastMessage}
+            />
+          )}
+
+          {selectedView === "timeline" && (
+            <TimelineView />
+          )}
+
+          {selectedView === "settings" && (
+            <SettingsPanel
+              config={ollamaConfig}
+              health={ollamaHealth}
+              healthLabel={ollamaHealthLabel}
+              saving={ollamaSaving}
+              onCheckHealth={checkOllamaHealth}
+              onSave={saveOllamaConfig}
+              onLoad={loadOllamaConfig}
+            />
+          )}
+
           {selectedView === "stats" && (
             <div className="stats-section">
               <h2>📊 Thống kê</h2>
@@ -291,7 +403,7 @@ function App() {
                         {stats.file_types.map((ft) => (
                           <div key={ft.extension} className="file-type-item">
                             <span className="file-type-icon">
-                              {getFileIcon(ft.extension)}
+                              <FileIconComponent ext={ft.extension} size={18} />
                             </span>
                             <span className="file-type-ext">
                               .{ft.extension}
@@ -320,7 +432,7 @@ function App() {
 
       <footer className="footer">
         <div className="footer-left">
-          <span>🔒 0 file được upload lên Internet</span>
+          <span><IconLock size={12} style={{ marginRight: 4 }} /> 0 file được upload lên Internet</span>
           <span className="footer-separator">·</span>
           <span>📁 {folders.length} thư mục</span>
         </div>
