@@ -4,6 +4,7 @@ import {
   IconFileText,
   IconSpinner,
   IconCheck,
+  IconError,
   IconFolderOpen,
   IconUpload,
 } from "../Icons";
@@ -187,7 +188,11 @@ export const ImportPanel: React.FC<{ onImported: () => void }> = ({ onImported }
             {results.map((r, i) => (
               <div key={i} className={`import-result-item ${r.status === "error" ? "import-error" : "import-success"}`}>
                 <span className="import-result-icon">
-                  {r.status === "error" ? "❌" : "✅"}
+                  {r.status === "error" ? (
+                    <IconError size={16} style={{ color: "var(--color-error, #ef4444)" }} />
+                  ) : (
+                    <IconCheck size={16} style={{ color: "var(--color-success, #22c55e)" }} />
+                  )}
                 </span>
                 <span className="import-result-name">{r.filename}</span>
                 {r.pages && <span className="import-result-pages">{r.pages} trang</span>}

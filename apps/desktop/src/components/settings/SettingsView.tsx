@@ -4,10 +4,14 @@ import {
   IconBrain,
   IconSettings,
   IconCheck,
+  IconError,
   IconSearch,
   IconSpinner,
   IconSparkle,
   IconLock,
+  IconZap,
+  IconKey,
+  IconMonitor,
 } from "../Icons";
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
@@ -124,14 +128,14 @@ export const SettingsView: React.FC = () => {
     try {
       const h = await api.health();
       if (h.status === "ok") {
-        setHealthStatus("✅ Kết nối thành công");
+        setHealthStatus("Kết nối thành công");
         setHealthColor("var(--color-success, #22c55e)");
       } else {
-        setHealthStatus("❌ Backend không phản hồi");
+        setHealthStatus("Backend không phản hồi");
         setHealthColor("var(--color-error, #ef4444)");
       }
     } catch {
-      setHealthStatus("❌ Không kết nối được backend");
+      setHealthStatus("Không kết nối được backend");
       setHealthColor("var(--color-error, #ef4444)");
     } finally {
       setChecking(false);
@@ -168,10 +172,10 @@ export const SettingsView: React.FC = () => {
             : claudeModel;
 
         if (activeKey.trim() !== "") {
-          setSaveMsg({ type: "success", text: "⏳ Đang kiểm tra kết nối API Key..." });
+          setSaveMsg({ type: "success", text: "Đang kiểm tra kết nối API Key..." });
           const val = await api.validateApiKey(customCloudProvider, activeKey, activeModel);
           if (!val.valid) {
-            setSaveMsg({ type: "error", text: `❌ Lỗi kết nối API Key: ${val.error || "Không xác định"}` });
+            setSaveMsg({ type: "error", text: `Lỗi kết nối API Key: ${val.error || "Không xác định"}` });
             setSaving(false);
             return;
           }
@@ -190,10 +194,10 @@ export const SettingsView: React.FC = () => {
         ollama_url: ollamaUrl,
         ollama_model: ollamaModel,
       });
-      setSaveMsg({ type: "success", text: "✅ Đã lưu cấu hình!" });
+      setSaveMsg({ type: "success", text: "Đã lưu cấu hình!" });
       loadUsage();
     } catch (e) {
-      setSaveMsg({ type: "error", text: `❌ Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}` });
+      setSaveMsg({ type: "error", text: `Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}` });
     } finally {
       setSaving(false);
     }
@@ -201,9 +205,9 @@ export const SettingsView: React.FC = () => {
 
   const modeSuggestions = specs
     ? [
-        { mode: "cloud_free" as LlmMode, label: "⚡ Cloud Free (Gemini Free)", desc: "Miễn phí 10 câu/ngày qua Gemini API, chạy ngay", highlight: true },
-        { mode: "cloud_custom" as LlmMode, label: "🔑 Custom API Key", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
-        { mode: "local" as LlmMode, label: "🔒 Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "4.5" : "8"}GB, chạy offline`, highlight: false },
+        { mode: "cloud_free" as LlmMode, label: "Cloud Free (Gemini Free)", desc: "Miễn phí 10 câu/ngày qua Gemini API, chạy ngay", highlight: true },
+        { mode: "cloud_custom" as LlmMode, label: "Custom API Key", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
+        { mode: "local" as LlmMode, label: "Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "4.5" : "8"}GB, chạy offline`, highlight: false },
       ]
     : [];
 
@@ -224,7 +228,16 @@ export const SettingsView: React.FC = () => {
         <div className="settings-health" style={{ borderColor: healthColor }}>
           <div className="settings-health-indicator" style={{ background: healthColor }} />
           <div className="settings-health-info">
-            <span className="settings-health-label">{healthStatus}</span>
+            <span className="settings-health-label" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              {checking ? (
+                <IconSpinner size={14} />
+              ) : healthStatus === "Kết nối thành công" ? (
+                <IconCheck size={14} style={{ color: "var(--color-success, #22c55e)" }} />
+              ) : healthStatus.includes("không") || healthStatus.includes("Không") ? (
+                <IconError size={14} style={{ color: "var(--color-error, #ef4444)" }} />
+              ) : null}
+              {healthStatus}
+            </span>
             <span className="settings-health-hint">
               FastAPI backend: http://127.0.0.1:8765
             </span>
@@ -237,8 +250,8 @@ export const SettingsView: React.FC = () => {
       </div>
 
       <div className="settings-section">
-        <h3 className="settings-section-title">
-          🖥️ Thông số máy
+        <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <IconMonitor size={18} /> Thông số máy
         </h3>
         {specsLoading ? (
           <div className="aiwizard-loading">
@@ -259,7 +272,7 @@ export const SettingsView: React.FC = () => {
                 const tierModel =
                   tier === "weak" ? modelTierWeak : tier === "medium" ? modelTierMedium : modelTierStrong;
                 const tierLabel =
-                  tier === "weak" ? "🔹 Yếu (4-8GB)" : tier === "medium" ? "🔸 Trung bình" : "🔶 Mạnh (16GB+)";
+                  tier === "weak" ? "Nhẹ (4-8GB)" : tier === "medium" ? "Trung bình" : "Mạnh (16GB+)";
                 return (
                   <button
                     key={tier}
@@ -299,9 +312,14 @@ export const SettingsView: React.FC = () => {
               <div className="settings-mode-card-radio">
                 {llmMode === m.mode && <div className="settings-mode-card-dot" />}
               </div>
-              <div className="settings-mode-card-content">
-                <span className="settings-mode-card-label">{m.label}</span>
-                <span className="settings-mode-card-desc">{m.desc}</span>
+              <div className="settings-mode-card-content" style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                <span className="settings-mode-card-icon" style={{ marginTop: "2px" }}>
+                  {m.mode === "cloud_free" ? <IconZap size={18} /> : m.mode === "cloud_custom" ? <IconKey size={18} /> : <IconLock size={18} />}
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                  <span className="settings-mode-card-label">{m.label}</span>
+                  <span className="settings-mode-card-desc">{m.desc}</span>
+                </div>
               </div>
               {m.highlight && llmMode === m.mode && (
                 <span className="settings-mode-badge">Khuyên dùng</span>
@@ -315,7 +333,9 @@ export const SettingsView: React.FC = () => {
           <div className="settings-mode-detail" style={{ marginTop: 16 }}>
             <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.15)", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <span style={{ fontWeight: "bold", display: "block", marginBottom: "4px" }}>⚡ Lượt sử dụng miễn phí</span>
+                <span style={{ fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                  <IconZap size={16} /> Lượt sử dụng miễn phí
+                </span>
                 <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Hạn mức hệ thống tự động đặt lại mỗi ngày</span>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -513,7 +533,12 @@ export const SettingsView: React.FC = () => {
             <span>{saving ? "Đang lưu..." : "Lưu cấu hình"}</span>
           </button>
           {saveMsg && (
-            <span className="settings-save-msg" style={{ color: saveMsg.type === "success" ? "var(--color-success)" : "var(--color-error)" }}>
+            <span className="settings-save-msg" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: saveMsg.type === "success" ? "var(--color-success)" : "var(--color-error)" }}>
+              {saveMsg.type === "success" ? (
+                saveMsg.text.includes("Đang kiểm tra") ? <IconSpinner size={14} /> : <IconCheck size={14} />
+              ) : (
+                <IconError size={14} />
+              )}
               {saveMsg.text}
             </span>
           )}
@@ -530,12 +555,20 @@ export const SettingsView: React.FC = () => {
           <p>Phiên bản: <strong>0.1.0</strong></p>
           <p>
             Chế độ AI:{" "}
-            <strong>
-              {llmMode === "cloud_free"
-                ? "⚡ Cloud Free (Gemini)"
-                : llmMode === "cloud_custom"
-                ? `🔑 Custom Cloud (${customCloudProvider === "deepseek" ? "DeepSeek" : customCloudProvider === "gemini" ? "Gemini" : "Claude"})`
-                : "🔒 Local (Ollama)"}
+            <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              {llmMode === "cloud_free" ? (
+                <>
+                  <IconZap size={14} /> Cloud Free (Gemini)
+                </>
+              ) : llmMode === "cloud_custom" ? (
+                <>
+                  <IconKey size={14} /> Custom Cloud ({customCloudProvider === "deepseek" ? "DeepSeek" : customCloudProvider === "gemini" ? "Gemini" : "Claude"})
+                </>
+              ) : (
+                <>
+                  <IconLock size={14} /> Local (Ollama)
+                </>
+              )}
             </strong>
           </p>
           <p>Embedding model: <strong>{embeddingModel || "bge-m3"}</strong></p>
@@ -551,10 +584,10 @@ export const SettingsView: React.FC = () => {
             Dữ liệu hoàn toàn trên máy bạn. Không gửi ra ngoài nếu không được phép.
           </p>
           <div className="settings-about-links">
-            <span>🔒 Local First</span>
-            <span>🎓 Cho nghiên cứu sinh</span>
-            <span>🇻🇳 Tiếng Việt</span>
-            <span>📄 PDF</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><IconLock size={12} /> Local First</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><IconSparkle size={12} /> Cho nghiên cứu sinh</span>
+            <span>Tiếng Việt</span>
+            <span>PDF</span>
           </div>
         </div>
       </div>

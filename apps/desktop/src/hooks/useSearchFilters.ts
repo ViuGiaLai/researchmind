@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { FileText, Image, Bookmark } from "lucide-react";
+import { IconFileText, IconFileImage, IconBookmark } from "../components/Icons";
 
 /** Matches Rust SearchFilters struct. */
 export interface SearchFiltersState {
@@ -11,12 +11,12 @@ export interface SearchFiltersState {
 
 /** Common file extensions for quick-select. */
 export const FILE_EXTENSIONS = [
-  { ext: "pdf", label: "PDF", icon: FileText },
-  { ext: "docx", label: "Word", icon: FileText },
-  { ext: "txt", label: "Text", icon: FileText },
-  { ext: "md", label: "Markdown", icon: Bookmark },
-  { ext: "jpg", label: "Image", icon: Image },
-  { ext: "png", label: "PNG", icon: Image },
+  { ext: "pdf", label: "PDF", icon: IconFileText },
+  { ext: "docx", label: "Word", icon: IconFileText },
+  { ext: "txt", label: "Text", icon: IconFileText },
+  { ext: "md", label: "Markdown", icon: IconBookmark },
+  { ext: "jpg", label: "Image", icon: IconFileImage },
+  { ext: "png", label: "PNG", icon: IconFileImage },
 ];
 
 /** Quick date range options. */

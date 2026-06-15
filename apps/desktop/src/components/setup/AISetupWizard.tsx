@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { IconBrain, IconSpinner, IconCheck } from "../Icons";
+import {
+  IconBrain,
+  IconSpinner,
+  IconCheck,
+  IconZap,
+  IconKey,
+  IconLock,
+  IconParty,
+  IconEye,
+  IconEyeOff,
+  IconMonitor,
+  IconCpu,
+  IconRefresh
+} from "../Icons";
 
 interface Props {
   onComplete: () => void;
@@ -251,7 +264,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
             <p className="aiwizard-desc">
               Trợ lý AI giúp bạn tìm kiếm và phân tích tài liệu nghiên cứu.
               <br />
-              Mọi dữ liệu đều ở trên máy bạn. 🔒
+              Mọi dữ liệu đều ở trên máy bạn. <IconLock size={16} style={{ display: "inline-block", verticalAlign: "middle", marginLeft: 4 }} />
             </p>
             {specsLoading ? (
               <div className="aiwizard-loading">
@@ -260,11 +273,11 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
             ) : specs ? (
               <div className="aiwizard-specs">
                 <div className="aiwizard-spec-row">
-                  <span>🖥️ RAM</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IconMonitor size={16} /> RAM</span>
                   <strong>{specs.total_ram_gb} GB</strong>
                 </div>
                 <div className="aiwizard-spec-row">
-                  <span>⚡ CPU</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IconCpu size={16} /> CPU</span>
                   <strong>{specs.cpu_cores} cores</strong>
                 </div>
               </div>
@@ -292,7 +305,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 disabled={saving}
                 style={{ flex: "none" }}
               >
-                <div className="aiwizard-mode-icon">⚡</div>
+                <div className="aiwizard-mode-icon"><IconZap size={28} /></div>
                 <div className="aiwizard-mode-title">Cloud Free</div>
                 <div className="aiwizard-mode-desc">
                   Dùng qua Gemini API.
@@ -310,7 +323,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 disabled={saving}
                 style={{ flex: "none" }}
               >
-                <div className="aiwizard-mode-icon">🔑</div>
+                <div className="aiwizard-mode-icon"><IconKey size={28} /></div>
                 <div className="aiwizard-mode-title">Custom Key</div>
                 <div className="aiwizard-mode-desc">
                   Không giới hạn.
@@ -327,7 +340,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 disabled={saving}
                 style={{ flex: "none" }}
               >
-                <div className="aiwizard-mode-icon">🔒</div>
+                <div className="aiwizard-mode-icon"><IconLock size={28} /></div>
                 <div className="aiwizard-mode-title">Offline Cục Bộ</div>
                 <div className="aiwizard-mode-desc">
                   Bảo mật tuyệt đối.
@@ -348,8 +361,8 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         {/* Custom Cloud setup */}
         {step === "cloud_custom" && (
           <div className="aiwizard-step">
-            <h2 className="aiwizard-title" style={{ fontSize: "1.3rem" }}>
-              🔑 Cấu hình Custom Key
+            <h2 className="aiwizard-title" style={{ fontSize: "1.3rem", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <IconKey size={20} /> Cấu hình Custom Key
             </h2>
             <p className="aiwizard-desc">
               Nhập API Key cá nhân của bạn để sử dụng không giới hạn.
@@ -397,12 +410,13 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                     className="aiwizard-toggle-btn"
                     onClick={() => setShowDSKey(!showDSKey)}
                   >
-                    {showDSKey ? "🙈" : "👁️"}
+                    {showDSKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                   </button>
                 </div>
-                <p className="aiwizard-hint">
-                  🔒 API key được lưu cục bộ trên máy bạn.
-                  <br />
+                <p className="aiwizard-hint" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <IconLock size={12} /> API key được lưu cục bộ trên máy bạn.
+                </p>
+                <p className="aiwizard-hint" style={{ marginTop: "4px" }}>
                   <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
                     Lấy API key tại đây (nạp ~2$ dùng thoải mái) →
                   </a>
@@ -425,12 +439,13 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                     className="aiwizard-toggle-btn"
                     onClick={() => setShowGeminiKey(!showGeminiKey)}
                   >
-                    {showGeminiKey ? "🙈" : "👁️"}
+                    {showGeminiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                   </button>
                 </div>
-                <p className="aiwizard-hint">
-                  🔒 API key được lưu cục bộ trên máy bạn.
-                  <br />
+                <p className="aiwizard-hint" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <IconLock size={12} /> API key được lưu cục bộ trên máy bạn.
+                </p>
+                <p className="aiwizard-hint" style={{ marginTop: "4px" }}>
                   <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
                     Lấy API key tại đây (Miễn phí rate limit) →
                   </a>
@@ -453,12 +468,13 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                     className="aiwizard-toggle-btn"
                     onClick={() => setShowClaudeKey(!showClaudeKey)}
                   >
-                    {showClaudeKey ? "🙈" : "👁️"}
+                    {showClaudeKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                   </button>
                 </div>
-                <p className="aiwizard-hint">
-                  🔒 API key được lưu cục bộ trên máy bạn.
-                  <br />
+                <p className="aiwizard-hint" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <IconLock size={12} /> API key được lưu cục bộ trên máy bạn.
+                </p>
+                <p className="aiwizard-hint" style={{ marginTop: "4px" }}>
                   <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
                     Lấy API key tại đây →
                   </a>
@@ -483,8 +499,8 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         {/* Local setup */}
         {step === "local" && (
           <div className="aiwizard-step">
-            <h2 className="aiwizard-title" style={{ fontSize: "1.3rem" }}>
-              🔒 Cấu hình Local
+            <h2 className="aiwizard-title" style={{ fontSize: "1.3rem", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <IconLock size={20} /> Cấu hình Local
             </h2>
 
             {localStatus === "model_missing" ? (
@@ -502,6 +518,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
                   <button
                     className="aiwizard-btn-primary"
+                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
                     onClick={() => {
                       const modelMap: Record<string, string> = {
                         weak: specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b",
@@ -511,17 +528,18 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                       startPullingModel(modelMap[selectedTier] || "qwen2.5:7b");
                     }}
                   >
-                    🚀 Tải model tự động trực tiếp trên app
+                    <IconZap size={16} /> Tải model tự động trực tiếp trên app
                   </button>
                   <button
                     className="aiwizard-btn-skip"
                     onClick={handleSaveLocal}
                     style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px",
                       padding: "10px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
                       background: "transparent", cursor: "pointer", color: "var(--color-text)", fontWeight: "bold"
                     }}
                   >
-                    🔄 Tôi đã tự chạy 'ollama pull' thủ công - Kiểm tra lại
+                    <IconRefresh size={16} /> Tôi đã tự chạy 'ollama pull' thủ công - Kiểm tra lại
                   </button>
                   <button
                     className="aiwizard-btn-skip"
@@ -550,9 +568,9 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 <div className="aiwizard-tiers">
                   {["weak", "medium", "strong"].map((tier) => {
                     const labels: Record<string, string> = {
-                      weak: "🔹 Nhẹ (4-8GB RAM)",
-                      medium: "🔸 Trung bình (8-16GB)",
-                      strong: "🔶 Mạnh (16GB+)",
+                      weak: "Nhẹ (4-8GB RAM)",
+                      medium: "Trung bình (8-16GB)",
+                      strong: "Mạnh (16GB+)",
                     };
                     const models: Record<string, string> = {
                       weak: specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b",
@@ -599,7 +617,9 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         {/* Done */}
         {step === "done" && (
           <div className="aiwizard-step">
-            <div className="aiwizard-done-icon">🎉</div>
+            <div className="aiwizard-done-icon">
+              <IconParty size={48} />
+            </div>
             <h2 className="aiwizard-title">Sẵn sàng!</h2>
             <p className="aiwizard-desc">
               Bạn đã cấu hình xong ResearchMind VN.

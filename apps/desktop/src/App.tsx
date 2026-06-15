@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { IconBrain, IconSearch, IconBookmark, IconChat, IconSettings, IconLock } from "./components/Icons";
+import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
 import { SearchView } from "./components/search/SearchView";
 import { ChatView } from "./components/chat/ChatView";
@@ -73,7 +73,7 @@ function App() {
         <div className="header-right">
           {[
             { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
-            { tab: "library" as Tab, icon: IconBookmark, label: "Thư viện" },
+            { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
             { tab: "settings" as Tab, icon: IconSettings, label: "" },
           ].map(({ tab, icon: Icon, label }) => (

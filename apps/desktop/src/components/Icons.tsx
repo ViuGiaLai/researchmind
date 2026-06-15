@@ -29,6 +29,16 @@ import {
   Container,
   Bookmark,
   Upload,
+  Zap,
+  Key,
+  Monitor,
+  Cpu,
+  Eye,
+  EyeOff,
+  PartyPopper,
+  Library,
+  BookOpen,
+  Book,
   type LucideIcon,
 } from "lucide-react";
 
@@ -97,6 +107,16 @@ export const IconDocker = wrapIcon(Container, "icon-docker");
 export const IconBookmark = wrapIcon(Bookmark, "icon-bookmark");
 export const IconUpload = wrapIcon(Upload, "icon-upload");
 export const IconDashboard = wrapIcon(BarChart3, "icon-dashboard", true);
+export const IconZap = wrapIcon(Zap, "icon-zap", true);
+export const IconKey = wrapIcon(Key, "icon-key");
+export const IconMonitor = wrapIcon(Monitor, "icon-monitor");
+export const IconCpu = wrapIcon(Cpu, "icon-cpu");
+export const IconEye = wrapIcon(Eye, "icon-eye");
+export const IconEyeOff = wrapIcon(EyeOff, "icon-eye-off");
+export const IconParty = wrapIcon(PartyPopper, "icon-party", true);
+export const IconLibrary = wrapIcon(Library, "icon-library", true);
+export const IconBook = wrapIcon(Book, "icon-book");
+export const IconBookOpen = wrapIcon(BookOpen, "icon-book-open");
 
 // ---------------------------------------------------------------------------
 // Non-wrapped icons with special behaviour

@@ -7,12 +7,24 @@ import {
   IconTrash,
   IconFileText,
   IconSpinner,
-  IconBookmark,
   IconChat,
   IconUpload,
+  IconLibrary,
+  IconBookOpen,
+  IconCheck,
 } from "../Icons";
 
 const PAGE_SIZE = 20;
+
+const renderStatusIcon = (status: string, size = 16) => {
+  if (status === "read") {
+    return <IconCheck size={size} style={{ color: "var(--color-success, #22c55e)" }} />;
+  }
+  if (status === "reading") {
+    return <IconBookOpen size={size} style={{ color: "var(--color-warning, #eab308)" }} />;
+  }
+  return <IconFileText size={size} style={{ color: "var(--color-text-muted, #94a3b8)" }} />;
+};
 
 export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }> = ({ onStartChat }) => {
   const [papers, setPapers] = useState<Paper[]>([]);
@@ -102,7 +114,7 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
         <div className="library-header">
           <div className="library-header-left">
             <h2 className="library-title">
-              <IconBookmark size={22} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
+              <IconLibrary size={22} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
               Thư viện
             </h2>
             <span className="library-count">{total} papers</span>
@@ -167,8 +179,8 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
               <div className="library-card-content">
                 <div className="library-card-header">
                   <span className="library-card-title">{p.title || p.filename}</span>
-                  <span className="library-card-status">
-                    {p.read_status === "read" ? "✅" : p.read_status === "reading" ? "📖" : "📄"}
+                  <span className="library-card-status" title={p.read_status === "read" ? "Đã đọc" : p.read_status === "reading" ? "Đang đọc" : "Chưa đọc"}>
+                    {renderStatusIcon(p.read_status)}
                   </span>
                 </div>
                 <div className="library-card-meta">
@@ -182,8 +194,8 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
                 </div>
               </div>
               <div className="library-card-actions" onClick={(e) => e.stopPropagation()}>
-                <button className="library-action-btn" onClick={() => toggleReadStatus(p.id, p.read_status)} title="Đánh dấu đã đọc">
-                  {p.read_status === "read" ? "✅" : p.read_status === "reading" ? "📖" : "📄"}
+                <button className="library-action-btn" onClick={() => toggleReadStatus(p.id, p.read_status)} title="Đổi trạng thái đọc">
+                  {renderStatusIcon(p.read_status)}
                 </button>
                 <button className="library-action-btn" onClick={() => toggleStar(p.id, p.starred)} title="Yêu thích">
                   <IconStar size={16} className={p.starred ? "starred" : ""} />
