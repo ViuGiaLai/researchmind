@@ -29,7 +29,7 @@
   border-radius: var(--radius-lg, 16px);
   padding: var(--space-xl, 32px);
   text-align: center;
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.15);
   max-width: 450px;
   width: 90%;
   animation: wow-pulse 2s infinite alternate;
@@ -57,8 +57,8 @@
 }
 
 @keyframes wow-pulse {
-  0% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
-  100% { box-shadow: 0 0 35px rgba(139, 92, 246, 0.55); }
+  0% { box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1); }
+  100% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2); }
 }
 
 /* State 1: Landing Dashboard */
@@ -122,9 +122,9 @@
 .wow-dropzone:hover, .wow-dropzone.drag-over {
   border-color: var(--color-primary, #8b5cf6);
   background: rgba(30, 41, 59, 0.65);
-  box-shadow: 0 0 25px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 8px 16px rgba(139, 92, 246, 0.15);
   transform: translateY(-2px);
-}
+}}
 
 .wow-dropzone-icon {
   margin-bottom: var(--space-md, 16px);
@@ -697,6 +697,74 @@
   border-color: var(--color-primary-hover, #9f7aea);
 }
 
+/* Action Buttons */
+.wow-action-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-lg, 24px);
+  margin-top: var(--space-xl, 32px);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.wow-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-lg, 24px) var(--space-md, 16px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md, 10px);
+  color: var(--color-text, #f8fafc);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition-normal, 250ms) ease;
+  backdrop-filter: blur(4px);
+}
+
+.wow-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.wow-action-icon {
+  font-size: 1.8rem;
+}
+
+.wow-action-label {
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+/* Empty State */
+.wow-library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md, 16px);
+  text-align: center;
+}
+
+.wow-library-empty p {
+  margin: 0;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.wow-library-empty p:first-child {
+  font-size: 1.1rem;
+  color: var(--color-text, #f8fafc);
+  font-weight: 600;
+}
+
+.wow-empty-hint {
+  font-size: 1rem !important;
+  color: var(--color-text, #f8fafc) !important;
+}
+
 /* Fade In Animation */
 .animate-fade-in {
   animation: fadeIn var(--transition-normal, 250ms) ease forwards;
@@ -705,4 +773,48 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Hover effects for specific Action Buttons */
+.wow-action-summary:hover {
+  border-color: var(--color-success, #10b981) !important;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25) !important;
+}
+
+.wow-action-critique:hover {
+  border-color: var(--color-error, #ef4444) !important;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.25) !important;
+}
+
+.wow-action-debate:hover {
+  border-color: var(--color-primary, #8b5cf6) !important;
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25) !important;
+}
+
+/* Focused Highlight animations for Report Cards */
+.wow-card-section.focused-highlight {
+  animation: focused-glow-anim 2.5s ease-in-out forwards;
+}
+
+@keyframes focused-glow-anim {
+  0% {
+    transform: scale(1);
+    border-color: var(--color-primary, #8b5cf6);
+    box-shadow: 0 0 24px rgba(139, 92, 246, 0.4);
+  }
+  30% {
+    transform: scale(1.02);
+    border-color: var(--color-primary, #8b5cf6);
+    box-shadow: 0 0 32px rgba(139, 92, 246, 0.6);
+  }
+  70% {
+    transform: scale(1.02);
+    border-color: var(--color-primary, #8b5cf6);
+    box-shadow: 0 0 32px rgba(139, 92, 246, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    border-color: rgba(56, 66, 82, 0.6);
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
+  }
 }

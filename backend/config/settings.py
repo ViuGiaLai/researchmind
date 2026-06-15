@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     
     # Onboarding setup completed state
     setup_completed: bool = False
+    
+    # Zotero data directory (persisted)
+    zotero_data_dir: str = ""
 
     class Config:
         env_file = ".env"

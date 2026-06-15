@@ -1,0 +1,272 @@
+/* ─── Auto-Cite Panel ────────────────────────────────── */
+.cite-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  animation: fadeIn 0.3s ease;
+}
+
+.cite-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(167, 139, 250, 0.04));
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.cite-panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.cite-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.cite-style-selector {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cite-style-btn {
+  background: var(--color-surface);
+  border: none;
+  border-right: 1px solid var(--color-border);
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cite-style-btn:last-child {
+  border-right: none;
+}
+
+.cite-style-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.cite-style-btn.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.cite-copy-all-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cite-copy-all-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.cite-export-bib-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cite-export-bib-btn:hover {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.cite-close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.cite-close-btn:hover {
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.cite-panel-list {
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.cite-item {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  align-items: flex-start;
+}
+
+.cite-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.cite-item-number {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  min-width: 28px;
+  text-align: right;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.cite-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cite-item-formatted {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.cite-item-formatted em {
+  font-style: italic;
+}
+
+.cite-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.cite-item-doi {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cite-item-doi:hover {
+  text-decoration: underline;
+}
+
+.cite-copy-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.cite-copy-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-highlight);
+}
+
+/* Chat cite button */
+.chat-view-cite-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  transition: all var(--transition-fast);
+}
+
+.chat-view-cite-btn:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.chat-view-cite-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Export button group in header */
+.chat-view-export-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.chat-view-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--color-border);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.chat-view-export-btn:last-child {
+  border-right: none;
+}
+
+.chat-view-export-btn:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-success);
+}
+
+.chat-view-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-view-export-btn-pdf:hover:not(:disabled) {
+  color: #ef4444 !important; /* Red accent for PDF */
+}

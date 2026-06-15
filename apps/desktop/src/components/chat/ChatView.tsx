@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { api, ChatResponse } from "../../lib/api";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { api, ChatResponse, CitationEntry } from "../../lib/api";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
   IconBrain,
@@ -9,6 +9,8 @@ import {
   IconSpinner,
   IconBulb,
   IconFileText,
+  IconStar,
+  IconBook,
 } from "../Icons";
 
 interface Message {
@@ -18,13 +20,40 @@ interface Message {
   model_used?: string;
 }
 
-export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: string; initialMode?: "chat" | "review" | "critique" | "debate" }> = ({ initialPaperIds, initialQuery, initialMode = "chat" }) => {
+type CitationStyle = "apa" | "ieee" | "vancouver";
+
+const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
+  apa: "APA 7th",
+  ieee: "IEEE",
+  vancouver: "Vancouver",
+};
+
+export const ChatView: React.FC<{
+  initialPaperIds?: string[];
+  initialQuery?: string;
+  initialMode?: "chat" | "review" | "critique" | "debate";
+}> = ({ initialPaperIds, initialQuery, initialMode = "chat" }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [paperIds] = useState<string[]>(initialPaperIds || []);
-  const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number; mode: string } | null>(null);
+  const [usage, setUsage] = useState<{
+    used: number;
+    limit: number;
+    remaining: number;
+    mode: string;
+  } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Auto-cite state
+  const [citeStyle, setCiteStyle] = useState<CitationStyle>("apa");
+  const [citations, setCitations] = useState<CitationEntry[]>([]);
+  const [bibliography, setBibliography] = useState("");
+  const [citeLoading, setCiteLoading] = useState(false);
+  const [showCitePanel, setShowCitePanel] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [exportingSynthesis, setExportingSynthesis] = useState(false);
 
   useEffect(() => {
     loadUsage();
@@ -65,13 +94,25 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
     try {
       let res: ChatResponse;
       if (initialMode === "review") {
-        res = await api.review(text, paperIds.length > 0 ? paperIds : undefined);
+        res = await api.review(
+          text,
+          paperIds.length > 0 ? paperIds : undefined,
+        );
       } else if (initialMode === "critique") {
-        res = await api.critique(text, paperIds.length > 0 ? paperIds : undefined);
+        res = await api.critique(
+          text,
+          paperIds.length > 0 ? paperIds : undefined,
+        );
       } else if (initialMode === "debate") {
-        res = await api.debate(text, paperIds.length > 0 ? paperIds : undefined);
+        res = await api.debate(
+          text,
+          paperIds.length > 0 ? paperIds : undefined,
+        );
       } else {
-        res = await api.chat(text, paperIds.length > 0 ? paperIds : undefined);
+        res = await api.chat(
+          text,
+          paperIds.length > 0 ? paperIds : undefined,
+        );
       }
       const assistantMsg: Message = {
         role: "assistant",
@@ -80,7 +121,7 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
         model_used: res.model_used,
       };
       setMessages((prev) => [...prev, assistantMsg]);
-      loadUsage(); // Update usage counts
+      loadUsage();
     } catch (e) {
       const errMsg: Message = {
         role: "assistant",
@@ -101,7 +142,142 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
 
   const clearChat = () => {
     setMessages([]);
+    setCitations([]);
+    setBibliography("");
+    setShowCitePanel(false);
   };
+
+  // ─── Auto-Cite Handlers ────────────────────────────────────
+
+  const generateCitations = useCallback(async () => {
+    const ids = paperIds.length > 0 ? paperIds : [];
+    if (ids.length === 0) return;
+
+    setCiteLoading(true);
+    try {
+      const res = await api.citePapers(ids, citeStyle);
+      setCitations(res.citations);
+      setBibliography(res.bibliography);
+      setShowCitePanel(true);
+    } catch (e) {
+      console.error("Failed to generate citations:", e);
+    } finally {
+      setCiteLoading(false);
+    }
+  }, [paperIds, citeStyle]);
+
+  const changeCiteStyle = useCallback(
+    async (newStyle: CitationStyle) => {
+      setCiteStyle(newStyle);
+      if (showCitePanel && paperIds.length > 0) {
+        setCiteLoading(true);
+        try {
+          const res = await api.citePapers(paperIds, newStyle);
+          setCitations(res.citations);
+          setBibliography(res.bibliography);
+        } catch (e) {
+          console.error("Failed to regenerate citations:", e);
+        } finally {
+          setCiteLoading(false);
+        }
+      }
+    },
+    [showCitePanel, paperIds],
+  );
+
+  const handleExportBibtex = useCallback(async () => {
+    if (paperIds.length === 0) return;
+    try {
+      const res = await api.citePapers(paperIds, "bibtex");
+      if (!res.bibliography) return;
+
+      // Create a blob and trigger download
+      const blob = new Blob([res.bibliography], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "researchmind-export.bib";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to export BibTeX:", e);
+    }
+  }, [paperIds]);
+
+  const triggerSynthesisExport = async (content: string, format: string) => {
+    setExportingSynthesis(true);
+    try {
+      let title = "Synthesis_Report";
+      if (initialMode === "review") {
+        title = "Literature_Review_Report";
+      } else if (initialMode === "critique") {
+        title = "Paper_Critique_Report";
+      } else if (initialMode === "debate") {
+        title = "AI_Debate_Transcript";
+      }
+      
+      const blob = await api.exportSynthesis(title, content, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}_${new Date().toISOString().slice(0, 10)}.${format === "md" ? "md" : format === "docx" ? "docx" : format === "pdf" ? "pdf" : "html"}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to export synthesis report:", e);
+      alert("❌ Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.");
+    } finally {
+      setExportingSynthesis(false);
+    }
+  };
+
+  /** Export all assistant messages combined into a single synthesis document */
+  const handleHeaderExport = async (format: string) => {
+    const assistantMessages = messages.filter(m => m.role === "assistant" && m.content);
+    if (assistantMessages.length === 0) return;
+
+    const combinedContent = assistantMessages
+      .map((msg, i) => {
+        const header = i === 0 ? "# Synthesis Report" : `---\n## Phần ${i + 1}`;
+        const modelInfo = msg.model_used ? `*Model: ${msg.model_used}*` : "";
+        return `${header}\n${modelInfo}\n\n${msg.content}`;
+      })
+      .join("\n\n");
+
+    await triggerSynthesisExport(combinedContent, format);
+  };
+
+  const copyToClipboard = useCallback(async (text: string, idx?: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (idx !== undefined) {
+        setCopiedIdx(idx);
+        setTimeout(() => setCopiedIdx(null), 2000);
+      } else {
+        setCopiedAll(true);
+        setTimeout(() => setCopiedAll(false), 2000);
+      }
+    } catch {
+      // fallback: select + execCommand
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      if (idx !== undefined) {
+        setCopiedIdx(idx);
+        setTimeout(() => setCopiedIdx(null), 2000);
+      } else {
+        setCopiedAll(true);
+        setTimeout(() => setCopiedAll(false), 2000);
+      }
+    }
+  }, []);
 
   const suggestedQuestions = [
     "Tóm tắt các paper trong thư viện",
@@ -125,20 +301,52 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
         <div className="debate-columns">
           <div className="debate-column debate-a">
             <h4>AI A (Ủng hộ)</h4>
-            {parsed.aiA?.main && <div className="debate-item"><strong>Luận điểm:</strong> {parsed.aiA.main}</div>}
-            {parsed.aiA?.rebuttal && <div className="debate-item"><strong>Phản biện:</strong> {parsed.aiA.rebuttal}</div>}
-            {parsed.aiA?.citations && parsed.aiA.citations.length > 0 && (
-              <div className="debate-citations">{parsed.aiA.citations.map((c, i) => (<div key={i}>📚 {c.source}{c.page ? `, trang ${c.page}` : ''}</div>))}</div>
+            {parsed.aiA?.main && (
+              <div className="debate-item">
+                <strong>Luận điểm:</strong> {parsed.aiA.main}
+              </div>
             )}
+            {parsed.aiA?.rebuttal && (
+              <div className="debate-item">
+                <strong>Phản biện:</strong> {parsed.aiA.rebuttal}
+              </div>
+            )}
+            {parsed.aiA?.citations &&
+              parsed.aiA.citations.length > 0 && (
+                <div className="debate-citations">
+                  {parsed.aiA.citations.map((c, i) => (
+                    <div key={i}>
+                      📚 {c.source}
+                      {c.page ? `, trang ${c.page}` : ""}
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
 
           <div className="debate-column debate-b">
             <h4>AI B (Phản biện)</h4>
-            {parsed.aiB?.main && <div className="debate-item"><strong>Luận điểm:</strong> {parsed.aiB.main}</div>}
-            {parsed.aiB?.rebuttal && <div className="debate-item"><strong>Phản biện:</strong> {parsed.aiB.rebuttal}</div>}
-            {parsed.aiB?.citations && parsed.aiB.citations.length > 0 && (
-              <div className="debate-citations">{parsed.aiB.citations.map((c, i) => (<div key={i}>📚 {c.source}{c.page ? `, trang ${c.page}` : ''}</div>))}</div>
+            {parsed.aiB?.main && (
+              <div className="debate-item">
+                <strong>Luận điểm:</strong> {parsed.aiB.main}
+              </div>
             )}
+            {parsed.aiB?.rebuttal && (
+              <div className="debate-item">
+                <strong>Phản biện:</strong> {parsed.aiB.rebuttal}
+              </div>
+            )}
+            {parsed.aiB?.citations &&
+              parsed.aiB.citations.length > 0 && (
+                <div className="debate-citations">
+                  {parsed.aiB.citations.map((c, i) => (
+                    <div key={i}>
+                      📚 {c.source}
+                      {c.page ? `, trang ${c.page}` : ""}
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
         </div>
 
@@ -167,12 +375,80 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
     <div className="chat-view">
       <div className="chat-view-header">
         <h2 className="chat-view-title">
-          <IconBrain size={22} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
+          <IconBrain
+            size={22}
+            className="icon-gradient"
+            style={{ verticalAlign: "middle", marginRight: 8 }}
+          />
           Chat với Paper
         </h2>
         <div className="chat-view-header-actions">
+          {/* Auto-Cite button */}
+          {paperIds.length > 0 && (
+            <button
+              className="chat-view-cite-btn"
+              onClick={generateCitations}
+              disabled={citeLoading}
+              title="Tạo citation từ papers đã chọn"
+            >
+              {citeLoading ? (
+                <IconSpinner size={14} />
+              ) : (
+                <IconStar size={14} />
+              )}
+              📝 Citation
+            </button>
+          )}
+          {/* Export buttons in header — prominent position */}
+          {messages.filter(m => m.role === "assistant").length > 0 && (
+            <div className="chat-view-export-group">
+              <button
+                className="chat-view-export-btn"
+                onClick={() => handleHeaderExport("md")}
+                disabled={exportingSynthesis}
+                title="Tải báo cáo Markdown"
+              >
+                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
+                Markdown
+              </button>
+              <button
+                className="chat-view-export-btn"
+                onClick={() => handleHeaderExport("docx")}
+                disabled={exportingSynthesis}
+                title="Tải báo cáo Word"
+              >
+                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
+                Word
+              </button>
+              <button
+                className="chat-view-export-btn"
+                onClick={() => handleHeaderExport("html")}
+                disabled={exportingSynthesis}
+                title="Tải báo cáo HTML"
+              >
+                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
+                HTML
+              </button>
+              <button
+                className="chat-view-export-btn chat-view-export-btn-pdf"
+                onClick={() => handleHeaderExport("pdf")}
+                disabled={exportingSynthesis}
+                title="Tải báo cáo PDF"
+              >
+                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
+                PDF
+              </button>
+            </div>
+          )}
           {usage && usage.mode === "cloud_free" && (
-            <span className="chat-view-papers-badge" style={{ background: "rgba(99, 102, 241, 0.08)", color: "var(--color-primary, #6366f1)", border: "1px solid rgba(99, 102, 241, 0.2)" }}>
+            <span
+              className="chat-view-papers-badge"
+              style={{
+                background: "rgba(99, 102, 241, 0.08)",
+                color: "var(--color-primary, #6366f1)",
+                border: "1px solid rgba(99, 102, 241, 0.2)",
+              }}
+            >
               ⚡ Free Cloud: {usage.used}/{usage.limit} câu
             </span>
           )}
@@ -182,7 +458,14 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
             </span>
           )}
           {initialMode === "review" && (
-            <span className="chat-view-papers-badge" style={{ background: "rgba(16, 185, 129, 0.08)", color: "var(--color-success, #10b981)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+            <span
+              className="chat-view-papers-badge"
+              style={{
+                background: "rgba(16, 185, 129, 0.08)",
+                color: "var(--color-success, #10b981)",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+              }}
+            >
               ✅ Review tự động
             </span>
           )}
@@ -195,11 +478,14 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
       </div>
 
       <div className="chat-view-messages" ref={listRef}>
-        {messages.length === 0 && (
+        {messages.length === 0 && !showCitePanel && (
           <div className="chat-view-empty">
             <IconBrain size={56} className="icon-gradient" />
             <h3>Hỏi về research của bạn</h3>
-            <p>Chọn paper trong thư viện hoặc hỏi tất cả. AI sẽ trả lời có trích dẫn nguồn.</p>
+            <p>
+              Chọn paper trong thư viện hoặc hỏi tất cả. AI sẽ trả lời có
+              trích dẫn nguồn.
+            </p>
             <div className="chat-view-suggestions">
               {suggestedQuestions.map((q, i) => (
                 <button
@@ -217,31 +503,139 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
           </div>
         )}
 
+        {/* ─── Citation Panel ──────────────────────────────────── */}
+        {showCitePanel && citations.length > 0 && (
+          <div className="cite-panel">
+            <div className="cite-panel-header">
+              <div className="cite-panel-title">
+                <IconBook size={18} />
+                <span>Bibliography ({CITATION_STYLE_LABELS[citeStyle]})</span>
+              </div>
+              <div className="cite-panel-actions">
+                <div className="cite-style-selector">
+                  {(
+                    Object.keys(CITATION_STYLE_LABELS) as CitationStyle[]
+                  ).map((style) => (
+                    <button
+                      key={style}
+                      className={`cite-style-btn ${citeStyle === style ? "active" : ""}`}
+                      onClick={() => changeCiteStyle(style)}
+                    >
+                      {CITATION_STYLE_LABELS[style]}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="cite-copy-all-btn"
+                  onClick={() => copyToClipboard(bibliography)}
+                >
+                  {copiedAll ? "✓ Đã copy" : "📋 Copy tất cả"}
+                </button>
+                <button
+                  className="cite-export-bib-btn"
+                  onClick={handleExportBibtex}
+                  title="Export BibTeX (.bib)"
+                >
+                  📥 .bib
+                </button>
+                <button
+                  className="cite-close-btn"
+                  onClick={() => setShowCitePanel(false)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="cite-panel-list">
+              {citations.map((c, i) => (
+                <div key={c.paper_id || i} className="cite-item">
+                  <div className="cite-item-number">[{i + 1}]</div>
+                  <div className="cite-item-content">
+                    <div
+                      className="cite-item-formatted"
+                      dangerouslySetInnerHTML={{
+                        __html: c.formatted.replace(
+                          /\*(.+?)\*/g,
+                          "<em>$1</em>",
+                        ),
+                      }}
+                    />
+                    <div className="cite-item-meta">
+                      {c.authors.slice(0, 3).join(", ")}
+                      {c.authors.length > 3 ? " et al." : ""}
+                      {c.doi && (
+                        <a
+                          className="cite-item-doi"
+                          href={`https://doi.org/${c.doi}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          DOI ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    className="cite-copy-btn"
+                    onClick={() => copyToClipboard(c.formatted, i)}
+                    title="Copy citation"
+                  >
+                    {copiedIdx === i ? "✓" : "📋"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Chat Messages ───────────────────────────────────── */}
         {messages.map((msg, i) => (
-          <div key={i} className={`chat-view-msg ${msg.role === "user" ? "msg-user" : "msg-assistant"}`}>
+          <div
+            key={i}
+            className={`chat-view-msg ${msg.role === "user" ? "msg-user" : "msg-assistant"}`}
+          >
             <div className="chat-view-avatar">
-              {msg.role === "user" ? <IconUser size={18} /> : <IconBrain size={18} />}
+              {msg.role === "user" ? (
+                <IconUser size={18} />
+              ) : (
+                <IconBrain size={18} />
+              )}
             </div>
             <div className="chat-view-bubble">
               {initialMode === "debate" && msg.role === "assistant" ? (
                 renderDebate(msg.content)
               ) : (
                 <>
-                  <div className="chat-view-text">{formatContent(msg.content)}</div>
+                  <div className="chat-view-text">
+                    {formatContent(msg.content)}
+                  </div>
                   {msg.citations && msg.citations.length > 0 && (
                     <div className="chat-view-citations">
                       <strong>📚 Nguồn:</strong>
                       {msg.citations.map((c, j) => (
                         <span key={j} className="chat-view-citation">
-                          [{c.source}]{c.page ? ` (trang ${c.page})` : ""}
+                          [{c.source}]
+                          {c.page ? ` (trang ${c.page})` : ""}
                         </span>
                       ))}
                     </div>
                   )}
-                  {msg.model_used && (
-                    <div className="chat-view-model">🤖 {msg.model_used}</div>
-                  )}
                 </>
+              )}
+
+              {msg.role === "assistant" && (
+                <div className="chat-view-model-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "8px", fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)" }}>
+                  <div>{msg.model_used ? `🤖 ${msg.model_used}` : "🤖 Assistant"}</div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      onClick={() => copyToClipboard(msg.content)}
+                      style={{ background: "transparent", border: "none", color: "var(--color-text-muted, #94a3b8)", cursor: "pointer", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      title="Sao chép nội dung"
+                    >
+                      📋 Sao chép
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -249,7 +643,9 @@ export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: str
 
         {loading && (
           <div className="chat-view-msg msg-assistant">
-            <div className="chat-view-avatar"><IconBrain size={18} /></div>
+            <div className="chat-view-avatar">
+              <IconBrain size={18} />
+            </div>
             <div className="chat-view-bubble">
               <div className="chat-typing">
                 <span className="chat-typing-dot" />

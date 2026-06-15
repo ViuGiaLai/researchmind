@@ -54,6 +54,8 @@ from search.vector import VectorSearch
 from search.hybrid import HybridSearch
 from chat.retriever import Retriever
 from chat.generator import Generator
+from export import router as export_router
+from zotero_import import router as zotero_import_router
 
 
 # ─── Global state ────────────────────────────────────────────────
@@ -140,6 +142,9 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Search engines initialized")
 
+    # Store engine in app.state for dependency injection in routers
+    app.state.engine = state.engine
+
     # RAG components
     state.retriever = Retriever(state.hybrid)
     state.generator = Generator(
@@ -184,6 +189,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register export & import routes
+app.include_router(export_router)
+app.include_router(zotero_import_router)
 
 
 # ─── Health ──────────────────────────────────────────────────────
@@ -1020,9 +1029,15 @@ Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạ
         top_k=settings.top_k_retrieval,
     )
 
+    # For debate: allow general knowledge if no papers/context available
+    context_for_generation = retrieval.context_text
+    if not context_for_generation.strip():
+        # Fallback: allow LLM to generate debate from general knowledge
+        context_for_generation = "[Không có tài liệu được chọn. Hãy tạo cuộc tranh luận dựa trên kiến thức chung.]"
+
     generation = state.generator.generate(
         query=full_query,
-        context_text=retrieval.context_text,
+        context_text=context_for_generation,
     )
 
     session = get_session(state.engine)
@@ -1213,6 +1228,7 @@ async def get_settings():
         "top_k_retrieval": settings.top_k_retrieval,
         "embedding_model": settings.embedding_model,
         "setup_completed": settings.setup_completed,
+        "zotero_data_dir": getattr(settings, "zotero_data_dir", ""),
     }
 
 
@@ -2434,6 +2450,425 @@ Nếu không có paper nào phù hợp, hãy gợi ý:
                 "reading": len(reading_papers),
                 "read": len(read_papers),
             },
+        }
+    finally:
+        session.close()
+
+
+# ─── Zotero Auto-Detect ────────────────────────────────────────
+
+@app.get("/api/zotero/detect")
+async def detect_zotero_data_dir():
+    """
+    Auto-detect Zotero data directory on Windows.
+    
+    Detection strategy:
+    1. Read prefs.js in Zotero profile dir → look for "extensions.zotero.dataDir"
+    2. Parse profiles.ini to find active profile, then read prefs.js
+    3. Fallback to default: %USERPROFILE%/Zotero
+    
+    Returns:
+    {
+        "found": bool,
+        "path": str or null,
+        "method": str ("prefs_js" / "default" / "not_found"),
+        "has_storage": bool,
+        "message": str,
+    }
+    """
+    import configparser
+    import os
+
+    detected_path = None
+    method = "not_found"
+
+    if os.name != "nt":
+        return {
+            "found": False,
+            "path": None,
+            "method": "unsupported_os",
+            "has_storage": False,
+            "message": "Auto-detect chỉ hỗ trợ Windows.",
+        }
+
+    appdata = os.environ.get("APPDATA", "")
+    userprofile = os.environ.get("USERPROFILE", "")
+
+    if not appdata and userprofile:
+        appdata = str(Path(userprofile) / "AppData" / "Roaming")
+
+    # Zotero profile directories to check (Zotero 6 vs 7+)
+    candidates = [
+        Path(appdata) / "Zotero",                     # Zotero 6
+        Path(appdata) / "Zotero" / "Zotero",         # Zotero 7+
+    ]
+
+    for profiles_dir in candidates:
+        if not profiles_dir.exists():
+            continue
+
+        # Step 1: Parse profiles.ini to find the active profile dir
+        profile_dirs_to_check = []
+        profiles_ini = profiles_dir / "profiles.ini"
+        if profiles_ini.exists():
+            try:
+                ini = configparser.ConfigParser()
+                ini.read(str(profiles_ini))
+
+                # Find the default profile name from [General]
+                default_profile = ini.get("General", "Default", fallback=None)
+
+                # Iterate profile sections [Profile0], [Profile1], ...
+                for section in ini.sections():
+                    if not section.startswith("Profile"):
+                        continue
+                    profile_name = ini.get(section, "Name", fallback=None)
+                    profile_path = ini.get(section, "Path", fallback=None)
+                    is_relative = ini.get(section, "IsRelative", fallback="1")
+                    is_default = ini.get(section, "Default", fallback="0")
+
+                    if not profile_path:
+                        continue
+
+                    # Check if this is the default profile
+                    if default_profile and profile_name != default_profile and is_default != "1":
+                        continue
+
+                    # Resolve the profile directory
+                    if is_relative == "1":
+                        profile_dir = profiles_dir / profile_path
+                    else:
+                        profile_dir = Path(profile_path)
+
+                    if profile_dir.exists():
+                        profile_dirs_to_check.append(profile_dir)
+
+            except Exception:
+                pass
+
+        # Step 2: Also check all subdirectories for prefs.js directly
+        if not profile_dirs_to_check:
+            for item in profiles_dir.iterdir():
+                if item.is_dir() and (item / "prefs.js").exists():
+                    profile_dirs_to_check.append(item)
+
+        # Step 3: Read prefs.js in each profile dir for extensions.zotero.dataDir
+        for profile_dir in profile_dirs_to_check:
+            prefs_js = profile_dir / "prefs.js"
+            if not prefs_js.exists():
+                continue
+            try:
+                content = prefs_js.read_text(encoding="utf-8")
+                match = re.search(
+                    r'user_pref\s*\(\s*"extensions\.zotero\.dataDir"\s*,\s*"([^"]+)"\s*\)',
+                    content,
+                )
+                if match:
+                    detected_path = match.group(1)
+                    method = "prefs_js"
+                    break
+            except Exception:
+                pass
+
+        if detected_path:
+            break
+
+    # Fallback: Check default Zotero data directory
+    if not detected_path and userprofile:
+        default_path = Path(userprofile) / "Zotero"
+        if default_path.exists():
+            detected_path = str(default_path)
+            method = "default"
+
+    if not detected_path:
+        return {
+            "found": False,
+            "path": None,
+            "method": "not_found",
+            "has_storage": False,
+            "message": "Không tìm thấy thư mục Zotero data. Vui lòng nhập thủ công.",
+        }
+
+    detected = Path(detected_path)
+    has_storage = detected.exists() and (detected / "storage").exists()
+
+    return {
+        "found": True,
+        "path": str(detected.resolve()),
+        "method": method,
+        "has_storage": has_storage,
+        "message": f"Đã phát hiện thư mục Zotero: {detected_path}" if has_storage
+        else f"Đã phát hiện thư mục Zotero ({detected_path}), nhưng không tìm thấy thư mục storage/",
+    }
+
+
+@app.post("/api/zotero/save-path")
+async def save_zotero_path(body: dict):
+    """
+    Persist Zotero data directory path to settings so it doesn't need
+    to be re-detected every time.
+    """
+    path = body.get("path", "")
+    if not path or not path.strip():
+        raise HTTPException(status_code=400, detail="Path is required")
+
+    # Save to settings object
+    settings.zotero_data_dir = path.strip()
+
+    # Persist to DB
+    session = get_session(state.engine)
+    try:
+        setting = session.query(Setting).filter(Setting.key == "zotero_data_dir").first()
+        if setting:
+            setting.value = path.strip()
+        else:
+            session.add(Setting(key="zotero_data_dir", value=path.strip()))
+        session.commit()
+        logger.info(f"Saved Zotero data dir to settings: {path}")
+        return {"status": "saved", "path": path.strip()}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+# ─── Auto-Cite ──────────────────────────────────────────────
+
+@app.post("/api/papers/cite")
+async def generate_citations(body: dict):
+    """
+    Generate formatted academic citations for papers.
+    Supports APA, IEEE, Vancouver, BibTeX, and HTML styles.
+    """
+    paper_ids = body.get("paper_ids", [])
+    style = body.get("style", "apa")  # apa / ieee / vancouver
+
+    if not paper_ids:
+        return {"citations": [], "style": style, "message": "No paper IDs provided."}
+
+    import json
+
+    session = get_session(state.engine)
+    try:
+        citations = []
+        for pid in paper_ids:
+            paper = session.query(Paper).filter(Paper.id == pid).first()
+            if not paper:
+                continue
+
+            # Parse authors from JSON string
+            try:
+                authors_list = json.loads(paper.authors) if paper.authors else []
+            except (json.JSONDecodeError, TypeError):
+                authors_list = [a.strip() for a in paper.authors.split(",")] if paper.authors else ["Unknown"]
+
+            title = paper.title or paper.filename.replace(".pdf", "").replace("_", " ")
+            year = paper.year or "n.d."
+            doi = paper.doi or ""
+            pages = paper.page_count
+
+            # Format citation based on style
+            if style == "apa":
+                # APA 7th Edition format
+                if len(authors_list) == 0:
+                    author_str = "Unknown"
+                elif len(authors_list) == 1:
+                    author_str = authors_list[0]
+                elif len(authors_list) == 2:
+                    author_str = f"{authors_list[0]} & {authors_list[1]}"
+                elif len(authors_list) <= 20:
+                    author_str = ", ".join(authors_list[:-1]) + f", & {authors_list[-1]}"
+                else:
+                    author_str = ", ".join(authors_list[:19]) + f", ... {authors_list[-1]}"
+
+                formatted = f"{author_str} ({year}). *{title}*"
+                if pages:
+                    formatted += f" (pp. 1-{pages})"
+                formatted += "."
+                if doi:
+                    formatted += f" https://doi.org/{doi}"
+
+            elif style == "ieee":
+                # IEEE format
+                if len(authors_list) == 0:
+                    author_str = "Unknown"
+                elif len(authors_list) <= 3:
+                    author_str = ", ".join(authors_list)
+                else:
+                    author_str = ", ".join(authors_list[:3]) + ", et al."
+
+                formatted = f"{author_str}, \"{title}\", {year}"
+                if pages:
+                    formatted += f", pp. 1-{pages}"
+                formatted += "."
+                if doi:
+                    formatted += f" doi: {doi}."
+
+            elif style == "vancouver":
+                # Vancouver format
+                if len(authors_list) == 0:
+                    author_str = "Unknown"
+                elif len(authors_list) <= 6:
+                    author_str = ", ".join(authors_list)
+                else:
+                    author_str = ", ".join(authors_list[:6]) + ", et al."
+
+                formatted = f"{author_str}. {title}. {year}"
+                if pages:
+                    formatted += f"; 1-{pages}"
+                formatted += "."
+                if doi:
+                    formatted += f" doi: {doi}."
+
+            elif style == "bibtex":
+                # BibTeX format — generate a @article{...} entry
+                # Generate citation key: first_author_lastname + year
+                if len(authors_list) > 0:
+                    first_author = authors_list[0]
+                    if ", " in first_author:
+                        last_name = first_author.split(",")[0].strip()
+                    else:
+                        parts = first_author.strip().split()
+                        last_name = parts[-1] if parts else "unknown"
+                    cite_key = re.sub(r'[^a-zA-Z0-9_]', '', last_name.lower())[:20]
+                else:
+                    cite_key = "unknown"
+                year_bib = str(year) if year != "n.d." else "n.d."
+                if year_bib != "n.d.":
+                    cite_key += year_bib
+
+                # Format authors as "Last, First and Last, First"
+                bibtex_authors = []
+                for a in authors_list:
+                    a = a.strip()
+                    if ", " in a:
+                        bibtex_authors.append(a)
+                    else:
+                        parts = a.rsplit(" ", 1)
+                        if len(parts) == 2:
+                            bibtex_authors.append(f"{parts[1]}, {parts[0]}")
+                        else:
+                            bibtex_authors.append(a)
+                author_str_bib = " and ".join(bibtex_authors)
+
+                # Build BibTeX entry
+                formatted = f"@article{{{cite_key},\n"
+                if author_str_bib:
+                    formatted += f"  author = {{{author_str_bib}}},\n"
+                formatted += f"  title = {{{title}}},\n"
+                formatted += f"  year = {{{year_bib}}},\n"
+                if doi:
+                    formatted += f"  doi = {{{doi}}},\n"
+                if pages:
+                    formatted += f"  pages = {{1--{pages}}},\n"
+                formatted += "}"
+
+            elif style == "html":
+                # HTML format — build a full HTML page for the bibliography
+                # We'll collect all entries and produce a single HTML document at the end
+                # For each citation, build the entry HTML
+                year_str = str(year) if year != "n.d." else "n.d."
+                doi_str = doi if doi else ""
+                pages_str = f"pp. 1–{pages}" if pages else ""
+
+                # Build author string for display
+                if len(authors_list) == 0:
+                    author_display = "Unknown"
+                elif len(authors_list) <= 3:
+                    author_display = ", ".join(authors_list)
+                else:
+                    author_display = ", ".join(authors_list[:3]) + " et al."
+
+                # HTML for each citation (numbered, clean academic style)
+                entry_html_lines = []
+                entry_html_lines.append(f'<div class="cite-entry">')
+                entry_html_lines.append(f'  <span class="cite-num">[{len(citations) + 1}]</span>')
+                entry_html_lines.append(f'  <div class="cite-body">')
+                entry_html_lines.append(f'    <span class="cite-authors">{_escape_html(author_display)}</span>')
+                entry_html_lines.append(f'    <span class="cite-title">{_escape_html(title)}</span>')
+                entry_html_lines.append(f'    <span class="cite-year">({year_str})</span>')
+                if pages_str:
+                    entry_html_lines.append(f'    <span class="cite-pages">{pages_str}</span>')
+                if doi_str:
+                    entry_html_lines.append(f'    <span class="cite-doi">DOI: <a href="https://doi.org/{_escape_html(doi_str)}" target="_blank">{_escape_html(doi_str)}</a></span>')
+                entry_html_lines.append(f'  </div>')
+                entry_html_lines.append(f'</div>')
+                formatted = "\n".join(entry_html_lines)
+
+            else:
+                # Vancouver format (default fallback)
+                if len(authors_list) == 0:
+                    author_str = "Unknown"
+                elif len(authors_list) <= 6:
+                    author_str = ", ".join(authors_list)
+                else:
+                    author_str = ", ".join(authors_list[:6]) + ", et al."
+
+                formatted = f"{author_str}. {title}. {year}"
+                if pages:
+                    formatted += f"; 1-{pages}"
+                formatted += "."
+                if doi:
+                    formatted += f" doi: {doi}."
+
+            citations.append({
+                "paper_id": paper.id,
+                "title": title,
+                "authors": authors_list,
+                "year": year,
+                "doi": doi,
+                "pages": pages,
+                "formatted": formatted,
+                "style": style,
+            })
+
+        # Generate bibliography block
+        if style == "html":
+            # Wrap individual entries in a full HTML document
+            entries = "\n".join([c["formatted"] for c in citations])
+            today = datetime.now().strftime("%Y-%m-%d %H:%M")
+            bibliography = f"""<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bibliography — ResearchMind VN</title>
+<style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ font-family: 'Georgia', 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #1a1a1a; background: #fff; padding: 40px; max-width: 800px; margin: 0 auto; }}
+  h1 {{ font-size: 22pt; font-weight: 700; color: #111; border-bottom: 2px solid #6366f1; padding-bottom: 10px; margin-bottom: 24px; }}
+  .cite-entry {{ display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }}
+  .cite-entry:last-child {{ border-bottom: none; }}
+  .cite-num {{ font-size: 10pt; font-weight: 700; color: #6366f1; min-width: 32px; text-align: right; flex-shrink: 0; padding-top: 2px; }}
+  .cite-body {{ flex: 1; display: flex; flex-direction: column; gap: 2px; }}
+  .cite-authors {{ font-weight: 600; font-size: 11pt; color: #111; }}
+  .cite-title {{ font-style: italic; font-size: 11pt; color: #333; }}
+  .cite-year {{ font-size: 10pt; color: #666; }}
+  .cite-pages {{ font-size: 10pt; color: #666; }}
+  .cite-doi {{ font-size: 9pt; }}
+  .cite-doi a {{ color: #6366f1; text-decoration: none; }}
+  .cite-doi a:hover {{ text-decoration: underline; }}
+  .footer {{ margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 9pt; color: #999; text-align: center; }}
+  @media print {{ body {{ padding: 20px; }} h1 {{ font-size: 18pt; }} .cite-entry {{ break-inside: avoid; }} }}
+</style>
+</head>
+<body>
+<h1>Bibliography</h1>
+{entries}
+<div class="footer">
+  Generated by ResearchMind VN on {today} — {len(citations)} citation(s)
+</div>
+</body>
+</html>"""
+        else:
+            bibliography = "\n\n".join([c["formatted"] for c in citations])
+
+        return {
+            "citations": citations,
+            "bibliography": bibliography,
+            "style": style,
+            "count": len(citations),
         }
     finally:
         session.close()

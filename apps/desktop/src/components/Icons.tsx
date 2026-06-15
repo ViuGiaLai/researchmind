@@ -29,6 +29,7 @@ import {
   Container,
   Bookmark,
   Upload,
+  Download,
   Zap,
   Key,
   Monitor,
@@ -117,6 +118,7 @@ export const IconParty = wrapIcon(PartyPopper, "icon-party", true);
 export const IconLibrary = wrapIcon(Library, "icon-library", true);
 export const IconBook = wrapIcon(Book, "icon-book");
 export const IconBookOpen = wrapIcon(BookOpen, "icon-book-open");
+export const IconDownload = wrapIcon(Download, "icon-download");
 
 // ---------------------------------------------------------------------------
 // Non-wrapped icons with special behaviour

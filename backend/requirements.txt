@@ -21,6 +21,12 @@ httpx==0.28.*
 # System info
 psutil==6.*
 
+# DOCX Export
+python-docx==1.1.*
+
+# PDF Export
+fpdf2==2.8.*
+
 # Utils
 pydantic==2.*
 pydantic-settings==2.*

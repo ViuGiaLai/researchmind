@@ -5,7 +5,7 @@ import {
   IconCheck,
   IconError,
   IconUpload,
-  IconSparkle,
+  IconBrain,
   IconFileText,
   IconChat,
 } from "../Icons";
@@ -71,6 +71,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
   const [importingFile, setImportingFile] = useState(false);
   const [importProgress, setImportProgress] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [focusStep, setFocusStep] = useState<string | null>(null);
 
   // Analysis pipeline states
   const [steps, setSteps] = useState<Record<string, StepState>>({
@@ -115,6 +116,24 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       if (onClearInitialPaperId) onClearInitialPaperId();
     }
   }, [initialPaperId, libraryPapers]);
+
+  // Handle auto-scrolling to the focused step once selectedPaper is active
+  useEffect(() => {
+    if (selectedPaper && focusStep) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`wow-section-${focusStep}`);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 600); // Wait for transition and loading animation to begin
+      return () => clearTimeout(timer);
+    }
+  }, [selectedPaper, focusStep]);
+
+  const handleActionClick = (stepKey: string) => {
+    setFocusStep(stepKey);
+    fileInputRef.current?.click();
+  };
 
   const loadLibrary = async () => {
     setLoadingLibrary(true);
@@ -435,12 +454,11 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
         <div className="wow-landing">
           <div className="wow-hero">
             <h1 className="wow-title">
-              <IconSparkle size={36} className="icon-gradient" style={{ marginRight: 12 }} />
-              Phân tích WOW 1-Click
+              <IconBrain size={36} className="icon-gradient" style={{ marginRight: 12 }} />
+              Hiểu paper trong 10 giây
             </h1>
             <p className="wow-subtitle">
-              Trải nghiệm ngay toàn bộ sức mạnh AI của ResearchMind trong 10 giây.
-              Nhận tóm tắt cốt lõi, điểm phản biện, mâu thuẫn học thuật, research gap và tranh luận AI chỉ trong một cú click.
+              AI phân tích tài liệu của bạn ngay lập tức
             </p>
           </div>
 
@@ -450,7 +468,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              setFocusStep(null);
+              fileInputRef.current?.click();
+            }}
           >
             <input
               type="file"
@@ -467,6 +488,22 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             <div className="wow-dropzone-badge">Hỗ trợ PDF</div>
           </div>
 
+          {/* Action Buttons */}
+          <div className="wow-action-buttons">
+            <button className="wow-action-btn wow-action-summary" onClick={() => handleActionClick("summary")}>
+              <span className="wow-action-icon">📄</span>
+              <span className="wow-action-label">Tóm tắt ngay</span>
+            </button>
+            <button className="wow-action-btn wow-action-critique" onClick={() => handleActionClick("critique")}>
+              <span className="wow-action-icon">⚠️</span>
+              <span className="wow-action-label">Xem điểm yếu</span>
+            </button>
+            <button className="wow-action-btn wow-action-debate" onClick={() => handleActionClick("debate")}>
+              <span className="wow-action-icon">⚔️</span>
+              <span className="wow-action-label">So sánh</span>
+            </button>
+          </div>
+
           {/* Quick Selection from library */}
           <div className="wow-quick-select">
             <h3 className="wow-section-title">Hoặc chọn tài liệu từ thư viện của bạn</h3>
@@ -476,7 +513,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 <span>Đang tải danh sách tài liệu...</span>
               </div>
             ) : libraryPapers.length === 0 ? (
-              <p className="wow-library-empty">Chưa có tài liệu nào trong thư viện. Hãy kéo thả file PDF lên để bắt đầu!</p>
+              <div className="wow-library-empty">
+                <p>Chưa có tài liệu</p>
+                <p className="wow-empty-hint">👇 Kéo PDF vào để AI phân tích ngay</p>
+              </div>
             ) : (
               <div className="wow-papers-grid">
                 {libraryPapers.slice(0, 6).map((paper) => (
@@ -515,6 +555,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 onClick={() => {
                   setSelectedPaper(null);
                   activeAnalysisRunId.current = null;
+                  setFocusStep(null);
                 }}
               >
                 ← Chọn tài liệu khác
@@ -585,7 +626,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             {/* Card 1: Summary */}
             <section
               id="wow-section-summary"
-              className={`wow-card-section wow-theme-summary ${steps.summary.status}`}
+              className={`wow-card-section wow-theme-summary ${steps.summary.status} ${focusStep === "summary" ? "focused-highlight" : ""}`}
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
@@ -640,7 +681,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             {/* Card 2: Critique */}
             <section
               id="wow-section-critique"
-              className={`wow-card-section wow-theme-critique ${steps.critique.status}`}
+              className={`wow-card-section wow-theme-critique ${steps.critique.status} ${focusStep === "critique" ? "focused-highlight" : ""}`}
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
@@ -805,7 +846,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             {/* Card 5: Debate */}
             <section
               id="wow-section-debate"
-              className={`wow-card-section wow-theme-debate ${steps.debate.status}`}
+              className={`wow-card-section wow-theme-debate ${steps.debate.status} ${focusStep === "debate" ? "focused-highlight" : ""}`}
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">

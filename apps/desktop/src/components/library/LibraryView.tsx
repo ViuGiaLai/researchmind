@@ -14,6 +14,7 @@ import {
   IconCheck,
   IconBulb,
   IconSparkle,
+  IconDownload,
 } from "../Icons";
 
 const PAGE_SIZE = 20;
@@ -42,6 +43,8 @@ export const LibraryView: React.FC<{
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showImport, setShowImport] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Zotero-style preview panel states
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
@@ -237,6 +240,73 @@ export const LibraryView: React.FC<{
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  // Export menu helpers
+  const menuItemStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "10px 16px",
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 13,
+    color: "var(--color-text, #1a1a1a)",
+    textAlign: "left",
+  };
+  const highlightOn = (e: React.MouseEvent<HTMLButtonElement>) => {
+    (e.currentTarget as HTMLButtonElement).style.background = "var(--color-hover, #f3f4f6)";
+  };
+  const highlightOff = (e: React.MouseEvent<HTMLButtonElement>) => {
+    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+  };
+
+  // ─── Export Helpers ────────────────────────────────────
+  const getPaperTitle = (paperId: string): string => {
+    const p = papers.find((p) => p.id === paperId);
+    return p?.title?.replace(/[^a-zA-Z0-9_\-\p{L}]/gu, "_") || paperId;
+  };
+
+  const handleExportHtml = async (paperId: string) => {
+    try {
+      setExportingId(paperId);
+      const blob = await api.exportPaperHtml(paperId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${getPaperTitle(paperId)}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to export HTML:", e);
+      alert("❌ Không thể export HTML. Vui lòng kiểm tra backend.");
+    } finally {
+      setExportingId(null);
+    }
+  };
+
+  const handleExportDocx = async (paperId: string) => {
+    try {
+      setExportingId(paperId);
+      const blob = await api.exportPaperDocx(paperId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${getPaperTitle(paperId)}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to export DOCX:", e);
+      alert("❌ Không thể export DOCX. Vui lòng kiểm tra backend và cài python-docx.");
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   return (
     <div className="library-split-view">
@@ -448,6 +518,58 @@ export const LibraryView: React.FC<{
                   <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
                   <span>Yêu thích</span>
                 </button>
+
+                {/* Export dropdown */}
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <button
+                    className="preview-btn"
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
+                    disabled={exportingId === activePaper.id}
+                    title="Export paper"
+                  >
+                    {exportingId === activePaper.id ? (
+                      <IconSpinner size={14} />
+                    ) : (
+                      <IconDownload size={14} />
+                    )}
+                    <span>Export</span>
+                  </button>
+                  {showExportMenu && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        right: 0,
+                        marginTop: 4,
+                        background: "var(--color-bg, #fff)",
+                        border: "1px solid var(--color-border, #e5e7eb)",
+                        borderRadius: 8,
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                        zIndex: 1000,
+                        minWidth: 170,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <button
+                        onClick={() => { handleExportHtml(activePaper.id); setShowExportMenu(false); }}
+                        style={menuItemStyle}
+                        onMouseEnter={highlightOn}
+                        onMouseLeave={highlightOff}
+                      >
+                        🌐 Export HTML
+                      </button>
+                      <button
+                        onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
+                        style={menuItemStyle}
+                        onMouseEnter={highlightOn}
+                        onMouseLeave={highlightOff}
+                      >
+                        📄 Export DOCX
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

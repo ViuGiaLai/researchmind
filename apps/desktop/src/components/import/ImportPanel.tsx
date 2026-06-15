@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { api } from "../../lib/api";
 import {
   IconFileText,
@@ -7,7 +7,11 @@ import {
   IconError,
   IconFolderOpen,
   IconUpload,
+  IconLibrary,
+  IconBook,
 } from "../Icons";
+
+type ImportTab = "pdf" | "bibtex" | "zotero";
 
 interface ImportResult {
   filename: string;
@@ -15,14 +19,22 @@ interface ImportResult {
   paper_id?: string;
   error?: string;
   pages?: number;
+  title?: string;
+  pdfStatus?: string;
+  pdfError?: string;
 }
 
 export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> = ({ onImported }) => {
+  const [tab, setTab] = useState<ImportTab>("pdf");
   const [dragOver, setDragOver] = useState(false);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<ImportResult[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const bibtexInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  // ── PDF Import ────────────────────────────────────────────
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -47,7 +59,6 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
   };
 
   const handleFolderSelect = async () => {
-    // Try Tauri custom folder picker first, fallback to HTML input
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const folder = await invoke<string | null>("select_folder");
@@ -55,7 +66,6 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
         await importFolder(folder);
       }
     } catch {
-      // Fallback to HTML input with webkitdirectory
       folderInputRef.current?.click();
     }
   };
@@ -113,65 +123,379 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     }
   };
 
-  const successCount = results.filter(r => r.status !== "error").length;
+  // ── BibTeX Import ────────────────────────────────────────────
+
+  const handleBibtexSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setResults([]);
+    try {
+      const res = await api.importBibtex(file);
+      setResults(res.results.map(r => ({
+        filename: r.filename,
+        status: r.status === "imported" ? "success" : "error",
+        paper_id: r.paper_id,
+        title: r.title,
+        error: r.error,
+      })));
+    } catch (e) {
+      setResults([{
+        filename: file.name,
+        status: "error",
+        error: e instanceof Error ? e.message : "Lỗi import BibTeX",
+      }]);
+    } finally {
+      setImporting(false);
+      onImported();
+    }
+    e.target.value = "";
+  };
+
+  // ── Zotero CSV Import ────────────────────────────────────────
+  
+  const [zoteroDataDir, setZoteroDataDir] = useState("");
+  const [findPdfs, setFindPdfs] = useState(true);
+  const [detecting, setDetecting] = useState(false);
+  const [detected, setDetected] = useState(false);
+
+  // Load saved Zotero path + auto-detect on mount
+  useEffect(() => {
+    if (tab === "zotero" && !zoteroDataDir && !detecting && !detected) {
+      // Step 1: Try to load saved path from settings first
+      api.getSettings()
+        .then((s) => {
+          if ((s as any).zotero_data_dir && (s as any).zotero_data_dir.trim()) {
+            setZoteroDataDir((s as any).zotero_data_dir);
+            setDetected(true);
+            return; // Don't auto-detect if already saved
+          }
+          // Step 2: No saved path, auto-detect
+          setDetecting(true);
+          return api.detectZoteroDataDir()
+            .then((res) => {
+              if (res.found && res.path) {
+                setZoteroDataDir(res.path);
+                // Save the detected path
+                api.saveZoteroPath(res.path).catch(() => {});
+              }
+            });
+        })
+        .catch(() => { /* fail silently */ })
+        .finally(() => {
+          setDetecting(false);
+          setDetected(true);
+        });
+    }
+  }, [tab, zoteroDataDir, detecting, detected]);
+
+  // Save Zotero path to settings whenever it changes (debounced via blur or manual save)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleZoteroPathChange = useCallback((newPath: string) => {
+    setZoteroDataDir(newPath);
+    // Debounce save
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (newPath.trim()) {
+        api.saveZoteroPath(newPath.trim()).catch(() => {});
+      }
+    }, 1500);
+  }, []);
+
+  const handleCsvSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setResults([]);
+    try {
+      if (findPdfs && zoteroDataDir.trim()) {
+        // Import with PDF finding
+        const res = await api.importZoteroCsvWithPdfs(file, zoteroDataDir.trim());
+        setResults(res.results.map(r => ({
+          filename: r.filename,
+          status: r.status === "imported" ? "success" : r.status,
+          paper_id: r.paper_id,
+          title: r.title,
+          error: r.error,
+          pages: r.page_count,
+          pdfStatus: r.pdf_status,
+          pdfError: r.pdf_error,
+        })));
+      } else {
+        // Metadata only
+        const res = await api.importZoteroCsv(file);
+        setResults(res.results.map(r => ({
+          filename: r.filename,
+          status: r.status === "imported" ? "success" : "error",
+          paper_id: r.paper_id,
+          title: r.title,
+          error: r.error,
+        })));
+      }
+    } catch (e) {
+      setResults([{
+        filename: file.name,
+        status: "error",
+        error: e instanceof Error ? e.message : "Lỗi import CSV",
+      }]);
+    } finally {
+      setImporting(false);
+      onImported();
+    }
+    e.target.value = "";
+  };
+
+  const successCount = results.filter(r => r.status === "success" || r.status === "imported").length;
+  const duplicateCount = results.filter(r => r.status === "duplicate").length;
   const errorCount = results.filter(r => r.status === "error").length;
+  const pdfIndexingCount = results.filter(r => r.pdfStatus === "indexing").length;
+  const pdfNotFoundCount = results.filter(r => r.pdfStatus === "not_found").length;
 
   return (
     <div className="import-panel">
-      {/* Drop zone */}
-      <div
-        className={`import-dropzone ${dragOver ? "drag-over" : ""}`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <div className="import-dropzone-icon">
-          <IconUpload size={32} />
-        </div>
-        <h3>Import PDF</h3>
-        <p>Kéo thả file PDF vào đây, hoặc</p>
-        <div className="import-actions">
-          <button
-            className="import-btn"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-          >
-            <IconFileText size={16} style={{ marginRight: 4 }} />
-            Chọn file
-          </button>
-          <button
-            className="import-btn import-btn-secondary"
-            onClick={handleFolderSelect}
-            disabled={importing}
-          >
-            <IconFolderOpen size={16} style={{ marginRight: 4 }} />
-            Chọn thư mục
-          </button>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          multiple
-          style={{ display: "none" }}
-          onChange={handleFileSelect}
-        />
-        <input
-          ref={folderInputRef}
-          type="file"
-          // @ts-ignore - webkitdirectory is valid HTML attr
-          webkitdirectory=""
-          multiple
-          style={{ display: "none" }}
-          onChange={handleFolderInput}
-        />
+      {/* Tab selector */}
+      <div className="import-tabs" style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: "1px solid var(--color-border, #e5e7eb)", paddingBottom: 8 }}>
+        <button
+          onClick={() => setTab("pdf")}
+          className={`import-tab-btn ${tab === "pdf" ? "active" : ""}`}
+          style={{
+            flex: 1, padding: "8px 12px", border: "none", borderRadius: 6, cursor: "pointer",
+            fontSize: 13, fontWeight: tab === "pdf" ? 600 : 400,
+            background: tab === "pdf" ? "var(--color-primary, #6366f1)" : "transparent",
+            color: tab === "pdf" ? "#fff" : "var(--color-text, #1a1a1a)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => { if (tab !== "pdf") e.currentTarget.style.background = "var(--color-hover, #f3f4f6)"; }}
+          onMouseLeave={(e) => { if (tab !== "pdf") e.currentTarget.style.background = "transparent"; }}
+        >
+          <IconUpload size={14} /> PDF
+        </button>
+        <button
+          onClick={() => setTab("bibtex")}
+          className={`import-tab-btn ${tab === "bibtex" ? "active" : ""}`}
+          style={{
+            flex: 1, padding: "8px 12px", border: "none", borderRadius: 6, cursor: "pointer",
+            fontSize: 13, fontWeight: tab === "bibtex" ? 600 : 400,
+            background: tab === "bibtex" ? "var(--color-primary, #6366f1)" : "transparent",
+            color: tab === "bibtex" ? "#fff" : "var(--color-text, #1a1a1a)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => { if (tab !== "bibtex") e.currentTarget.style.background = "var(--color-hover, #f3f4f6)"; }}
+          onMouseLeave={(e) => { if (tab !== "bibtex") e.currentTarget.style.background = "transparent"; }}
+        >
+          <IconBook size={14} /> BibTeX
+        </button>
+        <button
+          onClick={() => setTab("zotero")}
+          className={`import-tab-btn ${tab === "zotero" ? "active" : ""}`}
+          style={{
+            flex: 1, padding: "8px 12px", border: "none", borderRadius: 6, cursor: "pointer",
+            fontSize: 13, fontWeight: tab === "zotero" ? 600 : 400,
+            background: tab === "zotero" ? "var(--color-primary, #6366f1)" : "transparent",
+            color: tab === "zotero" ? "#fff" : "var(--color-text, #1a1a1a)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "all 0.15s ease",
+          }}
+          onMouseEnter={(e) => { if (tab !== "zotero") e.currentTarget.style.background = "var(--color-hover, #f3f4f6)"; }}
+          onMouseLeave={(e) => { if (tab !== "zotero") e.currentTarget.style.background = "transparent"; }}
+        >
+          <IconLibrary size={14} /> Zotero CSV
+        </button>
       </div>
+
+      {/* Tab: PDF */}
+      {tab === "pdf" && (
+        <div
+          className={`import-dropzone ${dragOver ? "drag-over" : ""}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="import-dropzone-icon">
+            <IconUpload size={32} />
+          </div>
+          <h3>Import PDF</h3>
+          <p>Kéo thả file PDF vào đây, hoặc</p>
+          <div className="import-actions">
+            <button
+              className="import-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+            >
+              <IconFileText size={16} style={{ marginRight: 4 }} />
+              Chọn file
+            </button>
+            <button
+              className="import-btn import-btn-secondary"
+              onClick={handleFolderSelect}
+              disabled={importing}
+            >
+              <IconFolderOpen size={16} style={{ marginRight: 4 }} />
+              Chọn thư mục
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            multiple
+            style={{ display: "none" }}
+            onChange={handleFileSelect}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            // @ts-ignore - webkitdirectory is valid HTML attr
+            webkitdirectory=""
+            multiple
+            style={{ display: "none" }}
+            onChange={handleFolderInput}
+          />
+        </div>
+      )}
+
+      {/* Tab: BibTeX */}
+      {tab === "bibtex" && (
+        <div className="import-dropzone">
+          <div className="import-dropzone-icon">
+            <IconBook size={32} />
+          </div>
+          <h3>Import từ BibTeX (.bib)</h3>
+          <p>Chọn file .bib export từ Zotero, Google Scholar, hoặc Mendeley</p>
+          <div className="import-actions">
+            <button
+              className="import-btn"
+              onClick={() => bibtexInputRef.current?.click()}
+              disabled={importing}
+            >
+              <IconFileText size={16} style={{ marginRight: 4 }} />
+              Chọn file .bib
+            </button>
+          </div>
+          <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", marginTop: 8 }}>
+            ℹ️ Dữ liệu sẽ được import dưới dạng metadata (không có file PDF kèm theo).
+          </p>
+          <input
+            ref={bibtexInputRef}
+            type="file"
+            accept=".bib"
+            style={{ display: "none" }}
+            onChange={handleBibtexSelect}
+          />
+        </div>
+      )}
+
+      {/* Tab: Zotero CSV */}
+      {tab === "zotero" && (
+        <div className="import-dropzone">
+          <div className="import-dropzone-icon">
+            <IconLibrary size={32} />
+          </div>
+          <h3>Import từ Zotero (CSV)</h3>
+          <p>Chọn file .csv export từ Zotero</p>
+
+          {/* Zotero data directory input */}
+          <div style={{ width: "100%", maxWidth: 400, margin: "0 auto 12px", textAlign: "left" }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text, #1a1a1a)", display: "block", marginBottom: 4 }}>
+              Thư mục Zotero data:
+              {detecting && (
+                <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-muted, #94a3b8)", marginLeft: 6 }}>
+                  <IconSpinner size={10} style={{ verticalAlign: "middle", marginRight: 3 }} />
+                  Đang phát hiện...
+                </span>
+              )}
+              {detected && zoteroDataDir && !detecting && (
+                <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-success, #22c55e)", marginLeft: 6 }}>
+                  ✓ Tự động phát hiện
+                </span>
+              )}
+            </label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                type="text"
+                value={zoteroDataDir}
+                onChange={(e) => handleZoteroPathChange(e.target.value)}
+                placeholder={detecting ? "Đang phát hiện thư mục Zotero..." : "VD: C:\Users\YourName\Zotero"}
+                style={{
+                  flex: 1, padding: "8px 10px", border: "1px solid var(--color-border, #d1d5db)",
+                  borderRadius: 6, fontSize: 13, background: "var(--color-input, #fff)",
+                  color: "var(--color-text, #1a1a1a)", outline: "none",
+                }}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const { invoke } = await import("@tauri-apps/api/core");
+                    const folder = await invoke<string | null>("select_folder");
+                    if (folder) handleZoteroPathChange(folder);
+                  } catch {}
+                }}
+                style={{
+                  padding: "8px 12px", border: "1px solid var(--color-border, #d1d5db)",
+                  borderRadius: 6, cursor: "pointer", fontSize: 13,
+                  background: "var(--color-bg, #f9fafb)", color: "var(--color-text, #1a1a1a)",
+                  transition: "all 0.15s ease",
+                }}
+                title="Chọn thư mục Zotero"
+              >
+              <IconFolderOpen size={16} />
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: "var(--color-text-muted, #94a3b8)", marginTop: 4 }}>
+              Đường dẫn đến thư mục Zotero (thường có chứa thư mục <code>storage</code>)
+            </p>
+          </div>
+
+          {/* Toggle PDF finding */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 6, cursor: "pointer",
+              fontSize: 13, color: "var(--color-text, #1a1a1a)",
+            }}>
+              <input
+                type="checkbox"
+                checked={findPdfs}
+                onChange={(e) => setFindPdfs(e.target.checked)}
+                style={{ accentColor: "var(--color-primary, #6366f1)" }}
+              />
+              Tự động tìm và import file PDF từ Zotero storage
+            </label>
+          </div>
+
+          {/* Import button */}
+          <div className="import-actions">
+            <button
+              className="import-btn"
+              onClick={() => csvInputRef.current?.click()}
+              disabled={importing}
+              title={findPdfs && !zoteroDataDir.trim() ? "Bạn cần nhập thư mục Zotero data để tìm PDF" : ""}
+            >
+              <IconFileText size={16} style={{ marginRight: 4 }} />
+              Chọn file CSV
+            </button>
+          </div>
+          <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", marginTop: 8 }}>
+            ℹ️ Cách export: Zotero → Chọn collection → File → Export Library... → Format: CSV
+            {findPdfs && zoteroDataDir.trim() ? " • PDF sẽ được tự động tìm và index" : ""}
+          </p>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv"
+            style={{ display: "none" }}
+            onChange={handleCsvSelect}
+          />
+        </div>
+      )}
 
       {/* Progress */}
       {importing && (
         <div className="import-progress">
           <IconSpinner size={20} />
-          <span>Đang import và index PDF...</span>
+          <span>Đang import...</span>
         </div>
       )}
 
@@ -182,24 +506,84 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             <span>
               {successCount > 0 && <IconCheck size={16} style={{ color: "var(--color-success)", marginRight: 4 }} />}
               {successCount} thành công
+              {duplicateCount > 0 && `, ${duplicateCount} trùng`}
               {errorCount > 0 && `, ${errorCount} lỗi`}
+              {pdfIndexingCount > 0 && `, ${pdfIndexingCount} PDF`}
+              {pdfNotFoundCount > 0 && `, ${pdfNotFoundCount} không có PDF`}
             </span>
           </div>
           <div className="import-results-list">
-            {results.map((r, i) => (
-              <div key={i} className={`import-result-item ${r.status === "error" ? "import-error" : "import-success"}`}>
-                <span className="import-result-icon">
-                  {r.status === "error" ? (
-                    <IconError size={16} style={{ color: "var(--color-error, #ef4444)" }} />
-                  ) : (
-                    <IconCheck size={16} style={{ color: "var(--color-success, #22c55e)" }} />
+            {results.map((r, i) => {
+              let iconColor: string;
+              let rowClass: string;
+              if (r.status === "error") {
+                iconColor = "var(--color-error, #ef4444)";
+                rowClass = "import-error";
+              } else if (r.status === "duplicate") {
+                iconColor = "var(--color-text-muted, #94a3b8)";
+                rowClass = "import-duplicate";
+              } else {
+                iconColor = "var(--color-success, #22c55e)";
+                rowClass = "import-success";
+              }
+              // Zotero PDF status indicators
+              const pdfStatus = r.pdfStatus;
+              const pdfError = r.pdfError;
+              return (
+                <div key={i} className={`import-result-item ${rowClass}`}>
+                  <span className="import-result-icon">
+                    {r.status === "error" ? (
+                      <IconError size={16} style={{ color: iconColor }} />
+                    ) : r.status === "duplicate" ? (
+                      <span style={{ color: iconColor, fontSize: 16 }}>⏺</span>
+                    ) : (
+                      <IconCheck size={16} style={{ color: iconColor }} />
+                    )}
+                  </span>
+                  <span className="import-result-name">{r.title || r.filename}</span>
+                  {r.pages && <span className="import-result-pages">{r.pages} trang</span>}
+                  {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted, #94a3b8)" }}>đã có</span>}
+                  {r.error && <span className="import-result-error">{r.error}</span>}
+                  {/* PDF status badge */}
+                  {pdfStatus === "indexing" && (
+                    <span style={{
+                      fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
+                      background: "rgba(99, 102, 241, 0.1)", color: "var(--color-primary, #6366f1)",
+                      display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
+                    }}>
+                      <IconSpinner size={10} /> PDF
+                    </span>
                   )}
-                </span>
-                <span className="import-result-name">{r.filename}</span>
-                {r.pages && <span className="import-result-pages">{r.pages} trang</span>}
-                {r.error && <span className="import-result-error">{r.error}</span>}
-              </div>
-            ))}
+                  {pdfStatus === "not_found" && (
+                    <span style={{
+                      fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
+                      background: "rgba(234, 179, 8, 0.1)", color: "#a16207",
+                      whiteSpace: "nowrap",
+                    }} title={pdfError || "Không tìm thấy PDF trong Zotero storage"}>
+                      📄 Không có PDF
+                    </span>
+                  )}
+                  {pdfStatus === "warning" && (
+                    <span style={{
+                      fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
+                      background: "rgba(249, 115, 22, 0.1)", color: "#c2410c",
+                      whiteSpace: "nowrap",
+                    }} title={pdfError || "PDF có thể là scanned, cần OCR"}>
+                      ⚠️ PDF scanned
+                    </span>
+                  )}
+                  {pdfStatus === "error" && (
+                    <span style={{
+                      fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
+                      background: "rgba(239, 68, 68, 0.1)", color: "var(--color-error, #ef4444)",
+                      whiteSpace: "nowrap",
+                    }} title={pdfError || "Lỗi khi copy PDF"}>
+                      ❌ PDF lỗi
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

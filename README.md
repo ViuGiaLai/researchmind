@@ -1,39 +1,32 @@
 # ResearchMind VN
 
-> Trợ lý nghiên cứu AI Local-First dành cho sinh viên cao học, nghiên cứu sinh và giảng viên Việt Nam.
+> ResearchMind không chỉ giúp bạn đọc PDF. Nó giúp bạn hiểu nhanh, phản biện sâu và khám phá những ý tưởng nghiên cứu mới từ toàn bộ thư viện tài liệu của bạn.
 
-ResearchMind VN là ứng dụng desktop giúp người dùng quản lý, tìm kiếm và trò chuyện với các tài liệu nghiên cứu (PDF) bằng trí tuệ nhân tạo. Toàn bộ dữ liệu có thể được xử lý cục bộ trên máy tính nhằm đảm bảo quyền riêng tư và bảo mật.
+ResearchMind VN là hệ thống trợ lý nghiên cứu AI Local-First dành cho sinh viên cao học, nghiên cứu sinh và giảng viên Việt Nam. Toàn bộ dữ liệu được lưu trữ và xử lý cục bộ trên máy tính nhằm đảm bảo quyền riêng tư và bảo mật tuyệt đối.
 
 ## Tính năng chính
 
-### Import & Index PDF
+### 📥 Import & Indexing PDF
+* Kéo và thả file PDF để AI phân tích tức thì.
+* Tự động trích xuất cấu trúc văn bản khoa học.
+* Lập chỉ mục thông minh đảm bảo bảo mật 100% cục bộ trên ổ đĩa của bạn.
 
-* Kéo thả tài liệu PDF vào ứng dụng
-* Tự động trích xuất nội dung bằng PyMuPDF
-* Chia văn bản thành các chunk phục vụ tìm kiếm
-* Sinh embedding bằng mô hình bge-m3
-* Lưu metadata và chỉ mục tìm kiếm cục bộ
+### 🔍 Tìm kiếm ngữ nghĩa (Semantic Search)
+* Tìm kiếm ý tưởng bằng ngôn ngữ tự nhiên (tiếng Việt & tiếng Anh).
+* Truy hồi chính xác thuật ngữ khoa học và nội dung theo ngữ cảnh.
+* Định vị chính xác số trang và trích dẫn nguồn.
 
-### Semantic Search
+### 💬 Trò chuyện RAG & Phản biện học thuật (Chat AI & Critique)
+* Đặt câu hỏi trực tiếp trên một hoặc nhóm nhiều bài báo cùng lúc.
+* **Tóm tắt nhanh:** Trích xuất nhanh Background, Methods, Findings của tài liệu.
+* **Phản biện khoa học:** AI đánh giá điểm hạn chế, lỗ hổng phương pháp và giả thiết chưa hợp lý.
+* **Tranh luận học thuật:** Giả lập tranh luận đa chiều giữa các Persona AI nhằm gợi mở hướng nghiên cứu mới.
 
-* Tìm kiếm bằng ngôn ngữ tự nhiên
-* Hỗ trợ tiếng Việt và tiếng Anh
-* Kết hợp BM25 và Vector Search
-* Hiển thị kết quả cùng tên paper và số trang
-
-### Chat với Paper (RAG)
-
-* Hỏi đáp trực tiếp với một hoặc nhiều tài liệu
-* Tóm tắt, giải thích và so sánh nội dung nghiên cứu
-* Trả lời có citation nguồn rõ ràng
-* Giảm thiểu hallucination bằng RAG Pipeline
-
-### Library Management
-
-* Quản lý thư viện tài liệu
-* Gắn thẻ (tags)
-* Ghi chú nhanh
-* Đánh dấu đã đọc/chưa đọc
+### 📚 Quản lý thư viện tri thức cá nhân
+* Ghi chú và phân loại tài liệu bằng thẻ tags trực quan.
+* Nhập nhanh thư viện siêu dữ liệu từ Zotero.
+* **Xây dựng liên kết:** Khám phá sự liên kết tri thức chéo giữa các bài nghiên cứu.
+* **Gợi ý đọc mỗi ngày:** Gợi ý paper đáng đọc nhất mỗi ngày kèm tóm tắt nội dung sẵn có.
 
 ---
 

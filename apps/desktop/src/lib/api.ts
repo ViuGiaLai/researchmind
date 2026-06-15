@@ -103,6 +103,24 @@ export interface Highlight {
   note: string;
 }
 
+export interface CitationEntry {
+  paper_id: string;
+  title: string;
+  authors: string[];
+  year: number | string;
+  doi: string;
+  pages: number | null;
+  formatted: string;
+  style: string;
+}
+
+export interface CiteResponse {
+  citations: CitationEntry[];
+  bibliography: string;
+  style: string;
+  count: number;
+}
+
 export interface RelatedPaper {
   paper_id: string;
   title: string;
@@ -145,6 +163,48 @@ export const api = {
     request<{ total: number; results: unknown[] }>("POST", "/api/papers/import/folder", {
       folder_path: folderPath,
     }),
+
+  importBibtex: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${BASE_URL}/api/papers/import/bibtex`, { method: "POST", body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ total: number; imported: number; errors: number; results: { filename: string; status: string; paper_id?: string; title?: string; error?: string }[] }>;
+  },
+
+  importZoteroCsv: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv`, { method: "POST", body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ total: number; imported: number; errors: number; results: { filename: string; status: string; paper_id?: string; title?: string; error?: string }[] }>;
+  },
+
+  importZoteroCsvWithPdfs: async (file: File, zoteroDataDir: string) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("zotero_data_dir", zoteroDataDir);
+    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv-pdf`, { method: "POST", body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{
+      total: number;
+      imported: number;
+      duplicates: number;
+      errors: number;
+      pdf_imported: number;
+      pdf_not_found: number;
+      results: {
+        filename: string;
+        status: string;
+        paper_id?: string;
+        title?: string;
+        error?: string;
+        pdf_status?: string;
+        pdf_error?: string;
+        page_count?: number;
+      }[]
+    }>;
+  },
 
   // Search
   search: (text: string, paperIds?: string[], topK = 10) =>
@@ -268,12 +328,52 @@ export const api = {
       `/api/papers/${paperId}/highlights?limit=${limit}`
     ),
 
+  // Auto-Cite
+  citePapers: (paperIds: string[], style: string = "apa") =>
+    request<CiteResponse>("POST", "/api/papers/cite", { paper_ids: paperIds, style }),
+
   // Related Papers
   findRelatedPapers: (paperId: string, limit = 5) =>
     request<{ related_papers: RelatedPaper[]; paper_id: string }>(
       "GET",
       `/api/papers/${paperId}/related?limit=${limit}`
     ),
+
+  // Paper Export
+  exportPaperHtml: (paperId: string) =>
+    fetch(`${BASE_URL}/api/papers/${paperId}/export/html`).then((res) => {
+      if (!res.ok) throw new Error(`Export HTML failed: ${res.status}`);
+      return res.blob();
+    }),
+
+  exportPaperDocx: (paperId: string) =>
+    fetch(`${BASE_URL}/api/papers/${paperId}/export/docx`).then((res) => {
+      if (!res.ok) throw new Error(`Export DOCX failed: ${res.status}`);
+      return res.blob();
+    }),
+
+  exportSynthesis: (title: string, content: string, format: string) =>
+    fetch(`${BASE_URL}/api/papers/export/synthesis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content, format }),
+    }).then((res) => {
+      if (!res.ok) throw new Error(`Export Synthesis failed: ${res.status}`);
+      return res.blob();
+    }),
+
+  // Zotero
+  detectZoteroDataDir: () =>
+    request<{
+      found: boolean;
+      path: string | null;
+      method: string;
+      has_storage: boolean;
+      message: string;
+    }>("GET", "/api/zotero/detect"),
+
+  saveZoteroPath: (path: string) =>
+    request<{ status: string; path: string }>("POST", "/api/zotero/save-path", { path }),
 
   // Personal Knowledge Brain
   getPersonalBrain: () =>

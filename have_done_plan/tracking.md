@@ -19,12 +19,33 @@
 | 📥 PDF Import UI | ✅ Hoàn thành | Drag & drop + file + folder |
 | 🛠️ Tauri Shell | ✅ Đã rewrite | Thin shell cho Python backend |
 | 🧪 Testing | 🔴 Chưa chạy | Cần setup .venv |
-| 🗑️ Crate cũ | 🟡 Còn trên disk | Cần user xoá thủ công |
-| 🗑️ plan/HYBRID_MODEL.md.copy | 🟡 File thừa | Cần xoá thủ công |
+| 🗑️ Crate cũ | ✅ Đã xoá | Không còn trên disk |
+| 🗑️ plan/HYBRID_MODEL.md.copy | ✅ Đã xoá | Đã dọn dẹp |
 
 ---
 
 ## ✅ Phần 1: NHỮNG GÌ ĐÃ LÀM (Done)
+
+### UI Setup Wizard & Guide Improvements
+- ✅ Cải tiến giao diện Onboarding ([AISetupWizard.tsx](file:///D:/all_my_project/memoryOS/apps/desktop/src/components/setup/AISetupWizard.tsx) & [AISetupWizard.css](file:///D:/all_my_project/memoryOS/apps/desktop/src/components/setup/AISetupWizard.css))
+- ✅ Bảng so sánh 3 chế độ AI (Cloud Free, Custom Key, Offline) trực quan
+- ✅ Giao diện hướng dẫn cài đặt Ollama từng bước (step-by-step) khi không thể kết nối
+- ✅ Cảnh báo dung lượng thư mục lưu trữ (Storage Path) dạng thẻ hộp thông tin
+- ✅ Hướng dẫn bắt đầu nhanh (Quick Start Checklist) ở màn hình hoàn tất thiết lập
+- ✅ Sửa lỗi đường dẫn import và kiểu dữ liệu biên dịch trong file test [debateParser.test.ts](file:///D:/all_my_project/memoryOS/apps/desktop/src/lib/debateParser.test.ts)
+- ✅ Hiệu ứng radial glow bộ não và micro-animations premium
+
+### Literature Review & Synthesis Export Improvements
+- ✅ Xây dựng API POST `/api/papers/export/synthesis` trong [export.py](file:///D:/all_my_project/memoryOS/backend/export.py) chuyển đổi Markdown sang `.md`, `.html` (styled CSS), và `.docx` (Word).
+- ✅ Thiết kế bộ chuyển đổi (converter) Markdown-to-DOCX hỗ trợ các thẻ Heading 1-3, danh sách Bullet/Number list, blockquote, in đậm, in nghiêng.
+- ✅ Tích hợp thanh công cụ xuất dữ liệu (Export actions bar) ngay dưới mỗi câu trả lời của Assistant trong [ChatView.tsx](file:///D:/all_my_project/memoryOS/apps/desktop/src/components/chat/ChatView.tsx).
+- ✅ Bổ sung các tuỳ chọn tải xuống báo cáo tổng hợp, phản biện hoặc tranh luận học thuật dưới dạng Markdown, Word hoặc Web.
+- ✅ Khắc phục cảnh báo biến không sử dụng trong [ImportPanel.tsx](file:///D:/all_my_project/memoryOS/apps/desktop/src/components/import/ImportPanel.tsx) để tsc compile 100% thành công.
+
+### Wow Analysis Interaction Improvements
+- ✅ Kích hoạt chức năng cho 3 nút hành động (Tóm tắt ngay, Xem điểm yếu, So sánh) ở màn hình chào mừng [WowAnalysisView.tsx](file:///D:/all_my_project/memoryOS/apps/desktop/src/components/insights/WowAnalysisView.tsx)
+- ✅ Tự động mở hộp thoại tải PDF tương ứng với chế độ người dùng lựa chọn
+- ✅ Tự động cuộn (scrollIntoView) và hiển thị hiệu ứng viền sáng (focused-highlight) cho thẻ báo cáo tương ứng sau khi phân tích xong trong [WowAnalysisView.css](file:///D:/all_my_project/memoryOS/apps/desktop/src/components/insights/WowAnalysisView.css)
 
 ### Hybrid Model — Cloud-first AI Mode
 - ✅ `/api/detect-specs` — Auto-detect RAM, CPU, suggest model tier

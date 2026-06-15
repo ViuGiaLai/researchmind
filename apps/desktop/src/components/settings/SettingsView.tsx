@@ -703,6 +703,7 @@ export const SettingsView: React.FC = () => {
         </h3>
         <div className="settings-about">
           <p>Phiên bản: <strong>0.1.0</strong></p>
+          <p>Phát triển bởi: <strong>Viu Gia Lai</strong></p>
           <p>
             Chế độ AI:{" "}
             <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
