@@ -1,0 +1,24 @@
+# Web Framework
+fastapi==0.115.*
+uvicorn[standard]==0.32.*
+python-multipart==0.0.*
+
+# Database
+sqlalchemy==2.0.*
+aiosqlite==0.20.*
+
+# PDF Processing
+PyMuPDF==1.25.*
+
+# AI / Embedding
+sentence-transformers==3.3.*
+chromadb==0.6.*
+
+# LLM
+httpx==0.28.*
+
+# Utils
+pydantic==2.*
+pydantic-settings==2.*
+python-dotenv==1.*
+loguru==0.7.*

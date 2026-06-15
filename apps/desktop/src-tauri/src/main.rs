@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    memory_os_desktop_lib::run()
+    researchmind_desktop_lib::run()
 }

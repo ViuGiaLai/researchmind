@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "MemoryOS",
+  "productName": "ResearchMind VN",
   "version": "0.1.0",
-  "identifier": "com.memoryos.desktop",
+  "identifier": "com.researchmind.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "MemoryOS",
+        "title": "ResearchMind VN",
         "width": 1100,
         "height": 750,
         "minWidth": 800,

@@ -24,14 +24,9 @@ interface SettingsPanelProps {
 }
 
 const KNOWN_MODELS = [
-  { value: "llama3.2:3b", label: "Llama 3.2 (3B) — Nhanh" },
-  { value: "llama3.2:1b", label: "Llama 3.2 (1B) — Siêu nhanh" },
-  { value: "qwen2.5:7b", label: "Qwen 2.5 (7B) — Cân bằng" },
-  { value: "qwen2.5:3b", label: "Qwen 2.5 (3B) — Nhanh" },
-  { value: "mistral:7b", label: "Mistral (7B) — Chất lượng" },
-  { value: "gemma2:9b", label: "Gemma 2 (9B) — Chất lượng cao" },
-  { value: "codellama:7b", label: "CodeLlama (7B) — Code" },
-  { value: "nomic-embed-text", label: "nomic-embed-text — Embedding" },
+  { value: "phi3", label: "phi3 — Tổng thể (khuyên dùng) ✅" },
+  { value: "mistral", label: "mistral — Cân bằng mạnh hơn" },
+  { value: "llama3:8b", label: "llama3:8b — Nếu máy mạnh" },
   { value: "custom", label: "Model khác..." },
 ];
 
@@ -195,7 +190,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         {/* Quick actions */}
         <div className="settings-quick">
           <span className="settings-quick-label">Mẫu câu lệnh:</span>
-          <code className="settings-quick-code">ollama pull qwen2.5:7b</code>
+          <code className="settings-quick-code">ollama pull phi3</code>
+          <code className="settings-quick-code">ollama pull mistral</code>
+          <code className="settings-quick-code">ollama pull llama3:8b</code>
           <code className="settings-quick-code">ollama serve</code>
         </div>
 

@@ -1,7 +1,7 @@
-# MemoryOS — 📋 Trạng Thái Dự Án
+# ResearchMind VN — 📋 Trạng Thái Dự Án
 
-> **Cập nhật:** 14/06/2026
-> **Mục tiêu Phase 1:** MVP Desktop — Search + OCR + AI Chat + Timeline + Graph
+> **Cập nhật:** 15/06/2026
+> **Mục tiêu:** Trợ lý nghiên cứu AI cho học giả Việt Nam — Local-first, 8 tuần MVP
 
 ---
 
@@ -9,265 +9,178 @@
 
 | Hạng mục | Trạng thái | Tiến độ |
 |---|---|---|
-| 📐 Plan & Spec | ✅ Hoàn thành | 3/3 files |
-| 📦 Rust Crates | ✅ Hoàn thành | 6/6 crates |
-| 🖥️ Tauri Desktop | 🟡 Thiếu components | 50% |
-| 🔍 Search Engine | ✅ Hoàn thành | 100% |
-| 💬 AI Chat | 🟡 Thiếu Ollama integration test | 70% |
-| 👁️ OCR | 🟡 Chỉ có placeholder | 10% |
-| 📅 Timeline | 🟡 Thiếu UI | 50% |
-| 🕸️ Knowledge Graph | 🟡 Thiếu UI | 50% |
-| 🔒 Encryption | ✅ Hoàn thành | 100% |
-| 🎨 UI Components | 🟡 Đã làm cơ bản | 60% |
+| 📐 Plan & Spec | ✅ Viết lại theo hướng ResearchMind VN | 5/5 files |
+| 🐍 Python Backend | 🔴 Chưa bắt đầu | 0% |
+| 🖥️ React + Tauri Frontend | 🔴 Chưa bắt đầu | 0% |
+| 📄 PDF Ingestion Pipeline | 🔴 Chưa bắt đầu | 0% |
+| 🔍 Search Engine (Hybrid) | 🔴 Chưa bắt đầu | 0% |
+| 💬 AI Chat (RAG) | 🔴 Chưa bắt đầu | 0% |
+| 📚 Library Management | 🔴 Chưa bắt đầu | 0% |
 
 ---
 
 ## ✅ Phần 1: NHỮNG GÌ ĐÃ LÀM (Done)
 
-### 1.1 Plan Files (3/3 files)
+### 1.1 Plan Files (5/5 — Đã viết lại theo ResearchMind VN)
 
-| File | Mô tả | Đã hoàn thành |
+| File | Mô tả | Trạng thái |
 |---|---|---|
-| `plan/roadmap.md` | Roadmap ưu tiên, timeline 5 năm | ✅ |
-| `plan/phase1-mvp-spec.md` | Spec chi tiết Phase 1 MVP | ✅ |
-| `plan/architecture.md` | Kiến trúc tổng thể, data flow | ✅ |
+| `plan/ResearchMind_VN_Plan.md` | Product Plan đầy đủ 2025-2027 | ✅ Gốc |
+| `plan/architecture.md` | Kiến trúc hệ thống (Python + Tauri + ChromaDB) | ✅ Viết lại |
+| `plan/phase1-mvp-spec.md` | MVP Spec 4 tính năng cốt lõi (8 tuần) | ✅ Viết lại |
+| `plan/roadmap.md` | Roadmap 12 tháng + pricing tiers | ✅ Viết lại |
+| `have_done_plan/next-steps.md` | Bước tiếp theo chi tiết | ✅ Viết lại |
+| `have_done_plan/tracking.md` | File này — trạng thái dự án | ✅ Viết lại |
 
-### 1.2 Rust Workspace (6/6 crates)
+### 1.2 Mã Nguồn Cũ (MemoryOS — sẽ không dùng lại)
 
-| Crate | Files | Chức năng | Status |
-|---|---|---|---|
-| **memory-core** | `Cargo.toml`, `lib.rs`, `scanner.rs`, `extractor.rs` | Scanner thư mục + Extract text PDF/DOCX/TXT/MD | ✅ Có unit test |
-| **memory-indexer** | `Cargo.toml`, `lib.rs`, `db.rs`, `pipeline.rs` | SQLite schema (10 tables) + Indexing pipeline | ✅ Có unit test |
-| **memory-search** | `Cargo.toml`, `lib.rs`, `config.rs`, `search.rs` | BM25 FTS5 search engine | ✅ Có unit test |
-| **memory-ai** | `Cargo.toml`, `lib.rs`, `ollama.rs`, `nlp.rs`, `embedder.rs`, `chat.rs` | Ollama client + NLP parser + Embedder + Chat | ✅ Có unit test |
-| **memory-graph** | `Cargo.toml`, `lib.rs`, `graph.rs`, `timeline.rs`, `relation.rs` | Knowledge Graph + Timeline + Relation | ✅ Có unit test |
-| **memory-security** | `Cargo.toml`, `lib.rs`, `encrypt.rs` | AES-256-GCM + Argon2id | ✅ Có unit test |
+> **Lưu ý:** Mã Rust crates cũ (memory-core, memory-indexer, memory-search, memory-ai, memory-graph, memory-security) và các Dependencies trong `Cargo.toml` sẽ **không được dùng lại**. Dự án mới dùng Python backend.
 
-### 1.3 Tauri Desktop App
-
-| File | Chức năng | Status |
+| Thành phần cũ | Kế thừa? | Lý do |
 |---|---|---|
-| `Cargo.toml` | Dependencies (all crates + tauri) | ✅ |
-| `tauri.conf.json` | Window config (1100x750) | ✅ |
-| `build.rs` | Tauri build script | ✅ |
-| `src/main.rs` | Entry point | ✅ |
-| `src/lib.rs` | 4 commands: search, preview, suggestions, stats | ✅ |
-| `package.json` | React + Vite + Tauri deps | ✅ |
-| `tsconfig.json` | TypeScript config | ✅ |
-| `vite.config.ts` | Vite dev server | ✅ |
-| `index.html` | HTML entry | ✅ |
-| `src/main.tsx` | React entry | ✅ |
-| `src/App.tsx` | Main UI (search, results, stats views) | ✅ Cơ bản |
-| `src/styles/variables.css` | CSS variables (dark theme) | ✅ |
-| `src/styles/globals.css` | Global styles | ✅ |
-
-### 1.4 Scripts
-
-| File | Chức năng | Status |
-|---|---|---|
-| `scripts/ocr_pipeline.py` | PaddleOCR placeholder | 🟡 Chỉ placeholder |
+| Rust crates (6 crates) | ❌ Không | Chuyển sang Python |
+| Tauri shell | ✅ Giữ | Vẫn dùng Tauri làm desktop shell |
+| React UI components | 🟡 Một số | Cần sửa lại cho research domain |
+| SQLite schema | 🟡 Tham khảo | Schema đơn giản hơn cho research |
+| OCR pipeline | ❌ Không | Phase 2 — chưa cần |
+| Encryption | ❌ Không | Chưa cần cho MVP research |
 
 ---
 
-## 🔴 Phần 2: NHỮNG GÌ CHƯA LÀM (Not Started)
+## 🔴 Phần 2: NHỮNG GÌ CẦN LÀM (To Do)
 
-### 2.1 Rust Code Chưa Viết
+### 2.1 Tuần 1-2: Research (Không code)
 
-| Module | File cần tạo | Lý do |
+| Task | Chi tiết | Deadline |
 |---|---|---|
-| `memory-indexer` | Chưa có commands cho scan/stop/delete index | Cần thêm Tauri commands |
-| `memory-search` | Chưa có vector search thực tế (cần kết nối sqlite-vector) | Cần extension |
-| `memory-ai` | Chưa test thật với Ollama | Cần Ollama chạy |
+| Phỏng vấn 20 NCS/cao học | Facebook groups, inbox trực tiếp | Hết tuần 1 |
+| Build CLI prototype Python | Import PDF → search đơn giản | Hết tuần 2 |
+| Cho 3 người dùng thử CLI | Ghi lại feedback | Hết tuần 2 |
 
-### 2.2 React UI Components Chưa Tạo
+### 2.2 Tuần 3-4: Backend Core
 
-| Component | Chức năng | Ưu tiên |
+| Task | File | Ưu tiên |
 |---|---|---|
-| `FolderPicker.tsx` | Chọn thư mục scan | ⭐⭐⭐ |
-| `FolderList.tsx` | Danh sách thư mục đã chọn | ⭐⭐⭐ |
-| `ScanButton.tsx` | Start/Stop scan | ⭐⭐⭐ |
-| `ScanProgress.tsx` | Progress bar real-time | ⭐⭐⭐ |
-| `SearchFilters.tsx` | Filter theo type, date, folder | ⭐⭐⭐ |
-| `FilePreview.tsx` | Preview nội dung file | ⭐⭐⭐ |
-| `PdfPreview.tsx` | Xem PDF inline | ⭐⭐ |
-| `ChatPanel.tsx` | AI Chat panel | ⭐⭐⭐ |
-| `ChatMessage.tsx` | Message bubble | ⭐⭐⭐ |
-| `ChatInput.tsx` | Chat input | ✅ |
-| `Icons.tsx` | Centralized Lucide icons + 3D styles | ✅ |
-| `TimelineView.tsx` | Timeline view | ⭐⭐ |
-| `TimelineGroup.tsx` | Group theo thời gian | ⭐⭐ |
-| `GraphView.tsx` | Graph visualization (d3.js) | ⭐⭐ |
-| `GraphNode.tsx` | Graph node | ⭐⭐ |
-| `StatsOverview.tsx` | Thống kê tổng quan | ⭐⭐ |
-| `FileTypeChart.tsx` | Pie chart by extension | ⭐ |
-| `Settings.tsx` | Settings page | ⭐⭐ |
-| `EmptyState.tsx` | Empty state component | ⭐ |
-| `ErrorBoundary.tsx` | Error boundary | ⭐ |
-| `Spinner.tsx` | Loading spinner | ⭐ |
+| Setup FastAPI + SQLite | `backend/main.py`, `backend/db/` | ⭐⭐⭐ |
+| PDF Parser | `backend/ingestion/parser.py` | ⭐⭐⭐ |
+| Chunker | `backend/ingestion/chunker.py` | ⭐⭐⭐ |
+| Embedder (bge-m3) | `backend/ingestion/embedder.py` | ⭐⭐⭐ |
+| BM25 Search | `backend/search/bm25.py` | ⭐⭐⭐ |
+| Vector Search | `backend/search/vector.py` | ⭐⭐⭐ |
+| Hybrid Search | `backend/search/hybrid.py` | ⭐⭐⭐ |
+| Library CRUD | `backend/library/crud.py` | ⭐⭐⭐ |
+| API Endpoints | `backend/main.py` | ⭐⭐⭐ |
 
-### 2.3 Rust Hooks (React) Chưa Tạo
+### 2.3 Tuần 5-6: Frontend + Tauri
 
-| Hook | Chức năng | Ưu tiên |
+| Task | File | Ưu tiên |
 |---|---|---|
-| `useSearch.ts` | Gọi Tauri search command | ⭐⭐⭐ |
-| `useScan.ts` | Gọi Tauri scan command | ⭐⭐⭐ |
-| `useFolders.ts` | Quản lý folder | ⭐⭐⭐ |
-| `useChat.ts` | AI Chat logic | ⭐⭐⭐ |
-| `useTimeline.ts` | Timeline data | ⭐⭐ |
-| `useGraph.ts` | Graph data | ⭐⭐ |
-| `useStats.ts` | Stats data | ⭐⭐ |
-| `useDebounce.ts` | Debounce input | ⭐⭐ |
+| Setup React + shadcn/ui | `src/` | ⭐⭐⭐ |
+| Tauri shell (Rust) | `src-tauri/` | ⭐⭐⭐ |
+| Library UI | `src/components/library/` | ⭐⭐⭐ |
+| Search UI | `src/components/search/` | ⭐⭐⭐ |
+| Settings UI | `src/components/settings/` | ⭐⭐ |
+| API client | `src/lib/api.ts` | ⭐⭐⭐ |
 
-### 2.4 Tauri Commands Chưa Implement
+### 2.4 Tuần 7-8: AI Chat + Hoàn Thiện
 
-| Command | Chức năng | Ưu tiên |
+| Task | File | Ưu tiên |
 |---|---|---|
-| `select_folder` | Dialog chọn thư mục | ⭐⭐⭐ |
-| `start_scan` | Bắt đầu scan | ⭐⭐⭐ |
-| `stop_scan` | Dừng scan | ⭐⭐⭐ |
-| `delete_index` | Xóa index | ⭐⭐⭐ |
-| `chat` | AI Chat | ⭐⭐⭐ |
-| `get_timeline` | Timeline data | ⭐⭐ |
-| `get_graph` | Graph data | ⭐⭐ |
-| `export_data` | Export dữ liệu | ⭐⭐ |
-
-### 2.5 OCR (PaddleOCR)
-
-| Task | Mô tả | Ưu tiên |
-|---|---|---|
-| Cài PaddleOCR | `pip install paddleocr` | ⭐⭐⭐ |
-| Tích hợp Rust | Gọi Python script từ Rust | ⭐⭐⭐ |
-| Index OCR text | Lưu vào FTS5 | ⭐⭐⭐ |
-| Search OCR | "Tìm hóa đơn điện" | ⭐⭐⭐ |
-
-### 2.6 Build & Deploy
-
-| Task | Mô tả | Ưu tiên |
-|---|---|---|
-| `cargo check --workspace` | Kiểm tra compile | ⭐⭐⭐ |
-| `pnpm tauri dev` | Chạy thử app | ⭐⭐⭐ |
-| Fix compile errors | Sửa lỗi build | ⭐⭐⭐ |
-| Package build | `pnpm tauri build` | ⭐⭐ |
+| RAG Retriever | `backend/chat/retriever.py` | ⭐⭐⭐ |
+| RAG Generator (Ollama) | `backend/chat/generator.py` | ⭐⭐⭐ |
+| Chat UI | `src/components/chat/` | ⭐⭐⭐ |
+| Citation verification | `backend/chat/generator.py` | ⭐⭐⭐ |
+| Bug fixes + Polish | App | ⭐⭐⭐ |
+| User testing | 10 users | ⭐⭐⭐ |
 
 ---
 
-## 🟡 Phần 3: NHỮNG GÌ CẦN HOÀN THIỆN (Needs Improvement)
+## 🟡 Phần 3: LƯU Ý KỸ THUẬT
 
-### 3.1 Code Cần Refactor
+### 3.1 Python Backend
 
-| File | Vấn đề | Cần làm |
-|---|---|---|
-| `memory-ai/src/embedder.rs` | Tạo tokio runtime mới mỗi lần gọi `embed()` | Dùng `OnceLock<Runtime>` để cache |
-| `memory-indexer/src/pipeline.rs` | `generate_embeddings()` nuốt lỗi im lặng | Thêm `warn!()` log |
-| `memory-ai/src/nlp.rs` | `Duration::days()` có thể panic nếu date out of range | Dùng `checked_sub()` |
-| `apps/desktop/src/App.tsx` | Chưa có error handling cho Tauri invoke | Thêm try/catch + user notification |
-| `apps/desktop/src/App.tsx` | UI chỉ có search + stats, thiếu chat/timeline/graph | Thêm các view còn thiếu |
+| Vấn đề | Giải pháp |
+|---|---|
+| bge-m3 model lớn (~2GB) | Download lần đầu, cache local |
+| ChromaDB persist path | `data/chroma/` — gitignored |
+| Ollama cần chạy riêng | Hướng dẫn user cài, auto-detect |
+| Cross-encoder model | `cross-encoder/ms-marco-MiniLM-L-6-v2` — nhẹ, nhanh |
+| API key Claude | User tự nhập trong Settings |
 
-### 3.2 Database Schema Cần Cập Nhật
+### 3.2 Frontend
 
-| Bảng | Vấn đề | Cần làm |
-|---|---|---|
-| `embeddings` | `embedding BLOB` chưa rõ format | Chuẩn hóa: JSON array of f64 |
-| `graph_edges` | Thiếu index cho `(source_id, target_id)` | Thêm composite index |
-| `timeline` | Thiếu `auto_generate` trigger | Tự động tạo event khi insert file |
+| Vấn đề | Giải pháp |
+|---|---|
+| PDF preview | `react-pdf` library |
+| Streaming chat | Server-Sent Events (SSE) |
+| Vietnamese tokenizer | SQLite FTS5 unicode61 — đủ cho MVP |
+| Highlight search results | Mark matched text |
 
-### 3.3 Testing
+### 3.3 Tauri
 
-| Module | Test hiện tại | Cần thêm |
-|---|---|---|
-| `memory-core` | 3 tests (scan, extract) | Test PDF thật, DOCX thật |
-| `memory-indexer` | 2 tests (DB creation) | Test pipeline, edge cases |
-| `memory-search` | 0 tests | Test search với data thật |
-| `memory-graph` | 2 tests (topics, connections) | Test graph operations |
-| `memory-security` | 3 tests (encrypt, decrypt, salt) | Test với file thật |
-| `memory-ai` | 0 tests (cần mock Ollama) | Mock tests |
+| Vấn đề | Giải pháp |
+|---|---|
+| Tauri chỉ làm shell | Rust code tối thiểu, Python xử lý chính |
+| File dialog | `tauri-plugin-dialog` |
+| Backend lifecycle | Tauri start/stop Python process |
 
 ---
 
-## 🎯 Phần 4: BƯỚC TIẾP THEO (Next Steps)
+## 📈 BIỂU ĐỒ TIẾN ĐỘ
 
-### 🥇 Ngay Bây Giờ (Tuần này)
+``` 
+Plan & Spec     ████████████████████████████████  100%  (6/6 files)
+Research        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa phỏng vấn)
+Python Backend  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
+React Frontend  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
+AI Chat (RAG)   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
+Testing         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
 
-| STT | Việc cần làm | File/Location | Thời gian |
-|---|---|---|---|
-| 1 | **Chạy `cargo check --workspace`** | Root project | 5 phút |
-| 2 | Fix lỗi compile (nếu có) | Tùy theo lỗi | 1-2 giờ |
-| 3 | **Cài dependencies:** `cd apps/desktop && pnpm install` | apps/desktop | 2 phút |
-| 4 | **Kiểm tra chạy thử:** `pnpm tauri dev` | apps/desktop | 10 phút |
-
-### 🥈 Tuần 1-2: UI Components Cốt Lõi
-
-| STT | Việc cần làm | File cần tạo |
-|---|---|---|
-| 5 | Tạo `FolderPicker` component | `src/components/folder/FolderPicker.tsx` |
-| 6 | Tạo `ScanProgress` component + command `start_scan` | `src/components/scan/ScanProgress.tsx` + `src-tauri/src/commands/scan.rs` |
-| 7 | Tạo `SearchFilters` component | `src/components/search/SearchFilters.tsx` |
-| 8 | Tạo `FilePreview` component | `src/components/preview/FilePreview.tsx` |
-| 9 | Tạo `useSearch` hook | `src/hooks/useSearch.ts` |
-| 10 | Tạo `useScan` hook | `src/hooks/useScan.ts` |
-
-### 🥈 Tuần 3-4: AI Chat + Timeline + Graph
-
-| STT | Việc cần làm | File cần tạo |
-|---|---|---|
-| 11 | Tạo `ChatPanel` component + command `chat` | `src/components/chat/ChatPanel.tsx` + `commands/chat.rs` |
-| 12 | Tạo `TimelineView` component + command `get_timeline` | `src/components/timeline/TimelineView.tsx` + `commands/timeline.rs` |
-| 13 | Tạo `GraphView` component + command `get_graph` | `src/components/graph/GraphView.tsx` + `commands/graph.rs` |
-| 14 | Tích hợp d3.js cho graph visualization | `src/components/graph/` |
-
-### 🥉 Tuần 5-6: OCR + Hoàn Thiện
-
-| STT | Việc cần làm | Mô tả |
-|---|---|---|
-| 15 | Cài PaddleOCR | `pip install paddleocr` |
-| 16 | Kết nối OCR pipeline với Rust | Gọi Python script |
-| 17 | Index OCR text + Search | Tích hợp FTS5 |
-| 18 | Test toàn bộ flow | Scan → Index → Search → Chat |
-
----
-
-## 📈 BIỂU ĐỒ TIẾN ĐỘ (Progress Bar)
-
-```
-Plan & Spec     ████████████████████░░░░░░░░░░░░  60%  (3/5 files)
-Rust Crates     ████████████████████████████████  90%  (6/6 crates, need tests)
-Tauri Backend   ██████████████████░░░░░░░░░░░░░░  50%  (4/8 commands)
-React UI        ██████░░░░░░░░░░░░░░░░░░░░░░░░░░  15%  (3/20 components)
-OCR             ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   5%  (placeholder only)
-Testing         █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   3%  (10 tests total)
-Build/Deploy    ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%  (not tested yet)
-
-TỔNG THỂ: █████████████░░░░░░░░░░░░░░░░░░░  35%
+TỔNG THỂ: ████████░░░░░░░░░░░░░░░░░░░░░░░░░░  15%
 ```
 
 ---
 
 ## 📝 GHI CHÚ QUAN TRỌNG
 
-### Đã hoàn thiện (không cần sửa):
-- ✅ Workspace structure (Cargo.toml root) — đã thêm `apps/desktop/src-tauri`
-- ✅ Tất cả 6 crates structure + implementation cơ bản
-- ✅ SQLite schema (10 tables + indexes)
-- ✅ Encryption (AES-256-GCM + Argon2id)
-- ✅ Tauri app skeleton (React + Rust backend)
-- ✅ Fix workspace: thêm desktop app vào members (14/06/2026)
+### Đã hoàn thành (sau khi chuyển hướng):
+- ✅ Viết lại toàn bộ 5 file plan theo ResearchMind VN
+- ✅ Xác định rõ 4 tính năng MVP
+- ✅ Tech stack chuyển từ Rust → Python + FastAPI
+- ✅ Roadmap 8 tuần → 12 tháng chi tiết
+- ✅ Pricing model (Free → Pro → Lab → Enterprise)
 
-### Cần làm ngay:
-1. 🔴 **`cargo check --workspace`** — kiểm tra có compile không (chạy từ PowerShell)
-2. 🔴 **`cd apps/desktop && pnpm install && pnpm tauri dev`** — chạy thử app
-3. 🟡 **Thêm commands:** select_folder, start_scan, chat, timeline, graph
-4. 🟡 **Tạo UI components:** FolderPicker, ScanProgress, ChatPanel, TimelineView
-5. 🟡 **Test thật với file PDF/DOCX trên máy**
+### Cần làm ngay (đầu tiên):
+1. 🔴 **Phỏng vấn 5 NCS/cao học** — KHÔNG CODE
+2. 🔴 **Build CLI prototype Python** — import PDF + search
+3. 🔴 **Cài môi trường:** Python venv, Ollama, Node.js
+4. 🟡 **Setup FastAPI backend** — health check + SQLite
+5. 🟡 **PDF parsing** — PyMuPDF extract text
 
-### Lưu ý kỹ thuật:
-- ⚠️ `memory-ai/src/embedder.rs` cần cache tokio runtime (dùng `OnceLock`)
-- ⚠️ `memory-indexer/src/pipeline.rs` cần cải thiện error handling
-- ⚠️ Cần cài Ollama để test AI features: `ollama pull qwen2.5:7b`
-- ⚠️ Cần cài PaddleOCR để test OCR: `pip install paddleocr`
-- ⚠️ Lưu ý: chạy từ **PowerShell** (không phải WSL/bash) — các lệnh như:
-  ```powershell
-  cd D:\all_my_project\memoryOS
-  cargo check --workspace
-  cd apps/desktop
-  pnpm tauri dev
-  ```
+### Lưu ý:
+- ⚠️ Dùng **PowerShell** (không WSL) trên Windows
+- ⚠️ Code Rust cũ (memory-core, etc.) **không dùng lại** — chuyển hết sang Python
+- ⚠️ Ollama cần chạy riêng: `ollama serve`
+- ⚠️ bge-m3 cần Python 3.11+, RAM 8GB+
+
+### Các lệnh thường dùng:
+
+```powershell
+# Backend
+cd D:\all_my_project\memoryOS
+.venv\Scripts\activate
+cd backend
+uvicorn main:app --reload --port 8765
+
+# Frontend
+cd apps\desktop
+pnpm tauri dev
+
+# Python tests
+cd backend
+pytest -v
+
+# Ollama
+ollama serve
+ollama pull llama3.1:8b
+```

@@ -1,142 +1,131 @@
-# MemoryOS — 🚀 Các Bước Tiếp Theo
+# ResearchMind VN — 🚀 Các Bước Tiếp Theo
 
-> **Mục tiêu ngắn hạn:** Chạy được `cargo check --workspace` + `pnpm tauri dev`
+> **Mục tiêu ngắn hạn:** Build MVP trong 8 tuần — Import PDF → Search → Chat → Library.
 
 ---
 
-## 🥇 Bước 1: Kiểm Tra Build (LÀM NGAY)
+## 🥇 Bước 0: Research — KHÔNG CODE (Tuần này)
 
-> ✅ **Đã fix:** Thêm `"apps/desktop/src-tauri"` vào `workspace.members` trong root `Cargo.toml`
+> **Gặp 5 nghiên cứu sinh hoặc sinh viên cao học. Hỏi đúng 1 câu:**
+> *"Lần cuối bạn cần tìm lại nội dung trong paper đã đọc nhưng không nhớ tên — chuyện đó xảy ra bao lâu trước?"*
+> Ghi lại câu trả lời nguyên văn. Không pitch sản phẩm.
 
-Chạy từ **PowerShell** (không phải WSL/bash):
+### Cách tiếp cận
+
+1. Vào 3 nhóm Facebook: NCS Việt Nam, PhD Vietnam Network, Hội nghiên cứu sinh
+2. Đăng bài hỏi về pain point (không pitch)
+3. Inbox 20 người đang viết luận án
+4. Phỏng vấn sâu 5 người
+
+---
+
+## 🥇 Bước 1: Setup Môi Trường
 
 ```powershell
-# 1. Kiểm tra Rust workspace có compile không
+# 1. Python 3.11+
+python --version  # cần >= 3.11
+
+# 2. Node.js 20+
+node --version  # cần >= 20
+
+# 3. pnpm
+npm install -g pnpm
+
+# 4. Rust (cho Tauri)
+rustc --version
+
+# 5. Ollama
+# Tải từ ollama.com hoặc:
+winget install Ollama
+ollama pull llama3.1:8b
+
+# 6. Python virtual environment
 cd D:\all_my_project\memoryOS
-cargo check --workspace
-
-# Nếu có lỗi, sửa theo thông báo của compiler
-# Các lỗi thường gặp:
-# - Thiếu dependency → thêm vào Cargo.toml
-# - Sai tên module → kiểm tra mod.rs / lib.rs
-# - Sai kiểu dữ liệu → sửa type
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r backend/requirements.txt
 ```
-
-**Expected output:** `Finished checking` (không có lỗi)
 
 ---
 
-## 🥇 Bước 2: Cài Frontend & Chạy Thử
+## 🥇 Bước 2: Build Prototype CLI (Tuần 2-4)
 
-```bash
-# 2. Cài dependencies
+**Không cần UI. Chỉ Python CLI.**
+
+```python
+# prototype_cli.py
+# 1. Import PDF → extract text → chunk → embed → store
+# 2. Search: gõ câu hỏi → tìm chunks → in kết quả
+# 3. Cho 3 người dùng thử
+
+python prototype_cli.py import D:\PDFs\paper1.pdf
+# ✅ Imported: paper1.pdf (45 chunks, 2.3s)
+
+python prototype_cli.py search "phương pháp đánh giá độ trễ mạng 5G"
+# Kết quả:
+# 1. paper1.pdf (trang 5): độ trễ mạng 5G được đánh giá...
+# 2. paper3.pdf (trang 12): phương pháp Monte Carlo...
+```
+
+---
+
+## 🥇 Bước 3: Build MVP (Tuần 5-8)
+
+### Tuần 5-6: Backend + Frontend Core
+
+```powershell
+# Backend
+cd backend
+uvicorn main:app --reload --port 8765
+# http://localhost:8765/docs → FastAPI docs
+
+# Frontend (trong terminal khác)
 cd apps/desktop
 pnpm install
-
-# 3. Chạy thử (sẽ mở cửa sổ desktop)
 pnpm tauri dev
 ```
 
-**Expected:** Cửa sổ MemoryOS hiện ra với:
-- Header: "🧠 MemoryOS"
-- Search bar: '🔎 "Tìm file PDF về Docker tháng trước"...'
-- Footer: "🔒 0 file được upload lên Internet"
+### Tuần 7-8: AI Chat + Hoàn Thiện
 
----
+```powershell
+# Kiểm tra Ollama
+ollama list  # phải thấy llama3.1:8b
 
-## 🥇 Bước 3: Tạo UI Components Còn Thiếu
-
-> ✅ **Đã hoàn thành các components:**
-> - FolderPicker, FolderList (folder selection)
-> - ScanButton, ScanProgress (scan lifecycle)
-> - ChatPanel, ChatMessage, ChatInput (AI chat)
-> - SearchFilters (filter by type/date/folder)
-> - **Icons.tsx** (Lucide icon library + 3D CSS styling — thay thế toàn bộ emoji)
-> 
-> ✅ **Rust commands đã implement:**
-> - `add_folder`, `get_folders`, `remove_folder` (folder management)
-> - `start_scan`, `stop_scan`, `get_scan_progress` (scan lifecycle)
-> - `chat`, `get_chat_history`, `clear_chat_history` (AI chat)
-> - `search`, `get_preview`, `get_suggestions`, `get_stats` (search)
-
-### 3.4 Timeline + Graph (chưa làm)
-
-```bash
-# Components:
-src/components/timeline/TimelineView.tsx
-src/components/graph/GraphView.tsx
-
-# Commands:
-commands/timeline.rs   → get_timeline()
-commands/graph.rs     → get_graph()
+# Test chat
+curl -X POST http://localhost:8765/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Tóm tắt paper này", "paper_ids": ["id1"]}'
 ```
 
 ---
 
-## 🥈 Bước 4: Cài Tools Cần Thiết
+## 📋 Checklist Hàng Ngày
 
-```bash
-# Rust
-rustup update
-
-# Node.js (kiểm tra)
-node --version  # cần >= 20
-
-# pnpm
-npm install -g pnpm
-
-# Ollama (cho AI)
-winget install Ollama  # hoặc tải từ ollama.com
-ollama pull qwen2.5:7b
-
-# PaddleOCR (cho OCR)
-pip install paddleocr
-```
+- [ ] `cd backend && uvicorn main:app --reload` — backend chạy?
+- [ ] `cd apps/desktop && pnpm tauri dev` — app chạy?
+- [ ] Import ít nhất 1 PDF test
+- [ ] Search thử bằng câu hỏi tiếng Việt
+- [ ] Viết commit message rõ ràng
 
 ---
 
-## 🥉 Bước 5: Chạy Unit Tests
+## 🎯 Milestones
 
-```bash
-# Test tất cả crates
-cargo test --workspace
-
-# Test riêng từng crate
-cargo test -p memory-core
-cargo test -p memory-security
-cargo test -p memory-graph
-cargo test -p memory-ai
-cargo test -p memory-indexer
-```
-
-**Expected:** ~10 tests pass (hiện tại đã viết sẵn)
-
----
-
-## 🎯 Checklist Hàng Ngày
-
-- [ ] `cargo check --workspace` — không lỗi compile?
-- [ ] Code xong 1 component?
-- [ ] Code xong 1 command?
-- [ ] Chạy thử app: `pnpm tauri dev`?
-- [ ] Commit code?
-
----
-
-## 📅 Lộ Trình 6 Tuần
-
-| Tuần | Mục tiêu | Check |
+| Tuần | Milestone | Check |
 |---|---|---|
-| **Tuần 1** | ✅ Build được + App chạy | ☐ |
-| **Tuần 2** | ✅ FolderPicker + Scan + Index hoạt động | ☐ |
-| **Tuần 3** | ✅ Search + Filters + Preview | ☐ |
-| **Tuần 4** | ✅ AI Chat hoạt động (Ollama) | ☐ |
-| **Tuần 5** | ✅ Timeline + Graph UI | ☐ |
-| **Tuần 6** | ✅ OCR + Hoàn thiện + Test | ☐ |
+| Tuần 1 | ✅ Phỏng vấn 5 NCS | ☐ |
+| Tuần 2 | ✅ CLI prototype: import + search | ☐ |
+| Tuần 3 | ✅ Backend FastAPI + Search APIs | ☐ |
+| Tuần 4 | ✅ ChromaDB + Hybrid Search hoạt động | ☐ |
+| Tuần 5 | ✅ React + Tauri UI (Library + Search) | ☐ |
+| Tuần 6 | ✅ Import folder + Settings | ☐ |
+| Tuần 7 | ✅ Chat với Paper (Ollama) | ☐ |
+| Tuần 8 | ✅ MVP hoàn chỉnh + 10 users test | ☐ |
 
 ---
 
-> **Mỗi ngày chỉ cần:** Chọn 1 component hoặc 1 command từ `tracking.md`, code nó, chạy thử, commit.
-> 
-> **Nguyên tắc:** Không cố làm tất cả cùng lúc. Version 0.1 chỉ có 1 mục tiêu:
-> *"Tìm file PDF về Docker mà tôi đọc khoảng tháng trước" — trong dưới 1 giây.*
+> **Nguyên tắc:** 
+> - Không code khi chưa phỏng vấn người dùng
+> - Không thêm tính năng khi chưa có 20 user active
+> - Dùng Python để build nhanh, rewrite sau nếu cần
+> - Mỗi câu trả lời AI phải có trích dẫn nguồn
