@@ -609,14 +609,68 @@ async def export_synthesis(request: SynthesisExportRequest):
             color: #1e293b;
             background: #f8fafc;
         }}
-        .container {{
-            background: #ffffff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        /* ── Theme Toolbar ── */
+        .toolbar {{
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 8px 12px;
+            background: #f1f5f9;
+            border-radius: 10px;
             border: 1px solid #e2e8f0;
         }}
-        h1 {{
+        .toolbar-label {{
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: auto;
+        }}
+        .theme-btn {{
+            padding: 4px 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }}
+        .theme-btn:hover {{
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }}
+        .theme-btn.active {{
+            background: #6366f1;
+            border-color: #6366f1;
+            color: #ffffff;
+        }}
+        .theme-btn-dark.active {{
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+        }}
+        .theme-btn::before {{
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }}
+        .theme-btn[data-theme="github"]::before {{ background: #f5f5f5; border: 1px solid #ddd; }}
+        .theme-btn[data-theme="github-dark"]::before {{ background: #0d1117; }}
+        .theme-btn[data-theme="monokai"]::before {{ background: #272822; }}
+        .theme-btn[data-theme="dracula"]::before {{ background: #282a36; }}
+        .theme-btn[data-theme="atom-one-dark"]::before {{ background: #1e1e1e; }}
+        .theme-btn[data-theme="nord"]::before {{ background: #2e3440; }}
+        .theme-btn[data-theme="vs2015"]::before {{ background: #1e1e1e; }}
+        .theme-btn[data-theme="tomorrow"]::before {{ background: #ffffff; border: 1px solid #ddd; }}
+        .container {{
             border-bottom: 2px solid #8b5cf6;
             padding-bottom: 12px;
             color: #0f172a;
@@ -718,9 +772,21 @@ async def export_synthesis(request: SynthesisExportRequest):
         }}
     </style>
     <!-- highlight.js for syntax highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 </head>
 <body>
+    <!-- Theme Toolbar -->
+    <div class="toolbar">
+        <span class="toolbar-label">🎨 Theme</span>
+        <button class="theme-btn active" data-theme="github" onclick="setTheme('github')" title="GitHub Light">Light</button>
+        <button class="theme-btn theme-btn-dark" data-theme="github-dark" onclick="setTheme('github-dark')" title="GitHub Dark">GitHub</button>
+        <button class="theme-btn theme-btn-dark" data-theme="monokai" onclick="setTheme('monokai')" title="Monokai">Monokai</button>
+        <button class="theme-btn theme-btn-dark" data-theme="dracula" onclick="setTheme('dracula')" title="Dracula">Dracula</button>
+        <button class="theme-btn theme-btn-dark" data-theme="atom-one-dark" onclick="setTheme('atom-one-dark')" title="Atom One Dark">Atom</button>
+        <button class="theme-btn theme-btn-dark" data-theme="nord" onclick="setTheme('nord')" title="Nord">Nord</button>
+        <button class="theme-btn theme-btn-dark" data-theme="vs2015" onclick="setTheme('vs2015')" title="VS2015">VS</button>
+        <button class="theme-btn" data-theme="tomorrow" onclick="setTheme('tomorrow')" title="Tomorrow">Tomorrow</button>
+    </div>
     <div class="container">
         <h1>{_escape_html(title)}</h1>
         {html_body}
@@ -729,7 +795,60 @@ async def export_synthesis(request: SynthesisExportRequest):
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script>hljs.highlightAll();</script>
+    <script>
+        const THEMES = {{
+            'github':     'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css',
+            'github-dark':'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css',
+            'monokai':    'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai.min.css',
+            'dracula':    'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/dracula.min.css',
+            'atom-one-dark':'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css',
+            'nord':       'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/nord.min.css',
+            'vs2015':     'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css',
+            'tomorrow':   'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tomorrow.min.css',
+        }};
+
+        function applyTheme(name) {{
+            const link = document.getElementById('hljs-theme');
+            if (!link || !THEMES[name]) return;
+            link.onload = function() {{
+                document.querySelectorAll('pre code').forEach(function(block) {{
+                    hljs.highlightElement(block);
+                }});
+            }};
+            link.href = THEMES[name];
+            document.querySelectorAll('.theme-btn').forEach(function(btn) {{
+                btn.classList.toggle('active', btn.getAttribute('data-theme') === name);
+            }});
+        }}
+
+        function setTheme(name) {{
+            applyTheme(name);
+            localStorage.setItem('hljs-theme', name);
+            // User made an explicit choice — detach system preference listener
+            try {{ window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', autoSwitchTheme); }} catch(e) {{}}
+        }}
+
+        function autoSwitchTheme(e) {{
+            if (!localStorage.getItem('hljs-theme')) {{
+                applyTheme(e.matches ? 'github-dark' : 'github');
+            }}
+        }}
+
+        function getSystemTheme() {{
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'github-dark' : 'github';
+        }}
+
+        // Initialize: saved preference > system dark mode > default (github)
+        (function() {{
+            const saved = localStorage.getItem('hljs-theme');
+            if (saved && THEMES[saved]) {{
+                applyTheme(saved);  // user's explicit choice
+            }} else {{
+                applyTheme(getSystemTheme());  // auto-detect, don't save
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', autoSwitchTheme);
+            }}
+        }})();
+    </script>
 </body>
 </html>"""
         buf = io.BytesIO(html_content.encode("utf-8"))
