@@ -32,9 +32,9 @@ from pathlib import Path
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Query, Body
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Query, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from contextlib import asynccontextmanager
 from loguru import logger
 import shutil
@@ -193,6 +193,22 @@ app.add_middleware(
 # Register export & import routes
 app.include_router(export_router)
 app.include_router(zotero_import_router)
+
+
+# ─── Global Exception Handler ────────────────────────────────────
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all exception handler to ensure CORS headers are returned on 500 errors."""
+    logger.exception(f"Unhandled exception occurred: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "message": str(exc),
+            "type": exc.__class__.__name__,
+        },
+    )
 
 
 # ─── Health ──────────────────────────────────────────────────────
@@ -2971,7 +2987,7 @@ def _migrate_auto_summary(engine):
         with engine.connect() as conn:
             # Check if column exists
             result = conn.execute(text(
-                "SELECT pragma_table_info('papers')"
+                "PRAGMA table_info(papers)"
             ))
             columns = [row[1] for row in result.fetchall()]
             if "auto_summary" not in columns:
