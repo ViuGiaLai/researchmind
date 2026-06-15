@@ -165,9 +165,16 @@ h1, h2, h3, h4, h5 {
 
 .logo {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   cursor: pointer;
+}
+
+.logo-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .logo-img {
@@ -187,6 +194,15 @@ h1, h2, h3, h4, h5 {
   display: flex;
   align-items: center;
   gap: 6px;
+  line-height: 1;
+}
+
+.logo-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  padding-left: 42px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .badge-vn {
@@ -852,6 +868,8 @@ h1, h2, h3, h4, h5 {
   font-size: 0.82rem;
   font-family: var(--font-mono);
   color: var(--text-secondary);
+  word-break: break-all;
+  white-space: normal;
 }
 
 .item-size {
@@ -1160,12 +1178,28 @@ h1, h2, h3, h4, h5 {
 
 .footer-logo {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.footer-logo-brand {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--text-muted);
+  gap: 8px;
+}
+
+.footer-logo-text {
   font-family: var(--font-title);
   font-weight: 700;
   font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.footer-logo-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding-left: 32px;
 }
 
 .footer-logo-img {
@@ -1183,6 +1217,11 @@ h1, h2, h3, h4, h5 {
 
 /* ── Responsive Queries ─────────────────────────────────────── */
 @media (max-width: 992px) {
+  .hero-section {
+    padding-top: 120px;
+    padding-bottom: 60px;
+  }
+
   .hero-grid {
     grid-template-columns: 1fr;
     gap: 36px;
@@ -1269,7 +1308,7 @@ h1, h2, h3, h4, h5 {
   }
   
   .hero-title {
-    font-size: 2.7rem;
+    font-size: clamp(2rem, 8vw, 2.7rem);
     letter-spacing: -1px;
   }
   
@@ -1283,6 +1322,7 @@ h1, h2, h3, h4, h5 {
     flex-direction: column;
     gap: 12px;
     width: 100%;
+    max-width: 440px;
   }
   
   .stat-divider {
@@ -1340,5 +1380,25 @@ h1, h2, h3, h4, h5 {
     flex-direction: column;
     gap: 16px;
     text-align: center;
+    align-items: center;
+  }
+
+  .footer-logo {
+    align-items: center;
+  }
+
+  .footer-logo-sub {
+    padding-left: 0;
+  }
+
+  .sidebar-brand-wrapper {
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .nav-menu .nav-link {
+    text-align: center;
+    padding: 10px 0;
+    font-size: 1.1rem;
   }
 }
