@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { IconBrain, IconSpinner, IconCheck, IconLock, IconSparkle } from "../Icons";
+import { IconBrain, IconSpinner, IconCheck } from "../Icons";
 
 interface Props {
   onComplete: () => void;
@@ -13,18 +13,25 @@ interface SpecsResult {
   suggested_model: string;
 }
 
-type Step = "welcome" | "mode" | "cloud" | "local" | "done";
+type Step = "welcome" | "mode" | "cloud_custom" | "local" | "done";
 
 export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
   const [step, setStep] = useState<Step>("welcome");
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
   const [specsLoading, setSpecsLoading] = useState(true);
-  const [llmMode, setLlmMode] = useState<"cloud" | "local">("cloud");
+  const [deepseekApiKey, setDeepseekApiKey] = useState("");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
   const [claudeApiKey, setClaudeApiKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [customProvider, setCustomProvider] = useState<"deepseek" | "gemini" | "claude">("deepseek");
+  const [showDSKey, setShowDSKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showClaudeKey, setShowClaudeKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [selectedTier, setSelectedTier] = useState<string>("medium");
+  const [localStatus, setLocalStatus] = useState<"idle" | "checking" | "model_missing" | "pulling">("idle");
+  const [pullProgress, setPullProgress] = useState(0);
+  const [pullMessage, setPullMessage] = useState("");
 
   useEffect(() => {
     loadSpecs();
@@ -49,63 +56,183 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
     }
   };
 
-  const handleChooseMode = (mode: "cloud" | "local") => {
-    setLlmMode(mode);
-    if (mode === "cloud") {
-      setStep("cloud");
+  const handleChooseMode = async (mode: "cloud_free" | "cloud_custom" | "local") => {
+    setSaveMsg(null);
+    if (mode === "cloud_free") {
+      setSaving(true);
+      try {
+        await api.updateSettings({
+          llm_mode: "cloud_free",
+          setup_completed: true,
+        });
+        setStep("done");
+      } catch (e) {
+        setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}`);
+      } finally {
+        setSaving(false);
+      }
+    } else if (mode === "cloud_custom") {
+      setStep("cloud_custom");
     } else {
       setStep("local");
     }
   };
 
-  const handleSaveCloud = async () => {
-    if (!claudeApiKey.trim()) {
-      setSaveMsg("Vui lòng nhập Claude API Key");
+  const handleSaveCustom = async () => {
+    const activeKey =
+      customProvider === "deepseek"
+        ? deepseekApiKey
+        : customProvider === "gemini"
+        ? geminiApiKey
+        : claudeApiKey;
+    if (!activeKey.trim()) {
+      setSaveMsg(
+        `Vui lòng nhập API Key cho ${
+          customProvider === "deepseek"
+            ? "DeepSeek"
+            : customProvider === "gemini"
+            ? "Gemini"
+            : "Claude"
+        }`
+      );
       return;
     }
     setSaving(true);
-    setSaveMsg(null);
+    setSaveMsg("Đang kiểm tra kết nối API Key...");
     try {
+      const val = await api.validateApiKey(customProvider, activeKey);
+      if (!val.valid) {
+        setSaveMsg(`Không thể kết nối đến API Key: ${val.error || "Không xác định"}`);
+        setSaving(false);
+        return;
+      }
+
       await api.updateSettings({
-        llm_mode: "cloud",
+        llm_mode: "cloud_custom",
+        custom_cloud_provider: customProvider,
+        deepseek_api_key: deepseekApiKey,
+        gemini_api_key: geminiApiKey,
         claude_api_key: claudeApiKey,
-        claude_model: "claude-sonnet-4-20250514",
+        setup_completed: true,
       });
       setStep("done");
     } catch (e) {
       setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startPullingModel = async (modelName: string) => {
+    setLocalStatus("pulling");
+    setPullProgress(0);
+    setPullMessage("Bắt đầu tải model từ Ollama...");
+    setSaveMsg(null);
+
+    try {
+      const response = await fetch(api.pullOllamaModelUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelName }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error("Không hỗ trợ stream dữ liệu tải.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("data: ")) {
+            try {
+              const payload = JSON.parse(trimmed.slice(6));
+              
+              if (payload.status === "error") {
+                throw new Error(payload.message || "Lỗi tải model");
+              }
+
+              if (payload.status === "downloading" && payload.total) {
+                const percent = Math.round((payload.completed / payload.total) * 100);
+                setPullProgress(percent);
+                setPullMessage(`Đang tải: ${percent}% (${Math.round(payload.completed / 1024 / 1024)}MB / ${Math.round(payload.total / 1024 / 1024)}MB)`);
+              } else if (payload.status === "success") {
+                setPullProgress(100);
+                setPullMessage("Tải thành công! Đang cấu hình ứng dụng...");
+              } else if (payload.status) {
+                setPullMessage(`Trạng thái: ${payload.status}`);
+              }
+            } catch (err) {
+              console.error("Lỗi parse JSON stream:", err);
+            }
+          }
+        }
+      }
+
+      await api.updateSettings({
+        llm_mode: "local",
+        ollama_model: modelName,
+        setup_completed: true,
+      });
+      setStep("done");
+    } catch (e) {
+      setLocalStatus("model_missing");
+      setSaveMsg(`Lỗi tải model: ${e instanceof Error ? e.message : "Lỗi không xác định"}`);
     }
   };
 
   const handleSaveLocal = async () => {
-    setSaving(true);
-    setSaveMsg(null);
-    try {
-      const modelMap: Record<string, string> = {
-        weak: specs?.suggested_model || "qwen2.5:3b",
-        medium: specs?.suggested_model || "qwen2.5:7b",
-        strong: specs?.suggested_model || "qwen2.5:14b",
-      };
-      await api.updateSettings({
-        llm_mode: "local",
-        ollama_model: modelMap[selectedTier],
-      });
-      setStep("done");
-    } catch (e) {
-      setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}`);
-    } finally {
-      setSaving(false);
-    }
-  };
+    const modelMap: Record<string, string> = {
+      weak: specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b",
+      medium: specs?.suggested_tier === "medium" ? specs.suggested_model : "qwen2.5:7b",
+      strong: specs?.suggested_tier === "strong" ? specs.suggested_model : "qwen2.5:14b",
+    };
+    const targetModel = modelMap[selectedTier] || "qwen2.5:7b";
 
-  const handleSkipCloud = async () => {
-    // Save cloud mode without API key (will try local fallback)
     setSaving(true);
+    setSaveMsg("Đang kiểm tra kết nối đến Ollama...");
+    setLocalStatus("checking");
+
     try {
-      await api.updateSettings({ llm_mode: "cloud" });
-      setStep("done");
+      const status = await api.getOllamaStatus();
+      if (!status.connected) {
+        setSaveMsg(`Không thể kết nối đến Ollama. Vui lòng kiểm tra lại xem ứng dụng Ollama đã được bật trên máy chưa (cổng 11434).`);
+        setLocalStatus("idle");
+        setSaving(false);
+        return;
+      }
+
+      const models = status.models || [];
+      const hasModel = models.some(m => m.toLowerCase().includes(targetModel.toLowerCase()));
+
+      if (hasModel) {
+        await api.updateSettings({
+          llm_mode: "local",
+          ollama_model: targetModel,
+          setup_completed: true,
+        });
+        setStep("done");
+      } else {
+        setLocalStatus("model_missing");
+        setSaveMsg(null);
+      }
+    } catch (e) {
+      setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể cấu hình"}`);
+      setLocalStatus("idle");
     } finally {
       setSaving(false);
     }
@@ -113,7 +240,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
 
   return (
     <div className="aiwizard-overlay">
-      <div className="aiwizard-card">
+      <div className="aiwizard-card" style={step === "mode" ? { maxWidth: "800px" } : {}}>
         {/* Welcome */}
         {step === "welcome" && (
           <div className="aiwizard-step">
@@ -150,7 +277,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
 
         {/* Choose mode */}
         {step === "mode" && (
-          <div className="aiwizard-step">
+          <div className="aiwizard-step" style={{ width: "100%" }}>
             <h2 className="aiwizard-title" style={{ fontSize: "1.4rem" }}>
               Chọn chế độ AI
             </h2>
@@ -158,91 +285,196 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
               Bạn muốn dùng AI kiểu nào? Có thể đổi sau bất cứ lúc nào.
             </p>
 
-            <div className="aiwizard-mode-cards">
+            <div className="aiwizard-mode-cards" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", width: "100%" }}>
               <button
-                className={`aiwizard-mode-card ${specs && specs.total_ram_gb < 8 ? "recommended" : ""}`}
-                onClick={() => handleChooseMode("cloud")}
+                className="aiwizard-mode-card recommended"
+                onClick={() => handleChooseMode("cloud_free")}
+                disabled={saving}
+                style={{ flex: "none" }}
               >
-                <div className="aiwizard-mode-icon">☁️</div>
-                <div className="aiwizard-mode-title">Dễ dùng (Khuyên dùng)</div>
+                <div className="aiwizard-mode-icon">⚡</div>
+                <div className="aiwizard-mode-title">Cloud Free</div>
                 <div className="aiwizard-mode-desc">
-                  Không cần cài gì thêm.
+                  Dùng qua Gemini API.
                   <br />
-                  AI chạy qua Claude API.
+                  Giới hạn 10 câu/ngày.
                   <br />
-                  Chỉ cần nhập API key.
+                  Chạy ngay không cần cài đặt.
                 </div>
-                {specs && specs.total_ram_gb < 8 && (
-                  <div className="aiwizard-mode-badge">✅ Phù hợp máy bạn</div>
-                )}
+                <div className="aiwizard-mode-badge" style={{ background: "var(--color-primary, #6366f1)" }}>Khuyên dùng</div>
               </button>
 
               <button
-                className={`aiwizard-mode-card ${specs && specs.total_ram_gb >= 8 ? "recommended" : ""}`}
+                className="aiwizard-mode-card"
+                onClick={() => handleChooseMode("cloud_custom")}
+                disabled={saving}
+                style={{ flex: "none" }}
+              >
+                <div className="aiwizard-mode-icon">🔑</div>
+                <div className="aiwizard-mode-title">Custom Key</div>
+                <div className="aiwizard-mode-desc">
+                  Không giới hạn.
+                  <br />
+                  Nhập key riêng.
+                  <br />
+                  Tự chi trả chi phí API.
+                </div>
+              </button>
+
+              <button
+                className="aiwizard-mode-card"
                 onClick={() => handleChooseMode("local")}
+                disabled={saving}
+                style={{ flex: "none" }}
               >
                 <div className="aiwizard-mode-icon">🔒</div>
-                <div className="aiwizard-mode-title">Riêng tư tuyệt đối</div>
+                <div className="aiwizard-mode-title">Offline Cục Bộ</div>
                 <div className="aiwizard-mode-desc">
-                  Tải model về máy.
+                  Bảo mật tuyệt đối.
                   <br />
-                  Chạy offline hoàn toàn.
+                  Không cần internet.
                   <br />
-                  Miễn phí, không cần internet.
+                  Cần tải model (~5GB).
                 </div>
                 {specs && specs.total_ram_gb >= 8 && (
-                  <div className="aiwizard-mode-badge">✅ Máy bạn đủ mạnh</div>
+                  <div className="aiwizard-mode-badge">Máy bạn đủ mạnh</div>
                 )}
               </button>
             </div>
+            {saveMsg && <p className="aiwizard-error" style={{ marginTop: "12px" }}>{saveMsg}</p>}
           </div>
         )}
 
-        {/* Cloud setup */}
-        {step === "cloud" && (
+        {/* Custom Cloud setup */}
+        {step === "cloud_custom" && (
           <div className="aiwizard-step">
             <h2 className="aiwizard-title" style={{ fontSize: "1.3rem" }}>
-              ☁️ Cấu hình Cloud
+              🔑 Cấu hình Custom Key
             </h2>
             <p className="aiwizard-desc">
-              Nhập Claude API Key để dùng AI mà không cần tải model.
+              Nhập API Key cá nhân của bạn để sử dụng không giới hạn.
             </p>
 
-            <div className="aiwizard-field">
-              <label className="aiwizard-label">Claude API Key</label>
-              <div className="aiwizard-key-row">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  className="aiwizard-input"
-                  value={claudeApiKey}
-                  onChange={(e) => setClaudeApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                />
-                <button
-                  className="aiwizard-toggle-btn"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? "🙈" : "👁️"}
-                </button>
-              </div>
-              <p className="aiwizard-hint">
-                🔒 API key được lưu trên máy bạn.
-                <br />
-                <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
-                  Lấy API key tại đây →
-                </a>
-              </p>
+            <div className="provider-tabs" style={{ display: "flex", gap: "8px", width: "100%", marginBottom: "16px" }}>
+              {["deepseek", "gemini", "claude"].map((provider) => {
+                const isActive = customProvider === provider;
+                const labels: Record<string, string> = {
+                  deepseek: "DeepSeek (Rẻ)",
+                  gemini: "Gemini (Nhanh)",
+                  claude: "Claude (Chất lượng)"
+                };
+                return (
+                  <button
+                    key={provider}
+                    className="provider-tab-btn"
+                    onClick={() => setCustomProvider(provider as any)}
+                    style={{
+                      flex: 1, padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
+                      background: isActive ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                      borderColor: isActive ? "var(--color-primary, #6366f1)" : "var(--border-color)",
+                      color: isActive ? "var(--color-primary, #6366f1)" : "var(--color-text)",
+                      cursor: "pointer", fontWeight: "bold"
+                    }}
+                  >
+                    {labels[provider]}
+                  </button>
+                );
+              })}
             </div>
+
+            {customProvider === "deepseek" && (
+              <div className="aiwizard-field" style={{ width: "100%" }}>
+                <label className="aiwizard-label">DeepSeek API Key</label>
+                <div className="aiwizard-key-row">
+                  <input
+                    type={showDSKey ? "text" : "password"}
+                    className="aiwizard-input"
+                    value={deepseekApiKey}
+                    onChange={(e) => setDeepseekApiKey(e.target.value)}
+                    placeholder="sk-..."
+                  />
+                  <button
+                    className="aiwizard-toggle-btn"
+                    onClick={() => setShowDSKey(!showDSKey)}
+                  >
+                    {showDSKey ? "🙈" : "👁️"}
+                  </button>
+                </div>
+                <p className="aiwizard-hint">
+                  🔒 API key được lưu cục bộ trên máy bạn.
+                  <br />
+                  <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
+                    Lấy API key tại đây (nạp ~2$ dùng thoải mái) →
+                  </a>
+                </p>
+              </div>
+            )}
+
+            {customProvider === "gemini" && (
+              <div className="aiwizard-field" style={{ width: "100%" }}>
+                <label className="aiwizard-label">Gemini API Key</label>
+                <div className="aiwizard-key-row">
+                  <input
+                    type={showGeminiKey ? "text" : "password"}
+                    className="aiwizard-input"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                  />
+                  <button
+                    className="aiwizard-toggle-btn"
+                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  >
+                    {showGeminiKey ? "🙈" : "👁️"}
+                  </button>
+                </div>
+                <p className="aiwizard-hint">
+                  🔒 API key được lưu cục bộ trên máy bạn.
+                  <br />
+                  <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
+                    Lấy API key tại đây (Miễn phí rate limit) →
+                  </a>
+                </p>
+              </div>
+            )}
+
+            {customProvider === "claude" && (
+              <div className="aiwizard-field" style={{ width: "100%" }}>
+                <label className="aiwizard-label">Claude API Key</label>
+                <div className="aiwizard-key-row">
+                  <input
+                    type={showClaudeKey ? "text" : "password"}
+                    className="aiwizard-input"
+                    value={claudeApiKey}
+                    onChange={(e) => setClaudeApiKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                  />
+                  <button
+                    className="aiwizard-toggle-btn"
+                    onClick={() => setShowClaudeKey(!showClaudeKey)}
+                  >
+                    {showClaudeKey ? "🙈" : "👁️"}
+                  </button>
+                </div>
+                <p className="aiwizard-hint">
+                  🔒 API key được lưu cục bộ trên máy bạn.
+                  <br />
+                  <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="aiwizard-link">
+                    Lấy API key tại đây →
+                  </a>
+                </p>
+              </div>
+            )}
 
             {saveMsg && <p className="aiwizard-error">{saveMsg}</p>}
 
             <div className="aiwizard-actions">
-              <button className="aiwizard-btn-primary" onClick={handleSaveCloud} disabled={saving}>
+              <button className="aiwizard-btn-primary" onClick={handleSaveCustom} disabled={saving}>
                 {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
                 <span>{saving ? "Đang lưu..." : "Xác nhận"}</span>
               </button>
-              <button className="aiwizard-btn-skip" onClick={handleSkipCloud} disabled={saving}>
-                Bỏ qua, dùng Local
+              <button className="aiwizard-btn-skip" onClick={() => setStep("mode")} disabled={saving}>
+                Quay lại
               </button>
             </div>
           </div>
@@ -254,51 +486,113 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
             <h2 className="aiwizard-title" style={{ fontSize: "1.3rem" }}>
               🔒 Cấu hình Local
             </h2>
-            <p className="aiwizard-desc">
-              Chọn cấp độ model phù hợp với máy bạn.
-            </p>
 
-            <div className="aiwizard-tiers">
-              {["weak", "medium", "strong"].map((tier) => {
-                const labels: Record<string, string> = {
-                  weak: "🔹 Nhẹ (4-8GB RAM)",
-                  medium: "🔸 Trung bình (8-16GB)",
-                  strong: "🔶 Mạnh (16GB+)",
-                };
-                const models: Record<string, string> = {
-                  weak: specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b",
-                  medium: specs?.suggested_tier === "medium" ? specs.suggested_model : "qwen2.5:7b",
-                  strong: specs?.suggested_tier === "strong" ? specs.suggested_model : "qwen2.5:14b",
-                };
-                return (
+            {localStatus === "model_missing" ? (
+              <div className="aiwizard-model-missing" style={{ width: "100%", textAlign: "center" }}>
+                <p style={{ margin: "16px 0", fontSize: "0.95rem" }}>
+                  Máy đã kết nối được đến Ollama. Tuy nhiên, model <strong>{
+                    selectedTier === "weak" ? (specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b") :
+                    selectedTier === "medium" ? (specs?.suggested_tier === "medium" ? specs.suggested_model : "qwen2.5:7b") :
+                    (specs?.suggested_tier === "strong" ? specs.suggested_model : "qwen2.5:14b")
+                  }</strong> chưa được cài đặt.
+                </p>
+                <p style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", marginBottom: 20 }}>
+                  Model này nặng khoảng 2.0GB - 4.7GB tùy cấp độ bạn đã chọn.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
                   <button
-                    key={tier}
-                    className={`aiwizard-tier-card ${selectedTier === tier ? "active" : ""} ${specs?.suggested_tier === tier ? "recommended" : ""}`}
-                    onClick={() => setSelectedTier(tier)}
+                    className="aiwizard-btn-primary"
+                    onClick={() => {
+                      const modelMap: Record<string, string> = {
+                        weak: specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b",
+                        medium: specs?.suggested_tier === "medium" ? specs.suggested_model : "qwen2.5:7b",
+                        strong: specs?.suggested_tier === "strong" ? specs.suggested_model : "qwen2.5:14b",
+                      };
+                      startPullingModel(modelMap[selectedTier] || "qwen2.5:7b");
+                    }}
                   >
-                    <div className="aiwizard-tier-info">
-                      <span className="aiwizard-tier-name">{labels[tier]}</span>
-                      <span className="aiwizard-tier-model">{models[tier]}</span>
-                    </div>
-                    <div className="aiwizard-tier-check">
-                      {selectedTier === tier && <IconCheck size={18} />}
-                    </div>
-                    {specs?.suggested_tier === tier && (
-                      <span className="aiwizard-tier-badge">Gợi ý</span>
-                    )}
+                    🚀 Tải model tự động trực tiếp trên app
                   </button>
-                );
-              })}
-            </div>
+                  <button
+                    className="aiwizard-btn-skip"
+                    onClick={handleSaveLocal}
+                    style={{
+                      padding: "10px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
+                      background: "transparent", cursor: "pointer", color: "var(--color-text)", fontWeight: "bold"
+                    }}
+                  >
+                    🔄 Tôi đã tự chạy 'ollama pull' thủ công - Kiểm tra lại
+                  </button>
+                  <button
+                    className="aiwizard-btn-skip"
+                    onClick={() => setLocalStatus("idle")}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}
+                  >
+                    Quay lại chọn model tier
+                  </button>
+                </div>
+              </div>
+            ) : localStatus === "pulling" ? (
+              <div className="aiwizard-model-pulling" style={{ width: "100%", textAlign: "center", padding: "20px 0" }}>
+                <IconSpinner size={32} style={{ marginBottom: "16px" }} />
+                <p style={{ fontWeight: "bold", marginBottom: "8px" }}>{pullMessage}</p>
+                <div className="pull-progress-bar-track" style={{ width: "100%", height: "8px", background: "var(--border-color, #e2e8f0)", borderRadius: "4px", overflow: "hidden", marginBottom: "12px" }}>
+                  <div className="pull-progress-bar-fill" style={{ width: `${pullProgress}%`, height: "100%", background: "var(--color-primary, #6366f1)", transition: "width 0.2s ease" }} />
+                </div>
+                <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Vui lòng không tắt ứng dụng khi đang tải.</p>
+              </div>
+            ) : (
+              <>
+                <p className="aiwizard-desc">
+                  Chọn cấp độ model phù hợp với máy bạn.
+                </p>
 
-            {saveMsg && <p className="aiwizard-error">{saveMsg}</p>}
+                <div className="aiwizard-tiers">
+                  {["weak", "medium", "strong"].map((tier) => {
+                    const labels: Record<string, string> = {
+                      weak: "🔹 Nhẹ (4-8GB RAM)",
+                      medium: "🔸 Trung bình (8-16GB)",
+                      strong: "🔶 Mạnh (16GB+)",
+                    };
+                    const models: Record<string, string> = {
+                      weak: specs?.suggested_tier === "weak" ? specs.suggested_model : "qwen2.5:3b",
+                      medium: specs?.suggested_tier === "medium" ? specs.suggested_model : "qwen2.5:7b",
+                      strong: specs?.suggested_tier === "strong" ? specs.suggested_model : "qwen2.5:14b",
+                    };
+                    return (
+                      <button
+                        key={tier}
+                        className={`aiwizard-tier-card ${selectedTier === tier ? "active" : ""} ${specs?.suggested_tier === tier ? "recommended" : ""}`}
+                        onClick={() => setSelectedTier(tier)}
+                      >
+                        <div className="aiwizard-tier-info">
+                          <span className="aiwizard-tier-name">{labels[tier]}</span>
+                          <span className="aiwizard-tier-model">{models[tier]}</span>
+                        </div>
+                        <div className="aiwizard-tier-check">
+                          {selectedTier === tier && <IconCheck size={18} />}
+                        </div>
+                        {specs?.suggested_tier === tier && (
+                          <span className="aiwizard-tier-badge">Gợi ý</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-            <div className="aiwizard-actions">
-              <button className="aiwizard-btn-primary" onClick={handleSaveLocal} disabled={saving}>
-                {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
-                <span>{saving ? "Đang lưu..." : "Xác nhận"}</span>
-              </button>
-            </div>
+                {saveMsg && <p className="aiwizard-error">{saveMsg}</p>}
+
+                <div className="aiwizard-actions">
+                  <button className="aiwizard-btn-primary" onClick={handleSaveLocal} disabled={saving}>
+                    {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
+                    <span>{saving ? "Đang lưu..." : "Xác nhận"}</span>
+                  </button>
+                  <button className="aiwizard-btn-skip" onClick={() => setStep("mode")} disabled={saving}>
+                    Quay lại
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -322,7 +616,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         <div className="aiwizard-steps">
           {["welcome", "mode", "config", "done"].map((s, i) => {
             const stepOrder = ["welcome", "mode", "config", "done"];
-            const currentIdx = step === "cloud" || step === "local" ? stepOrder.indexOf("config") : stepOrder.indexOf(step);
+            const currentIdx = step === "cloud_custom" || step === "local" ? stepOrder.indexOf("config") : stepOrder.indexOf(step);
             return (
               <div key={s} className={`aiwizard-step-dot ${currentIdx >= i ? "active" : ""}`} />
             );

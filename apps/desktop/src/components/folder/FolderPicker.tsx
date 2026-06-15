@@ -1,4 +1,3 @@
-import React from "react";
 import { IconFolderOpen, IconSpinner } from "../Icons";
 
 interface FolderPickerProps {

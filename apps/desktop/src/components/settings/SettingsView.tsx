@@ -8,10 +8,9 @@ import {
   IconSpinner,
   IconSparkle,
   IconLock,
-  IconClose,
 } from "../Icons";
 
-type LlmMode = "cloud" | "local";
+type LlmMode = "cloud_free" | "cloud_custom" | "local";
 
 interface SpecsResult {
   total_ram_gb: number;
@@ -22,11 +21,16 @@ interface SpecsResult {
 
 export const SettingsView: React.FC = () => {
   // ── LLM Mode ────────────────────────────────────────────────
-  const [llmMode, setLlmMode] = useState<LlmMode>("cloud");
+  const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
-  // ── Cloud (Claude) ──────────────────────────────────────────
+  // ── Custom Cloud Providers ──────────────────────────────────
+  const [customCloudProvider, setCustomCloudProvider] = useState<"deepseek" | "gemini" | "claude">("deepseek");
   const [claudeApiKey, setClaudeApiKey] = useState("");
   const [claudeModel, setClaudeModel] = useState("claude-sonnet-4-20250514");
+  const [deepseekApiKey, setDeepseekApiKey] = useState("");
+  const [deepseekModel, setDeepseekModel] = useState("deepseek-chat");
+  const [geminiApiKey, setGeminiApiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
 
   // ── Local (Ollama) ──────────────────────────────────────────
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
@@ -39,6 +43,9 @@ export const SettingsView: React.FC = () => {
   // ── Machine Specs ───────────────────────────────────────────
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
   const [specsLoading, setSpecsLoading] = useState(false);
+
+  // ── Usage status ────────────────────────────────────────────
+  const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
 
   // ── UI State ────────────────────────────────────────────────
   const [healthStatus, setHealthStatus] = useState<string>("Chưa kiểm tra");
@@ -54,6 +61,7 @@ export const SettingsView: React.FC = () => {
     loadSettings();
     loadStats();
     loadSpecs();
+    loadUsage();
   }, []);
 
   const loadSettings = async () => {
@@ -62,6 +70,11 @@ export const SettingsView: React.FC = () => {
       setLlmMode(s.llm_mode as LlmMode);
       setClaudeApiKey(s.claude_api_key === "***" ? "" : s.claude_api_key);
       setClaudeModel(s.claude_model);
+      setDeepseekApiKey(s.deepseek_api_key === "***" ? "" : s.deepseek_api_key);
+      setDeepseekModel(s.deepseek_model);
+      setGeminiApiKey(s.gemini_api_key === "***" ? "" : s.gemini_api_key);
+      setGeminiModel(s.gemini_model || "gemini-1.5-flash");
+      setCustomCloudProvider((s.custom_cloud_provider as "deepseek" | "gemini" | "claude") || "deepseek");
       setOllamaUrl(s.ollama_url);
       setOllamaModel(s.ollama_model);
       setModelTierWeak(s.model_tier_weak);
@@ -88,11 +101,19 @@ export const SettingsView: React.FC = () => {
       const s = await api.detectSpecs();
       setSpecs(s);
       setActiveTier(s.suggested_tier);
-      setOllamaModel(s.suggested_model);
     } catch (e) {
       console.error("Failed to detect specs:", e);
     } finally {
       setSpecsLoading(false);
+    }
+  };
+
+  const loadUsage = async () => {
+    try {
+      const u = await api.getChatUsage();
+      setUsage(u);
+    } catch (e) {
+      console.error("Failed to load usage stats:", e);
     }
   };
 
@@ -131,14 +152,46 @@ export const SettingsView: React.FC = () => {
     setSaving(true);
     setSaveMsg(null);
     try {
+      // Validate Custom Cloud API Key if chosen
+      if (llmMode === "cloud_custom") {
+        const activeKey =
+          customCloudProvider === "deepseek"
+            ? deepseekApiKey
+            : customCloudProvider === "gemini"
+            ? geminiApiKey
+            : claudeApiKey;
+        const activeModel =
+          customCloudProvider === "deepseek"
+            ? deepseekModel
+            : customCloudProvider === "gemini"
+            ? geminiModel
+            : claudeModel;
+
+        if (activeKey.trim() !== "") {
+          setSaveMsg({ type: "success", text: "⏳ Đang kiểm tra kết nối API Key..." });
+          const val = await api.validateApiKey(customCloudProvider, activeKey, activeModel);
+          if (!val.valid) {
+            setSaveMsg({ type: "error", text: `❌ Lỗi kết nối API Key: ${val.error || "Không xác định"}` });
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
       await api.updateSettings({
         llm_mode: llmMode,
+        custom_cloud_provider: customCloudProvider,
         claude_api_key: claudeApiKey,
         claude_model: claudeModel,
+        deepseek_api_key: deepseekApiKey,
+        deepseek_model: deepseekModel,
+        gemini_api_key: geminiApiKey,
+        gemini_model: geminiModel,
         ollama_url: ollamaUrl,
         ollama_model: ollamaModel,
       });
       setSaveMsg({ type: "success", text: "✅ Đã lưu cấu hình!" });
+      loadUsage();
     } catch (e) {
       setSaveMsg({ type: "error", text: `❌ Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}` });
     } finally {
@@ -148,7 +201,8 @@ export const SettingsView: React.FC = () => {
 
   const modeSuggestions = specs
     ? [
-        { mode: "cloud" as LlmMode, label: "☁️ Dễ dùng (Khuyên dùng)", desc: "Không cần cài gì, chạy ngay", highlight: true },
+        { mode: "cloud_free" as LlmMode, label: "⚡ Cloud Free (Gemini Free)", desc: "Miễn phí 10 câu/ngày qua Gemini API, chạy ngay", highlight: true },
+        { mode: "cloud_custom" as LlmMode, label: "🔑 Custom API Key", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
         { mode: "local" as LlmMode, label: "🔒 Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "4.5" : "8"}GB, chạy offline`, highlight: false },
       ]
     : [];
@@ -162,7 +216,6 @@ export const SettingsView: React.FC = () => {
         </h2>
       </div>
 
-      {/* ── Backend Health ────────────────────────────────── */}
       <div className="settings-section">
         <h3 className="settings-section-title">
           <IconBrain size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
@@ -183,7 +236,6 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Thông số máy ──────────────────────────────────── */}
       <div className="settings-section">
         <h3 className="settings-section-title">
           🖥️ Thông số máy
@@ -201,12 +253,6 @@ export const SettingsView: React.FC = () => {
             <div className="settings-spec-row">
               <span className="settings-spec-label">CPU</span>
               <span className="settings-spec-value">{specs.cpu_cores} cores</span>
-            </div>
-            <div className="settings-spec-row">
-              <span className="settings-spec-label">Gợi ý model</span>
-              <span className="settings-spec-value settings-spec-recommended">
-                {specs.suggested_tier === "weak" ? "🔹" : specs.suggested_tier === "medium" ? "🔸" : "🔶"} {specs.suggested_model}
-              </span>
             </div>
             <div className="settings-spec-tiers">
               {["weak", "medium", "strong"].map((tier) => {
@@ -234,7 +280,6 @@ export const SettingsView: React.FC = () => {
         )}
       </div>
 
-      {/* ── Chế độ AI (Hybrid Model) ──────────────────────── */}
       <div className="settings-section">
         <h3 className="settings-section-title">
           <IconSparkle size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
@@ -265,42 +310,170 @@ export const SettingsView: React.FC = () => {
           ))}
         </div>
 
-        {/* Cloud settings */}
-        {llmMode === "cloud" && (
-          <div className="settings-mode-detail">
-            <div className="settings-field" style={{ marginTop: 16 }}>
-              <label className="settings-label">Claude API Key</label>
-              <div className="settings-api-key-row">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  className="settings-input"
-                  value={claudeApiKey}
-                  onChange={(e) => setClaudeApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                />
-                <button
-                  className="settings-toggle-key-btn"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  title={showApiKey ? "Ẩn key" : "Hiện key"}
-                >
-                  {showApiKey ? "🙈" : "👁️"}
-                </button>
+        {/* Cloud Free stats */}
+        {llmMode === "cloud_free" && (
+          <div className="settings-mode-detail" style={{ marginTop: 16 }}>
+            <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.15)", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontWeight: "bold", display: "block", marginBottom: "4px" }}>⚡ Lượt sử dụng miễn phí</span>
+                <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Hạn mức hệ thống tự động đặt lại mỗi ngày</span>
               </div>
-              <p className="settings-field-hint">
-                🔒 API key được lưu trên máy bạn, không gửi đi đâu.
-                <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
-                  {" "}Lấy key tại đây →
-                </a>
-              </p>
+              <div style={{ textAlign: "right" }}>
+                {usage ? (
+                  <>
+                    <strong style={{ fontSize: "1.2rem", color: "var(--color-primary)" }}>{usage.used} / {usage.limit}</strong>
+                    <span style={{ display: "block", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>câu hỏi đã dùng</span>
+                  </>
+                ) : (
+                  <span>Đang tải...</span>
+                )}
+              </div>
             </div>
-            <div className="settings-field">
-              <label className="settings-label">Claude Model</label>
-              <select className="settings-select" value={claudeModel} onChange={(e) => setClaudeModel(e.target.value)}>
-                <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (cân bằng)</option>
-                <option value="claude-haiku-3-5-20241022">Claude Haiku 3.5 (nhanh, rẻ)</option>
-                <option value="claude-opus-4-20250514">Claude Opus 4 (mạnh nhất)</option>
-              </select>
+          </div>
+        )}
+
+        {/* Custom Cloud settings */}
+        {llmMode === "cloud_custom" && (
+          <div className="settings-mode-detail" style={{ marginTop: 16 }}>
+            <div className="provider-tabs" style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+              {["deepseek", "gemini", "claude"].map((provider) => {
+                const isActive = customCloudProvider === provider;
+                const labels: Record<string, string> = {
+                  deepseek: "DeepSeek (Rẻ)",
+                  gemini: "Gemini (Nhanh)",
+                  claude: "Claude (Mạnh)"
+                };
+                return (
+                  <button
+                    key={provider}
+                    className="provider-tab-btn"
+                    onClick={() => setCustomCloudProvider(provider as any)}
+                    style={{
+                      flex: 1, padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
+                      background: isActive ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                      borderColor: isActive ? "var(--color-primary, #6366f1)" : "var(--border-color)",
+                      color: isActive ? "var(--color-primary, #6366f1)" : "var(--color-text)",
+                      cursor: "pointer", fontWeight: "bold"
+                    }}
+                  >
+                    {labels[provider]}
+                  </button>
+                );
+              })}
             </div>
+
+            {customCloudProvider === "deepseek" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">DeepSeek API Key</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={deepseekApiKey}
+                      onChange={(e) => setDeepseekApiKey(e.target.value)}
+                      placeholder="sk-..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 API key được lưu trên máy bạn, không gửi đi đâu.
+                    <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy key tại đây →
+                    </a>
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">DeepSeek Model</label>
+                  <select className="settings-select" value={deepseekModel} onChange={(e) => setDeepseekModel(e.target.value)}>
+                    <option value="deepseek-chat">deepseek-chat (cân bằng, nhanh, thông minh)</option>
+                    <option value="deepseek-reasoner">deepseek-reasoner (suy nghĩ sâu, RAG tốt)</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {customCloudProvider === "gemini" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">Gemini API Key</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={geminiApiKey}
+                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 API key được lưu trên máy bạn, không gửi đi đâu.
+                    <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy key tại đây →
+                    </a>
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">Gemini Model</label>
+                  <select className="settings-select" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)}>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (nhanh, nhẹ, context cực lớn)</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash (thế hệ mới, rất thông minh)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (mạnh mẽ, phân tích tốt)</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {customCloudProvider === "claude" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">Claude API Key</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={claudeApiKey}
+                      onChange={(e) => setClaudeApiKey(e.target.value)}
+                      placeholder="sk-ant-..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 API key được lưu trên máy bạn, không gửi đi đâu.
+                    <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy key tại đây →
+                    </a>
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">Claude Model</label>
+                  <select className="settings-select" value={claudeModel} onChange={(e) => setClaudeModel(e.target.value)}>
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (cân bằng)</option>
+                    <option value="claude-haiku-3-5-20241022">Claude Haiku 3.5 (nhanh, rẻ)</option>
+                    <option value="claude-opus-4-20250514">Claude Opus 4 (mạnh nhất)</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -355,7 +528,16 @@ export const SettingsView: React.FC = () => {
         </h3>
         <div className="settings-about">
           <p>Phiên bản: <strong>0.1.0</strong></p>
-          <p>Chế độ AI: <strong>{llmMode === "cloud" ? "☁️ Cloud (Claude)" : "🔒 Local (Ollama)"}</strong></p>
+          <p>
+            Chế độ AI:{" "}
+            <strong>
+              {llmMode === "cloud_free"
+                ? "⚡ Cloud Free (Gemini)"
+                : llmMode === "cloud_custom"
+                ? `🔑 Custom Cloud (${customCloudProvider === "deepseek" ? "DeepSeek" : customCloudProvider === "gemini" ? "Gemini" : "Claude"})`
+                : "🔒 Local (Ollama)"}
+            </strong>
+          </p>
           <p>Embedding model: <strong>{embeddingModel || "bge-m3"}</strong></p>
           {stats && (
             <>

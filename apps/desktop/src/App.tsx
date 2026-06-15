@@ -23,8 +23,8 @@ function App() {
   const checkFirstRun = async () => {
     try {
       const s = await api.getSettings();
-      // Show wizard if cloud mode but no API key (user hasn't configured yet)
-      if (s.llm_mode === "cloud" && !s.claude_api_key && s.claude_api_key !== "***") {
+      // Show wizard if onboarding setup is not completed yet
+      if (!s.setup_completed) {
         setShowSetup(true);
       }
     } catch {

@@ -16,14 +16,12 @@ export function useOllamaConfig() {
   });
   const [health, setHealth] = useState<HealthStatus>("unknown");
   const [saving, setSaving] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
   /** Load current config from backend. */
   const loadConfig = useCallback(async () => {
     try {
       const result = await invoke<OllamaConfig>("get_ollama_config");
       setConfig(result);
-      setInitialized(true);
     } catch (e) {
       console.error("Failed to load Ollama config:", e);
     }

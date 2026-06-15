@@ -1,5 +1,5 @@
 import React from "react";
-import { IconFileText, IconError, IconCheck, IconStop, IconSparkle } from "../Icons";
+import { IconFileText, IconError, IconCheck, IconStop } from "../Icons";
 
 interface ScanProgress {
   total_files: number;

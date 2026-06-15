@@ -1,5 +1,5 @@
 import React from "react";
-import { IconSearch, IconCheck, IconError, IconSpinner, IconStop } from "../Icons";
+import { IconSearch, IconCheck, IconError, IconSpinner } from "../Icons";
 
 interface ScanButtonProps {
   status: "idle" | "scanning" | "completed" | "error" | "stopped";

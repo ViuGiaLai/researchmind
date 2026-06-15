@@ -163,6 +163,11 @@ export const api = {
       llm_mode: string;
       claude_api_key: string;
       claude_model: string;
+      deepseek_api_key: string;
+      deepseek_model: string;
+      gemini_api_key: string;
+      gemini_model: string;
+      custom_cloud_provider: string;
       model_tier_weak: string;
       model_tier_medium: string;
       model_tier_strong: string;
@@ -170,8 +175,33 @@ export const api = {
       chunk_overlap: number;
       top_k_retrieval: number;
       embedding_model: string;
+      setup_completed: boolean;
     }>("GET", "/api/settings"),
 
   updateSettings: (settings: Record<string, unknown>) =>
     request<{ status: string }>("PUT", "/api/settings", settings),
+
+  // Usage
+  getChatUsage: () =>
+    request<{
+      used: number;
+      limit: number;
+      remaining: number;
+      mode: string;
+    }>("GET", "/api/chat/usage"),
+
+  // Key Validation
+  validateApiKey: (provider: string, apiKey: string, model?: string) =>
+    request<{ valid: boolean; error?: string }>("POST", "/api/settings/validate-key", {
+      provider,
+      api_key: apiKey,
+      model,
+    }),
+
+  // Ollama Status & Pulling
+  getOllamaStatus: () =>
+    request<{ connected: boolean; models?: string[]; error?: string; ollama_url: string }>("GET", "/api/ollama/status"),
+
+  pullOllamaModelUrl: "http://127.0.0.1:8765/api/ollama/pull",
 };
+

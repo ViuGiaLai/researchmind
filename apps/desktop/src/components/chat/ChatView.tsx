@@ -22,13 +22,27 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [paperIds] = useState<string[]>(initialPaperIds || []);
+  const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number; mode: string } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    loadUsage();
+  }, []);
 
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const loadUsage = async () => {
+    try {
+      const u = await api.getChatUsage();
+      setUsage(u);
+    } catch (e) {
+      console.error("Failed to load chat usage:", e);
+    }
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -48,6 +62,7 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
         model_used: res.model_used,
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      loadUsage(); // Update usage counts
     } catch (e) {
       const errMsg: Message = {
         role: "assistant",
@@ -93,6 +108,11 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
           Chat với Paper
         </h2>
         <div className="chat-view-header-actions">
+          {usage && usage.mode === "cloud_free" && (
+            <span className="chat-view-papers-badge" style={{ background: "rgba(99, 102, 241, 0.08)", color: "var(--color-primary, #6366f1)", border: "1px solid rgba(99, 102, 241, 0.2)" }}>
+              ⚡ Free Cloud: {usage.used}/{usage.limit} câu
+            </span>
+          )}
           {paperIds.length > 0 && (
             <span className="chat-view-papers-badge">
               <IconFileText size={14} /> {paperIds.length} papers

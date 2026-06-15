@@ -6,7 +6,6 @@ import {
   IconCheck,
   IconFolderOpen,
   IconUpload,
-  IconBrain,
 } from "../Icons";
 
 interface ImportResult {
@@ -61,7 +60,7 @@ export const ImportPanel: React.FC<{ onImported: () => void }> = ({ onImported }
   };
 
   const handleFolderInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || {}).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+    const files = Array.from(e.target.files || []).filter(f => f.name.toLowerCase().endsWith(".pdf"));
     if (files.length > 0) await importFiles(files);
     e.target.value = "";
   };

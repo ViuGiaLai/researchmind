@@ -3,7 +3,6 @@ import {
   IconBrain,
   IconSettings,
   IconCheck,
-  IconError,
   IconSpinner,
   IconSparkle,
   IconSearch,

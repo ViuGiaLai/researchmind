@@ -37,12 +37,31 @@ class Settings(BaseSettings):
     model_tier_weak: str = "qwen2.5:3b"
     model_tier_medium: str = "qwen2.5:7b"
     model_tier_strong: str = "qwen2.5:14b"
-    
-    ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:7b"
+    
+    # Claude Cloud
     claude_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
-    llm_mode: str = "cloud"  # "cloud" or "local" — default cloud = 0 friction
+    
+    # DeepSeek Cloud
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"
+    
+    # Gemini Cloud
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-flash"
+    
+    # Free Cloud settings (uses Gemini)
+    free_cloud_daily_limit: int = 10
+    
+    # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (Ollama)
+    llm_mode: str = "cloud_free"
+    
+    # Custom provider: "deepseek", "claude", or "gemini"
+    custom_cloud_provider: str = "deepseek"
+    
+    # Onboarding setup completed state
+    setup_completed: bool = False
 
     class Config:
         env_file = ".env"
@@ -50,3 +69,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+

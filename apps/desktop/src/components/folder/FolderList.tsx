@@ -1,4 +1,3 @@
-import React from "react";
 import { IconFolder, IconClose, IconSpinner } from "../Icons";
 
 interface FolderListProps {
