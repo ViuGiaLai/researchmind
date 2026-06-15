@@ -3351,3 +3351,115 @@ body {
   padding: 1px 5px;
   border-radius: 3px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Data Management & Storage styling
+   ───────────────────────────────────────────────────────────────────────────── */
+.settings-storage-box {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.settings-storage-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-storage-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.settings-storage-path {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px var(--space-sm);
+  color: var(--color-text-primary);
+  word-break: break-all;
+  display: block;
+  margin-top: 4px;
+}
+
+.settings-storage-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.settings-storage-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.settings-btn-secondary,
+.settings-btn-danger,
+.settings-btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  height: 36px;
+}
+
+.settings-btn-secondary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.settings-btn-secondary:hover:not(:disabled) {
+  background: var(--color-border);
+  transform: translateY(-1px);
+}
+
+.settings-btn-danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+
+.settings-btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.settings-btn-danger-outline {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+}
+
+.settings-btn-danger-outline:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+  transform: translateY(-1px);
+}
+
+.settings-btn-secondary:disabled,
+.settings-btn-danger:disabled,
+.settings-btn-danger-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-storage-msg {
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 4px;
+}

@@ -794,6 +794,7 @@ async def get_stats():
             "total_size_mb": round(total_size_bytes / (1024 * 1024), 2),
             "embedding_model": settings.embedding_model,
             "llm_mode": settings.llm_mode,
+            "data_dir": str(settings.data_dir),
         }
     finally:
         session.close()
@@ -1104,6 +1105,125 @@ async def detect_specs():
         "suggested_tier": suggested_tier,
         "suggested_model": suggested_model,
     }
+
+
+# ─── Data Management ─────────────────────────────────────────────
+
+@app.post("/api/data/open-folder")
+async def open_data_folder():
+    """Open the local data folder in file explorer."""
+    import subprocess
+    import os
+    try:
+        path = str(settings.data_dir)
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        if os.name == "nt":
+            os.startfile(path)
+        elif os.name == "posix":
+            subprocess.Popen(["xdg-open", path])
+        else:
+            subprocess.Popen(["open", path])
+        return {"success": True, "message": "Đã mở thư mục dữ liệu."}
+    except Exception as e:
+        logger.error(f"Failed to open data folder: {e}")
+        raise HTTPException(status_code=500, detail=f"Không thể mở thư mục: {str(e)}")
+
+
+@app.post("/api/data/clear-data")
+async def clear_all_data():
+    """Clear all papers, chunks, chat history, and files (retains settings)."""
+    try:
+        # Clear database tables (except settings)
+        db = get_session(state.engine)
+        try:
+            db.query(Chunk).delete()
+            db.query(Paper).delete()
+            db.query(ChatHistory).delete()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
+            
+        # Re-initialize BM25 search
+        state.bm25 = BM25Search(get_session(state.engine))
+        
+        # Clear files in papers_dir
+        if settings.papers_dir.exists():
+            import shutil
+            for item in settings.papers_dir.iterdir():
+                try:
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                except Exception as e:
+                    logger.warning(f"Failed to delete {item}: {e}")
+                    
+        # Clear ChromaDB vector collection
+        try:
+            from search.vector import VectorSearch
+            vector_db = VectorSearch(settings.chroma_dir)
+            vector_db.clear_collection()
+        except Exception as e:
+            logger.warning(f"ChromaDB collection clear failed: {e}")
+
+        return {"success": True, "message": "Đã xoá toàn bộ dữ liệu tài liệu (giữ lại cài đặt)."}
+    except Exception as e:
+        logger.error(f"Failed to clear data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/data/reset-app")
+async def reset_app():
+    """Fully resets the app by clearing all database tables and files."""
+    try:
+        # Close engine connection / pool to unlock db file
+        state.engine.dispose()
+        
+        # Clear files in data_dir (papers, chroma, etc. but keep db folder for recreations)
+        import shutil
+        import time
+        
+        # Wait a brief moment to ensure handles are released
+        time.sleep(0.2)
+        
+        # We can delete chroma_dir and papers_dir
+        for d in [settings.chroma_dir, settings.papers_dir]:
+            if d.exists():
+                try:
+                    shutil.rmtree(d)
+                except Exception as e:
+                    logger.warning(f"Failed to delete directory {d}: {e}")
+                    
+        # Drop and recreate tables
+        from db.database import get_engine
+        state.engine = get_engine(settings.db_path)
+        
+        try:
+            Base.metadata.drop_all(state.engine)
+            Base.metadata.create_all(state.engine)
+        except Exception as e:
+            logger.error(f"Failed to drop/recreate tables: {e}")
+            # Fallback: try deleting and re-creating
+            if settings.db_path.exists():
+                try:
+                    settings.db_path.unlink()
+                except Exception:
+                    pass
+            Base.metadata.create_all(state.engine)
+            
+        # Re-initialize state search engines
+        db_session = get_session(state.engine)
+        state.bm25 = BM25Search(db_session)
+        db_session.close()
+        
+        logger.info("Application reset successfully")
+        return {"success": True, "message": "Đã reset ứng dụng về trạng thái ban đầu thành công."}
+    except Exception as e:
+        logger.error(f"Failed to reset app: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── Helpers ─────────────────────────────────────────────────────

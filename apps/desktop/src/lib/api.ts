@@ -81,6 +81,7 @@ export interface Stats {
   total_size_mb: number;
   embedding_model: string;
   llm_mode: string;
+  data_dir?: string;
 }
 
 export interface HealthResponse {
@@ -203,5 +204,15 @@ export const api = {
     request<{ connected: boolean; models?: string[]; error?: string; ollama_url: string }>("GET", "/api/ollama/status"),
 
   pullOllamaModelUrl: "http://127.0.0.1:8765/api/ollama/pull",
+
+  // Data Management
+  openDataFolder: () =>
+    request<{ success: boolean; message: string }>("POST", "/api/data/open-folder"),
+
+  clearAllData: () =>
+    request<{ success: boolean; message: string }>("POST", "/api/data/clear-data"),
+
+  resetApp: () =>
+    request<{ success: boolean; message: string }>("POST", "/api/data/reset-app"),
 };
 

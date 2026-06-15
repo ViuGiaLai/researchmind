@@ -125,6 +125,16 @@ class VectorSearch:
         self.collection.delete(where={"paper_id": paper_id})
         logger.info(f"Deleted chunks for paper: {paper_id}")
 
+    def clear_collection(self):
+        """Delete and recreate the collection to clear all data."""
+        self._ensure_client()
+        try:
+            self._client.delete_collection("paper_chunks")
+            self._collection = None
+            logger.info("Deleted ChromaDB collection 'paper_chunks' for reset")
+        except Exception as e:
+            logger.warning(f"ChromaDB collection deletion failed or collection not found: {e}")
+
     def count(self) -> int:
         """Get total number of chunks in the collection."""
         return self.collection.count()

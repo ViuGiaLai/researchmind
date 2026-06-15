@@ -12,6 +12,10 @@ import {
   IconZap,
   IconKey,
   IconMonitor,
+  IconFolder,
+  IconFolderOpen,
+  IconRefresh,
+  IconTrash,
 } from "../Icons";
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
@@ -58,8 +62,12 @@ export const SettingsView: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [embeddingModel, setEmbeddingModel] = useState("");
-  const [stats, setStats] = useState<{ total_papers: number; total_chunks: number; chroma_chunks: number } | null>(null);
+  const [stats, setStats] = useState<{ total_papers: number; total_chunks: number; chroma_chunks: number; data_dir?: string } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+
+  // ── Data Management State ─────────────────────────────────────
+  const [actionLoading, setActionLoading] = useState(false);
+  const [storageMsg, setStorageMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -93,7 +101,12 @@ export const SettingsView: React.FC = () => {
   const loadStats = async () => {
     try {
       const s = await api.stats();
-      setStats({ total_papers: s.total_papers, total_chunks: s.total_chunks, chroma_chunks: s.chroma_chunks });
+      setStats({
+        total_papers: s.total_papers,
+        total_chunks: s.total_chunks,
+        chroma_chunks: s.chroma_chunks,
+        data_dir: s.data_dir,
+      });
     } catch (e) {
       console.error("Failed to load stats:", e);
     }
@@ -109,6 +122,59 @@ export const SettingsView: React.FC = () => {
       console.error("Failed to detect specs:", e);
     } finally {
       setSpecsLoading(false);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    setActionLoading(true);
+    setStorageMsg(null);
+    try {
+      const res = await api.openDataFolder();
+      setStorageMsg({ type: "success", text: res.message || "Đã mở thư mục dữ liệu." });
+    } catch (e) {
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Không thể mở thư mục." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClearData = async () => {
+    const confirmClear = window.confirm(
+      "⚠️ CẢNH BÁO: Hành động này sẽ xoá TOÀN BỘ tài liệu PDF đã import, lịch sử chat, các ghi chú và cơ sở dữ liệu tìm kiếm vector. Cấu hình cài đặt và API Key của bạn vẫn được GIỮ LẠI.\n\nBạn có chắc chắn muốn tiếp tục?"
+    );
+    if (!confirmClear) return;
+
+    setActionLoading(true);
+    setStorageMsg(null);
+    try {
+      const res = await api.clearAllData();
+      setStorageMsg({ type: "success", text: res.message || "Đã xoá dữ liệu thành công." });
+      loadStats();
+    } catch (e) {
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Xoá dữ liệu thất bại." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetApp = async () => {
+    const confirmReset = window.confirm(
+      "❌ CẢNH BÁO NGUY HIỂM: Hành động này sẽ xoá SẠCH HOÀN TOÀN cấu hình cài đặt, API Key, tài liệu PDF, lịch sử chat và vector database. Ứng dụng sẽ quay trở về trạng thái ban đầu như lúc vừa mới cài đặt.\n\nBạn có chắc chắn muốn reset toàn bộ ứng dụng không?"
+    );
+    if (!confirmReset) return;
+
+    setActionLoading(true);
+    setStorageMsg(null);
+    try {
+      const res = await api.resetApp();
+      setStorageMsg({ type: "success", text: res.message || "Đã reset ứng dụng thành công. Đang khởi động lại..." });
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (e) {
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Reset ứng dụng thất bại." });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -541,6 +607,45 @@ export const SettingsView: React.FC = () => {
               )}
               {saveMsg.text}
             </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Data Management ────────────────────────────────── */}
+      <div className="settings-section">
+        <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <IconFolder size={18} className="icon-gradient" />
+          Quản lý dữ liệu
+        </h3>
+        
+        <div className="settings-storage-box">
+          <div className="settings-storage-info">
+            <span className="settings-storage-label">Thư mục lưu trữ:</span>
+            <code className="settings-storage-path">
+              {stats?.data_dir || "Đang tải..."}
+            </code>
+            <p className="settings-storage-hint">
+              Nơi lưu trữ cơ sở dữ liệu SQLite, vector ChromaDB và các tài liệu PDF đã import của bạn.
+            </p>
+          </div>
+          
+          <div className="settings-storage-actions">
+            <button className="settings-btn-secondary" onClick={handleOpenFolder} disabled={actionLoading}>
+              <IconFolderOpen size={16} /> Mở thư mục
+            </button>
+            <button className="settings-btn-danger-outline" onClick={handleClearData} disabled={actionLoading}>
+              <IconTrash size={16} /> Xoá dữ liệu tài liệu
+            </button>
+            <button className="settings-btn-danger" onClick={handleResetApp} disabled={actionLoading}>
+              <IconRefresh size={16} /> Reset ứng dụng
+            </button>
+          </div>
+          
+          {storageMsg && (
+            <div className={`settings-storage-msg ${storageMsg.type}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: storageMsg.type === "success" ? "var(--color-success)" : "var(--color-error)" }}>
+              {storageMsg.type === "success" ? <IconCheck size={14} /> : <IconError size={14} />}
+              <span>{storageMsg.text}</span>
+            </div>
           )}
         </div>
       </div>

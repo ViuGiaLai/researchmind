@@ -1,5 +1,14 @@
-from pydantic_settings import BaseSettings
+import os
 from pathlib import Path
+from pydantic_settings import BaseSettings
+
+
+def get_default_data_dir() -> Path:
+    if os.name == "nt":
+        local_appdata = os.environ.get("LOCALAPPDATA")
+        if local_appdata:
+            return Path(local_appdata) / "ResearchMind"
+    return Path.home() / ".researchmind"
 
 
 class Settings(BaseSettings):
@@ -8,10 +17,10 @@ class Settings(BaseSettings):
     port: int = 8765
 
     # Paths
-    data_dir: Path = Path(__file__).parent.parent.parent / "data"
+    data_dir: Path = get_default_data_dir()
     papers_dir: Path = data_dir / "papers"
     chroma_dir: Path = data_dir / "chroma"
-    db_path: Path = data_dir / "researchmind.db"
+    db_path: Path = data_dir / "db" / "researchmind.db"
 
     # Chunking
     chunk_size: int = 512
