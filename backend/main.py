@@ -28,7 +28,7 @@ sys.path.insert(0, str(backend_dir))
 
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from contextlib import asynccontextmanager
 from loguru import logger
 import shutil
@@ -520,6 +520,22 @@ async def delete_paper(paper_id: str):
         state.bm25._rebuild_fts()
 
         return {"status": "deleted", "paper_id": paper_id}
+    finally:
+        session.close()
+
+
+@app.get("/api/papers/{paper_id}/file")
+async def get_paper_file(paper_id: str):
+    """Retrieve the raw PDF file for a paper."""
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+        path = Path(paper.file_path)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="PDF file not found on disk")
+        return FileResponse(path, media_type="application/pdf", filename=paper.filename)
     finally:
         session.close()
 

@@ -1,9 +1,8 @@
-"""PDF text & metadata extraction using PyMuPDF."""
-
 import fitz  # PyMuPDF
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
+from loguru import logger
 
 
 @dataclass
@@ -42,10 +41,37 @@ def extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
 
     text_by_page: dict[int, str] = {}
     full_text_parts: list[str] = []
+    
+    # Lazy load OCR engine only if needed
+    ocr_engine = None
 
     for page_num in range(len(doc)):
         page = doc[page_num]
         text = page.get_text()
+        
+        # Check if the page is empty or contains almost no text (likely scanned PDF)
+        if len(text.strip()) < 40:
+            try:
+                logger.info(f"Page {page_num + 1} appears to be a scanned page (text length: {len(text.strip())}). Running OCR...")
+                if ocr_engine is None:
+                    from rapidocr_onnxruntime import RapidOCR
+                    ocr_engine = RapidOCR()
+                    
+                # Render page to a high-quality image (PNG)
+                pix = page.get_pixmap(dpi=150)
+                img_bytes = pix.tobytes("png")
+                
+                # Perform local OCR
+                ocr_results, elapse = ocr_engine(img_bytes)
+                if ocr_results:
+                    ocr_text_list = [res[1] for res in ocr_results if res and len(res) > 1]
+                    ocr_text = "\n".join(ocr_text_list)
+                    if ocr_text.strip():
+                        text = ocr_text
+                        logger.info(f"Page {page_num + 1} OCR completed in {elapse:.2f}s")
+            except Exception as e:
+                logger.warning(f"OCR failed for page {page_num + 1}: {e}")
+
         text_by_page[page_num + 1] = text
         full_text_parts.append(text)
 

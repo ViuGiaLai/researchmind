@@ -61,52 +61,50 @@ function App() {
   }
 
   return (
-    <div className="app">
-      {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <h1 className="logo">
-            <IconBrain size={24} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
-            ResearchMind VN
-          </h1>
+    <div className="app-container">
+      {/* Sidebar */}
+      <aside className="app-sidebar">
+        <div className="sidebar-brand">
+          <IconBrain size={26} className="icon-gradient" style={{ marginRight: 8 }} />
+          <span className="brand-text">ResearchMind</span>
         </div>
-        <div className="header-right">
+        
+        <nav className="sidebar-menu">
           {[
-            { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
+            { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
-            { tab: "settings" as Tab, icon: IconSettings, label: "" },
+            { tab: "settings" as Tab, icon: IconSettings, label: "Cài đặt" },
           ].map(({ tab, icon: Icon, label }) => (
             <button
               key={tab}
-              className={`nav-btn ${activeTab === tab ? "active" : ""}`}
+              className={`sidebar-menu-btn ${activeTab === tab ? "active" : ""}`}
               onClick={() => setActiveTab(tab)}
             >
-              <Icon size={16} style={{ marginRight: label ? 4 : 0 }} />
-              {label}
+              <Icon size={18} style={{ marginRight: 12 }} />
+              <span>{label}</span>
             </button>
           ))}
-        </div>
-      </header>
+        </nav>
 
-      {/* Main content */}
+        <div className="sidebar-footer">
+          <div className="sidebar-local-info">
+            <IconLock size={12} style={{ marginRight: 6 }} />
+            <span>Dữ liệu cục bộ</span>
+          </div>
+          <div className="sidebar-version">
+            v0.1.0
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content area */}
       <main className="main">
         {activeTab === "search" && <SearchView onStartChat={handleStartChat} />}
         {activeTab === "library" && <LibraryView onStartChat={handleStartChat} />}
         {activeTab === "chat" && <ChatView key={chatPaperIds.join(",")} initialPaperIds={chatPaperIds} />}
         {activeTab === "settings" && <SettingsView />}
       </main>
-
-      {/* Footer */}
-      <footer className="footer">
-        <div className="footer-left">
-          <IconLock size={12} style={{ marginRight: 4 }} />
-          Local-first · Dữ liệu trên máy bạn
-        </div>
-        <div className="footer-right">
-          🎓 ResearchMind VN v0.1.0
-        </div>
-      </footer>
     </div>
   );
 }
