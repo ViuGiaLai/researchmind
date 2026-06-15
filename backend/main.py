@@ -21,6 +21,9 @@ Endpoints:
 
 import os
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 
 import sys
 from pathlib import Path
@@ -36,6 +39,9 @@ from contextlib import asynccontextmanager
 from loguru import logger
 import shutil
 import uuid
+import re
+from collections import Counter
+from datetime import datetime, timedelta, time
 
 from config.settings import settings
 from db.database import get_engine, get_session
@@ -108,6 +114,10 @@ async def lifespan(app: FastAPI):
     # Database
     state.engine = get_engine(settings.db_path)
     Base.metadata.create_all(state.engine)
+    
+    # Migration: add auto_summary column if missing (for existing databases)
+    _migrate_auto_summary(state.engine)
+    
     logger.info("Database initialized")
 
     # Load persisted settings from DB
@@ -443,7 +453,7 @@ Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
             
             if result and result.content:
                 session.query(Paper).filter(Paper.id == file_id).update({
-                    "notes": result.content
+                    "auto_summary": result.content
                 })
                 session.commit()
                 logger.info(f"Generated auto-summary for {doc.filename}")
@@ -586,6 +596,96 @@ async def get_paper_file(paper_id: str):
         session.close()
 
 
+@app.get("/api/papers/{paper_id}/related")
+async def find_related_papers(paper_id: str, limit: int = Query(5)):
+    """
+    Find papers related to a given paper based on embedding similarity.
+    Uses the paper's chunks to find similar chunks from other papers,
+    then aggregates by paper_id and computes average similarity scores.
+    """
+    session = get_session(state.engine)
+    try:
+        # Verify the paper exists
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        # Get chunks of this paper from SQLite
+        chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).all()
+        if not chunks:
+            return {"related_papers": [], "paper_id": paper_id}
+
+        # Use only the first chunk's embedding as query (efficient single query)
+        chunk_ids = [f"{paper_id}_{chunks[0].chunk_index}"]
+
+        # Get embeddings from ChromaDB
+        try:
+            collection = state.vector.collection
+            results = collection.get(
+                ids=chunk_ids,
+                include=["embeddings"],
+            )
+            if not results["ids"] or not results["embeddings"]:
+                return {"related_papers": [], "paper_id": paper_id}
+            
+            query_embedding = results["embeddings"][0]
+        except Exception as e:
+            logger.warning(f"Failed to get embeddings for paper {paper_id}: {e}")
+            return {"related_papers": [], "paper_id": paper_id}
+
+        # Single efficient query for similar chunks from OTHER papers
+        search_results = state.vector.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=limit * 3,  # Get more to filter out same paper
+            include=["metadatas", "distances", "documents"],
+        )
+        
+        # Aggregate scores per paper
+        all_related = {}  # paper_id -> {scores, snippet, title}
+        
+        if search_results["ids"] and search_results["ids"][0]:
+            for i in range(len(search_results["ids"][0])):
+                metadata = search_results["metadatas"][0][i]
+                distance = search_results["distances"][0][i]
+                similarity = 1.0 - distance
+                other_paper_id = metadata.get("paper_id", "")
+                
+                # Skip chunks from the same paper
+                if other_paper_id == paper_id:
+                    continue
+                
+                # Aggregate scores per paper
+                if other_paper_id not in all_related:
+                    all_related[other_paper_id] = {
+                        "scores": [],
+                        "snippet": search_results["documents"][0][i][:200],
+                        "title": metadata.get("paper_title", ""),
+                    }
+                all_related[other_paper_id]["scores"].append(similarity)
+
+        # Compute average scores and sort
+        related_papers = []
+        for pid, data in all_related.items():
+            avg_score = sum(data["scores"]) / len(data["scores"])
+            related_papers.append({
+                "paper_id": pid,
+                "title": data["title"],
+                "similarity": round(avg_score, 4),
+                "snippet": data["snippet"],
+                "matching_chunks": len(data["scores"]),
+            })
+        
+        # Sort by similarity descending
+        related_papers.sort(key=lambda x: x["similarity"], reverse=True)
+        
+        return {
+            "related_papers": related_papers[:limit],
+            "paper_id": paper_id,
+        }
+    finally:
+        session.close()
+
+
 # ─── Search ──────────────────────────────────────────────────────
 
 @app.post("/api/search")
@@ -641,8 +741,6 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
 
 
 # ─── Chat ────────────────────────────────────────────────────────
-
-from datetime import datetime, time
 
 def count_free_queries_today(session) -> int:
     """Count daily free queries logged in ChatHistory."""
@@ -721,6 +819,235 @@ async def chat(request: dict = Body(...)):
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to save chat history: {e}")
+    finally:
+        session.close()
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+@app.post("/api/review")
+async def review(request: dict = Body(...)):
+    """Generate a structured literature review from selected papers."""
+    paper_ids = request.get("paper_ids")
+    query = request.get("query", "").strip()
+    session_id = request.get("session_id", "review")
+
+    if not query:
+        query = """Hãy viết một review nghiên cứu bằng tiếng Việt cho các tài liệu đã chọn.
+Trả về kết quả với cấu trúc sau:
+
+### 🔎 Literature Review
+* **Background**: [Tóm tắt bối cảnh nghiên cứu]
+* **Related Work**: [So sánh các công trình liên quan và nêu khác biệt]
+* **Methods**: [Tóm tắt phương pháp chính của các paper]
+* **Key Findings**: [Những kết quả quan trọng nhất]
+* **Research Gaps**: [Những khoảng trống/chưa giải quyết]
+* **Insights**: [Kết luận và đề xuất nghiên cứu tiếp theo]
+
+Lưu ý: chỉ dùng thông tin từ các đoạn đã cung cấp, nêu rõ trích dẫn nguồn [Tên Paper] khi cần. Giữ văn phong học thuật, súc tích và dễ hiểu."""
+
+    retrieval = state.retriever.retrieve(
+        query=query,
+        paper_ids=paper_ids,
+        top_k=settings.top_k_retrieval,
+    )
+
+    generation = state.generator.generate(
+        query=query,
+        context_text=retrieval.context_text,
+    )
+
+    session = get_session(state.engine)
+    try:
+        import json
+        session.add(ChatHistory(
+            session_id=session_id,
+            role="user",
+            content=query,
+            context_papers=json.dumps(paper_ids or []),
+            citations="[]",
+            model_used="",
+        ))
+        session.add(ChatHistory(
+            session_id=session_id,
+            role="assistant",
+            content=generation.content,
+            context_papers=json.dumps(retrieval.papers_used),
+            citations=json.dumps(generation.citations),
+            model_used=generation.model_used,
+        ))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save review history: {e}")
+    finally:
+        session.close()
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+@app.post("/api/critique")
+async def critique(request: dict = Body(...)):
+    """Generate a critical review (AI Phản biện) that points out assumptions, weaknesses, missing data, and reproducibility issues."""
+    paper_ids = request.get("paper_ids")
+    query = request.get("query", "").strip()
+    session_id = request.get("session_id", "critique")
+
+    critique_prompt = """Bạn là một chuyên gia phản biện học thuật. Dựa trên các đoạn trích được cung cấp từ những paper đã chọn, hãy:
+
+1) Liệt kê các giả thiết (assumptions) mà paper dựa vào và đánh giá tính hợp lý của chúng (ngắn gọn).
+2) Chỉ ra các thiếu sót về dữ liệu (ví dụ dataset thiếu, kích thước nhỏ, bias, không có baseline phù hợp).
+3) Phân tích các hạn chế phương pháp (thiếu kiểm chứng, thiếu ablation, thiếu so sánh với state-of-the-art).
+4) Nêu nguy cơ overclaim / kết luận vượt quá dữ liệu.
+5) Kiểm tra tính khả thi lặp lại (reproducibility): thông tin thiếu, hyperparams, code/data không có.
+6) Đưa ra 3 đề xuất cụ thể để cải thiện bài báo (nhỏ gọn, hành động được).
+
+Trả về kết quả theo dạng gạch đầu dòng, mỗi điểm ngắn gọn, có trích dẫn [Tên Paper] cho các ví dụ hoặc chứng cứ. Viết bằng tiếng Việt, giọng phản biện, súc tích.
+"""
+
+    # If user supplied a custom query, append it to the prompt
+    if query:
+        full_query = f"{critique_prompt}\nUSER_REQUEST: {query}"
+    else:
+        full_query = critique_prompt
+
+    retrieval = state.retriever.retrieve(
+        query=full_query,
+        paper_ids=paper_ids,
+        top_k=settings.top_k_retrieval,
+    )
+
+    generation = state.generator.generate(
+        query=full_query,
+        context_text=retrieval.context_text,
+    )
+
+    session = get_session(state.engine)
+    try:
+        import json
+        session.add(ChatHistory(
+            session_id=session_id,
+            role="user",
+            content=full_query,
+            context_papers=json.dumps(paper_ids or []),
+            citations="[]",
+            model_used="",
+        ))
+        session.add(ChatHistory(
+            session_id=session_id,
+            role="assistant",
+            content=generation.content,
+            context_papers=json.dumps(retrieval.papers_used),
+            citations=json.dumps(generation.citations),
+            model_used=generation.model_used,
+        ))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save critique history: {e}")
+    finally:
+        session.close()
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+@app.post("/api/debate")
+async def debate(request: dict = Body(...)):
+    """Generate a paired debate between two AI personas (AI A vs AI B) based on selected papers."""
+    paper_ids = request.get("paper_ids")
+    query = request.get("query", "").strip()
+    session_id = request.get("session_id", "debate")
+
+    debate_prompt = """Bạn là một trợ lý phân tích học thuật. Hãy tạo một cuộc tranh luận giữa hai persona AI: **AI A (Ủng hộ)** và **AI B (Phản biện)**, dựa chỉ trên các đoạn trích được cung cấp từ các paper đã chọn.
+
+Yêu cầu bắt buộc về định dạng đầu ra (BẮT BUỘC):
+- Phần phải gồm các tiêu đề và gạch đầu dòng chính xác theo thứ tự sau: `AI A (Ủng hộ):`, `AI B (Phản biện):`, `Kết luận:`, `3 Đề xuất:`.
+- Mỗi bên (AI A / AI B) bao gồm 2 mục gạch đầu dòng: `• Luận điểm chính:` (1-2 câu) và `• Phản biện ngắn:` (1 câu trả lời/đáp lại bên kia).
+- Luôn kèm trích dẫn nguồn ở những câu nêu bằng chứng theo định dạng `[Tên Paper]` hoặc `[Tên Paper, trang X]` nếu có, ngay sau câu chứng cứ.
+- `Kết luận:` (1-2 câu) tóm tắt điểm khác biệt cốt lõi và khi nào mỗi quan điểm phù hợp.
+- `3 Đề xuất:` liệt kê 3 hành động/kiểm chứng cụ thể, mỗi đề xuất 1 dòng.
+- Toàn bộ output viết bằng tiếng Việt, ngắn gọn, dùng gạch đầu dòng, không thêm giới thiệu dài, không dùng markup khác ngoài gạch đầu dòng và tiêu đề bên trên.
+
+Nếu user có thêm `USER_REQUEST`, hãy điều chỉnh chủ đề tranh luận theo yêu cầu đó, nhưng vẫn chỉ dùng thông tin từ `context_text` (các đoạn trích).
+
+Ví dụ (mẫu bắt buộc, cho UI dễ parse):
+
+AI A (Ủng hộ):
+• Luận điểm chính: Transformer vượt trội vì khả năng song song và mô hình hóa phụ thuộc dài hạn hiệu quả hơn RNN (2 câu). [Võ et al. 2023]
+• Phản biện ngắn: Tuy nhiên, chi phí tính toán cao có thể làm giảm lợi ích trong môi trường tài nguyên hạn chế. [Nguyen et al. 2022]
+
+AI B (Phản biện):
+• Luận điểm chính: RNN vẫn hiệu quả với dữ liệu chuỗi ngắn và tiêu tốn ít bộ nhớ, có lợi cho tác vụ nhúng trên thiết bị (2 câu). [Tran & Lê 2021]
+• Phản biện ngắn: Transformer có thể được tinh chỉnh hoặc nén để giảm chi phí trong nhiều trường hợp. [Lâm et al. 2022]
+
+Kết luận:
+• Transformer thường tốt hơn cho phụ thuộc dài, RNN vẫn có chỗ dùng cho tài nguyên hạn chế.
+
+3 Đề xuất:
+1. Thử nghiệm trực tiếp: chạy benchmark trên cùng bộ dữ liệu A với các cấu hình Transformer/RNN và báo metric latency/accuracy. [Tên Paper liên quan]
+2. Ablation: so sánh phiên bản Transformer đã nén/quantize với RNN để kiểm tra trade-off.
+3. Kiểm tra robustness: đánh giá trên dữ liệu nhiễu để đo ảnh hưởng của overfitting.
+
+Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạn trích đã cung cấp.
+"""
+
+    if query:
+        full_query = f"{debate_prompt}\nUSER_REQUEST: {query}"
+    else:
+        full_query = debate_prompt
+
+    retrieval = state.retriever.retrieve(
+        query=full_query,
+        paper_ids=paper_ids,
+        top_k=settings.top_k_retrieval,
+    )
+
+    generation = state.generator.generate(
+        query=full_query,
+        context_text=retrieval.context_text,
+    )
+
+    session = get_session(state.engine)
+    try:
+        import json
+        session.add(ChatHistory(
+            session_id=session_id,
+            role="user",
+            content=full_query,
+            context_papers=json.dumps(paper_ids or []),
+            citations="[]",
+            model_used="",
+        ))
+        session.add(ChatHistory(
+            session_id=session_id,
+            role="assistant",
+            content=generation.content,
+            context_papers=json.dumps(retrieval.papers_used),
+            citations=json.dumps(generation.citations),
+            model_used=generation.model_used,
+        ))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save debate history: {e}")
     finally:
         session.close()
 
@@ -1440,6 +1767,786 @@ async def reset_app():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ─── Insights (Research Gap + Conflict + Topic Generator) ──────────────────
+
+@app.post("/api/insights/gap")
+async def find_research_gap(body: dict = Body(...)):
+    """
+    Find research gaps across indexed papers.
+    Uses RAG to retrieve relevant chunks, then LLM analyzes what's missing.
+    """
+    paper_ids = body.get("paper_ids")
+
+    # Retrieve diverse chunks from multiple papers
+    retrieval = state.retriever.retrieve(
+        query="research methodology findings results limitations future work gaps unexplored areas weaknesses",
+        paper_ids=paper_ids,
+        top_k=15,
+    )
+
+    if not retrieval.context_text.strip():
+        return {
+            "answer": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
+            "citations": [],
+            "model_used": "none",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
+
+    gap_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và chỉ ra:
+
+## 🔍 Research Gap Analysis
+
+### 1. Lỗ hổng nghiên cứu chính (Main Research Gaps)
+- Chỉ ra những vấn đề CHƯA được giải quyết hoặc giải quyết chưa tốt trong các paper.
+- Với mỗi lỗ hổng, nêu rõ: vấn đề gì, tại sao chưa giải quyết được.
+
+### 2. Điểm yếu chung (Common Weaknesses)
+- Các hạn chế mà nhiều paper cùng gặp phải.
+- Phương pháp nào còn thiếu sót?
+
+### 3. Hướng nghiên cứu mới (New Research Directions)
+- Đề xuất 2-3 hướng nghiên cứu mới dựa trên các lỗ hổng tìm được.
+- Với mỗi hướng, giải thích tại sao đây là cơ hội tốt.
+
+### 4. Cơ hội đóng góp (Contribution Opportunities)
+- Cụ thể, một nghiên cứu sinh có thể đóng góp gì ngay bây giờ?
+
+Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] khi cần. Trả lời bằng tiếng Việt.
+
+Context từ tài liệu:\n{retrieval.context_text}"""
+
+    generation = state.generator.generate(
+        query=gap_prompt,
+        context_text=retrieval.context_text,
+    )
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+@app.post("/api/insights/conflict")
+async def find_conflicts(body: dict = Body(...)):
+    """
+    Find contradictions and conflicts between papers.
+    Uses RAG to retrieve diverse chunks, then LLM compares claims.
+    """
+    paper_ids = body.get("paper_ids")
+
+    # Retrieve chunks focusing on findings, conclusions, claims
+    retrieval = state.retriever.retrieve(
+        query="findings conclusions results claims arguments methodology approach results show demonstrate suggest",
+        paper_ids=paper_ids,
+        top_k=15,
+    )
+
+    if not retrieval.context_text.strip():
+        return {
+            "answer": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
+            "citations": [],
+            "model_used": "none",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
+
+    conflict_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và chỉ ra:
+
+## ⚠️ Conflict Analysis
+
+### 1. Mâu thuẫn trực tiếp (Direct Contradictions)
+- Paper nào đưa ra kết luận/trường phái đối lập nhau?
+- Cụ thể: Paper A nói X, Paper B nói Y — mâu thuẫn ở điểm nào?
+
+### 2. Khác biệt về phương pháp (Methodological Differences)
+- Các paper sử dụng phương pháp khác nhau cho cùng vấn đề?
+- Kết quả khác nhau do phương pháp hay do dữ liệu?
+
+### 3. Kết quả mâu thuẫn (Conflicting Results)
+- Cùng 1 vấn đề nhưng kết quả đo lường khác nhau?
+- Giải thích nguyên nhân có thể.
+
+### 4. Góc nhìn đa chiều (Diverse Perspectives)
+- Các paper có cách tiếp cận vấn đề từ nhiều góc nhìn khác nhau?
+- Góc nhìn nào mạnh/yếu?
+
+### 5. Cơ hội nghiên cứu từ mâu thuẫn (Opportunities)
+- Mâu thuẫn nào tạo cơ hội nghiên cứu tốt nhất?
+- Nên ưu tiên giải quyết mâu thuẫn nào?
+
+Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] cho mỗi claim. Trả lời bằng tiếng Việt.
+
+Context từ tài liệu:\n{retrieval.context_text}"""
+
+    generation = state.generator.generate(
+        query=conflict_prompt,
+        context_text=retrieval.context_text,
+    )
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+@app.post("/api/insights/topic")
+async def suggest_topics(body: dict = Body(...)):
+    """
+    Suggest research topics based on papers in the library.
+    Uses RAG to retrieve diverse chunks, then LLM generates topic suggestions.
+    """
+    paper_ids = body.get("paper_ids")
+
+    # Retrieve diverse chunks to understand the research landscape
+    retrieval = state.retriever.retrieve(
+        query="research topic methodology findings results future work direction novel approach innovative", 
+        paper_ids=paper_ids,
+        top_k=15,
+    )
+
+    if not retrieval.context_text.strip():
+        return {
+            "answer": "Không đủ dữ liệu để đề xuất đề tài. Hãy import thêm paper vào thư viện.",
+            "citations": [],
+            "model_used": "none",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
+
+    topic_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và đề xuất:
+
+## 💡 Research Topic Suggestions
+
+### 1. Tổng quan lĩnh vực nghiên cứu (Research Landscape)
+- Nhận xét nhanh về lĩnh vực/lĩnh vực con mà các paper đang tập trung.
+- Xu hướng chính hiện tại là gì?
+
+### 2. Đề xuất đề tài nghiên cứu (Suggested Topics)
+Đề xuất 3-5 đề tài nghiên cứu cụ thể, mỗi đề tài bao gồm:
+- **Tên đề tài** (gợi cảm hứng, rõ ràng)
+- **Mô tả ngắn** (2-3 dòng giải thích đề tài)
+- **Tại sao quan trọng** (cơ hội và tiềm năng đóng góp)
+- **Gợi ý phương pháp tiếp cận** (cách triển khai sơ bộ)
+
+### 3. Đề tài có tiềm năng cao nhất (Top Pick)
+- Chọn 1 đề tài từ danh sách trên.
+- Giải thích chi tiết hơn: tại sao đây là cơ hội vàng cho nghiên cứu sinh.
+- Cần đọc thêm tài liệu nào để bắt đầu?
+
+### 4. Gợi ý bước tiếp theo (Next Steps)
+- Nên đọc thêm paper nào (dựa trên các paper hiện có)?
+- Phương pháp nào nên tìm hiểu thêm?
+
+Lưu ý: Đề xuất phải khả thi, cụ thể và dựa trên nội dung thực tế từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] khi cần. Trả lời bằng tiếng Việt.
+
+Context từ tài liệu:\n{retrieval.context_text}"""
+
+    generation = state.generator.generate(
+        query=topic_prompt,
+        context_text=retrieval.context_text,
+    )
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+@app.post("/api/insights/evolution")
+async def find_evolution_map(body: dict = Body(...)):
+    """
+    Analyze research evolution across papers.
+    Uses RAG to retrieve diverse chunks, then LLM maps the evolution of ideas.
+    """
+    paper_ids = body.get("paper_ids")
+
+    # Single broad retrieval to capture evolution context
+    retrieval = state.retriever.retrieve(
+        query="research evolution development history background methodology findings results improvement advancement novel approach future direction", 
+        paper_ids=paper_ids,
+        top_k=20,
+    )
+
+    if not retrieval.context_text.strip():
+        return {
+            "answer": "Không đủ dữ liệu để phân tích evolution map. Hãy import thêm paper vào thư viện.",
+            "citations": [],
+            "model_used": "none",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
+
+    evolution_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và vẽ bản đồ phát triển nghiên cứu.
+Lưu ý: Sắp xếp các paper/giai đoạn theo thứ tự thời gian (cũ nhất → mới nhất) dựa trên năm xuất bản hoặc nội dung.
+
+## 🧬 Evolution Map — Bản đồ phát triển nghiên cứu
+
+### 1. Tổng quan xu hướng (Trend Overview)
+- Nhận xét tổng quan về sự phát triển của lĩnh vực nghiên cứu trong các paper.
+- Xu hướng chính theo thời gian là gì?
+
+### 2. Dòng phát triển ý tưởng (Idea Evolution Chain)
+Liệt kê theo thứ tự thời gian (cũ → mới):
+- **Giai đoạn 1** (Paper cũ nhất): Ý tưởng ban đầu, nền tảng
+- **Giai đoạn 2**: Phát triển tiếp, mở rộng hoặc cải tiến
+- **Giai đoạn 3**: Đóng góp mới, bước ngoặt
+- **Giai đoạn 4** (Paper mới nhất): Xu hướng hiện tại, tương lai
+
+Với mỗi giai đoạn, nêu rõ:
+- Paper nào đại diện (tên + năm nếu có)
+- Ý tưởng chính của giai đoạn
+- So với giai đoạn trước, có gì mới/khác?
+
+### 3. Các bước ngoặt quan trọng (Key Milestones)
+- Những phát hiện nào đã thay đổi hướng nghiên cứu?
+- Phương pháp nào đã tạo đột phá?
+
+### 4. Sơ đồ quan hệ (Relationship Map)
+- Paper nào kế thừa/yếu tố từ paper nào?
+- Có paper nào độc lập nhưng cùng chủ đề?
+
+### 5. Dự đoán xu hướng tương lai (Future Trends)
+- Dựa trên evolution map, xu hướng tiếp theo sẽ là gì?
+- Researchers nên chuẩn bị kỹ năng/phương pháp gì?
+
+Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] cho mỗi giai đoạn. Trả lời bằng tiếng Việt.
+
+Context từ tài liệu:\n{retrieval.context_text}"""
+
+    generation = state.generator.generate(
+        query=evolution_prompt,
+        context_text=retrieval.context_text,
+    )
+
+    return {
+        "answer": generation.content,
+        "citations": generation.citations,
+        "model_used": generation.model_used,
+        "papers_used": retrieval.papers_used,
+        "chunks_used": retrieval.total_chunks,
+    }
+
+
+# ─── Personalized Knowledge Brain ─────────────────────────────
+
+@app.get("/api/personal/brain")
+async def get_personal_brain():
+    """
+    Personalized Knowledge Brain: analyzes the user's library and reading
+    patterns to provide personalized insights.
+    
+    Returns:
+    - Reading statistics (total, read, unread, starred, languages)
+    - Topic interest analysis (based on tags, titles, chat queries)
+    - Author preference analysis (most frequent authors)
+    - Reading timeline (papers added over time)
+    - Personalized recommendations (what to read next, suggested topics)
+    - Reading streak / activity
+    """
+    session = get_session(state.engine)
+    try:
+        import json as _json
+        
+        # ── 1. Reading Statistics ──
+        all_papers = session.query(Paper).filter(Paper.status == "indexed").all()
+        total_papers = len(all_papers)
+        
+        read_papers = [p for p in all_papers if p.read_status == "read"]
+        reading_papers = [p for p in all_papers if p.read_status == "reading"]
+        unread_papers = [p for p in all_papers if p.read_status == "unread"]
+        starred_papers = [p for p in all_papers if p.starred]
+        
+        languages = Counter(p.language for p in all_papers)
+        total_pages = sum(p.page_count or 0 for p in all_papers)
+        
+        reading_stats = {
+            "total_papers": total_papers,
+            "read_count": len(read_papers),
+            "reading_count": len(reading_papers),
+            "unread_count": len(unread_papers),
+            "starred_count": len(starred_papers),
+            "total_pages": total_pages,
+            "languages": dict(languages),
+            "read_percentage": round(len(read_papers) / total_papers * 100, 1) if total_papers > 0 else 0,
+        }
+        
+        # ── 2. Topic Interest Analysis ──
+        # Collect all tags from papers
+        all_tags = []
+        for p in all_papers:
+            try:
+                tags = _json.loads(p.tags or "[]")
+                all_tags.extend(tags)
+            except Exception:
+                pass
+        
+        tag_counts = Counter(all_tags)
+        top_topics = tag_counts.most_common(10)
+        
+        # Also analyze titles for keywords (simple extraction)
+        title_words = []
+        stop_words = set(['the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'is', 'are', 'was', 'were', 'by', 'with', 'from', 'that', 'this', 'it', 'its', 'as', 'not', 'but', 'can', 'has', 'have', 'been', 'we', 'our', 'their', 'they', 'he', 'she', 'than', 'if', 'when', 'which', 'what', 'how', 'all', 'each', 'every', 'more', 'most', 'no', 'other', 'some', 'such', 'than', 'too', 'very', 'may', 'will', 'also', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again', 'then', 'once', 'here', 'there', 'why', 'both', 'few', 'own', 'same', 'so', 'while', 'only', 'now', 'over', 'such', 'just', 'any', 'new', 'one', 'two', 'first', 'based', 'using', 'approach', 'method', 'model', 'using', 'via', 'study', 'paper', 'analysis', 'using', 'data', 'method', 'methods', 'approach', 'approaches', 'performance', 'result', 'results', 'present', 'propose', 'proposed', 'introduce', 'introduced', 'develop', 'developed', 'providing', 'provide'])
+        
+        for p in all_papers:
+            if p.title:
+                words = re.findall(r'[a-zA-Z]{3,}', p.title.lower())
+                title_words.extend([w for w in words if w not in stop_words and len(w) > 3])
+        
+        word_counts = Counter(title_words)
+        top_keywords = word_counts.most_common(15)
+        
+        # Analyze chat queries for interests
+        user_queries = session.query(ChatHistory.content).filter(
+            ChatHistory.role == "user"
+        ).limit(100).all()
+        
+        query_words = []
+        for (content,) in user_queries:
+            words = re.findall(r'[a-zA-ZÀ-ỹ]{3,}', content.lower())
+            query_words.extend([w for w in words if w not in stop_words and len(w) > 3])
+        
+        query_word_counts = Counter(query_words)
+        top_query_topics = query_word_counts.most_common(10)
+        
+        topic_interests = {
+            "top_tags": [{"topic": t, "count": c} for t, c in top_topics],
+            "top_keywords": [{"keyword": w, "count": c} for w, c in top_keywords],
+            "top_query_topics": [{"topic": t, "count": c} for t, c in top_query_topics],
+        }
+        
+        # ── 3. Author Preference Analysis ──
+        all_authors = []
+        for p in all_papers:
+            try:
+                authors = _json.loads(p.authors or "[]")
+                if isinstance(authors, list):
+                    all_authors.extend([a.strip() for a in authors if a.strip()])
+            except Exception:
+                pass
+        
+        author_counts = Counter(all_authors)
+        top_authors = author_counts.most_common(10)
+        
+        author_preferences = {
+            "top_authors": [{"author": a, "count": c} for a, c in top_authors],
+        }
+        
+        # ── 4. Reading Timeline (papers added over time) ──
+        timeline = []
+        month_counts = Counter()
+        for p in all_papers:
+            if p.created_at:
+                month_key = p.created_at.strftime("%Y-%m")
+                month_counts[month_key] += 1
+        
+        for month in sorted(month_counts.keys(), reverse=True)[:6]:
+            timeline.append({"month": month, "count": month_counts[month]})
+        
+        # ── 5. Reading Activity (recent activity) ──
+        recent_chats = session.query(ChatHistory).filter(
+            ChatHistory.role == "user"
+        ).order_by(ChatHistory.created_at.desc()).limit(10).all()
+        
+        recent_activity = []
+        for ch in recent_chats:
+            recent_activity.append({
+                "type": "chat",
+                "content": ch.content[:100],
+                "date": str(ch.created_at) if ch.created_at else None,
+            })
+        
+        # ── 6. Personalized Insights (computed, no LLM needed) ──
+        insights = []
+        
+        if total_papers == 0:
+            insights.append({
+                "type": "info",
+                "title": "Bắt đầu hành trình nghiên cứu",
+                "description": "Hãy import PDF đầu tiên để xây dựng thư viện nghiên cứu của bạn.",
+                "action": "Import PDF",
+            })
+        else:
+            # Unread papers warning
+            if len(unread_papers) > 0:
+                insights.append({
+                    "type": "action",
+                    "title": f"{len(unread_papers)} paper chưa đọc",
+                    "description": f"Bạn có {len(unread_papers)} paper chờ xử lý. Hãy bắt đầu với paper quan trọng nhất.",
+                    "action": "Xem thư viện",
+                })
+            
+            # Reading progress
+            if len(read_papers) > 0 and total_papers > 0:
+                pct = round(len(read_papers) / total_papers * 100)
+                insights.append({
+                    "type": "progress",
+                    "title": f"Tiến độ đọc: {pct}%",
+                    "description": f"Bạn đã đọc {len(read_papers)}/{total_papers} paper. {"Tuyệt vời!" if pct > 70 else "Cố gắng lên!" if pct > 30 else "Hãy đọc thêm paper nhé!"}",
+                })
+            
+            # Top topic suggestion
+            if top_topics:
+                top_topic = top_topics[0][0]
+                insights.append({
+                    "type": "insight",
+                    "title": f"Chủ đề quan tâm nhất: {top_topic}",
+                    "description": f"Bạn đang tập trung nhiều vào '{top_topic}'. Hãy tìm thêm paper liên quan để mở rộng kiến thức.",
+                })
+            
+            # Language balance
+            if len(languages) > 1:
+                langs = ", ".join([f"{lang}: {count}" for lang, count in languages.most_common(3)])
+                insights.append({
+                    "type": "info",
+                    "title": "Ngôn ngữ đa dạng",
+                    "description": f"Thư viện của bạn có nhiều ngôn ngữ: {langs}. Điều này cho thấy bạn tiếp cận nghiên cứu từ nhiều nguồn.",
+                })
+            
+            # Starred papers suggestion
+            if len(starred_papers) > 0:
+                starred_titles = [p.title or p.filename for p in starred_papers[:3]]
+                insights.append({
+                    "type": "insight",
+                    "title": f"{len(starred_papers)} paper yêu thích",
+                    "description": f"Các paper được yêu thích: {', '.join(starred_titles[:2])}{'...' if len(starred_titles) > 2 else ''}. Đây có thể là hướng nghiên cứu chính của bạn.",
+                })
+            
+            # Suggestion: create a review
+            if total_papers >= 3 and len(read_papers) < total_papers // 2:
+                insights.append({
+                    "type": "action",
+                    "title": "Tạo Literature Review",
+                    "description": "Với nhiều paper chưa đọc, hãy để AI tóm tắt và review giúp bạn.",
+                    "action": "Tạo Review",
+                })
+        
+        return {
+            "reading_stats": reading_stats,
+            "topic_interests": topic_interests,
+            "author_preferences": author_preferences,
+            "timeline": timeline,
+            "recent_activity": recent_activity,
+            "insights": insights,
+        }
+    finally:
+        session.close()
+
+
+# ─── Daily AI Reader ──────────────────────────────────────────
+
+@app.get("/api/personal/daily-reader")
+async def get_daily_reader():
+    """
+    Daily AI Reader: suggests papers to read each day based on user's
+    interests, reading history, and paper metadata.
+    
+    Returns:
+    - today_suggestion: AI-generated daily reading suggestion with summary
+    - unread_papers: list of unread papers prioritized by relevance
+    - recommended_read_order: suggested reading order
+    - reading_streak: current reading activity
+    """
+    session = get_session(state.engine)
+    try:
+        import json as _json
+        
+        # ── 1. Get all indexed papers ──
+        all_papers = session.query(Paper).filter(Paper.status == "indexed").all()
+        
+        unread_papers = [p for p in all_papers if p.read_status == "unread"]
+        reading_papers = [p for p in all_papers if p.read_status == "reading"]
+        read_papers = [p for p in all_papers if p.read_status == "read"]
+        
+        # ── 2. Analyze user interests from tags and chat history ──
+        all_tags = []
+        for p in all_papers:
+            try:
+                tags = _json.loads(p.tags or "[]")
+                all_tags.extend(tags)
+            except Exception:
+                pass
+        
+        tag_counts = Counter(all_tags)
+        top_interests = [t for t, c in tag_counts.most_common(5)]
+        
+        # Get recent chat queries to understand current interests
+        recent_queries = session.query(ChatHistory.content).filter(
+            ChatHistory.role == "user"
+        ).order_by(ChatHistory.created_at.desc()).limit(20).all()
+        
+        query_text = " ".join([q[0] for q in recent_queries]) if recent_queries else ""
+        
+        # ── 3. Build paper summaries for AI context ──
+        paper_summaries = []
+        for p in all_papers:
+            summary = {
+                "id": p.id,
+                "title": p.title or p.filename,
+                "authors": "",
+                "year": p.year,
+                "language": p.language,
+                "read_status": p.read_status,
+                "tags": [],
+                "pages": p.page_count or 0,
+                "auto_summary": "",
+            }
+            try:
+                authors = _json.loads(p.authors or "[]")
+                if isinstance(authors, list):
+                    summary["authors"] = ", ".join(authors[:3])
+            except Exception:
+                pass
+            try:
+                summary["tags"] = _json.loads(p.tags or "[]")
+            except Exception:
+                pass
+            if p.auto_summary:
+                # Truncate auto_summary for context
+                summary["auto_summary"] = p.auto_summary[:200]
+            paper_summaries.append(summary)
+        
+        # ── 4. AI generates daily reading suggestion ──
+        daily_suggestion = None
+        
+        if len(all_papers) > 0:
+            papers_context = _json.dumps(paper_summaries[:30], ensure_ascii=False, indent=1)
+            interests_context = f"Top interests: {', '.join(top_interests)}" if top_interests else "No tags yet"
+            recent_context = f"Recent chat topics: {query_text[:500]}" if query_text else "No recent chat"
+            
+            daily_prompt = f"""Bạn là trợ lý nghiên cứu cá nhân. Dựa trên thư viện paper và sở thích của người dùng, hãy gợi ý paper nên đọc HÔM NAY.
+
+## Thư viện paper:
+{papers_context}
+
+## Sở thích:
+{interests_context}
+
+## Hoạt động gần đây:
+{recent_context}
+
+## YÊU CẦU:
+Hãy chọn 2-3 paper phù hợp nhất để đọc hôm nay. Với mỗi paper, hãy:
+1. Giải thích TẠI SAO paper này phù hợp với sở thích của người dùng
+2. Đọc paper này sẽ giúp ích gì cho nghiên cứu của họ
+3. Gợi ý đọc paper nào TIẾP THEO sau khi đọc xong
+
+Trả lời bằng tiếng Việt, ngắn gọn, súc tích. Dùng markdown với headings.
+
+Nếu không có paper nào phù hợp, hãy gợi ý:
+- Nên import thêm paper về chủ đề nào
+- Hoặc nên bắt đầu đọc paper chưa đọc nào trước"""
+            
+            generation = state.generator.generate(
+                query=daily_prompt,
+                context_text=papers_context,
+            )
+            
+            daily_suggestion = {
+                "suggestion": generation.content,
+                "model_used": generation.model_used,
+            }
+        
+        # ── 5. Prioritized unread papers ──
+        # Score papers by relevance: starred > has_summary > more pages > recent
+        def paper_priority(p):
+            score = 0
+            if p.starred:
+                score += 100
+            if p.auto_summary:
+                score += 50
+            # Boost papers with user's interest tags
+            try:
+                paper_tags = _json.loads(p.tags or "[]")
+                overlap = len(set(paper_tags) & set(top_interests))
+                score += overlap * 30
+            except Exception:
+                pass
+            # Prefer shorter papers for daily reading
+            pages = p.page_count or 10
+            if pages < 10:
+                score += 20
+            elif pages < 20:
+                score += 10
+            return score
+        
+        prioritized_unread = sorted(unread_papers, key=paper_priority, reverse=True)
+        
+        unread_list = []
+        for p in prioritized_unread[:10]:
+            tags = []
+            try:
+                tags = _json.loads(p.tags or "[]")
+            except Exception:
+                pass
+            unread_list.append({
+                "paper_id": p.id,
+                "title": p.title or p.filename,
+                "authors": "",
+                "year": p.year,
+                "pages": p.page_count or 0,
+                "tags": tags,
+                "starred": bool(p.starred),
+                "has_summary": bool(p.auto_summary),
+            })
+            try:
+                authors = _json.loads(p.authors or "[]")
+                if isinstance(authors, list):
+                    unread_list[-1]["authors"] = ", ".join(authors[:3])
+            except Exception:
+                pass
+        
+        # ── 6. Reading streak ──
+        today = datetime.today().date()
+        streak = 0
+        for days_back in range(30):
+            check_date = today - timedelta(days=days_back)
+            day_start = datetime.combine(check_date, time.min)
+            day_end = datetime.combine(check_date, time.max)
+            has_activity = session.query(ChatHistory).filter(
+                ChatHistory.created_at >= day_start,
+                ChatHistory.created_at <= day_end
+            ).count() > 0
+            if has_activity:
+                if days_back == streak:
+                    streak += 1
+                else:
+                    break
+            elif days_back > 0:
+                break
+        
+        return {
+            "daily_suggestion": daily_suggestion,
+            "unread_papers": unread_list,
+            "reading_streak": streak,
+            "stats": {
+                "total": len(all_papers),
+                "unread": len(unread_papers),
+                "reading": len(reading_papers),
+                "read": len(read_papers),
+            },
+        }
+    finally:
+        session.close()
+
+
+# ─── Auto-Highlight ────────────────────────────────────────────
+
+@app.get("/api/papers/{paper_id}/highlights")
+async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
+    """
+    AI identifies and returns the most important passages in a paper.
+    Uses RAG to retrieve all chunks, then LLM picks the highlights.
+    """
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        # Retrieve chunks from this specific paper
+        retrieval = state.retriever.retrieve(
+            query="key findings methodology results conclusion abstract introduction important contributions novel results findings limitations weaknesses",
+            paper_ids=[paper_id],
+            top_k=20,
+        )
+
+        if not retrieval.context_text.strip():
+            return {
+                "highlights": [],
+                "paper_id": paper_id,
+                "message": "Paper chưa được index đầy đủ để tạo highlights.",
+            }
+
+        highlight_prompt = f"""Bạn là một trợ lý nghiên cứu. Hãy đọc kỹ toàn bộ nội dung paper sau và xác định {limit} đoạn quan trọng nhất.
+
+Đối với mỗi đoạn quan trọng, hãy trả về JSON array với cấu trúc:
+[
+  {{
+    "category": "key_finding" | "methodology" | "conclusion" | "novel_contribution" | "limitation" | "important_claim",
+    "text": "đoạn trích nguyên văn (tối đa 200 ký tự)",
+    "page_hint": số trang nếu biết (hoặc null),
+    "importance": "high" | "medium",
+    "note": "giải thích ngắn gọn tại sao đoạn này quan trọng"
+  }}
+]
+
+Phân loại:
+- key_finding: Kết quả nghiên cứu chính
+- methodology: Phương pháp quan trọng
+- conclusion: Kết luận then chốt
+- novel_contribution: Đóng góp mới / sáng kiến
+- limitation: Hạn chế được thảo luận
+- important_claim: Khái niệm/quan điểm quan trọng
+
+CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng Việt.
+
+Nội dung paper:\n{retrieval.context_text}"""
+
+        generation = state.generator.generate(
+            query=highlight_prompt,
+            context_text=retrieval.context_text,
+        )
+
+        # Parse JSON from LLM response
+        import json as _json
+        highlights = []
+        try:
+            # Try to extract JSON array from response
+            content = generation.content.strip()
+            # Strip markdown code fences if present (common LLM output format)
+            if content.startswith("```"):
+                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            # Find the first [ and last ]
+            start = content.find('[')
+            end = content.rfind(']')
+            if start != -1 and end != -1:
+                json_str = content[start:end + 1]
+                highlights = _json.loads(json_str)
+            else:
+                highlights = []
+        except Exception as parse_err:
+            logger.warning(f"Failed to parse highlights JSON: {parse_err}")
+            highlights = []
+
+        return {
+            "highlights": highlights[:limit],
+            "paper_id": paper_id,
+            "paper_title": paper.title,
+        }
+    finally:
+        session.close()
+
+
+# ─── Migration ────────────────────────────────────────────────
+
+def _migrate_auto_summary(engine):
+    """Add auto_summary column to papers table if it doesn't exist."""
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            # Check if column exists
+            result = conn.execute(text(
+                "SELECT pragma_table_info('papers')"
+            ))
+            columns = [row[1] for row in result.fetchall()]
+            if "auto_summary" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN auto_summary TEXT DEFAULT ''"))
+                conn.commit()
+                logger.info("Migration: Added auto_summary column to papers table")
+    except Exception as e:
+        logger.warning(f"Migration auto_summary skipped (may already exist): {e}")
+
+
 # ─── Helpers ─────────────────────────────────────────────────────
 
 def _paper_to_dict(paper) -> dict:
@@ -1457,6 +2564,7 @@ def _paper_to_dict(paper) -> dict:
         "status": paper.status,
         "tags": paper.tags,
         "notes": paper.notes,
+        "auto_summary": getattr(paper, "auto_summary", ""),
         "read_status": paper.read_status,
         "starred": bool(paper.starred),
         "created_at": str(paper.created_at) if paper.created_at else None,

@@ -17,7 +17,7 @@ interface ImportResult {
   pages?: number;
 }
 
-export const ImportPanel: React.FC<{ onImported: () => void }> = ({ onImported }) => {
+export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> = ({ onImported }) => {
   const [dragOver, setDragOver] = useState(false);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<ImportResult[]>([]);
@@ -91,7 +91,8 @@ export const ImportPanel: React.FC<{ onImported: () => void }> = ({ onImported }
 
     setResults(newResults);
     setImporting(false);
-    onImported();
+    const successful = newResults.find(r => r.status !== "error");
+    onImported(successful?.paper_id);
   };
 
   const importFolder = async (folderPath: string) => {

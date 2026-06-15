@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { api, ChatResponse } from "../../lib/api";
+import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
   IconBrain,
   IconUser,
@@ -17,7 +18,7 @@ interface Message {
   model_used?: string;
 }
 
-export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPaperIds }) => {
+export const ChatView: React.FC<{ initialPaperIds?: string[]; initialQuery?: string; initialMode?: "chat" | "review" | "critique" | "debate" }> = ({ initialPaperIds, initialQuery, initialMode = "chat" }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,6 +29,14 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
   useEffect(() => {
     loadUsage();
   }, []);
+
+  useEffect(() => {
+    if (initialQuery && paperIds.length > 0) {
+      setInput(initialQuery);
+      handleSend(initialQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery, paperIds.join(",")]);
 
   useEffect(() => {
     if (listRef.current) {
@@ -44,8 +53,8 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
     }
   };
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const handleSend = async (overrideText?: string) => {
+    const text = overrideText?.trim() ?? input.trim();
     if (!text || loading) return;
     setInput("");
 
@@ -54,7 +63,16 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
     setLoading(true);
 
     try {
-      const res: ChatResponse = await api.chat(text, paperIds.length > 0 ? paperIds : undefined);
+      let res: ChatResponse;
+      if (initialMode === "review") {
+        res = await api.review(text, paperIds.length > 0 ? paperIds : undefined);
+      } else if (initialMode === "critique") {
+        res = await api.critique(text, paperIds.length > 0 ? paperIds : undefined);
+      } else if (initialMode === "debate") {
+        res = await api.debate(text, paperIds.length > 0 ? paperIds : undefined);
+      } else {
+        res = await api.chat(text, paperIds.length > 0 ? paperIds : undefined);
+      }
       const assistantMsg: Message = {
         role: "assistant",
         content: res.answer,
@@ -100,6 +118,51 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
     ));
   };
 
+  const renderDebate = (text: string) => {
+    const parsed: ParsedDebate = parseDebate(text);
+    return (
+      <div className="debate-container">
+        <div className="debate-columns">
+          <div className="debate-column debate-a">
+            <h4>AI A (Ủng hộ)</h4>
+            {parsed.aiA?.main && <div className="debate-item"><strong>Luận điểm:</strong> {parsed.aiA.main}</div>}
+            {parsed.aiA?.rebuttal && <div className="debate-item"><strong>Phản biện:</strong> {parsed.aiA.rebuttal}</div>}
+            {parsed.aiA?.citations && parsed.aiA.citations.length > 0 && (
+              <div className="debate-citations">{parsed.aiA.citations.map((c, i) => (<div key={i}>📚 {c.source}{c.page ? `, trang ${c.page}` : ''}</div>))}</div>
+            )}
+          </div>
+
+          <div className="debate-column debate-b">
+            <h4>AI B (Phản biện)</h4>
+            {parsed.aiB?.main && <div className="debate-item"><strong>Luận điểm:</strong> {parsed.aiB.main}</div>}
+            {parsed.aiB?.rebuttal && <div className="debate-item"><strong>Phản biện:</strong> {parsed.aiB.rebuttal}</div>}
+            {parsed.aiB?.citations && parsed.aiB.citations.length > 0 && (
+              <div className="debate-citations">{parsed.aiB.citations.map((c, i) => (<div key={i}>📚 {c.source}{c.page ? `, trang ${c.page}` : ''}</div>))}</div>
+            )}
+          </div>
+        </div>
+
+        {parsed.conclusion && (
+          <div className="debate-conclusion">
+            <h4>Kết luận</h4>
+            <div>{parsed.conclusion}</div>
+          </div>
+        )}
+
+        {parsed.suggestions && parsed.suggestions.length > 0 && (
+          <div className="debate-suggestions">
+            <h4>3 Đề xuất</h4>
+            <ol>
+              {parsed.suggestions.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="chat-view">
       <div className="chat-view-header">
@@ -116,6 +179,11 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
           {paperIds.length > 0 && (
             <span className="chat-view-papers-badge">
               <IconFileText size={14} /> {paperIds.length} papers
+            </span>
+          )}
+          {initialMode === "review" && (
+            <span className="chat-view-papers-badge" style={{ background: "rgba(16, 185, 129, 0.08)", color: "var(--color-success, #10b981)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+              ✅ Review tự động
             </span>
           )}
           {messages.length > 0 && (
@@ -155,19 +223,25 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
               {msg.role === "user" ? <IconUser size={18} /> : <IconBrain size={18} />}
             </div>
             <div className="chat-view-bubble">
-              <div className="chat-view-text">{formatContent(msg.content)}</div>
-              {msg.citations && msg.citations.length > 0 && (
-                <div className="chat-view-citations">
-                  <strong>📚 Nguồn:</strong>
-                  {msg.citations.map((c, j) => (
-                    <span key={j} className="chat-view-citation">
-                      [{c.source}]{c.page ? ` (trang ${c.page})` : ""}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {msg.model_used && (
-                <div className="chat-view-model">🤖 {msg.model_used}</div>
+              {initialMode === "debate" && msg.role === "assistant" ? (
+                renderDebate(msg.content)
+              ) : (
+                <>
+                  <div className="chat-view-text">{formatContent(msg.content)}</div>
+                  {msg.citations && msg.citations.length > 0 && (
+                    <div className="chat-view-citations">
+                      <strong>📚 Nguồn:</strong>
+                      {msg.citations.map((c, j) => (
+                        <span key={j} className="chat-view-citation">
+                          [{c.source}]{c.page ? ` (trang ${c.page})` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {msg.model_used && (
+                    <div className="chat-view-model">🤖 {msg.model_used}</div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -199,7 +273,7 @@ export const ChatView: React.FC<{ initialPaperIds?: string[] }> = ({ initialPape
         />
         <button
           className="chat-view-send-btn"
-          onClick={handleSend}
+          onClick={() => handleSend()}
           disabled={loading || !input.trim()}
         >
           {loading ? <IconSpinner size={20} /> : <IconSend size={20} />}

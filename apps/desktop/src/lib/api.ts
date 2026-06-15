@@ -50,6 +50,7 @@ export interface Paper {
   status: string;
   tags: string;
   notes: string;
+  auto_summary: string;
   read_status: string;
   starred: boolean;
   created_at: string | null;
@@ -92,6 +93,22 @@ export interface HealthResponse {
   ollama_model: string;
   total_papers: number;
   total_chunks: number;
+}
+
+export interface Highlight {
+  category: string;
+  text: string;
+  page_hint: number | null;
+  importance: string;
+  note: string;
+}
+
+export interface RelatedPaper {
+  paper_id: string;
+  title: string;
+  similarity: number;
+  snippet: string;
+  matching_chunks: number;
 }
 
 // ─── API functions ─────────────────────────────────────────────
@@ -143,6 +160,13 @@ export const api = {
   // Chat
   chat: (message: string, paperIds?: string[]) =>
     request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds }),
+
+  review: (query: string, paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/review", { query, paper_ids: paperIds }),
+  critique: (query: string, paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/critique", { query, paper_ids: paperIds }),
+  debate: (query: string, paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/debate", { query, paper_ids: paperIds }),
 
   // Machine specs
   detectSpecs: () =>
@@ -223,5 +247,94 @@ export const api = {
       "GET",
       `/api/data/disk-space?path=${encodeURIComponent(path)}`
     ),
+
+  // Insights
+  findResearchGap: (paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/insights/gap", { paper_ids: paperIds }),
+
+  findConflicts: (paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/insights/conflict", { paper_ids: paperIds }),
+
+  findTopicSuggestions: (paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/insights/topic", { paper_ids: paperIds }),
+
+  findEvolutionMap: (paperIds?: string[]) =>
+    request<ChatResponse>("POST", "/api/insights/evolution", { paper_ids: paperIds }),
+
+  // Highlights
+  findHighlights: (paperId: string, limit = 10) =>
+    request<{ highlights: Highlight[]; paper_id: string; paper_title?: string; message?: string }>(
+      "GET",
+      `/api/papers/${paperId}/highlights?limit=${limit}`
+    ),
+
+  // Related Papers
+  findRelatedPapers: (paperId: string, limit = 5) =>
+    request<{ related_papers: RelatedPaper[]; paper_id: string }>(
+      "GET",
+      `/api/papers/${paperId}/related?limit=${limit}`
+    ),
+
+  // Personal Knowledge Brain
+  getPersonalBrain: () =>
+    request<PersonalBrainResponse>("GET", "/api/personal/brain"),
+
+  // Daily AI Reader
+  getDailyReader: () =>
+    request<DailyReaderResponse>("GET", "/api/personal/daily-reader"),
 };
+
+// ─── Daily Reader Types ─────────────────────────────────────
+
+export interface DailyReaderResponse {
+  daily_suggestion: {
+    suggestion: string;
+    model_used: string;
+  } | null;
+  unread_papers: DailyPaper[];
+  reading_streak: number;
+  stats: {
+    total: number;
+    unread: number;
+    reading: number;
+    read: number;
+  };
+}
+
+export interface DailyPaper {
+  paper_id: string;
+  title: string;
+  authors: string;
+  year: number | null;
+  pages: number;
+  tags: string[];
+  starred: boolean;
+  has_summary: boolean;
+}
+
+// ─── Personal Brain Types ───────────────────────────────────
+
+export interface PersonalBrainResponse {
+  reading_stats: {
+    total_papers: number;
+    read_count: number;
+    reading_count: number;
+    unread_count: number;
+    starred_count: number;
+    total_pages: number;
+    languages: Record<string, number>;
+    read_percentage: number;
+  };
+  topic_interests: {
+    top_tags: { topic: string; count: number }[];
+    top_keywords: { keyword: string; count: number }[];
+    top_query_topics: { topic: string; count: number }[];
+  };
+  author_preferences: {
+    top_authors: { author: string; count: number }[];
+  };
+  timeline: { month: string; count: number }[];
+  recent_activity: { type: string; content: string; date: string | null }[];
+  insights: { type: string; title: string; description: string; action?: string }[];
+}
 

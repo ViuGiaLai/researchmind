@@ -31,6 +31,7 @@ class Paper(Base):
     status = Column(String, default="pending")    # pending / indexing / indexed / failed
     tags = Column(Text, default="[]")             # JSON array
     notes = Column(Text, default="")
+    auto_summary = Column(Text, default="")  # AI-generated summary
     read_status = Column(String, default="unread")  # unread / reading / read
     starred = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())

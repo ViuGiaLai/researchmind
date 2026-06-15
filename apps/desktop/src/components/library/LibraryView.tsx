@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, Paper } from "../../lib/api";
+import { api, Paper, RelatedPaper, Highlight } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import {
   IconBrain,
@@ -12,6 +12,8 @@ import {
   IconLibrary,
   IconBookOpen,
   IconCheck,
+  IconBulb,
+  IconSparkle,
 } from "../Icons";
 
 const PAGE_SIZE = 20;
@@ -26,7 +28,13 @@ const renderStatusIcon = (status: string, size = 16) => {
   return <IconFileText size={size} style={{ color: "var(--color-text-muted, #94a3b8)" }} />;
 };
 
-export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }> = ({ onStartChat }) => {
+export const LibraryView: React.FC<{
+  onStartChat: (paperIds: string[]) => void;
+  onStartReview: (paperIds: string[]) => void;
+  onStartCritique: (paperIds: string[]) => void;
+  onStartDebate?: (paperIds: string[]) => void;
+  onStartWow?: (paperId: string) => void;
+}> = ({ onStartChat, onStartReview, onStartCritique, onStartDebate, onStartWow }) => {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -37,11 +45,19 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
 
   // Zotero-style preview panel states
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
-  const [previewTab, setPreviewTab] = useState<"info" | "pdf">("info");
+  const [previewTab, setPreviewTab] = useState<"info" | "pdf" | "related" | "highlights">("info");
   const [tagInput, setTagInput] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+
+  // Related papers state
+  const [relatedPapers, setRelatedPapers] = useState<RelatedPaper[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  // Highlights state
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [loadingHighlights, setLoadingHighlights] = useState(false);
 
   useEffect(() => {
     loadPapers();
@@ -52,8 +68,10 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
       setNotes(activePaper.notes || "");
       setShowTagInput(false);
       setTagInput("");
+      setRelatedPapers([]);
+      setHighlights([]);
     }
-  }, [activePaper]);
+  }, [activePaper?.id]);
 
   const loadPapers = async () => {
     setLoading(true);
@@ -192,6 +210,32 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
     }
   };
 
+  const loadHighlights = async (paperId: string) => {
+    setLoadingHighlights(true);
+    try {
+      const res = await api.findHighlights(paperId, 10);
+      setHighlights(res.highlights || []);
+    } catch (e) {
+      console.error("Failed to load highlights:", e);
+      setHighlights([]);
+    } finally {
+      setLoadingHighlights(false);
+    }
+  };
+
+  const loadRelatedPapers = async (paperId: string) => {
+    setLoadingRelated(true);
+    try {
+      const res = await api.findRelatedPapers(paperId, 5);
+      setRelatedPapers(res.related_papers);
+    } catch (e) {
+      console.error("Failed to load related papers:", e);
+      setRelatedPapers([]);
+    } finally {
+      setLoadingRelated(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -205,7 +249,15 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
               <h3><IconUpload size={18} style={{ marginRight: 6 }} /> Import PDF</h3>
               <button className="library-import-close" onClick={() => setShowImport(false)}>✕</button>
             </div>
-            <ImportPanel onImported={() => { loadPapers(); setShowImport(false); }} />
+            <ImportPanel
+              onImported={(paperId) => {
+                loadPapers();
+                setShowImport(false);
+                if (paperId && onStartWow) {
+                  onStartWow(paperId);
+                }
+              }}
+            />
           </div>
         ) : (
           <div className="library-header">
@@ -234,10 +286,26 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
                   Import PDF
                 </button>
                 {selected.size > 0 && (
-                  <button className="library-chat-btn" onClick={() => onStartChat(Array.from(selected))}>
-                    <IconChat size={16} style={{ marginRight: 4 }} />
-                    Chat ({selected.size})
-                  </button>
+                  <>
+                    <button className="library-danger-btn" onClick={() => onStartCritique(Array.from(selected))}>
+                      <IconBrain size={16} style={{ marginRight: 4 }} />
+                      Phản biện ({selected.size})
+                    </button>
+                    {onStartDebate && (
+                      <button className="library-debate-btn" onClick={() => onStartDebate(Array.from(selected))}>
+                        <IconBulb size={16} style={{ marginRight: 4 }} />
+                        Tranh luận ({selected.size})
+                      </button>
+                    )}
+                    <button className="library-secondary-btn" onClick={() => onStartReview(Array.from(selected))}>
+                      <IconFileText size={16} style={{ marginRight: 4 }} />
+                      Tạo Review ({selected.size})
+                    </button>
+                    <button className="library-chat-btn" onClick={() => onStartChat(Array.from(selected))}>
+                      <IconChat size={16} style={{ marginRight: 4 }} />
+                      Chat ({selected.size})
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -330,6 +398,20 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
                 {activePaper.title || activePaper.filename}
               </h3>
               <div className="preview-actions">
+                {onStartWow && (
+                  <button
+                    className="preview-btn wow-glow-btn"
+                    onClick={() => onStartWow(activePaper.id)}
+                    style={{
+                      background: "linear-gradient(135deg, var(--color-primary), #ec4899)",
+                      color: "#fff",
+                      border: "none",
+                    }}
+                  >
+                    <IconSparkle size={14} />
+                    <span>⚡ Phân tích WOW</span>
+                  </button>
+                )}
                 <button
                   className="preview-btn primary"
                   onClick={() => onStartChat([activePaper.id])}
@@ -337,6 +419,15 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
                   <IconChat size={14} />
                   <span>Hỏi AI về paper này</span>
                 </button>
+                {onStartDebate && (
+                  <button
+                    className="preview-btn"
+                    onClick={() => onStartDebate([activePaper.id])}
+                  >
+                    <IconBulb size={14} />
+                    <span>Tranh luận</span>
+                  </button>
+                )}
                 <button
                   className="preview-btn"
                   onClick={() => toggleReadStatus(activePaper.id, activePaper.read_status)}
@@ -365,7 +456,29 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
                 className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
                 onClick={() => setPreviewTab("info")}
               >
-                Ghi chú & Thông tin
+                Tóm tắt & Thông tin
+              </button>
+              <button
+                className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
+                onClick={() => {
+                  setPreviewTab("related");
+                  if (relatedPapers.length === 0 && activePaper) {
+                    loadRelatedPapers(activePaper.id);
+                  }
+                }}
+              >
+                Papers liên quan
+              </button>
+              <button
+                className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
+                onClick={() => {
+                  setPreviewTab("highlights");
+                  if (highlights.length === 0 && activePaper) {
+                    loadHighlights(activePaper.id);
+                  }
+                }}
+              >
+                Đoạn quan trọng
               </button>
               <button
                 className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
@@ -377,23 +490,57 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
 
             {previewTab === "info" ? (
               <div className="preview-body">
-                <div className="metadata-grid">
-                  <div className="metadata-item">
-                    <span className="metadata-label">Ghi chú cá nhân</span>
-                    <textarea
-                      className="notes-textarea"
-                      placeholder="Viết tóm tắt hoặc ghi chú nghiên cứu của bạn tại đây..."
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                    <button
-                      className="notes-save-btn"
-                      onClick={saveNotes}
-                      disabled={savingNotes}
-                    >
-                      {savingNotes ? "Đang lưu..." : "Lưu ghi chú"}
-                    </button>
+                {/* Auto Summary Section - Highlighted */}
+                {activePaper.auto_summary && (
+                  <div className="preview-summary-section">
+                    <div className="preview-summary-header">
+                      <span className="preview-summary-icon">🧠</span>
+                      <span className="preview-summary-label">Tóm tắt tự động bởi ResearchMind</span>
+                    </div>
+                    <div className="preview-summary-content">
+                      {activePaper.auto_summary.split('\n').map((line, i) => {
+                        if (line.startsWith('###')) return <h4 key={i} className="summary-heading">{line.replace(/^#+\s*/, '')}</h4>;
+                        if (line.startsWith('* **')) {
+                          const parts = line.replace(/^\*\s*/, '').split(':');
+                          const label = parts[0]?.replace(/\*\*/g, '') || '';
+                          const value = parts.slice(1).join(':').trim();
+                          return (
+                            <div key={i} className="summary-item">
+                              <span className="summary-item-label">{label}</span>
+                              <span className="summary-item-value">{value}</span>
+                            </div>
+                          );
+                        }
+                        if (line.trim()) return <p key={i} className="summary-text">{line}</p>;
+                        return null;
+                      })}
+                    </div>
                   </div>
+                )}
+
+                {/* User Notes Section - Editable */}
+                <div className="preview-user-notes-section">
+                  <div className="preview-user-notes-header">
+                    <span className="preview-user-notes-icon">📝</span>
+                    <span className="preview-user-notes-label">Ghi chú cá nhân</span>
+                  </div>
+                  <textarea
+                    className="notes-textarea"
+                    placeholder="Thêm ghi chú cá nhân của bạn tại đây..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                  <button
+                    className="notes-save-btn"
+                    onClick={saveNotes}
+                    disabled={savingNotes}
+                  >
+                    {savingNotes ? "Đang lưu..." : "Lưu ghi chú"}
+                  </button>
+                </div>
+
+                <div className="metadata-grid">
+  
 
                   <div className="metadata-item">
                     <span className="metadata-label">Thẻ (Tags)</span>
@@ -459,6 +606,117 @@ export const LibraryView: React.FC<{ onStartChat: (paperIds: string[]) => void }
                     </span>
                   </div>
                 </div>
+              </div>
+            ) : previewTab === "related" ? (
+              <div className="preview-body">
+                <div className="related-papers-header">
+                  <h4 className="related-papers-title">
+                    🔗 Papers liên quan (theo embedding similarity)
+                  </h4>
+                  <button
+                    className="related-papers-refresh-btn"
+                    onClick={() => activePaper && loadRelatedPapers(activePaper.id)}
+                    disabled={loadingRelated}
+                  >
+                    {loadingRelated ? "Đang tải..." : "Làm mới"}
+                  </button>
+                </div>
+
+                {loadingRelated ? (
+                  <div className="related-papers-loading">
+                    <div className="insights-loading-spinner" />
+                    <span>Đang tìm papers liên quan...</span>
+                  </div>
+                ) : relatedPapers.length === 0 ? (
+                  <div className="related-papers-empty">
+                    <p>Chưa tìm thấy paper liên quan nào.</p>
+                    <p className="hint">Hãy import thêm paper để mở rộng mạng lưới kiến thức.</p>
+                  </div>
+                ) : (
+                  <div className="related-papers-list">
+                    {relatedPapers.map((rp) => (
+                      <div
+                        key={rp.paper_id}
+                        className="related-paper-card"
+                        onClick={() => {
+                          const paper = papers.find((p) => p.id === rp.paper_id);
+                          if (paper) setActivePaper(paper);
+                        }}
+                      >
+                        <div className="related-paper-score">
+                          <span className="related-paper-score-value">
+                            {(rp.similarity * 100).toFixed(0)}%
+                          </span>
+                          <span className="related-paper-score-label">similarity</span>
+                        </div>
+                        <div className="related-paper-content">
+                          <div className="related-paper-title">{rp.title || "Không có tiêu đề"}</div>
+                          <div className="related-paper-snippet">{rp.snippet}...</div>
+                          <div className="related-paper-meta">
+                            {rp.matching_chunks} chunks khớp
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : previewTab === "highlights" ? (
+              <div className="preview-body">
+                <div className="highlights-header">
+                  <h4 className="highlights-title">
+                    ✨ Đoạn quan trọng được AI xác định
+                  </h4>
+                  <button
+                    className="highlights-refresh-btn"
+                    onClick={() => activePaper && loadHighlights(activePaper.id)}
+                    disabled={loadingHighlights}
+                  >
+                    {loadingHighlights ? "Đang phân tích..." : "Phân tích lại"}
+                  </button>
+                </div>
+
+                {loadingHighlights ? (
+                  <div className="highlights-loading">
+                    <div className="insights-loading-spinner" />
+                    <span>AI đang phân tích nội dung paper...</span>
+                    <span className="highlights-loading-hint">Quá trình này có thể mất 10-20 giây</span>
+                  </div>
+                ) : highlights.length === 0 ? (
+                  <div className="highlights-empty">
+                    <p>Chưa có đoạn quan trọng nào được xác định.</p>
+                    <p className="hint">Nhấn "Phân tích lại" để AI phân tích nội dung paper.</p>
+                  </div>
+                ) : (
+                  <div className="highlights-list">
+                    {highlights.map((h, i) => (
+                      <div key={i} className={`highlight-card ${h.importance === "high" ? "highlight-high" : "highlight-medium"}`}>
+                        <div className="highlight-card-header">
+                          <span className={`highlight-category highlight-cat-${h.category}`}>
+                            {h.category === "key_finding" ? "🔬 Kết quả chính"
+                              : h.category === "methodology" ? "⚙️ Phương pháp"
+                              : h.category === "conclusion" ? "📋 Kết luận"
+                              : h.category === "novel_contribution" ? "💡 Đóng góp mới"
+                              : h.category === "limitation" ? "⚠️ Hạn chế"
+                              : "📌 Khái niệm quan trọng"}
+                          </span>
+                          {h.page_hint && (
+                            <span className="highlight-page">Trang {h.page_hint}</span>
+                          )}
+                          <span className={`highlight-importance badge-${h.importance}`}>
+                            {h.importance === "high" ? "🔴 Quan trọng" : "🟡 Trung bình"}
+                          </span>
+                        </div>
+                        <blockquote className="highlight-text">
+                          "{h.text}"
+                        </blockquote>
+                        <div className="highlight-note">
+                          💬 {h.note}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="pdf-iframe-container">

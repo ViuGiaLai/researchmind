@@ -9,19 +9,27 @@ import {
   IconBulb,
 } from "../Icons";
 
+const SUGGESTED_QUERIES = [
+  { icon: "🧠", text: "Tổng hợp các ý tưởng chính trong thư viện" },
+  { icon: "📊", text: "So sánh phương pháp giữa các paper" },
+  { icon: "🔍", text: "Paper nào nói về transformer" },
+  { icon: "💡", text: "Xu hướng nghiên cứu gần đây" },
+  { icon: "📝", text: "Tóm tắt đóng góp chính của các paper" },
+  { icon: "⚖️", text: "Điểm mạnh và yếu điểm của các phương pháp" },
+];
+
 export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }> = ({ onStartChat }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = async () => {
-    const q = query.trim();
-    if (!q) return;
+  const performSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
     setSearching(true);
     setSearched(true);
     try {
-      const res = await api.search(q, undefined, 10);
+      const res = await api.search(searchQuery, undefined, 10);
       setResults(res.results);
     } catch (e) {
       console.error("Search failed:", e);
@@ -29,6 +37,13 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
       setSearching(false);
     }
   };
+
+  const handleSuggestionClick = (text: string) => {
+    setQuery(text);
+    performSearch(text);
+  };
+
+  const handleSearch = () => performSearch(query);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
@@ -121,9 +136,23 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
         )}
 
         {!searched && (
-          <div className="search-suggestions">
-            <IconBulb size={20} className="icon-gradient" />
-            <span>Gợi ý: "phương pháp đánh giá độ trễ", "5G network slicing", "deep learning trong xử lý ảnh"</span>
+          <div className="search-suggestions-container">
+            <div className="search-suggestions-header">
+              <IconBulb size={18} className="icon-gradient" />
+              <span>Gợi ý cho bạn</span>
+            </div>
+            <div className="search-suggestions-grid">
+              {SUGGESTED_QUERIES.map((s, i) => (
+                <button
+                  key={i}
+                  className="search-suggestion-card"
+                  onClick={() => handleSuggestionClick(s.text)}
+                >
+                  <span className="search-suggestion-icon">{s.icon}</span>
+                  <span className="search-suggestion-text">{s.text}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

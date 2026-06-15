@@ -98,6 +98,18 @@
 | Export citation | Phase 3 |
 | Lab account (multi-user) | Phase 4 |
 
+## 🔄 Định hướng sản phẩm (Cập nhật)
+- Nhận định: nền tảng hiện tại đã có "nhớ + search + chat", nhưng giá trị cạnh tranh phải là "giúp hiểu + giúp nghĩ + giúp viết".
+- Ưu tiên chiến lược: xây thêm tính năng sản phẩm "giảm thời gian đọc" và "tạo nội dung nghiên cứu".
+- Chọn killer feature cho giai đoạn tiếp theo: **Auto Literature Review Builder**.
+  - Mục tiêu: từ thư viện paper đã nhập, tạo được output dạng Background / Related Work / Methods / Gaps / Insights.
+  - Giá trị: giúp người dùng tiết kiệm 50-70% thời gian đọc, không còn chỉ là công cụ tìm kiếm tài liệu.
+- Bước triển khai ngay: hoàn thiện endpoint/tính năng _quick summary + compare + structured synthesis_ trước khi mở rộng gap detection.
+- Ghi chú: cập nhật file `have_done_plan/tracking.md` theo yêu cầu.
+ - Ghi chú bổ sung: chọn **AI Phản biện (Critical Thinking Mode)** làm feature cạnh tranh cao — ưu tiên triển khai ngay sau quick summary.
+ - Ghi chú bổ sung: chọn **AI Phản biện (Critical Thinking Mode)** làm feature cạnh tranh cao — ưu tiên triển khai ngay sau quick summary.
+ - Ghi chú bổ sung: **Debate Mode (AI vs AI)** được chọn làm bước tiếp theo sau Phản biện — mục tiêu demo viral và dễ trình diễn.
+
 ---
 
 ## 📈 BIỂU ĐỒ TIẾN ĐỘ
