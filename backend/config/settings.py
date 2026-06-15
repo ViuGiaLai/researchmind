@@ -33,10 +33,16 @@ class Settings(BaseSettings):
 
     # LLM
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1:8b"
+    # Model tiers: yếu (3b), TB (7b), mạnh (14b)
+    model_tier_weak: str = "qwen2.5:3b"
+    model_tier_medium: str = "qwen2.5:7b"
+    model_tier_strong: str = "qwen2.5:14b"
+    
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:7b"
     claude_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
-    llm_mode: str = "local"  # "local" or "cloud"
+    llm_mode: str = "cloud"  # "cloud" or "local" — default cloud = 0 friction
 
     class Config:
         env_file = ".env"

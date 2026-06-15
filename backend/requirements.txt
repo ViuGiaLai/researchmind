@@ -17,6 +17,9 @@ chromadb==0.6.*
 # LLM
 httpx==0.28.*
 
+# System info
+psutil==6.*
+
 # Utils
 pydantic==2.*
 pydantic-settings==2.*

@@ -38,10 +38,10 @@ class Generator:
     def __init__(
         self,
         ollama_url: str = "http://localhost:11434",
-        ollama_model: str = "llama3.1:8b",
+        ollama_model: str = "qwen2.5:7b",
         claude_api_key: str = "",
         claude_model: str = "claude-sonnet-4-20250514",
-        mode: str = "local",
+        mode: str = "cloud",
     ):
         self.ollama_url = ollama_url.rstrip("/")
         self.ollama_model = ollama_model
@@ -104,10 +104,16 @@ Câu hỏi: {query}
 
 Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
-        if self.mode == "cloud" and self.claude_api_key:
-            return self._generate_claude(user_prompt)
-        else:
+        # Cloud mode: try Claude first, fallback to Ollama if no API key
+        if self.mode == "cloud":
+            if self.claude_api_key:
+                result = self._generate_claude(user_prompt)
+                if result.finish_reason != "error":
+                    return result
+                logger.warning("Cloud failed, falling back to local...")
             return self._generate_ollama(user_prompt)
+        # Local mode
+        return self._generate_ollama(user_prompt)
 
     def _generate_ollama(self, prompt: str) -> GenerationResult:
         """Generate response using Ollama (local LLM)."""

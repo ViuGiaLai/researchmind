@@ -9,178 +9,109 @@
 
 | Hạng mục | Trạng thái | Tiến độ |
 |---|---|---|
-| 📐 Plan & Spec | ✅ Viết lại theo hướng ResearchMind VN | 5/5 files |
-| 🐍 Python Backend | 🔴 Chưa bắt đầu | 0% |
-| 🖥️ React + Tauri Frontend | 🔴 Chưa bắt đầu | 0% |
-| 📄 PDF Ingestion Pipeline | 🔴 Chưa bắt đầu | 0% |
-| 🔍 Search Engine (Hybrid) | 🔴 Chưa bắt đầu | 0% |
-| 💬 AI Chat (RAG) | 🔴 Chưa bắt đầu | 0% |
-| 📚 Library Management | 🔴 Chưa bắt đầu | 0% |
+| 📐 Plan & Spec | ✅ Đã viết lại | 6/6 files |
+| 🐍 Python Backend | ✅ Hoàn thành | 14 files |
+| 🖥️ React Frontend | ✅ Hoàn thành | 6 components |
+| 📄 PDF Ingestion Pipeline | ✅ Hoàn thành | parser + chunker + embedder |
+| 🔍 Search Engine (Hybrid) | ✅ Hoàn thành | BM25 + Vector + RRF + Cross-encoder |
+| 💬 AI Chat (RAG) | ✅ Hoàn thành | retriever + generator (Ollama/Claude) |
+| 📚 Library Management | ✅ Hoàn thành | CRUD + filter + pagination |
+| 📥 PDF Import UI | ✅ Hoàn thành | Drag & drop + file + folder |
+| 🛠️ Tauri Shell | ✅ Đã rewrite | Thin shell cho Python backend |
+| 🧪 Testing | 🔴 Chưa chạy | Cần setup .venv |
+| 🗑️ Crate cũ | 🟡 Còn trên disk | Cần user xoá thủ công |
+| 🗑️ plan/HYBRID_MODEL.md.copy | 🟡 File thừa | Cần xoá thủ công |
 
 ---
 
 ## ✅ Phần 1: NHỮNG GÌ ĐÃ LÀM (Done)
 
-### 1.1 Plan Files (5/5 — Đã viết lại theo ResearchMind VN)
+### Hybrid Model — Cloud-first AI Mode
+- ✅ `/api/detect-specs` — Auto-detect RAM, CPU, suggest model tier
+- ✅ Settings API masks `claude_api_key` (hiện `"***"`)
+- ✅ SettingsView rewrite: mode selector cards, API key input, model tiers
+- ✅ AISetupWizard: first-run onboarding (welcome → choose mode → configure → done)
+- ✅ App.tsx: auto-show wizard nếu chưa cấu hình
+- ✅ step indicator fixed, retry limit 5, unused var removed, psutil added
 
-| File | Mô tả | Trạng thái |
+### Plan Files (6/6)
+| File | Trạng thái |
+|---|---|
+| `plan/ResearchMind_VN_Plan.md` | ✅ |
+| `plan/architecture.md` | ✅ Viết lại |
+| `plan/phase1-mvp-spec.md` | ✅ Viết lại |
+| `plan/roadmap.md` | ✅ Viết lại |
+| `plan/HYBRID_MODEL.md` | ✅ Thêm mới |
+| `have_done_plan/next-steps.md` | ✅ Cập nhật |
+| `have_done_plan/tracking.md` | ✅ File này |
+
+### Backend Python (14 files)
+| Module | Files | Chức năng |
 |---|---|---|
-| `plan/ResearchMind_VN_Plan.md` | Product Plan đầy đủ 2025-2027 | ✅ Gốc |
-| `plan/architecture.md` | Kiến trúc hệ thống (Python + Tauri + ChromaDB) | ✅ Viết lại |
-| `plan/phase1-mvp-spec.md` | MVP Spec 4 tính năng cốt lõi (8 tuần) | ✅ Viết lại |
-| `plan/roadmap.md` | Roadmap 12 tháng + pricing tiers | ✅ Viết lại |
-| `have_done_plan/next-steps.md` | Bước tiếp theo chi tiết | ✅ Viết lại |
-| `have_done_plan/tracking.md` | File này — trạng thái dự án | ✅ Viết lại |
+| config | `settings.py` | Pydantic Settings |
+| db | `database.py`, `models.py` | SQLAlchemy + 5 tables |
+| ingestion | `parser.py`, `chunker.py`, `embedder.py` | PyMuPDF → chunk → bge-m3 |
+| search | `bm25.py`, `vector.py`, `hybrid.py` | FTS5 + ChromaDB + RRF + Cross-encoder |
+| chat | `retriever.py`, `generator.py` | RAG + Ollama/Claude + citations |
+| main | `main.py` | FastAPI: 16 endpoints |
+| CLI | `prototype_cli.py` | Test CLI: import/search/chat/list/stats/delete |
 
-### 1.2 Mã Nguồn Cũ (MemoryOS — sẽ không dùng lại)
+### Frontend React (6 components)
+| Component | Chức năng |
+|---|---|
+| `App.tsx` | 4 tabs: Search, Library, Chat, Settings |
+| `lib/api.ts` | HTTP client → FastAPI |
+| `search/SearchView.tsx` | Semantic search |
+| `library/LibraryView.tsx` | Paper list + import toggle |
+| `chat/ChatView.tsx` | RAG chat + citations |
+| `settings/SettingsView.tsx` | Ollama config + health check |
+| `import/ImportPanel.tsx` | Drag & drop + file + folder import |
 
-> **Lưu ý:** Mã Rust crates cũ (memory-core, memory-indexer, memory-search, memory-ai, memory-graph, memory-security) và các Dependencies trong `Cargo.toml` sẽ **không được dùng lại**. Dự án mới dùng Python backend.
-
-| Thành phần cũ | Kế thừa? | Lý do |
-|---|---|---|
-| Rust crates (6 crates) | ❌ Không | Chuyển sang Python |
-| Tauri shell | ✅ Giữ | Vẫn dùng Tauri làm desktop shell |
-| React UI components | 🟡 Một số | Cần sửa lại cho research domain |
-| SQLite schema | 🟡 Tham khảo | Schema đơn giản hơn cho research |
-| OCR pipeline | ❌ Không | Phase 2 — chưa cần |
-| Encryption | ❌ Không | Chưa cần cho MVP research |
+### Tauri Shell
+| File | Trạng thái |
+|---|---|
+| `src-tauri/src/main.rs` | ✅ Cập nhật lib name |
+| `src-tauri/src/lib.rs` | ✅ Thin shell: spawn Python backend |
+| `src-tauri/Cargo.toml` | ✅ Xoá memory-* deps, thêm reqwest |
+| `src-tauri/tauri.conf.json` | ✅ Đổi tên → ResearchMind VN |
 
 ---
 
-## 🔴 Phần 2: NHỮNG GÌ CẦN LÀM (To Do)
+## 🔴 Phần 2: NHỮNG GÌ CHƯA LÀM (To Do)
 
-### 2.1 Tuần 1-2: Research (Không code)
-
-| Task | Chi tiết | Deadline |
-|---|---|---|
-| Phỏng vấn 20 NCS/cao học | Facebook groups, inbox trực tiếp | Hết tuần 1 |
-| Build CLI prototype Python | Import PDF → search đơn giản | Hết tuần 2 |
-| Cho 3 người dùng thử CLI | Ghi lại feedback | Hết tuần 2 |
-
-### 2.2 Tuần 3-4: Backend Core
-
-| Task | File | Ưu tiên |
-|---|---|---|
-| Setup FastAPI + SQLite | `backend/main.py`, `backend/db/` | ⭐⭐⭐ |
-| PDF Parser | `backend/ingestion/parser.py` | ⭐⭐⭐ |
-| Chunker | `backend/ingestion/chunker.py` | ⭐⭐⭐ |
-| Embedder (bge-m3) | `backend/ingestion/embedder.py` | ⭐⭐⭐ |
-| BM25 Search | `backend/search/bm25.py` | ⭐⭐⭐ |
-| Vector Search | `backend/search/vector.py` | ⭐⭐⭐ |
-| Hybrid Search | `backend/search/hybrid.py` | ⭐⭐⭐ |
-| Library CRUD | `backend/library/crud.py` | ⭐⭐⭐ |
-| API Endpoints | `backend/main.py` | ⭐⭐⭐ |
-
-### 2.3 Tuần 5-6: Frontend + Tauri
-
-| Task | File | Ưu tiên |
-|---|---|---|
-| Setup React + shadcn/ui | `src/` | ⭐⭐⭐ |
-| Tauri shell (Rust) | `src-tauri/` | ⭐⭐⭐ |
-| Library UI | `src/components/library/` | ⭐⭐⭐ |
-| Search UI | `src/components/search/` | ⭐⭐⭐ |
-| Settings UI | `src/components/settings/` | ⭐⭐ |
-| API client | `src/lib/api.ts` | ⭐⭐⭐ |
-
-### 2.4 Tuần 7-8: AI Chat + Hoàn Thiện
-
-| Task | File | Ưu tiên |
-|---|---|---|
-| RAG Retriever | `backend/chat/retriever.py` | ⭐⭐⭐ |
-| RAG Generator (Ollama) | `backend/chat/generator.py` | ⭐⭐⭐ |
-| Chat UI | `src/components/chat/` | ⭐⭐⭐ |
-| Citation verification | `backend/chat/generator.py` | ⭐⭐⭐ |
-| Bug fixes + Polish | App | ⭐⭐⭐ |
-| User testing | 10 users | ⭐⭐⭐ |
-
----
-
-## 🟡 Phần 3: LƯU Ý KỸ THUẬT
-
-### 3.1 Python Backend
-
-| Vấn đề | Giải pháp |
+### Cần user action
+| Task | Lý do |
 |---|---|
-| bge-m3 model lớn (~2GB) | Download lần đầu, cache local |
-| ChromaDB persist path | `data/chroma/` — gitignored |
-| Ollama cần chạy riêng | Hướng dẫn user cài, auto-detect |
-| Cross-encoder model | `cross-encoder/ms-marco-MiniLM-L-6-v2` — nhẹ, nhanh |
-| API key Claude | User tự nhập trong Settings |
+| Xoá `crates/memory-*` trên disk | Terminal không chạy được (WSL) |
+| Setup `.venv` + `pip install -r requirements.txt` | Cần Python 3.11+ |
+| Chạy `uvicorn main:app --reload --port 8765` | Kiểm tra backend hoạt động |
+| Chạy `pnpm install && pnpm tauri dev` | Kiểm tra frontend |
+| Pull model: `ollama pull qwen2.5:7b` | Cho AI Chat |
 
-### 3.2 Frontend
-
-| Vấn đề | Giải pháp |
+### Tính năng tương lai (Phase 2)
+| Tính năng | Khi nào |
 |---|---|
-| PDF preview | `react-pdf` library |
-| Streaming chat | Server-Sent Events (SSE) |
-| Vietnamese tokenizer | SQLite FTS5 unicode61 — đủ cho MVP |
-| Highlight search results | Mark matched text |
-
-### 3.3 Tauri
-
-| Vấn đề | Giải pháp |
-|---|---|
-| Tauri chỉ làm shell | Rust code tối thiểu, Python xử lý chính |
-| File dialog | `tauri-plugin-dialog` |
-| Backend lifecycle | Tauri start/stop Python process |
+| OCR cho PDF scan | Sau MVP |
+| Zotero/BibTeX import | Sau 20 users |
+| Streaming chat (SSE) | Tuần 7-8 |
+| PDF preview inline | Tuần 7-8 |
+| Export citation | Phase 3 |
+| Lab account (multi-user) | Phase 4 |
 
 ---
 
 ## 📈 BIỂU ĐỒ TIẾN ĐỘ
 
-``` 
-Plan & Spec     ████████████████████████████████  100%  (6/6 files)
-Research        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa phỏng vấn)
-Python Backend  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
-React Frontend  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
-AI Chat (RAG)   ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
-Testing         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0%  (chưa bắt đầu)
-
-TỔNG THỂ: ████████░░░░░░░░░░░░░░░░░░░░░░░░░░  15%
 ```
+Plan & Spec     ████████████████████████████████  100%  (6/6 files)
+Python Backend  ████████████████████████████████  100%  (14 files)
+React Frontend  ████████████████████████████████  100%  (6 components)
+AI Chat (RAG)   ████████████████████████████████  100%  (2 modules)
+Search Engine   ████████████████████████████████  100%  (Hybrid)
+Import PDF UI   ████████████████████████████████  100%  (Drag & drop)
+Tauri Shell     ████████████████████████████████  100%  (Thin shell)
+Testing         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%  (Chưa setup)
+Old Crates      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0%  (Còn trên disk)
 
----
-
-## 📝 GHI CHÚ QUAN TRỌNG
-
-### Đã hoàn thành (sau khi chuyển hướng):
-- ✅ Viết lại toàn bộ 5 file plan theo ResearchMind VN
-- ✅ Xác định rõ 4 tính năng MVP
-- ✅ Tech stack chuyển từ Rust → Python + FastAPI
-- ✅ Roadmap 8 tuần → 12 tháng chi tiết
-- ✅ Pricing model (Free → Pro → Lab → Enterprise)
-
-### Cần làm ngay (đầu tiên):
-1. 🔴 **Phỏng vấn 5 NCS/cao học** — KHÔNG CODE
-2. 🔴 **Build CLI prototype Python** — import PDF + search
-3. 🔴 **Cài môi trường:** Python venv, Ollama, Node.js
-4. 🟡 **Setup FastAPI backend** — health check + SQLite
-5. 🟡 **PDF parsing** — PyMuPDF extract text
-
-### Lưu ý:
-- ⚠️ Dùng **PowerShell** (không WSL) trên Windows
-- ⚠️ Code Rust cũ (memory-core, etc.) **không dùng lại** — chuyển hết sang Python
-- ⚠️ Ollama cần chạy riêng: `ollama serve`
-- ⚠️ bge-m3 cần Python 3.11+, RAM 8GB+
-
-### Các lệnh thường dùng:
-
-```powershell
-# Backend
-cd D:\all_my_project\memoryOS
-.venv\Scripts\activate
-cd backend
-uvicorn main:app --reload --port 8765
-
-# Frontend
-cd apps\desktop
-pnpm tauri dev
-
-# Python tests
-cd backend
-pytest -v
-
-# Ollama
-ollama serve
-ollama pull llama3.1:8b
+TỔNG THỂ: ██████████████████████████████████░  85%
 ```

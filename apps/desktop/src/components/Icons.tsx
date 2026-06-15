@@ -28,6 +28,7 @@ import {
   Sparkles,
   Container,
   Bookmark,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -94,6 +95,7 @@ export const IconSparkle = wrapIcon(Sparkles, "icon-sparkle", true);
 export const IconCalendar = wrapIcon(CalendarDays, "icon-calendar", true);
 export const IconDocker = wrapIcon(Container, "icon-docker");
 export const IconBookmark = wrapIcon(Bookmark, "icon-bookmark");
+export const IconUpload = wrapIcon(Upload, "icon-upload");
 export const IconDashboard = wrapIcon(BarChart3, "icon-dashboard", true);
 
 // ---------------------------------------------------------------------------

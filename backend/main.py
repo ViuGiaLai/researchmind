@@ -672,6 +672,11 @@ async def get_settings():
         "ollama_url": settings.ollama_url,
         "ollama_model": settings.ollama_model,
         "llm_mode": settings.llm_mode,
+        "claude_api_key": "***" if settings.claude_api_key else "",
+        "claude_model": settings.claude_model,
+        "model_tier_weak": settings.model_tier_weak,
+        "model_tier_medium": settings.model_tier_medium,
+        "model_tier_strong": settings.model_tier_strong,
         "chunk_size": settings.chunk_size,
         "chunk_overlap": settings.chunk_overlap,
         "top_k_retrieval": settings.top_k_retrieval,
@@ -709,6 +714,64 @@ async def update_settings(new_settings: dict = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+# ─── Machine Specs ─────────────────────────────────────────────
+
+@app.get("/api/detect-specs")
+async def detect_specs():
+    """
+    Detect machine specs (RAM, CPU) for auto-configuring model tier.
+
+    Returns:
+        - total_ram_gb: Total system RAM in GB.
+        - cpu_cores: Number of logical CPU cores.
+        - suggested_tier: "weak", "medium", or "strong" based on RAM.
+        - suggested_model: The recommended Ollama model.
+    """
+    import os
+
+    # Try multiple methods to detect RAM
+    total_ram_gb = 8  # conservative default
+
+    try:
+        import psutil
+        total_ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
+    except ImportError:
+        try:
+            # Windows: use wmic
+            import subprocess
+            result = subprocess.run(
+                ["wmic", "MemoryChip", "get", "Capacity"],
+                capture_output=True, text=True, timeout=5
+            )
+            lines = result.stdout.strip().split("\n")[1:]
+            total_bytes = sum(int(line.strip()) for line in lines if line.strip().isdigit())
+            if total_bytes > 0:
+                total_ram_gb = round(total_bytes / (1024**3), 1)
+        except Exception:
+            pass
+
+    # Detect CPU cores
+    cpu_cores = os.cpu_count() or 4
+
+    # Suggest model tier based on RAM
+    if total_ram_gb < 8:
+        suggested_tier = "weak"
+        suggested_model = settings.model_tier_weak
+    elif total_ram_gb < 16:
+        suggested_tier = "medium"
+        suggested_model = settings.model_tier_medium
+    else:
+        suggested_tier = "strong"
+        suggested_model = settings.model_tier_strong
+
+    return {
+        "total_ram_gb": total_ram_gb,
+        "cpu_cores": cpu_cores,
+        "suggested_tier": suggested_tier,
+        "suggested_model": suggested_model,
+    }
 
 
 # ─── Helpers ─────────────────────────────────────────────────────
