@@ -649,7 +649,6 @@ async def export_synthesis(request: SynthesisExportRequest):
             font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
         }}
         pre {{
-            background: #f1f5f9;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 16px 20px;
@@ -657,13 +656,17 @@ async def export_synthesis(request: SynthesisExportRequest):
             margin: 0 0 1.25em 0;
         }}
         pre code {{
-            background: none;
             padding: 0;
             border-radius: 0;
             font-size: 0.82em;
             line-height: 1.5;
             display: block;
             white-space: pre;
+            background: none !important;
+        }}
+        /* Hide language label from highlight.js */
+        pre code.hljs::before {{
+            display: none;
         }}
         blockquote {{
             border-left: 4px solid #8b5cf6;
@@ -714,6 +717,8 @@ async def export_synthesis(request: SynthesisExportRequest):
             text-align: center;
         }}
     </style>
+    <!-- highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 </head>
 <body>
     <div class="container">
@@ -723,6 +728,8 @@ async def export_synthesis(request: SynthesisExportRequest):
             Exported from ResearchMind VN on {datetime.now().strftime('%Y-%m-%d %H:%M')}
         </div>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
 </body>
 </html>"""
         buf = io.BytesIO(html_content.encode("utf-8"))
