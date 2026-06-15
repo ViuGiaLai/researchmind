@@ -116,11 +116,12 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
 
         # LLM Routing
         if self.mode == "cloud_free":
-            # If no free key is configured, fallback to Ollama
-            if not self.gemini_api_key:
+            # Use the provided default key if none is set in self.gemini_api_key
+            api_key = self.gemini_api_key or ""
+            if not api_key:
                 logger.warning("Gemini API key is empty. Falling back to local Ollama...")
                 return self._generate_ollama(user_prompt)
-            result = self._generate_gemini(user_prompt, self.gemini_api_key, is_free=True)
+            result = self._generate_gemini(user_prompt, api_key, is_free=True)
             if result.finish_reason == "error":
                 logger.warning("Free Gemini failed. Falling back to local Ollama...")
                 return self._generate_ollama(user_prompt)

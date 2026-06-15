@@ -98,13 +98,9 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
 
   const handleSelectStorageDir = async () => {
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: "Chọn thư mục lưu trữ dữ liệu ResearchMind",
-      });
-      if (selected && typeof selected === "string") {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const selected = await invoke<string | null>("select_folder");
+      if (selected) {
         setStoragePath(selected);
         const space = await api.getDiskSpace(selected);
         setDiskSpace(space);
@@ -364,11 +360,16 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
 
             <div className="aiwizard-mode-cards" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", width: "100%" }}>
               <button
-                className="aiwizard-mode-card recommended"
+                className={`aiwizard-mode-card ${chosenMode === "cloud_free" ? "active" : ""} recommended`}
                 onClick={() => handleChooseMode("cloud_free")}
                 disabled={saving}
                 style={{ flex: "none" }}
               >
+                {chosenMode === "cloud_free" && (
+                  <div className="aiwizard-mode-active-badge">
+                    <IconCheck size={12} />
+                  </div>
+                )}
                 <div className="aiwizard-mode-icon"><IconZap size={28} /></div>
                 <div className="aiwizard-mode-title">Cloud Free</div>
                 <div className="aiwizard-mode-desc">
@@ -378,15 +379,20 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                   <br />
                   Chạy ngay không cần cài đặt.
                 </div>
-                <div className="aiwizard-mode-badge" style={{ background: "var(--color-primary, #6366f1)" }}>Khuyên dùng</div>
+                <div className="aiwizard-mode-badge" style={{ background: "var(--color-primary, #8b5cf6)" }}>Khuyên dùng</div>
               </button>
 
               <button
-                className="aiwizard-mode-card"
+                className={`aiwizard-mode-card ${chosenMode === "cloud_custom" ? "active" : ""}`}
                 onClick={() => handleChooseMode("cloud_custom")}
                 disabled={saving}
                 style={{ flex: "none" }}
               >
+                {chosenMode === "cloud_custom" && (
+                  <div className="aiwizard-mode-active-badge">
+                    <IconCheck size={12} />
+                  </div>
+                )}
                 <div className="aiwizard-mode-icon"><IconKey size={28} /></div>
                 <div className="aiwizard-mode-title">Custom Key</div>
                 <div className="aiwizard-mode-desc">
@@ -399,11 +405,16 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
               </button>
 
               <button
-                className="aiwizard-mode-card"
+                className={`aiwizard-mode-card ${chosenMode === "local" ? "active" : ""}`}
                 onClick={() => handleChooseMode("local")}
                 disabled={saving}
                 style={{ flex: "none" }}
               >
+                {chosenMode === "local" && (
+                  <div className="aiwizard-mode-active-badge">
+                    <IconCheck size={12} />
+                  </div>
+                )}
                 <div className="aiwizard-mode-icon"><IconLock size={28} /></div>
                 <div className="aiwizard-mode-title">Offline Cục Bộ</div>
                 <div className="aiwizard-mode-desc">
@@ -414,7 +425,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                   Cần tải model (~5GB).
                 </div>
                 {specs && specs.total_ram_gb >= 8 && (
-                  <div className="aiwizard-mode-badge">Máy bạn đủ mạnh</div>
+                  <div className="aiwizard-mode-badge" style={{ background: "var(--color-success, #10b981)" }}>Máy bạn đủ mạnh</div>
                 )}
               </button>
             </div>
@@ -685,14 +696,37 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
               <IconFolder size={48} className="icon-gradient" />
             </div>
             <h2 className="aiwizard-title">Chọn thư mục lưu trữ</h2>
-            <p className="aiwizard-desc">
-              Chọn nơi lưu cơ sở dữ liệu và các tài liệu PDF đã import của bạn.
-              <br />
-              Dung lượng có thể lên đến 5GB - 20GB nếu bạn tải Local AI model.
-            </p>
+            
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              background: "rgba(139, 92, 246, 0.1)",
+              border: "1px solid rgba(139, 92, 246, 0.2)",
+              marginBottom: "20px",
+              width: "100%",
+              textAlign: "left"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold", fontSize: "0.95rem", color: "var(--color-primary)" }}>
+                <IconCheck size={16} style={{ color: "var(--color-success)" }} />
+                <span>Chế độ AI đã chọn: {
+                  chosenMode === "cloud_free" ? "Cloud Free (Gemini API)" :
+                  chosenMode === "cloud_custom" ? "Custom Key (API Key riêng)" :
+                  "Offline Cục Bộ (AI Offline)"
+                }</span>
+              </div>
+              <p style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)", margin: 0, paddingLeft: "24px", lineHeight: "1.4" }}>
+                {chosenMode === "local" 
+                  ? "Cần ổ đĩa trống từ 5GB trở lên để chứa mô hình AI cục bộ từ Ollama."
+                  : "Mặc dù dùng AI qua Cloud, tài liệu nghiên cứu (PDF) và dữ liệu tìm kiếm của bạn vẫn được lưu trữ và bảo mật 100% cục bộ trên máy tính của bạn."
+                }
+              </p>
+            </div>
 
             <div className="aiwizard-field" style={{ width: "100%", textAlign: "left" }}>
-              <label className="aiwizard-label">Đường dẫn dữ liệu hiện tại:</label>
+              <label className="aiwizard-label" style={{ cursor: "pointer" }} onClick={handleSelectStorageDir}>Đường dẫn dữ liệu hiện tại:</label>
               <div className="aiwizard-key-row" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <input
                   type="text"
@@ -700,7 +734,8 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                   value={storagePath}
                   readOnly
                   placeholder="Chọn thư mục..."
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, cursor: "pointer" }}
+                  onClick={handleSelectStorageDir}
                 />
                 <button
                   className="aiwizard-btn-primary"

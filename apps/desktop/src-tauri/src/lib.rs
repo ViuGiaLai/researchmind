@@ -1,7 +1,7 @@
 use log::{error, info};
 use std::process::{Child, Command};
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 /// Path to the Python backend's main.py relative to the Tauri binary

@@ -140,14 +140,10 @@ export const SettingsView: React.FC = () => {
 
   const handleChangeStoragePath = async () => {
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: "Chọn thư mục lưu trữ mới cho ResearchMind",
-      });
+      const { invoke } = await import("@tauri-apps/api/core");
+      const selected = await invoke<string | null>("select_folder");
       
-      if (!selected || typeof selected !== "string") return;
+      if (!selected) return;
       
       // 1. Check disk space for the new folder
       setStorageMsg({ type: "success", text: "⏳ Đang kiểm tra dung lượng ổ đĩa..." });

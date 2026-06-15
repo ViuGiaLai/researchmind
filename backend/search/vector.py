@@ -41,7 +41,7 @@ class VectorSearch:
         if self._collection is None:
             try:
                 self._collection = self._client.get_collection("paper_chunks")
-            except ValueError:
+            except Exception:
                 self._collection = self._client.create_collection(
                     name="paper_chunks",
                     metadata={"hnsw:space": "cosine"},

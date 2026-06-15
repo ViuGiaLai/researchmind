@@ -47,10 +47,10 @@ export const ImportPanel: React.FC<{ onImported: () => void }> = ({ onImported }
   };
 
   const handleFolderSelect = async () => {
-    // Try Tauri dialog first, fallback to input
+    // Try Tauri custom folder picker first, fallback to HTML input
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const folder = await open({ directory: true });
+      const { invoke } = await import("@tauri-apps/api/core");
+      const folder = await invoke<string | null>("select_folder");
       if (folder) {
         await importFolder(folder);
       }

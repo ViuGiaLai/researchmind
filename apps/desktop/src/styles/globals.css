@@ -2937,6 +2937,27 @@ body {
   background: var(--color-highlight);
 }
 
+.aiwizard-mode-card.active {
+  border-color: var(--color-primary) !important;
+  background: rgba(139, 92, 246, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+}
+
+.aiwizard-mode-active-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--color-success);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .aiwizard-mode-icon {
   font-size: 2.5rem;
 }

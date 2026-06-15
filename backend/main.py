@@ -19,6 +19,9 @@ Endpoints:
 - PUT  /api/settings               Update settings
 """
 
+import os
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+
 import sys
 from pathlib import Path
 
@@ -72,14 +75,19 @@ def load_persisted_settings():
         for s in db_settings:
             if hasattr(settings, s.key):
                 default_val = getattr(settings, s.key)
-                if isinstance(default_val, int):
+                if isinstance(default_val, bool):
+                    setattr(settings, s.key, s.value.lower() in ("true", "1", "yes"))
+                elif isinstance(default_val, int):
                     setattr(settings, s.key, int(s.value))
                 elif isinstance(default_val, float):
                     setattr(settings, s.key, float(s.value))
-                elif isinstance(default_val, bool):
-                    setattr(settings, s.key, s.value.lower() in ("true", "1", "yes"))
                 else:
                     setattr(settings, s.key, s.value)
+        
+        # Ensure default Gemini key is set if empty
+        if not settings.gemini_api_key:
+            settings.gemini_api_key = ""
+            
         logger.info("Loaded persisted settings from SQLite successfully")
     except Exception as e:
         logger.error(f"Failed to load persisted settings: {e}")
@@ -155,7 +163,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:1420",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+        "http://127.0.0.1:1420",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -400,9 +414,41 @@ def _index_paper(file_id: str, doc):
         # Update paper status
         session.query(Paper).filter(Paper.id == file_id).update({
             "status": "indexed",
-            "indexed_at": "datetime('now')",
         })
         session.commit()
+
+        # Generate auto-summary in background using LLM
+        try:
+            intro_chunks = session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
+            conclusion_chunk = session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.desc()).first()
+            
+            summary_context = "\n".join([c.content for c in intro_chunks])
+            if conclusion_chunk and conclusion_chunk.chunk_index > 2:
+                summary_context += f"\n\nKết luận:\n{conclusion_chunk.content}"
+            
+            summary_prompt = """Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này. 
+Trả về kết quả dưới định dạng Markdown như sau:
+
+### 🧠 Tóm tắt tự động bởi ResearchMind:
+* **Ý tưởng cốt lõi (Core Idea)**: [Viết 1 câu mô tả ý tưởng/mục tiêu chính]
+* **Đóng góp chính (Contributions)**: [Viết 1-2 dòng về các đóng góp khoa học chính]
+* **Điểm yếu / Hạn chế (Weaknesses)**: [Viết 1 dòng về các hạn chế được thảo luận]
+
+Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
+            
+            result = state.generator.generate(
+                query=summary_prompt,
+                context_text=summary_context
+            )
+            
+            if result and result.content:
+                session.query(Paper).filter(Paper.id == file_id).update({
+                    "notes": result.content
+                })
+                session.commit()
+                logger.info(f"Generated auto-summary for {doc.filename}")
+        except Exception as sum_err:
+            logger.warning(f"Auto-summary generation failed for {doc.filename}: {sum_err}")
 
         logger.info(f"✅ Indexed {doc.filename}: {len(chunks)} chunks")
 
