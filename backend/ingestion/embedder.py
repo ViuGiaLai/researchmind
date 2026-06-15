@@ -23,7 +23,10 @@ class Embedder:
 
         logger.info(f"Loading embedding model: {self.model_name}")
         from sentence_transformers import SentenceTransformer
-        self._model = SentenceTransformer(self.model_name)
+        self._model = SentenceTransformer(
+            self.model_name,
+            model_kwargs={"low_cpu_mem_usage": False}
+        )
         logger.info(f"Model loaded. Embedding dimension: {self._model.get_sentence_embedding_dimension()}")
 
     def embed(self, texts: list[str]) -> list[list[float]]:
