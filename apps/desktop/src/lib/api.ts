@@ -206,13 +206,22 @@ export const api = {
   pullOllamaModelUrl: "http://127.0.0.1:8765/api/ollama/pull",
 
   // Data Management
-  openDataFolder: () =>
-    request<{ success: boolean; message: string }>("POST", "/api/data/open-folder"),
+  openDataFolder: (path?: string) =>
+    request<{ success: boolean; message: string }>("POST", "/api/data/open-folder", { path }),
 
   clearAllData: () =>
     request<{ success: boolean; message: string }>("POST", "/api/data/clear-data"),
 
   resetApp: () =>
     request<{ success: boolean; message: string }>("POST", "/api/data/reset-app"),
+
+  moveStorage: (newPath: string) =>
+    request<{ success: boolean; message: string }>("POST", "/api/data/move-storage", { new_path: newPath }),
+
+  getDiskSpace: (path: string) =>
+    request<{ total_gb: number; used_gb: number; free_gb: number; warning: boolean }>(
+      "GET",
+      `/api/data/disk-space?path=${encodeURIComponent(path)}`
+    ),
 };
 

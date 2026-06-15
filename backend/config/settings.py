@@ -1,14 +1,32 @@
 import os
+import json
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
-def get_default_data_dir() -> Path:
+def get_fixed_default_dir() -> Path:
     if os.name == "nt":
         local_appdata = os.environ.get("LOCALAPPDATA")
         if local_appdata:
             return Path(local_appdata) / "ResearchMind"
     return Path.home() / ".researchmind"
+
+
+def get_resolved_data_dir() -> Path:
+    default_dir = get_fixed_default_dir()
+    config_file = default_dir / "config.json"
+    if config_file.exists():
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                custom_path = data.get("data_dir")
+                if custom_path:
+                    path = Path(custom_path)
+                    path.mkdir(parents=True, exist_ok=True)
+                    return path
+        except Exception:
+            pass
+    return default_dir
 
 
 class Settings(BaseSettings):
@@ -17,7 +35,7 @@ class Settings(BaseSettings):
     port: int = 8765
 
     # Paths
-    data_dir: Path = get_default_data_dir()
+    data_dir: Path = get_resolved_data_dir()
     papers_dir: Path = data_dir / "papers"
     chroma_dir: Path = data_dir / "chroma"
     db_path: Path = data_dir / "db" / "researchmind.db"

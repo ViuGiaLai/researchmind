@@ -1110,23 +1110,149 @@ async def detect_specs():
 # ─── Data Management ─────────────────────────────────────────────
 
 @app.post("/api/data/open-folder")
-async def open_data_folder():
-    """Open the local data folder in file explorer."""
+async def open_data_folder(body: dict = Body(default={})):
+    """Open the specified or current local data folder in file explorer."""
     import subprocess
     import os
     try:
-        path = str(settings.data_dir)
-        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        path_str = body.get("path") or str(settings.data_dir)
+        path = Path(path_str)
+        path.mkdir(parents=True, exist_ok=True)
         if os.name == "nt":
-            os.startfile(path)
+            os.startfile(str(path))
         elif os.name == "posix":
-            subprocess.Popen(["xdg-open", path])
+            subprocess.Popen(["xdg-open", str(path)])
         else:
-            subprocess.Popen(["open", path])
+            subprocess.Popen(["open", str(path)])
         return {"success": True, "message": "Đã mở thư mục dữ liệu."}
     except Exception as e:
         logger.error(f"Failed to open data folder: {e}")
         raise HTTPException(status_code=500, detail=f"Không thể mở thư mục: {str(e)}")
+
+
+@app.get("/api/data/disk-space")
+async def check_disk_space(path: str):
+    """Check total and free disk space for a given path."""
+    import shutil
+    try:
+        target_path = Path(path)
+        # Find closest existing parent to check disk usage
+        check_path = target_path
+        while not check_path.exists() and check_path.parent != check_path:
+            check_path = check_path.parent
+            
+        total, used, free = shutil.disk_usage(str(check_path))
+        free_gb = free / (1024**3)
+        return {
+            "total_gb": round(total / (1024**3), 1),
+            "used_gb": round(used / (1024**3), 1),
+            "free_gb": round(free_gb, 1),
+            "warning": free_gb < 10.0  # Warn if less than 10GB free
+        }
+    except Exception as e:
+        logger.error(f"Failed to check disk space: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/data/move-storage")
+async def move_storage(body: dict = Body(...)):
+    """Move all database files, papers, and vectors to a new path, update config."""
+    new_path_str = body.get("new_path")
+    if not new_path_str:
+        raise HTTPException(status_code=400, detail="Missing new_path parameter")
+    
+    new_path = Path(new_path_str)
+    old_path = settings.data_dir
+    
+    # Check if they are the same
+    if old_path.resolve() == new_path.resolve():
+        return {"success": True, "message": "Thư mục mới trùng với thư mục hiện tại."}
+        
+    try:
+        # 1. Close database engines / pools
+        state.engine.dispose()
+        
+        # 2. Wait a brief moment to ensure handles are released
+        import time
+        import shutil
+        import json
+        time.sleep(0.3)
+        
+        # 3. Create new directories
+        new_path.mkdir(parents=True, exist_ok=True)
+        
+        # 4. Copy files from old path to new path
+        def copy_dir_contents(src: Path, dst: Path):
+            if not src.exists():
+                return
+            dst.mkdir(parents=True, exist_ok=True)
+            for item in src.iterdir():
+                if item.name == "config.json":
+                    continue
+                s = src / item.name
+                d = dst / item.name
+                if s.is_dir():
+                    copy_dir_contents(s, d)
+                else:
+                    shutil.copy2(str(s), str(d))
+        
+        copy_dir_contents(old_path, new_path)
+        
+        # 5. Update settings.data_dir and child paths
+        settings.data_dir = new_path
+        settings.papers_dir = new_path / "papers"
+        settings.chroma_dir = new_path / "chroma"
+        settings.db_path = new_path / "db" / "researchmind.db"
+        
+        # 6. Save data_dir to config.json in fixed default directory
+        from config.settings import get_fixed_default_dir
+        default_dir = get_fixed_default_dir()
+        default_dir.mkdir(parents=True, exist_ok=True)
+        config_file = default_dir / "config.json"
+        with open(config_file, "w", encoding="utf-8") as f:
+            json.dump({"data_dir": str(new_path)}, f, indent=2, ensure_ascii=False)
+            
+        # 7. Re-initialize database engine at new path
+        from db.database import get_engine
+        state.engine = get_engine(settings.db_path)
+        
+        # Re-initialize search engines
+        db_session = get_session(state.engine)
+        state.bm25 = BM25Search(db_session)
+        state.bm25.ensure_fts_table()
+        db_session.close()
+        
+        from search.vector import VectorSearch
+        state.vector = VectorSearch(settings.chroma_dir)
+        
+        from search.hybrid import HybridSearch
+        state.hybrid = HybridSearch(
+            bm25_search=state.bm25,
+            vector_search=state.vector,
+            embedder=state.embedder,
+            rrf_k=settings.rrf_k,
+            top_k_final=settings.top_k_final,
+        )
+        
+        # 8. Safely delete old data directories (except default config.json)
+        for sub in ["papers", "chroma", "db"]:
+            old_sub = old_path / sub
+            if old_sub.exists():
+                try:
+                    shutil.rmtree(old_sub)
+                except Exception as e:
+                    logger.warning(f"Could not clean up old subfolder {old_sub}: {e}")
+                    
+        return {"success": True, "message": f"Đã chuyển thư mục lưu trữ thành công: {new_path_str}"}
+    except Exception as e:
+        logger.error(f"Failed to move storage: {e}")
+        # Try to restore connections to old path
+        try:
+            from db.database import get_engine
+            state.engine = get_engine(settings.db_path)
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Lỗi khi chuyển thư mục dữ liệu: {str(e)}")
 
 
 @app.post("/api/data/clear-data")
@@ -1146,8 +1272,11 @@ async def clear_all_data():
         finally:
             db.close()
             
-        # Re-initialize BM25 search
-        state.bm25 = BM25Search(get_session(state.engine))
+        # Re-initialize search engines
+        db_session = get_session(state.engine)
+        state.bm25 = BM25Search(db_session)
+        state.bm25.ensure_fts_table()
+        db_session.close()
         
         # Clear files in papers_dir
         if settings.papers_dir.exists():
@@ -1164,10 +1293,20 @@ async def clear_all_data():
         # Clear ChromaDB vector collection
         try:
             from search.vector import VectorSearch
-            vector_db = VectorSearch(settings.chroma_dir)
-            vector_db.clear_collection()
+            state.vector = VectorSearch(settings.chroma_dir)
+            state.vector.clear_collection()
         except Exception as e:
             logger.warning(f"ChromaDB collection clear failed: {e}")
+
+        # Recreate hybrid search
+        from search.hybrid import HybridSearch
+        state.hybrid = HybridSearch(
+            bm25_search=state.bm25,
+            vector_search=state.vector,
+            embedder=state.embedder,
+            rrf_k=settings.rrf_k,
+            top_k_final=settings.top_k_final,
+        )
 
         return {"success": True, "message": "Đã xoá toàn bộ dữ liệu tài liệu (giữ lại cài đặt)."}
     except Exception as e:
@@ -1217,7 +1356,20 @@ async def reset_app():
         # Re-initialize state search engines
         db_session = get_session(state.engine)
         state.bm25 = BM25Search(db_session)
+        state.bm25.ensure_fts_table()
         db_session.close()
+        
+        from search.vector import VectorSearch
+        state.vector = VectorSearch(settings.chroma_dir)
+        
+        from search.hybrid import HybridSearch
+        state.hybrid = HybridSearch(
+            bm25_search=state.bm25,
+            vector_search=state.vector,
+            embedder=state.embedder,
+            rrf_k=settings.rrf_k,
+            top_k_final=settings.top_k_final,
+        )
         
         logger.info("Application reset successfully")
         return {"success": True, "message": "Đã reset ứng dụng về trạng thái ban đầu thành công."}

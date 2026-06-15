@@ -138,6 +138,52 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleChangeStoragePath = async () => {
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Chọn thư mục lưu trữ mới cho ResearchMind",
+      });
+      
+      if (!selected || typeof selected !== "string") return;
+      
+      // 1. Check disk space for the new folder
+      setStorageMsg({ type: "success", text: "⏳ Đang kiểm tra dung lượng ổ đĩa..." });
+      const space = await api.getDiskSpace(selected);
+      
+      let confirmMsg = `Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n👉 ${selected}\n\n`;
+      confirmMsg += `Ổ đĩa đích còn trống: ${space.free_gb} GB.\n`;
+      
+      if (space.warning) {
+        confirmMsg += `⚠️ CẢNH BÁO: Dung lượng ổ đĩa đích còn khá thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục không?\n\n`;
+      } else {
+        confirmMsg += `Bạn có chắc chắn muốn di chuyển không?\n\n`;
+      }
+      
+      const proceed = window.confirm(confirmMsg);
+      if (!proceed) {
+        setStorageMsg(null);
+        return;
+      }
+      
+      // 2. Perform moving storage
+      setActionLoading(true);
+      setStorageMsg({ type: "success", text: "⏳ Đang di chuyển dữ liệu (vui lòng không tắt ứng dụng)..." });
+      
+      const res = await api.moveStorage(selected);
+      setStorageMsg({ type: "success", text: res.message || "Đã chuyển thư mục thành công." });
+      
+      // 3. Reload stats to show new path
+      loadStats();
+    } catch (e) {
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Lỗi chuyển thư mục dữ liệu." });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleClearData = async () => {
     const confirmClear = window.confirm(
       "⚠️ CẢNH BÁO: Hành động này sẽ xoá TOÀN BỘ tài liệu PDF đã import, lịch sử chat, các ghi chú và cơ sở dữ liệu tìm kiếm vector. Cấu hình cài đặt và API Key của bạn vẫn được GIỮ LẠI.\n\nBạn có chắc chắn muốn tiếp tục?"
@@ -632,6 +678,9 @@ export const SettingsView: React.FC = () => {
           <div className="settings-storage-actions">
             <button className="settings-btn-secondary" onClick={handleOpenFolder} disabled={actionLoading}>
               <IconFolderOpen size={16} /> Mở thư mục
+            </button>
+            <button className="settings-btn-secondary" onClick={handleChangeStoragePath} disabled={actionLoading}>
+              <IconFolder size={16} /> Di chuyển thư mục
             </button>
             <button className="settings-btn-danger-outline" onClick={handleClearData} disabled={actionLoading}>
               <IconTrash size={16} /> Xoá dữ liệu tài liệu

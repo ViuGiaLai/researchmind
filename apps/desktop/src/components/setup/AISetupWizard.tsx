@@ -12,7 +12,9 @@ import {
   IconEyeOff,
   IconMonitor,
   IconCpu,
-  IconRefresh
+  IconRefresh,
+  IconFolder,
+  IconError,
 } from "../Icons";
 
 interface Props {
@@ -26,7 +28,7 @@ interface SpecsResult {
   suggested_model: string;
 }
 
-type Step = "welcome" | "mode" | "cloud_custom" | "local" | "done";
+type Step = "welcome" | "mode" | "cloud_custom" | "storage" | "local" | "done";
 
 export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
   const [step, setStep] = useState<Step>("welcome");
@@ -45,6 +47,11 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
   const [localStatus, setLocalStatus] = useState<"idle" | "checking" | "model_missing" | "pulling">("idle");
   const [pullProgress, setPullProgress] = useState(0);
   const [pullMessage, setPullMessage] = useState("");
+
+  // ── Storage Path State ─────────────────────────────────────────
+  const [chosenMode, setChosenMode] = useState<"cloud_free" | "cloud_custom" | "local" | null>(null);
+  const [storagePath, setStoragePath] = useState("");
+  const [diskSpace, setDiskSpace] = useState<{ free_gb: number; warning: boolean } | null>(null);
 
   useEffect(() => {
     loadSpecs();
@@ -69,25 +76,81 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
     }
   };
 
+  useEffect(() => {
+    if (step === "storage" && !storagePath) {
+      loadDefaultStoragePath();
+    }
+  }, [step]);
+
+  const loadDefaultStoragePath = async () => {
+    try {
+      const s = await api.stats();
+      const path = s.data_dir || "";
+      setStoragePath(path);
+      if (path) {
+        const space = await api.getDiskSpace(path);
+        setDiskSpace(space);
+      }
+    } catch (e) {
+      console.error("Failed to load default storage path:", e);
+    }
+  };
+
+  const handleSelectStorageDir = async () => {
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Chọn thư mục lưu trữ dữ liệu ResearchMind",
+      });
+      if (selected && typeof selected === "string") {
+        setStoragePath(selected);
+        const space = await api.getDiskSpace(selected);
+        setDiskSpace(space);
+      }
+    } catch (e) {
+      console.error("Failed to select directory:", e);
+    }
+  };
+
+  const handleSaveStorage = async () => {
+    if (!storagePath) {
+      setSaveMsg("Vui lòng chọn thư mục lưu trữ.");
+      return;
+    }
+    setSaving(true);
+    setSaveMsg("Đang thiết lập thư mục lưu trữ...");
+    try {
+      await api.moveStorage(storagePath);
+      
+      if (chosenMode === "local") {
+        setStep("local");
+        setSaveMsg(null);
+      } else {
+        await api.updateSettings({
+          setup_completed: true,
+          llm_mode: chosenMode || "cloud_free",
+        });
+        setStep("done");
+      }
+    } catch (e) {
+      setSaveMsg(`Lỗi cấu hình lưu trữ: ${e instanceof Error ? e.message : "Lỗi không xác định"}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleChooseMode = async (mode: "cloud_free" | "cloud_custom" | "local") => {
     setSaveMsg(null);
     if (mode === "cloud_free") {
-      setSaving(true);
-      try {
-        await api.updateSettings({
-          llm_mode: "cloud_free",
-          setup_completed: true,
-        });
-        setStep("done");
-      } catch (e) {
-        setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}`);
-      } finally {
-        setSaving(false);
-      }
+      setChosenMode("cloud_free");
+      setStep("storage");
     } else if (mode === "cloud_custom") {
       setStep("cloud_custom");
     } else {
-      setStep("local");
+      setChosenMode("local");
+      setStep("storage");
     }
   };
 
@@ -126,9 +189,10 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         deepseek_api_key: deepseekApiKey,
         gemini_api_key: geminiApiKey,
         claude_api_key: claudeApiKey,
-        setup_completed: true,
       });
-      setStep("done");
+      setChosenMode("cloud_custom");
+      setStep("storage");
+      setSaveMsg(null);
     } catch (e) {
       setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}`);
     } finally {
@@ -614,6 +678,71 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
           </div>
         )}
 
+        {/* Storage setup */}
+        {step === "storage" && (
+          <div className="aiwizard-step" style={{ width: "100%" }}>
+            <div className="aiwizard-logo">
+              <IconFolder size={48} className="icon-gradient" />
+            </div>
+            <h2 className="aiwizard-title">Chọn thư mục lưu trữ</h2>
+            <p className="aiwizard-desc">
+              Chọn nơi lưu cơ sở dữ liệu và các tài liệu PDF đã import của bạn.
+              <br />
+              Dung lượng có thể lên đến 5GB - 20GB nếu bạn tải Local AI model.
+            </p>
+
+            <div className="aiwizard-field" style={{ width: "100%", textAlign: "left" }}>
+              <label className="aiwizard-label">Đường dẫn dữ liệu hiện tại:</label>
+              <div className="aiwizard-key-row" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  className="aiwizard-input"
+                  value={storagePath}
+                  readOnly
+                  placeholder="Chọn thư mục..."
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="aiwizard-btn-primary"
+                  style={{ width: "auto", padding: "0 16px", borderRadius: "6px", height: "42px", flexShrink: 0, margin: 0 }}
+                  onClick={handleSelectStorageDir}
+                  disabled={saving}
+                >
+                  Thay đổi...
+                </button>
+              </div>
+              
+              {diskSpace && (
+                <div style={{ marginTop: "16px", padding: "12px", borderRadius: "8px", background: "var(--color-bg, rgba(0,0,0,0.02))", border: "1px solid var(--border-color, #e2e8f0)" }}>
+                  <div style={{ fontSize: "0.9rem", display: "flex", justifyContent: "space-between" }}>
+                    <span>Dung lượng ổ đĩa trống:</span>
+                    <strong style={{ color: diskSpace.warning ? "#ef4444" : "#22c55e" }}>
+                      {diskSpace.free_gb} GB
+                    </strong>
+                  </div>
+                  {diskSpace.warning && (
+                    <p style={{ marginTop: "8px", fontSize: "0.8rem", color: "#ef4444", display: "flex", alignItems: "center", gap: "6px", lineHeight: "1.4" }}>
+                      <IconError size={14} style={{ flexShrink: 0 }} /> Cảnh báo: Ổ đĩa đích còn ít dung lượng. Khuyên bạn nên chọn ổ đĩa khác (như ổ D:, E:) để tránh đầy ổ hệ thống.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {saveMsg && <p className="aiwizard-error" style={{ marginTop: "12px" }}>{saveMsg}</p>}
+
+            <div className="aiwizard-actions" style={{ marginTop: "24px" }}>
+              <button className="aiwizard-btn-primary" onClick={handleSaveStorage} disabled={saving}>
+                {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
+                <span>{saving ? "Đang thiết lập..." : "Tiếp tục"}</span>
+              </button>
+              <button className="aiwizard-btn-skip" onClick={() => setStep(chosenMode === "cloud_custom" ? "cloud_custom" : "mode")} disabled={saving}>
+                Quay lại
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Done */}
         {step === "done" && (
           <div className="aiwizard-step">
@@ -634,9 +763,12 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
 
         {/* Step indicator */}
         <div className="aiwizard-steps">
-          {["welcome", "mode", "config", "done"].map((s, i) => {
-            const stepOrder = ["welcome", "mode", "config", "done"];
-            const currentIdx = step === "cloud_custom" || step === "local" ? stepOrder.indexOf("config") : stepOrder.indexOf(step);
+          {["welcome", "mode", "config", "storage", "done"].map((s, i) => {
+            const stepOrder = ["welcome", "mode", "config", "storage", "done"];
+            let currentIdx = stepOrder.indexOf(step);
+            if (step === "cloud_custom" || step === "local") {
+              currentIdx = stepOrder.indexOf("config");
+            }
             return (
               <div key={s} className={`aiwizard-step-dot ${currentIdx >= i ? "active" : ""}`} />
             );
