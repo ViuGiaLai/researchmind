@@ -12,7 +12,7 @@ PyMuPDF==1.25.*
 rapidocr_onnxruntime==1.4.*
 
 # AI / Embedding
-sentence-transformers==3.3.*
+sentence-transformers==5.6.*
 chromadb==0.6.*
 
 # LLM
