@@ -7,8 +7,52 @@ on:
   pull_request:
     branches: [ "main" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+      - run: npx tsc --noEmit
+        working-directory: apps/desktop
+      - run: npx vitest run
+        working-directory: apps/desktop
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r backend/requirements.txt pytest
+      - run: pip install pytest-timeout && pytest test_debate.py test_all_exports.py -v --timeout=120
+        working-directory: backend
+
+  lint-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy -- -D warnings
+      - run: cargo fmt --check
+
   build:
+    needs: [lint-frontend, test-backend, lint-rust]
     strategy:
       fail-fast: false
       matrix:
@@ -45,8 +89,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: |
-          pip install -r backend/requirements.txt pyinstaller
+        run: pip install -r backend/requirements.txt pyinstaller
 
       - name: Build backend executable
         run: pyinstaller backend.spec
