@@ -139,9 +139,15 @@ jobs:
         run: |
           mkdir -p apps/desktop/src-tauri/resources
           if [ "${{ runner.os }}" == "Windows" ]; then
-            cp dist/backend.exe apps/desktop/src-tauri/resources/
-          else
-            cp dist/backend apps/desktop/src-tauri/resources/
+            cp dist/backend.exe apps/desktop/src-tauri/resources/backend.exe
+            # Tauri expects both names on all platforms
+            cp dist/backend.exe apps/desktop/src-tauri/resources/backend
+          elif [ -f dist/backend ]; then
+            cp dist/backend apps/desktop/src-tauri/resources/backend
+            cp dist/backend apps/desktop/src-tauri/resources/backend.exe
+          elif [ -d dist/backend ]; then
+            cp dist/backend/backend apps/desktop/src-tauri/resources/backend
+            cp dist/backend/backend apps/desktop/src-tauri/resources/backend.exe
           fi
 
       - name: Install Rust toolchain
