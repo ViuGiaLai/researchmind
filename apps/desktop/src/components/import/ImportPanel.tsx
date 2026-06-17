@@ -11,6 +11,20 @@ import {
   IconBook,
 } from "../Icons";
 
+const SUPPORTED_FORMATS = [
+  { ext: ".pdf", label: "PDF", icon: "📄" },
+  { ext: ".docx", label: "DOCX", icon: "📝" },
+  { ext: ".doc", label: "DOC", icon: "📝" },
+  { ext: ".txt", label: "TXT", icon: "📃" },
+  { ext: ".md", label: "Markdown", icon: "📑" },
+  { ext: ".html", label: "HTML", icon: "🌐" },
+  { ext: ".htm", label: "HTML", icon: "🌐" },
+  { ext: ".epub", label: "EPUB", icon: "📖" },
+];
+
+const SUPPORTED_ACCEPT = SUPPORTED_FORMATS.map(f => f.ext).join(",");
+const SUPPORTED_SUFFIXES = new Set(SUPPORTED_FORMATS.map(f => f.ext));
+
 type ImportTab = "pdf" | "bibtex" | "zotero";
 
 interface ImportResult {
@@ -45,15 +59,20 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     setDragOver(false);
   }, []);
 
+  const isSupported = (name: string) => {
+    const ext = name.toLowerCase().split(".").pop();
+    return ext ? SUPPORTED_SUFFIXES.has("." + ext) : false;
+  };
+
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+    const files = Array.from(e.dataTransfer.files).filter(f => isSupported(f.name));
     if (files.length > 0) await importFiles(files);
   }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+    const files = Array.from(e.target.files || []).filter(f => isSupported(f.name));
     if (files.length > 0) await importFiles(files);
     e.target.value = "";
   };
@@ -71,7 +90,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
   };
 
   const handleFolderInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+    const files = Array.from(e.target.files || []).filter(f => isSupported(f.name));
     if (files.length > 0) await importFiles(files);
     e.target.value = "";
   };
@@ -266,10 +285,10 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { if (tab !== "pdf") e.currentTarget.style.background = "var(--color-hover, #f3f4f6)"; }}
-          onMouseLeave={(e) => { if (tab !== "pdf") e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "rgba(99, 102, 241, 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(99, 102, 241, 0.2)"; } }}
+          onMouseLeave={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
-          <IconUpload size={14} /> PDF
+          <IconUpload size={14} /> Tài liệu
         </button>
         <button
           onClick={() => setTab("bibtex")}
@@ -282,8 +301,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { if (tab !== "bibtex") e.currentTarget.style.background = "var(--color-hover, #f3f4f6)"; }}
-          onMouseLeave={(e) => { if (tab !== "bibtex") e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "rgba(99, 102, 241, 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(99, 102, 241, 0.2)"; } }}
+          onMouseLeave={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
           <IconBook size={14} /> BibTeX
         </button>
@@ -298,14 +317,14 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { if (tab !== "zotero") e.currentTarget.style.background = "var(--color-hover, #f3f4f6)"; }}
-          onMouseLeave={(e) => { if (tab !== "zotero") e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "rgba(99, 102, 241, 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(99, 102, 241, 0.2)"; } }}
+          onMouseLeave={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
           <IconLibrary size={14} /> Zotero CSV
         </button>
       </div>
 
-      {/* Tab: PDF */}
+      {/* Tab: PDF & Documents */}
       {tab === "pdf" && (
         <div
           className={`import-dropzone ${dragOver ? "drag-over" : ""}`}
@@ -316,8 +335,15 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <div className="import-dropzone-icon">
             <IconUpload size={32} />
           </div>
-          <h3>Import PDF</h3>
-          <p>Kéo thả file PDF vào đây, hoặc</p>
+          <h3>Tải lên tài liệu</h3>
+          <p>Kéo thả file vào đây, hoặc</p>
+          <div className="import-formats">
+            {[...new Map(SUPPORTED_FORMATS.map(f => [f.icon, f])).values()].map(fmt => (
+              <span key={fmt.ext} className="import-format-badge">
+                {fmt.icon} {fmt.label}
+              </span>
+            ))}
+          </div>
           <div className="import-actions">
             <button
               className="import-btn"
@@ -339,7 +365,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf"
+            accept={SUPPORTED_ACCEPT}
             multiple
             style={{ display: "none" }}
             onChange={handleFileSelect}

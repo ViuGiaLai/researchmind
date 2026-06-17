@@ -254,6 +254,11 @@ export const api = {
       deepseek_model: string;
       gemini_api_key: string;
       gemini_model: string;
+      groq_api_key: string;
+      groq_model: string;
+      nvidia_api_key: string;
+      nvidia_model: string;
+      nvidia_url: string;
       custom_cloud_provider: string;
       model_tier_weak: string;
       model_tier_medium: string;

@@ -314,7 +314,7 @@ export const SettingsView: React.FC = () => {
 
   const modeSuggestions = specs
     ? [
-        { mode: "cloud_free" as LlmMode, label: "Cloud Free (Gemini Free)", desc: "Miễn phí 10 câu/ngày qua Gemini API, chạy ngay", highlight: true },
+        { mode: "cloud_free" as LlmMode, label: "Cloud Free ", desc: "Miễn phí, chạy ngay", highlight: true },
         { mode: "cloud_custom" as LlmMode, label: "Custom API Key", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
         { mode: "local" as LlmMode, label: "Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "4.5" : "8"}GB, chạy offline`, highlight: false },
       ]
@@ -716,7 +716,7 @@ export const SettingsView: React.FC = () => {
             <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
               {llmMode === "cloud_free" ? (
                 <>
-                  <IconZap size={14} /> Cloud Free (Gemini)
+                  <IconZap size={14} /> Cloud Free
                 </>
               ) : llmMode === "cloud_custom" ? (
                 <>

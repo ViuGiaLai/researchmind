@@ -21,8 +21,11 @@ httpx==0.28.*
 # System info
 psutil==6.*
 
-# DOCX Export
+# DOCX Import / Export
 python-docx==1.1.*
+
+# EPUB Import
+ebooklib==0.20.*
 
 # PDF Export
 fpdf2==2.8.*

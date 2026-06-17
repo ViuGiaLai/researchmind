@@ -45,6 +45,14 @@ class Generator:
         deepseek_model: str = "deepseek-chat",
         gemini_api_key: str = "",
         gemini_model: str = "gemini-1.5-flash",
+        groq_api_key: str = "",
+        groq_model: str = "llama-3.3-70b-instant",
+        nvidia_api_key: str = "",
+        nvidia_model: str = "moonshotai/kimi-k2.6",
+        nvidia_url: str = "https://integrate.api.nvidia.com/v1",
+        freemodel_api_key: str = "",
+        freemodel_model: str = "gpt-4o-mini",
+        freemodel_url: str = "https://freemodel.dev/v1",
         mode: str = "cloud_free",
         custom_cloud_provider: str = "deepseek",
     ):
@@ -56,6 +64,14 @@ class Generator:
         self.deepseek_model = deepseek_model
         self.gemini_api_key = gemini_api_key
         self.gemini_model = gemini_model
+        self.groq_api_key = groq_api_key
+        self.groq_model = groq_model
+        self.nvidia_api_key = nvidia_api_key
+        self.nvidia_model = nvidia_model
+        self.nvidia_url = nvidia_url.rstrip("/")
+        self.freemodel_api_key = freemodel_api_key
+        self.freemodel_model = freemodel_model
+        self.freemodel_url = freemodel_url.rstrip("/")
         self.mode = "cloud_custom" if mode == "cloud" else mode  # backward compatibility
         self.custom_cloud_provider = custom_cloud_provider  # "deepseek" or "claude" or "gemini"
         self._http_client = None
@@ -65,22 +81,28 @@ class Generator:
         """Lazy-init HTTP client."""
         if self._http_client is None:
             import httpx
-            self._http_client = httpx.Client(timeout=60.0)
+            self._http_client = httpx.Client(timeout=300.0)
         return self._http_client
 
     def _get_system_prompt(self) -> str:
         """Get the system prompt that enforces citation."""
         return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.
 
-## QUY TẮC QUAN TRỌNG:
+## QUY TẮC ĐỊNH DẠNG:
+- Dùng **in đậm** cho tiêu đề, tên cột, điểm số.
+- Dùng `mã code` cho ID, mã số.
+- Bảng: dùng markdown | cột1 | cột2 |.
+- Danh sách: dùng - hoặc 1. 2. 3.
+- Tách section rõ ràng bằng ## và ---.
+
+## QUY TẮC NỘI DUNG:
 1. CHỈ trả lời dựa trên thông tin trong context được cung cấp.
 2. Mọi câu trả lời PHẢI có trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].
-3. Nếu context không có đủ thông tin để trả lời, hãy nói "Tôi không tìm thấy thông tin này trong tài liệu bạn đã import."
-4. KHÔNG được tự ý thêm thông tin không có trong context.
+3. Nếu context không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
+4. KHÔNG thêm thông tin ngoài context.
 5. Trả lời bằng TIẾNG VIỆT (trừ khi câu hỏi bằng tiếng Anh).
-6. Nếu câu hỏi yêu cầu so sánh, hãy so sánh rõ ràng từng điểm giữa các tài liệu.
-7. Nếu câu hỏi yêu cầu tóm tắt, hãy tóm tắt ngắn gọn các điểm chính.
-8. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
+6. Với dữ liệu dạng bảng (điểm, danh sách): dùng bảng markdown, hàng đầu là tiêu đề cột.
+7. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
 
     def generate(
         self,
@@ -114,18 +136,49 @@ Câu hỏi: {query}
 
 Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
+        import time
         # LLM Routing
         if self.mode == "cloud_free":
-            # Use the provided default key if none is set in self.gemini_api_key
-            api_key = self.gemini_api_key or ""
-            if not api_key:
-                logger.warning("Gemini API key is empty. Falling back to local Ollama...")
-                return self._generate_ollama(user_prompt)
-            result = self._generate_gemini(user_prompt, api_key, is_free=True)
-            if result.finish_reason == "error":
-                logger.warning("Free Gemini failed. Falling back to local Ollama...")
-                return self._generate_ollama(user_prompt)
-            return result
+            # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama (last resort)
+            # 1. Try NVIDIA NIM
+            if self.nvidia_api_key:
+                logger.info("cloud_free: trying NVIDIA NIM...")
+                t0 = time.time()
+                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model)
+                logger.info(f"TIMING: NVIDIA={time.time()-t0:.2f}s finish={result.finish_reason}")
+                if result.finish_reason != "error":
+                    return result
+                logger.warning(f"NVIDIA failed ({result.finish_reason}), trying FreeModel...")
+            # 2. Try FreeModel.dev
+            if self.freemodel_api_key:
+                logger.info("cloud_free: trying FreeModel.dev...")
+                t0 = time.time()
+                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model)
+                logger.info(f"TIMING: FreeModel={time.time()-t0:.2f}s finish={result.finish_reason}")
+                if result.finish_reason != "error":
+                    return result
+                logger.warning(f"FreeModel failed ({result.finish_reason}), trying Groq...")
+            # 3. Try Groq
+            if self.groq_api_key:
+                logger.info("cloud_free: trying Groq...")
+                t0 = time.time()
+                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model)
+                logger.info(f"TIMING: Groq={time.time()-t0:.2f}s finish={result.finish_reason}")
+                if result.finish_reason != "error":
+                    return result
+                logger.warning(f"Groq failed ({result.finish_reason}), trying Gemini...")
+            # 4. Try Gemini
+            if self.gemini_api_key:
+                logger.info("cloud_free: trying Gemini...")
+                t0 = time.time()
+                result = self._generate_gemini(user_prompt, self.gemini_api_key, is_free=True)
+                logger.info(f"TIMING: Gemini={time.time()-t0:.2f}s finish={result.finish_reason}")
+                if result.finish_reason != "error":
+                    return result
+                logger.warning(f"Gemini failed ({result.finish_reason}).")
+            # 5. Fallback to local Ollama
+            logger.warning("All cloud_free providers failed. Falling back to local Ollama...")
+            return self._generate_ollama(user_prompt)
 
         elif self.mode == "cloud_custom":
             if self.custom_cloud_provider == "deepseek":
@@ -293,8 +346,9 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     ],
                     "stream": False,
                     "options": {
-                        "temperature": 0.3,  # Low temperature for factual answers
-                        "num_predict": 2048,
+                        "temperature": 0.3,
+                        "num_predict": 1024,
+                        "num_ctx": 2048,
                     },
                 },
             )
@@ -327,6 +381,135 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 content=f"⚠️ Lỗi khi gọi Ollama: {str(e)}",
                 citations=[],
                 model_used="ollama/error",
+                finish_reason="error",
+            )
+
+    def _generate_groq(self, prompt: str, api_key: str, model: str) -> GenerationResult:
+        """Generate response using Groq API (OpenAI-compatible)."""
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2048,
+                "stream": False,
+            }
+            response = self.http_client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            citations = self._extract_citations(content)
+            content = self._verify_citations(content, citations)
+            return GenerationResult(
+                content=content,
+                citations=citations,
+                model_used=f"groq/{model}",
+                finish_reason="stop",
+            )
+        except Exception as e:
+            logger.error(f"Groq generation failed: {e}")
+            return GenerationResult(
+                content=f"⚠️ Lỗi Groq Cloud: {str(e)}",
+                citations=[],
+                model_used="groq/error",
+                finish_reason="error",
+            )
+
+    def _generate_nvidia(self, prompt: str, api_key: str, model: str) -> GenerationResult:
+        """Generate response using NVIDIA NIM API (OpenAI-compatible)."""
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2048,
+                "stream": False,
+            }
+            response = self.http_client.post(
+                f"{self.nvidia_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            citations = self._extract_citations(content)
+            content = self._verify_citations(content, citations)
+            return GenerationResult(
+                content=content,
+                citations=citations,
+                model_used=f"nvidia/{model}",
+                finish_reason="stop",
+            )
+        except Exception as e:
+            logger.error(f"NVIDIA generation failed: {e}")
+            return GenerationResult(
+                content=f"⚠️ Lỗi NVIDIA NIM: {str(e)}",
+                citations=[],
+                model_used="nvidia/error",
+                finish_reason="error",
+            )
+
+    def _generate_freemodel(self, prompt: str, api_key: str, model: str) -> GenerationResult:
+        """Generate response using FreeModel.dev API (OpenAI-compatible)."""
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2048,
+                "stream": False,
+            }
+            response = self.http_client.post(
+                f"{self.freemodel_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            citations = self._extract_citations(content)
+            content = self._verify_citations(content, citations)
+            return GenerationResult(
+                content=content,
+                citations=citations,
+                model_used=f"freemodel/{model}",
+                finish_reason="stop",
+            )
+        except Exception as e:
+            logger.error(f"FreeModel generation failed: {e}")
+            return GenerationResult(
+                content=f"⚠️ Lỗi FreeModel Cloud: {str(e)}",
+                citations=[],
+                model_used="freemodel/error",
                 finish_reason="error",
             )
 
@@ -412,12 +595,46 @@ Câu hỏi: {query}
 Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
         if self.mode == "cloud_free":
-            if not self.gemini_api_key:
-                yield "⚠️ Hệ thống chưa cấu hình Gemini API Key. Đang chuyển sang Local model..."
-                for chunk in self._stream_ollama(user_prompt):
+            # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama
+            if self.nvidia_api_key:
+                yielded = False
+                for chunk in self._stream_openai(
+                    user_prompt, self.nvidia_api_key, self.nvidia_model,
+                    self.nvidia_url
+                ):
+                    yielded = True
                     yield chunk
-                return
-            for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
+                if yielded:
+                    return
+            if self.freemodel_api_key:
+                yielded = False
+                for chunk in self._stream_openai(
+                    user_prompt, self.freemodel_api_key, self.freemodel_model,
+                    self.freemodel_url
+                ):
+                    yielded = True
+                    yield chunk
+                if yielded:
+                    return
+            if self.groq_api_key:
+                yielded = False
+                for chunk in self._stream_openai(
+                    user_prompt, self.groq_api_key, self.groq_model,
+                    "https://api.groq.com/openai/v1"
+                ):
+                    yielded = True
+                    yield chunk
+                if yielded:
+                    return
+            if self.gemini_api_key:
+                yielded = False
+                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
+                    yielded = True
+                    yield chunk
+                if yielded:
+                    return
+            yield "⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
+            for chunk in self._stream_ollama(user_prompt):
                 yield chunk
 
         elif self.mode == "cloud_custom":
@@ -506,6 +723,46 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             for chunk in self._stream_ollama(prompt):
                 yield chunk
 
+    def _stream_openai(self, prompt: str, api_key: str, model: str, base_url: str):
+        """Stream response from any OpenAI-compatible API."""
+        try:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2048,
+                "stream": True,
+            }
+            with self.http_client.stream(
+                "POST",
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60.0,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            data = json.loads(data_str)
+                            chunk = data["choices"][0]["delta"].get("content", "")
+                            if chunk:
+                                yield chunk
+                        except Exception:
+                            continue
+        except Exception as e:
+            logger.error(f"OpenAI-compatible stream failed: {e}")
+
     def _stream_gemini(self, prompt: str, api_key: str, is_free: bool = False):
         """Stream response from Google Gemini API (SSE native)."""
         try:
@@ -566,7 +823,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                         {"role": "user", "content": prompt},
                     ],
                     "stream": True,
-                    "options": {"temperature": 0.3, "num_predict": 2048},
+                    "options": {"temperature": 0.3, "num_predict": 1024, "num_ctx": 2048},
                 },
             ) as response:
                 response.raise_for_status()

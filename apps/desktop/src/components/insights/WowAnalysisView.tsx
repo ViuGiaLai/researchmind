@@ -9,6 +9,7 @@ import {
   IconFileText,
   IconChat,
 } from "../Icons";
+import { useToast } from "../shared/Toast";
 import "./WowAnalysisView.css";
 
 interface StepState {
@@ -70,6 +71,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
   const [loadingLibrary, setLoadingLibrary] = useState(true);
   const [importingFile, setImportingFile] = useState(false);
   const [importProgress, setImportProgress] = useState("");
+  const toast = useToast();
   const [dragOver, setDragOver] = useState(false);
   const [focusStep, setFocusStep] = useState<string | null>(null);
 
@@ -376,7 +378,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
         throw new Error("Tài liệu xử lý lâu hơn dự kiến. Vui lòng kiểm tra lại trong Thư viện.");
       }
     } catch (e: any) {
-      alert(`Lỗi import: ${e.message || e}`);
+      toast.addToast("error", `Lỗi import: ${e.message || e}`);
       setImportingFile(false);
     }
   };
@@ -433,7 +435,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
 
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Đã sao chép nội dung vào Clipboard!");
+    toast.addToast("success", "Đã sao chép nội dung vào Clipboard!");
   };
 
   return (

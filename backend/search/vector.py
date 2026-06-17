@@ -1,9 +1,23 @@
 """Vector search using ChromaDB."""
 
+import os
+
+# Disable ChromaDB telemetry before importing chromadb
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 from typing import Optional
 from dataclasses import dataclass
 from pathlib import Path
 from loguru import logger
+
+
+def _patch_chromadb_telemetry():
+    """Monkey-patch chromadb telemetry to suppress posthog version errors."""
+    try:
+        import chromadb.telemetry.product.posthog
+        chromadb.telemetry.product.posthog.Posthog.capture = lambda self, event: None
+    except Exception:
+        pass
 
 
 @dataclass
@@ -31,6 +45,7 @@ class VectorSearch:
             return
 
         import chromadb
+        _patch_chromadb_telemetry()
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=str(self.persist_dir))
         logger.info(f"ChromaDB client initialized at: {self.persist_dir}")

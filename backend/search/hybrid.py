@@ -58,14 +58,20 @@ class HybridSearch:
         Returns:
             List of SearchResult sorted by relevance.
         """
+        import time
         # Step 1: BM25 search
+        t0 = time.time()
         logger.debug(f"BM25 search: '{query}'")
         bm25_results = self.bm25.search(query, paper_ids, top_k=20)
+        t1 = time.time()
+        logger.debug(f"BM25 search: {len(bm25_results)} results in {t1-t0:.2f}s")
 
         # Step 2: Vector search
         logger.debug(f"Vector search: '{query}'")
         query_embedding = self.embedder.embed_query(query)
         vector_results = self.vector.search(query_embedding, paper_ids, top_k=20)
+        t2 = time.time()
+        logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
 
         # Step 3: Reciprocal Rank Fusion
         logger.debug(f"RRF fusion: {len(bm25_results)} BM25 + {len(vector_results)} Vector")
@@ -74,6 +80,8 @@ class HybridSearch:
         # Step 4: Cross-encoder re-ranking
         if use_reranker and fused:
             fused = self._rerank(query, fused)
+            t3 = time.time()
+            logger.debug(f"Cross-encoder rerank: {len(fused)} results in {t3-t2:.2f}s")
 
         # Step 5: Take top_k
         final = fused[:top_k]

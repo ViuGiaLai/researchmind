@@ -9,6 +9,7 @@ import { PersonalBrainView } from "./components/personal/PersonalBrainView";
 import { DailyReaderView } from "./components/personal/DailyReaderView";
 import { WowAnalysisView } from "./components/insights/WowAnalysisView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
+import { ToastProvider } from "./components/shared/Toast";
 import { api } from "./lib/api";
 
 type Tab = "wow" | "library" | "search" | "chat" | "insights" | "brain" | "daily" | "settings";
@@ -99,6 +100,7 @@ function App() {
   }
 
   return (
+    <ToastProvider>
     <div className="app-container">
       {/* Sidebar */}
       <aside className="app-sidebar">
@@ -174,6 +176,7 @@ function App() {
         {activeTab === "settings" && <SettingsView />}
       </main>
     </div>
+    </ToastProvider>
   );
 }
 

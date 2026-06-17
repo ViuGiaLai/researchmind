@@ -55,6 +55,14 @@ def init():
     generator = Generator(
         ollama_url=settings.ollama_url,
         ollama_model=settings.ollama_model,
+        claude_api_key=settings.claude_api_key,
+        claude_model=settings.claude_model,
+        deepseek_api_key=settings.deepseek_api_key,
+        deepseek_model=settings.deepseek_model,
+        gemini_api_key=settings.gemini_api_key,
+        gemini_model=settings.gemini_model,
+        mode=settings.llm_mode,
+        custom_cloud_provider=settings.custom_cloud_provider,
     )
 
     return engine, session, bm25, vector, hybrid, retriever, generator, embedder
@@ -211,6 +219,7 @@ def cmd_chat(args):
 
     query = args[0]
     paper_ids = args[1:] if len(args) > 1 else None
+    use_stream = "--stream" in args
 
     engine, session, bm25, vector, hybrid, retriever, generator, embedder = init()
 
@@ -225,18 +234,27 @@ def cmd_chat(args):
     print(f"   Retrieved {retrieval.total_chunks} chunks from {len(retrieval.papers_used)} papers")
     print()
 
-    # Generate
-    print("   Generating answer...")
-    result = generator.generate(query, retrieval.context_text)
+    if use_stream:
+        # Streaming mode: show tokens as they arrive
+        print("─── Answer ───────────────────────────────────────")
+        sys.stdout.flush()
+        for chunk in generator.stream_generate(query, retrieval.context_text):
+            print(chunk, end="", flush=True)
+        print()
+        print("──────────────────────────────────────────────────")
+    else:
+        # Batch mode
+        print("   Generating answer...")
+        result = generator.generate(query, retrieval.context_text)
 
-    print()
-    print("─── Answer ───────────────────────────────────────")
-    print(result.content)
-    print("──────────────────────────────────────────────────")
-    print(f"\n   📚 Sources: {len(result.citations)} citations")
-    print(f"   🤖 Model: {result.model_used}")
-    for c in result.citations:
-        print(f"      📄 [{c['source']}]" + (f" (trang {c['page']})" if c['page'] else ""))
+        print()
+        print("─── Answer ───────────────────────────────────────")
+        print(result.content)
+        print("──────────────────────────────────────────────────")
+        print(f"\n   📚 Sources: {len(result.citations)} citations")
+        print(f"   🤖 Model: {result.model_used}")
+        for c in result.citations:
+            print(f"      📄 [{c['source']}]" + (f" (trang {c['page']})" if c['page'] else ""))
 
     session.close()
 

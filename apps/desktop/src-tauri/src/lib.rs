@@ -5,13 +5,17 @@ use std::sync::Mutex;
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
-/// Return the backend binary filename for the current platform.
 fn backend_binary_name() -> &'static str {
     if cfg!(target_os = "windows") {
         "backend.exe"
     } else {
         "backend"
     }
+}
+
+/// Check if a file is valid (exists and non-empty).
+fn is_valid_executable(path: &std::path::Path) -> bool {
+    path.exists() && path.metadata().map(|m| m.len() > 0).unwrap_or(false)
 }
 
 /// Try to locate the backend executable.
@@ -27,7 +31,7 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>)>
         p.parent().unwrap_or(std::path::Path::new(".")).to_path_buf()
     }) {
         let bundled = exe_dir.join(name);
-        if bundled.exists() {
+        if is_valid_executable(&bundled) {
             info!("Found bundled {} at: {:?}", name, bundled);
             return Some((bundled.to_string_lossy().to_string(), vec![]));
         }
@@ -37,38 +41,57 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>)>
     if let Some(app) = app {
         if let Ok(res_dir) = app.path().resource_dir() {
             let resource_path = res_dir.join(name);
-            if resource_path.exists() {
+            if is_valid_executable(&resource_path) {
                 info!("Found {} in resource dir: {:?}", name, resource_path);
                 return Some((resource_path.to_string_lossy().to_string(), vec![]));
             }
         }
     }
 
-    // 3. Development: use python from venv
+    // 3. Development: use python from venv or PATH
     let python_name = if cfg!(target_os = "windows") {
         "python.exe"
     } else {
         "python3"
     };
 
+    // Find python: prefer venv, then PATH
+    let cargo_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let python = {
-        let venv = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../.venv/Scripts/python.exe");
+        let venv = cargo_dir.join("../../.venv/Scripts/python.exe");
         if venv.exists() {
+            info!("Using venv python at: {:?}", venv);
             venv.to_string_lossy().to_string()
         } else {
+            info!("Venv not found, using '{}' from PATH", python_name);
             python_name.to_string()
         }
     };
 
-    let main_py = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../backend/main.py");
+    // Try multiple candidate paths for main.py
+    let candidates = [
+        cargo_dir.join("../../backend/main.py"),                    // manifest dir
+        PathBuf::from("backend/main.py"),                           // current working dir
+        PathBuf::from("../backend/main.py"),                        // one level up
+    ];
 
-    if main_py.exists() {
-        info!("Using development mode: {} -u {}", python, main_py.display());
-        Some((python, vec!["-u".into(), main_py.to_string_lossy().to_string()]))
+    let mut main_py = None;
+    for candidate in &candidates {
+        info!("Checking backend path: {} (exists: {})", candidate.display(), candidate.exists());
+        if candidate.exists() {
+            main_py = Some(candidate.to_path_buf());
+            break;
+        }
+    }
+
+    if let Some(path) = main_py {
+        info!("Using development mode: {} -u {}", python, path.display());
+        Some((python, vec!["-u".into(), path.to_string_lossy().to_string()]))
     } else {
-        error!("No backend found ({} or backend/main.py)", name);
+        error!(
+            "No backend found. Checked: {}",
+            candidates.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+        );
         None
     }
 }

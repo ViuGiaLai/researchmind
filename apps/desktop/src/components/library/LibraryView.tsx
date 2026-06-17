@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { api, Paper, RelatedPaper, Highlight } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
+import { useToast } from "../shared/Toast";
 import {
   IconBrain,
   IconStar,
@@ -45,14 +46,23 @@ export const LibraryView: React.FC<{
   const [showImport, setShowImport] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const toast = useToast();
 
   // Zotero-style preview panel states
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
-  const [previewTab, setPreviewTab] = useState<"info" | "pdf" | "related" | "highlights">("info");
+  const [previewTab, setPreviewTab] = useState<"info" | "pdf" | "related" | "highlights" | "ai">("info");
   const [tagInput, setTagInput] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const splitViewRef = useRef<HTMLDivElement>(null);
+  const [splitting, setSplitting] = useState(false);
+  const splitterStart = useRef({ x: 0, leftWidth: 0 });
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const previewPanelRef = useRef<HTMLDivElement>(null);
+  const [panelNarrow, setPanelNarrow] = useState(false);
+  const [tabDragging, setTabDragging] = useState(false);
+  const tabDragStart = useRef({ x: 0, scrollLeft: 0 });
 
   // Related papers state
   const [relatedPapers, setRelatedPapers] = useState<RelatedPaper[]>([]);
@@ -65,6 +75,21 @@ export const LibraryView: React.FC<{
   useEffect(() => {
     loadPapers();
   }, [page, filter]);
+
+  useEffect(() => {
+    const el = previewPanelRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setPanelNarrow(entry.contentRect.width < 480));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const [showNarrowMenu, setShowNarrowMenu] = useState(false);
+  useEffect(() => {
+    if (!showNarrowMenu) return;
+    const close = () => setShowNarrowMenu(false);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showNarrowMenu]);
 
   useEffect(() => {
     if (activePaper) {
@@ -82,13 +107,15 @@ export const LibraryView: React.FC<{
       const statusFilter = ["unread", "reading", "read"].includes(filter) ? "indexed" : filter === "all" ? undefined : filter;
       const res = await api.listPapers(page, PAGE_SIZE, statusFilter);
 
+      // For read_status filters, do client-side filtering but keep real total from API
       let filtered = res.papers;
       if (filter === "unread") filtered = filtered.filter((p) => p.read_status === "unread");
       else if (filter === "reading") filtered = filtered.filter((p) => p.read_status === "reading");
       else if (filter === "read") filtered = filtered.filter((p) => p.read_status === "read");
 
       setPapers(filtered);
-      setTotal(filtered.length);
+      // Use real total from API for correct pagination
+      setTotal(res.total);
 
       // Default active paper to the first one in the list if none selected
       if (filtered.length > 0 && !activePaper) {
@@ -155,10 +182,10 @@ export const LibraryView: React.FC<{
       const updated = await api.updatePaper(activePaper.id, { notes } as Partial<Paper>);
       setPapers((prev) => prev.map((p) => (p.id === activePaper.id ? updated : p)));
       setActivePaper(updated);
-      alert("Đã lưu ghi chú!");
+      toast.addToast("success", "Đã lưu ghi chú!");
     } catch (e) {
       console.error("Failed to save notes:", e);
-      alert("Lỗi lưu ghi chú.");
+      toast.addToast("error", "Lỗi lưu ghi chú.");
     } finally {
       setSavingNotes(false);
     }
@@ -282,7 +309,7 @@ export const LibraryView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export HTML:", e);
-      alert("❌ Không thể export HTML. Vui lòng kiểm tra backend.");
+      toast.addToast("error", "❌ Không thể export HTML. Vui lòng kiểm tra backend.");
     } finally {
       setExportingId(null);
     }
@@ -302,21 +329,56 @@ export const LibraryView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export DOCX:", e);
-      alert("❌ Không thể export DOCX. Vui lòng kiểm tra backend và cài python-docx.");
+      toast.addToast("error", "❌ Không thể export DOCX. Vui lòng kiểm tra backend và cài python-docx.");
     } finally {
       setExportingId(null);
     }
   };
 
+  const handleTabDragStart = useCallback((e: React.MouseEvent) => {
+    setTabDragging(true);
+    tabDragStart.current = { x: e.clientX, scrollLeft: tabsRef.current?.scrollLeft || 0 };
+  }, []);
+  const handleTabDragMove = useCallback((e: React.MouseEvent) => {
+    if (!tabDragging || !tabsRef.current) return;
+    const dx = e.clientX - tabDragStart.current.x;
+    tabsRef.current.scrollLeft = tabDragStart.current.scrollLeft - dx;
+  }, [tabDragging]);
+  const handleTabDragEnd = useCallback(() => setTabDragging(false), []);
+
+  const handleSplitterDown = useCallback((e: React.MouseEvent) => {
+    setSplitting(true);
+    splitterStart.current = { x: e.clientX, leftWidth: (splitViewRef.current?.querySelector('.library-main-panel') as HTMLElement)?.offsetWidth || 400 };
+    e.preventDefault();
+  }, []);
+  const handleSplitterMove = useCallback((e: MouseEvent) => {
+    if (!splitting || !splitViewRef.current) return;
+    const dx = e.clientX - splitterStart.current.x;
+    const newLeft = Math.max(250, Math.min(800, splitterStart.current.leftWidth + dx));
+    const leftPanel = splitViewRef.current.querySelector('.library-main-panel') as HTMLElement;
+    if (leftPanel) leftPanel.style.width = `${newLeft}px`;
+  }, [splitting]);
+  const handleSplitterUp = useCallback(() => setSplitting(false), []);
+  useEffect(() => {
+    if (splitting) {
+      window.addEventListener('mousemove', handleSplitterMove);
+      window.addEventListener('mouseup', handleSplitterUp);
+      return () => {
+        window.removeEventListener('mousemove', handleSplitterMove);
+        window.removeEventListener('mouseup', handleSplitterUp);
+      };
+    }
+  }, [splitting, handleSplitterMove, handleSplitterUp]);
+
   return (
-    <div className="library-split-view">
+    <div className={`library-split-view${splitting ? ' splitting' : ''}`} ref={splitViewRef}>
       {/* Left panel: Paper list */}
       <div className="library-main-panel">
         {/* Import section */}
         {showImport ? (
           <div className="library-import-section">
             <div className="library-import-header">
-              <h3><IconUpload size={18} style={{ marginRight: 6 }} /> Import PDF</h3>
+              <h3><IconUpload size={18} style={{ marginRight: 6 }} /> Tải lên</h3>
               <button className="library-import-close" onClick={() => setShowImport(false)}>✕</button>
             </div>
             <ImportPanel
@@ -353,7 +415,7 @@ export const LibraryView: React.FC<{
               <div className="library-action-buttons">
                 <button className="library-import-btn" onClick={() => setShowImport(true)}>
                   <IconUpload size={16} style={{ marginRight: 4 }} />
-                  Import PDF
+                  Tải lên
                 </button>
                 {selected.size > 0 && (
                   <>
@@ -394,7 +456,7 @@ export const LibraryView: React.FC<{
             <h3>Chưa có paper nào</h3>
             <button className="library-import-btn library-empty-import" onClick={() => setShowImport(true)}>
               <IconUpload size={16} style={{ marginRight: 4 }} />
-              Import PDF đầu tiên
+              Tải lên paper đầu tiên
             </button>
           </div>
         ) : (
@@ -459,156 +521,227 @@ export const LibraryView: React.FC<{
         )}
       </div>
 
+      {/* Splitter */}
+      <div
+        className="library-splitter"
+        onMouseDown={handleSplitterDown}
+      />
       {/* Right panel: Zotero-style preview panel */}
-      <div className="library-preview-panel">
+      <div className="library-preview-panel" ref={previewPanelRef}>
         {activePaper ? (
           <>
             <div className="preview-header">
               <h3 className="preview-title" title={activePaper.title || activePaper.filename}>
                 {activePaper.title || activePaper.filename}
               </h3>
-              <div className="preview-actions">
-                {onStartWow && (
-                  <button
-                    className="preview-btn wow-glow-btn"
-                    onClick={() => onStartWow(activePaper.id)}
-                    style={{
-                      background: "linear-gradient(135deg, var(--color-primary), #ec4899)",
-                      color: "#fff",
-                      border: "none",
-                    }}
-                  >
-                    <IconSparkle size={14} />
-                    <span>⚡ Phân tích tài liệu AI</span>
+              {panelNarrow ? (
+                <div className="preview-actions-narrow">
+                  {onStartWow && (
+                    <button className="preview-btn wow-glow-btn" onClick={() => onStartWow(activePaper.id)}
+                      style={{ background: "linear-gradient(135deg, var(--color-primary), #ec4899)", color: "#fff", border: "none", flex: 1 }}>
+                      ⚡ Phân tích AI
+                    </button>
+                  )}
+                  <button className="preview-btn primary" onClick={() => onStartChat([activePaper.id])} style={{ flex: 1 }}>
+                    💬 Hỏi AI
                   </button>
-                )}
-                <button
-                  className="preview-btn primary"
-                  onClick={() => onStartChat([activePaper.id])}
-                >
-                  <IconChat size={14} />
-                  <span>Hỏi AI về paper này</span>
-                </button>
-                {onStartDebate && (
-                  <button
-                    className="preview-btn"
-                    onClick={() => onStartDebate([activePaper.id])}
-                  >
-                    <IconBulb size={14} />
-                    <span>Tranh luận</span>
-                  </button>
-                )}
-                <button
-                  className="preview-btn"
-                  onClick={() => toggleReadStatus(activePaper.id, activePaper.read_status)}
-                >
-                  {renderStatusIcon(activePaper.read_status, 14)}
-                  <span>
-                    {activePaper.read_status === "read"
-                      ? "Đã đọc"
-                      : activePaper.read_status === "reading"
-                      ? "Đang đọc"
-                      : "Chưa đọc"}
-                  </span>
-                </button>
-                <button
-                  className="preview-btn"
-                  onClick={() => toggleStar(activePaper.id, activePaper.starred)}
-                >
-                  <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
-                  <span>Yêu thích</span>
-                </button>
-
-                {/* Export dropdown */}
-                <div style={{ position: "relative", display: "inline-block" }}>
-                  <button
-                    className="preview-btn"
-                    onClick={() => setShowExportMenu(!showExportMenu)}
-                    onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
-                    disabled={exportingId === activePaper.id}
-                    title="Export paper"
-                  >
-                    {exportingId === activePaper.id ? (
-                      <IconSpinner size={14} />
-                    ) : (
-                      <IconDownload size={14} />
+                  <div style={{ position: "relative" }}>
+                    <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title="Thao tác">
+                      <span style={{ fontSize: "1.2rem" }}>⋮</span>
+                    </button>
+                    {showNarrowMenu && (
+                      <div className="narrow-actions-menu" onMouseDown={(e) => e.stopPropagation()}>
+                        {onStartDebate && (
+                          <button className="narrow-action-btn" onClick={() => { onStartDebate([activePaper.id]); setShowNarrowMenu(false); }}>
+                            🗣️ Tranh luận
+                          </button>
+                        )}
+                        <button className="narrow-action-btn" onClick={() => { toggleReadStatus(activePaper.id, activePaper.read_status); setShowNarrowMenu(false); }}>
+                          {activePaper.read_status === "read" ? "✅ Đã đọc" : activePaper.read_status === "reading" ? "📖 Đang đọc" : "📄 Chưa đọc"}
+                        </button>
+                        <button className="narrow-action-btn" onClick={() => { toggleStar(activePaper.id, activePaper.starred); setShowNarrowMenu(false); }}>
+                          {activePaper.starred ? "⭐ Đã thích" : "☆ Yêu thích"}
+                        </button>
+                        <div className="narrow-menu-divider" />
+                        <button className="narrow-action-btn" onClick={() => { handleExportHtml(activePaper.id); setShowNarrowMenu(false); }}>🌐 Export HTML</button>
+                        <button className="narrow-action-btn" onClick={() => { handleExportDocx(activePaper.id); setShowNarrowMenu(false); }}>📄 Export DOCX</button>
+                      </div>
                     )}
-                    <span>Export</span>
-                  </button>
-                  {showExportMenu && (
-                    <div
+                  </div>
+                </div>
+              ) : (
+                <div className="preview-actions">
+                  {onStartWow && (
+                    <button
+                      className="preview-btn wow-glow-btn"
+                      onClick={() => onStartWow(activePaper.id)}
                       style={{
-                        position: "absolute",
-                        top: "100%",
-                        right: 0,
-                        marginTop: 4,
-                        background: "var(--color-bg, #fff)",
-                        border: "1px solid var(--color-border, #e5e7eb)",
-                        borderRadius: 8,
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-                        zIndex: 1000,
-                        minWidth: 170,
-                        overflow: "hidden",
+                        background: "linear-gradient(135deg, var(--color-primary), #ec4899)",
+                        color: "#fff",
+                        border: "none",
                       }}
                     >
-                      <button
-                        onClick={() => { handleExportHtml(activePaper.id); setShowExportMenu(false); }}
-                        style={menuItemStyle}
-                        onMouseEnter={highlightOn}
-                        onMouseLeave={highlightOff}
-                      >
-                        🌐 Export HTML
-                      </button>
-                      <button
-                        onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
-                        style={menuItemStyle}
-                        onMouseEnter={highlightOn}
-                        onMouseLeave={highlightOff}
-                      >
-                        📄 Export DOCX
-                      </button>
-                    </div>
+                      <IconSparkle size={14} />
+                      <span>Phân tích tài liệu AI</span>
+                    </button>
                   )}
+                  <button
+                    className="preview-btn primary"
+                    onClick={() => onStartChat([activePaper.id])}
+                  >
+                    <IconChat size={14} />
+                    <span>Hỏi AI về paper này</span>
+                  </button>
+                  {onStartDebate && (
+                    <button
+                      className="preview-btn"
+                      onClick={() => onStartDebate([activePaper.id])}
+                    >
+                      <IconBulb size={14} />
+                      <span>Tranh luận</span>
+                    </button>
+                  )}
+                  <button
+                    className="preview-btn"
+                    onClick={() => toggleReadStatus(activePaper.id, activePaper.read_status)}
+                  >
+                    {renderStatusIcon(activePaper.read_status, 14)}
+                    <span>
+                      {activePaper.read_status === "read"
+                        ? "Đã đọc"
+                        : activePaper.read_status === "reading"
+                        ? "Đang đọc"
+                        : "Chưa đọc"}
+                    </span>
+                  </button>
+                  <button
+                    className="preview-btn"
+                    onClick={() => toggleStar(activePaper.id, activePaper.starred)}
+                  >
+                    <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
+                    <span>Yêu thích</span>
+                  </button>
+
+                  {/* Export dropdown */}
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <button
+                      className="preview-btn"
+                      onClick={() => setShowExportMenu(!showExportMenu)}
+                      onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
+                      disabled={exportingId === activePaper.id}
+                      title="Export paper"
+                    >
+                      {exportingId === activePaper.id ? (
+                        <IconSpinner size={14} />
+                      ) : (
+                        <IconDownload size={14} />
+                      )}
+                      <span>Export</span>
+                    </button>
+                    {showExportMenu && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          right: 0,
+                          marginTop: 4,
+                          background: "var(--color-bg, #fff)",
+                          border: "1px solid var(--color-border, #e5e7eb)",
+                          borderRadius: 8,
+                          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                          zIndex: 1000,
+                          minWidth: 170,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <button
+                          onClick={() => { handleExportHtml(activePaper.id); setShowExportMenu(false); }}
+                          style={menuItemStyle}
+                          onMouseEnter={highlightOn}
+                          onMouseLeave={highlightOff}
+                        >
+                          🌐 Export HTML
+                        </button>
+                        <button
+                          onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
+                          style={menuItemStyle}
+                          onMouseEnter={highlightOn}
+                          onMouseLeave={highlightOff}
+                        >
+                          📄 Export DOCX
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="preview-tabs">
-              <button
-                className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
-                onClick={() => setPreviewTab("info")}
+            {panelNarrow ? (
+              <div className="preview-tabs-compact">
+                <select
+                  className="preview-tabs-select"
+                  value={previewTab}
+                  onChange={(e) => setPreviewTab(e.target.value as typeof previewTab)}
+                >
+                  <option value="info">📋 Tóm tắt & Thông tin</option>
+                  <option value="ai">⚡ Phân tích AI</option>
+                  <option value="related">🔗 Papers liên quan</option>
+                  <option value="highlights">✨ Đoạn quan trọng</option>
+                  <option value="pdf">📄 Đọc tài liệu</option>
+                </select>
+              </div>
+            ) : (
+              <div
+                className="preview-tabs"
+                ref={tabsRef}
+                onMouseDown={handleTabDragStart}
+                onMouseMove={handleTabDragMove}
+                onMouseUp={handleTabDragEnd}
+                onMouseLeave={handleTabDragEnd}
               >
-                Tóm tắt & Thông tin
-              </button>
-              <button
-                className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
-                onClick={() => {
-                  setPreviewTab("related");
-                  if (relatedPapers.length === 0 && activePaper) {
-                    loadRelatedPapers(activePaper.id);
-                  }
-                }}
-              >
-                Papers liên quan
-              </button>
-              <button
-                className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
-                onClick={() => {
-                  setPreviewTab("highlights");
-                  if (highlights.length === 0 && activePaper) {
-                    loadHighlights(activePaper.id);
-                  }
-                }}
-              >
-                Đoạn quan trọng
-              </button>
-              <button
-                className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
-                onClick={() => setPreviewTab("pdf")}
-              >
-                Đọc tài liệu (PDF)
-              </button>
-            </div>
+                <button
+                  className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
+                  onClick={() => setPreviewTab("info")}
+                >
+                  <span>📋</span> Tóm tắt
+                </button>
+                <button
+                  className={`preview-tab-btn ${previewTab === "ai" ? "active" : ""}`}
+                  onClick={() => setPreviewTab("ai")}
+                >
+                  <span>⚡</span> Phân tích AI
+                </button>
+                <button
+                  className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
+                  onClick={() => {
+                    setPreviewTab("related");
+                    if (relatedPapers.length === 0 && activePaper) {
+                      loadRelatedPapers(activePaper.id);
+                    }
+                  }}
+                >
+                  <span>🔗</span> Liên quan
+                </button>
+                <button
+                  className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
+                  onClick={() => {
+                    setPreviewTab("highlights");
+                    if (highlights.length === 0 && activePaper) {
+                      loadHighlights(activePaper.id);
+                    }
+                  }}
+                >
+                  <span>✨</span> Đoạn Q.trọng
+                </button>
+                <button
+                  className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
+                  onClick={() => setPreviewTab("pdf")}
+                >
+                  <span>📄</span> Đọc tài liệu
+                </button>
+              </div>
+            )}
 
             {previewTab === "info" ? (
               <div className="preview-body">
@@ -840,6 +973,46 @@ export const LibraryView: React.FC<{
                   </div>
                 )}
               </div>
+            ) : previewTab === "ai" ? (
+              <div className="preview-body">
+                <div className="preview-ai-actions">
+                  <h4>⚡ Phân tích tài liệu AI</h4>
+                  <button
+                    className="preview-ai-btn"
+                    onClick={() => onStartReview([activePaper.id])}
+                  >
+                    📝 Review tự động
+                  </button>
+                  <button
+                    className="preview-ai-btn"
+                    onClick={() => onStartCritique([activePaper.id])}
+                  >
+                    🔍 Phê bình
+                  </button>
+                  {onStartDebate && (
+                    <button
+                      className="preview-ai-btn"
+                      onClick={() => onStartDebate([activePaper.id])}
+                    >
+                      🗣️ Tranh luận AI
+                    </button>
+                  )}
+                  {onStartWow && (
+                    <button
+                      className="preview-ai-btn"
+                      onClick={() => onStartWow(activePaper.id)}
+                    >
+                      💥 Wow Analysis
+                    </button>
+                  )}
+                  <button
+                    className="preview-ai-btn"
+                    onClick={() => onStartChat([activePaper.id])}
+                  >
+                    💬 Hỏi AI về paper này
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="pdf-iframe-container">
                 <iframe
@@ -854,7 +1027,7 @@ export const LibraryView: React.FC<{
           <div className="preview-empty">
             <IconFileText size={48} />
             <h3>Chưa chọn tài liệu</h3>
-            <p>Chọn một tài liệu trong danh sách bên trái để xem thông tin chi tiết và đọc nội dung PDF.</p>
+            <p>Chọn một tài liệu trong danh sách bên trái để xem thông tin chi tiết và đọc nội dung tài liệu.</p>
           </div>
         )}
       </div>

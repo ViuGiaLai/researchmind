@@ -78,7 +78,21 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-1.5-flash"
     
-    # Free Cloud settings (uses Gemini)
+    # NVIDIA NIM (OpenAI-compatible)
+    nvidia_api_key: str = ""
+    nvidia_model: str = "moonshotai/kimi-k2.6"
+    nvidia_url: str = "https://integrate.api.nvidia.com/v1"
+    
+    # Groq Cloud
+    groq_api_key: str = ""
+    groq_model: str = "llama-3.1-8b-instant"
+
+    # FreeModel.dev Cloud (OpenAI-compatible proxy)
+    freemodel_api_key: str = ""
+    freemodel_model: str = "gpt-4o-mini"
+    freemodel_url: str = "https://api.freemodel.dev/v1"
+    
+    # Free Cloud settings (tries Groq → Gemini → FreeModel → Ollama)
     free_cloud_daily_limit: int = 10
     
     # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (Ollama)

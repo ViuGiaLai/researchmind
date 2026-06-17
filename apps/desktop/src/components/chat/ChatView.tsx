@@ -13,6 +13,8 @@ import {
   IconBook,
 } from "../Icons";
 import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
+import { useToast } from "../shared/Toast";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 interface Message {
   role: "user" | "assistant";
@@ -55,6 +57,7 @@ export const ChatView: React.FC<{
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [exportingSynthesis, setExportingSynthesis] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     loadUsage();
@@ -62,8 +65,12 @@ export const ChatView: React.FC<{
 
   useEffect(() => {
     if (initialQuery && paperIds.length > 0) {
+      let cancelled = false;
       setInput(initialQuery);
-      handleSend(initialQuery);
+      const timer = setTimeout(() => {
+        if (!cancelled) handleSend(initialQuery);
+      }, 0);
+      return () => { cancelled = true; clearTimeout(timer); };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery, paperIds.join(",")]);
@@ -239,7 +246,7 @@ export const ChatView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export synthesis report:", e);
-      alert("❌ Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.");
+      toast.addToast("error", "❌ Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.");
     } finally {
       setExportingSynthesis(false);
     }
@@ -296,12 +303,7 @@ export const ChatView: React.FC<{
   ];
 
   const formatContent = (text: string) => {
-    return text.split("\n").map((line, i) => (
-      <React.Fragment key={i}>
-        {i > 0 && <br />}
-        {line}
-      </React.Fragment>
-    ));
+    return <MarkdownRenderer text={text} />;
   };
 
   const renderDebate = (text: string) => {

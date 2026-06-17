@@ -24,6 +24,7 @@ os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 import sys
 from pathlib import Path
@@ -40,6 +41,7 @@ from loguru import logger
 import shutil
 import uuid
 import re
+import asyncio
 import threading
 from collections import Counter
 from datetime import datetime, timedelta, time
@@ -47,7 +49,7 @@ from datetime import datetime, timedelta, time
 from config.settings import settings
 from db.database import get_engine, get_session
 from db.models import Base, Paper, Chunk, ChatHistory, Setting
-from ingestion.parser import extract_pdf
+from ingestion.parser import extract_document, SUPPORTED_EXTENSIONS
 from ingestion.chunker import chunk_text
 from ingestion.embedder import get_embedder
 from search.bm25 import BM25Search
@@ -79,11 +81,27 @@ state = AppState()
 # ─── Lifespan ────────────────────────────────────────────────────
 
 def load_persisted_settings():
-    """Load settings from SQLite database on startup."""
+    """Load settings from SQLite database on startup.
+
+    Only loads UI/preference settings, NOT connection/security settings
+    which should always come from .env file.
+    """
+    # These keys ALWAYS come from .env, never from SQLite persistence
+    env_only_keys = {
+        "ollama_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
+        "groq_api_key", "freemodel_api_key",
+        "ollama_model", "claude_model", "deepseek_model", "gemini_model",
+        "groq_model", "freemodel_model",
+        "model_tier_weak", "model_tier_medium", "model_tier_strong",
+        "llm_mode", "custom_cloud_provider",
+    }
+
     session = get_session(state.engine)
     try:
         db_settings = session.query(Setting).all()
         for s in db_settings:
+            if s.key in env_only_keys:
+                continue
             if hasattr(settings, s.key):
                 default_val = getattr(settings, s.key)
                 if isinstance(default_val, bool):
@@ -94,11 +112,7 @@ def load_persisted_settings():
                     setattr(settings, s.key, float(s.value))
                 else:
                     setattr(settings, s.key, s.value)
-        
-        # Ensure default Gemini key is set if empty
-        if not settings.gemini_api_key:
-            settings.gemini_api_key = ""
-            
+
         logger.info("Loaded persisted settings from SQLite successfully")
     except Exception as e:
         logger.error(f"Failed to load persisted settings: {e}")
@@ -161,6 +175,17 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Search engines initialized")
 
+    # Warm-up cross-encoder in background to avoid delay on first search
+    def _warmup_cross_encoder():
+        try:
+            logger.info("Warming up cross-encoder model...")
+            state.hybrid._get_cross_encoder()
+            logger.info("Cross-encoder model ready")
+        except Exception as e:
+            logger.error(f"Failed to load cross-encoder: {e}")
+
+    threading.Thread(target=_warmup_cross_encoder, daemon=True).start()
+
     # Store engine in app.state for dependency injection in routers
     app.state.engine = state.engine
 
@@ -175,10 +200,30 @@ async def lifespan(app: FastAPI):
         deepseek_model=settings.deepseek_model,
         gemini_api_key=settings.gemini_api_key,
         gemini_model=settings.gemini_model,
+        groq_api_key=settings.groq_api_key,
+        groq_model=settings.groq_model,
+        nvidia_api_key=settings.nvidia_api_key,
+        nvidia_model=settings.nvidia_model,
+        nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
+        freemodel_api_key=settings.freemodel_api_key,
+        freemodel_model=settings.freemodel_model,
+        freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
         mode=settings.llm_mode,
         custom_cloud_provider=settings.custom_cloud_provider,
     )
     logger.info("RAG pipeline initialized")
+
+    # Suggest GPU acceleration if applicable
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["ollama", "show", settings.ollama_model],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0:
+            logger.info(f"Ollama model '{settings.ollama_model}' ready")
+    except Exception:
+        pass
 
     yield
 
@@ -271,27 +316,28 @@ def _count_chunks() -> int:
 # ─── Paper Import ────────────────────────────────────────────────
 
 @app.post("/api/papers/import")
-async def import_pdf(
+async def import_document(
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = None,
 ):
-    """Import a single PDF file."""
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    """Import a single document (PDF, DOCX, TXT, MD, HTML, EPUB)."""
+    ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+        )
 
-    # Save uploaded file
     file_id = str(uuid.uuid4())
     save_path = settings.papers_dir / f"{file_id}_{file.filename}"
 
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Extract text
-    doc = extract_pdf(str(save_path))
+    doc = await asyncio.to_thread(extract_document, str(save_path))
     if doc is None:
-        raise HTTPException(status_code=400, detail=f"Cannot parse PDF: {file.filename}")
+        raise HTTPException(status_code=400, detail=f"Cannot parse file: {file.filename}")
 
-    # Save paper metadata
     session = get_session(state.engine)
     try:
         paper = Paper(
@@ -316,7 +362,6 @@ async def import_pdf(
     finally:
         session.close()
 
-    # Chunk, embed, store (in background)
     background_tasks.add_task(_index_paper, file_id, doc)
 
     return {
@@ -334,36 +379,41 @@ async def import_folder(
     folder_path: str = Body(..., embed=True),
     background_tasks: BackgroundTasks = None,
 ):
-    """Import all PDFs from a folder."""
+    """Import all supported documents from a folder."""
     folder = Path(folder_path)
     if not folder.exists() or not folder.is_dir():
         raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
 
-    pdf_files = list(folder.glob("*.pdf")) + list(folder.glob("*.PDF"))
-    if not pdf_files:
-        raise HTTPException(status_code=400, detail="No PDF files found in the folder")
+    doc_files = []
+    for ext in SUPPORTED_EXTENSIONS:
+        doc_files.extend(folder.glob(f"*{ext}"))
+        doc_files.extend(folder.glob(f"*{ext.upper()}"))
+    doc_files = sorted(set(doc_files))  # deduplicate
+
+    if not doc_files:
+        raise HTTPException(status_code=400, detail="No supported documents found in the folder")
 
     import_results = []
-    for pdf_file in pdf_files:
+    for doc_file in doc_files:
         try:
-            doc = extract_pdf(str(pdf_file))
+            doc = await asyncio.to_thread(extract_document, str(doc_file))
             if doc is None:
                 import_results.append({
-                    "filename": pdf_file.name,
+                    "filename": doc_file.name,
                     "status": "failed",
-                    "error": "Cannot parse PDF",
+                    "error": "Cannot parse document",
                 })
                 continue
 
             file_id = str(uuid.uuid4())
-            save_path = settings.papers_dir / f"{file_id}_{pdf_file.name}"
-            shutil.copy2(str(pdf_file), str(save_path))
+            save_path = settings.papers_dir / f"{file_id}_{doc_file.name}"
+            shutil.copy2(str(doc_file), str(save_path))
 
             session = get_session(state.engine)
             try:
                 paper = Paper(
                     id=file_id,
-                    filename=pdf_file.name,
+                    filename=doc_file.name,
                     title=doc.title,
                     authors=doc.authors,
                     year=doc.year,
@@ -379,7 +429,7 @@ async def import_folder(
             except Exception as e:
                 session.rollback()
                 import_results.append({
-                    "filename": pdf_file.name,
+                    "filename": doc_file.name,
                     "status": "failed",
                     "error": str(e),
                 })
@@ -389,7 +439,7 @@ async def import_folder(
 
             background_tasks.add_task(_index_paper, file_id, doc)
             import_results.append({
-                "filename": pdf_file.name,
+                "filename": doc_file.name,
                 "status": "indexing",
                 "paper_id": file_id,
                 "pages": doc.page_count,
@@ -397,13 +447,13 @@ async def import_folder(
 
         except Exception as e:
             import_results.append({
-                "filename": pdf_file.name,
+                "filename": doc_file.name,
                 "status": "error",
                 "error": str(e),
             })
 
     return {
-        "total": len(pdf_files),
+        "total": len(doc_files),
         "results": import_results,
     }
 
@@ -637,7 +687,7 @@ async def get_paper_file(paper_id: str):
         path = Path(paper.file_path)
         if not path.exists():
             raise HTTPException(status_code=404, detail="PDF file not found on disk")
-        return FileResponse(path, media_type="application/pdf", filename=paper.filename)
+        return FileResponse(path, media_type="application/pdf")
     finally:
         session.close()
 
@@ -671,7 +721,7 @@ async def find_related_papers(paper_id: str, limit: int = Query(5)):
                 ids=chunk_ids,
                 include=["embeddings"],
             )
-            if not results["ids"] or not results["embeddings"]:
+            if not results["ids"] or len(results["embeddings"]) == 0:
                 return {"related_papers": [], "paper_id": paper_id}
             
             query_embedding = results["embeddings"][0]
@@ -744,7 +794,8 @@ async def search(query: dict = Body(...)):
     if not text.strip():
         raise HTTPException(status_code=400, detail="Query text is required")
 
-    results = state.hybrid.search(
+    results = await asyncio.to_thread(
+        state.hybrid.search,
         query=text,
         paper_ids=paper_ids,
         top_k=top_k,
@@ -801,6 +852,8 @@ def count_free_queries_today(session) -> int:
 @app.post("/api/chat")
 async def chat(request: dict = Body(...)):
     """Chat with selected papers using RAG pipeline."""
+    import time
+    t0 = time.time()
     message = request.get("message", "")
     paper_ids = request.get("paper_ids")  # Optional list of paper IDs
     stream = request.get("stream", False)
@@ -822,12 +875,16 @@ async def chat(request: dict = Body(...)):
         finally:
             session.close()
 
-    # Retrieve relevant context
-    retrieval = state.retriever.retrieve(
+    # Retrieve relevant context (run in thread to avoid blocking event loop)
+    t1 = time.time()
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query=message,
         paper_ids=paper_ids,
         top_k=5,
     )
+    t2 = time.time()
+    logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
 
     if stream:
         return StreamingResponse(
@@ -835,11 +892,14 @@ async def chat(request: dict = Body(...)):
             media_type="text/event-stream",
         )
 
-    # Generate response
-    generation = state.generator.generate(
+    # Generate response (run in thread to avoid blocking event loop)
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=message,
         context_text=retrieval.context_text,
     )
+    t3 = time.time()
+    logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")
 
     # Save to SQLite chat history
     session = get_session(state.engine)
@@ -898,13 +958,15 @@ Trả về kết quả với cấu trúc sau:
 
 Lưu ý: chỉ dùng thông tin từ các đoạn đã cung cấp, nêu rõ trích dẫn nguồn [Tên Paper] khi cần. Giữ văn phong học thuật, súc tích và dễ hiểu."""
 
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query=query,
         paper_ids=paper_ids,
         top_k=settings.top_k_retrieval,
     )
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=query,
         context_text=retrieval.context_text,
     )
@@ -969,13 +1031,15 @@ Trả về kết quả theo dạng gạch đầu dòng, mỗi điểm ngắn g�
     else:
         full_query = critique_prompt
 
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query=full_query,
         paper_ids=paper_ids,
         top_k=settings.top_k_retrieval,
     )
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=full_query,
         context_text=retrieval.context_text,
     )
@@ -1060,7 +1124,8 @@ Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạ
     else:
         full_query = debate_prompt
 
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query=full_query,
         paper_ids=paper_ids,
         top_k=settings.top_k_retrieval,
@@ -1072,7 +1137,8 @@ Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạ
         # Fallback: allow LLM to generate debate from general knowledge
         context_for_generation = "[Không có tài liệu được chọn. Hãy tạo cuộc tranh luận dựa trên kiến thức chung.]"
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=full_query,
         context_text=context_for_generation,
     )
@@ -1256,6 +1322,10 @@ async def get_settings():
         "deepseek_model": settings.deepseek_model,
         "gemini_api_key": "***" if settings.gemini_api_key else "",
         "gemini_model": settings.gemini_model,
+        "groq_api_key": "***" if settings.groq_api_key else "",
+        "groq_model": settings.groq_model,
+        "freemodel_api_key": "***" if settings.freemodel_api_key else "",
+        "freemodel_model": settings.freemodel_model,
         "custom_cloud_provider": settings.custom_cloud_provider,
         "model_tier_weak": settings.model_tier_weak,
         "model_tier_medium": settings.model_tier_medium,
@@ -1276,9 +1346,10 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                # Do not overwrite keys if sent as mask
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key") and value == "***":
-                    continue
+                # Do not overwrite keys if sent as mask or empty (frontend sends "" for masked keys)
+                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "freemodel_api_key"):
+                    if value == "***" or (not value and getattr(settings, key, None)):
+                        continue
                 setattr(settings, key, value)
                 # Persist to DB
                 setting = session.query(Setting).filter(Setting.key == key).first()
@@ -1298,6 +1369,14 @@ async def update_settings(new_settings: dict = Body(...)):
             deepseek_model=settings.deepseek_model,
             gemini_api_key=settings.gemini_api_key,
             gemini_model=settings.gemini_model,
+            groq_api_key=settings.groq_api_key,
+            groq_model=settings.groq_model,
+            nvidia_api_key=settings.nvidia_api_key,
+            nvidia_model=settings.nvidia_model,
+            nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
+            freemodel_api_key=settings.freemodel_api_key,
+            freemodel_model=settings.freemodel_model,
+            freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
             mode=settings.llm_mode,
             custom_cloud_provider=settings.custom_cloud_provider,
         )
@@ -2926,7 +3005,8 @@ async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
             raise HTTPException(status_code=404, detail="Paper not found")
 
         # Retrieve chunks from this specific paper
-        retrieval = state.retriever.retrieve(
+        retrieval = await asyncio.to_thread(
+            state.retriever.retrieve,
             query="key findings methodology results conclusion abstract introduction important contributions novel results findings limitations weaknesses",
             paper_ids=[paper_id],
             top_k=20,
@@ -2964,7 +3044,8 @@ CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng
 
 Nội dung paper:\n{retrieval.context_text}"""
 
-        generation = state.generator.generate(
+        generation = await asyncio.to_thread(
+            state.generator.generate,
             query=highlight_prompt,
             context_text=retrieval.context_text,
         )
