@@ -130,10 +130,19 @@ class VectorSearch:
         self._ensure_client()
         try:
             self._client.delete_collection("paper_chunks")
-            self._collection = None
             logger.info("Deleted ChromaDB collection 'paper_chunks' for reset")
         except Exception as e:
             logger.warning(f"ChromaDB collection deletion failed or collection not found: {e}")
+        # Recreate collection immediately to avoid stale cache issues
+        try:
+            self._collection = self._client.create_collection(
+                name="paper_chunks",
+                metadata={"hnsw:space": "cosine"},
+            )
+            logger.info("Recreated ChromaDB collection 'paper_chunks'")
+        except Exception as e:
+            logger.error(f"Failed to recreate ChromaDB collection: {e}")
+            self._collection = None
 
     def count(self) -> int:
         """Get total number of chunks in the collection."""

@@ -259,3 +259,11 @@ ResearchMind được thiết kế theo triết lý Local-First:
 MIT License
 
 Copyright (c) ResearchMind VN
+
+---
+
+# Tóm tắt Đề tài & Định hướng Phát triển
+
+| TÊN ĐỀ TÀI | LÝ DO CHỌN | NGÔN NGỮ THỰC HIỆN | SINH VIÊN CÓ Ý KIẾN, YÊU CẦU THÊM |
+| :--- | :--- | :--- | :--- |
+| **ResearchMind VN**<br>*(Trợ lý nghiên cứu AI Local-first cho học giả Việt Nam)* | - Học viên cao học & NCS phải đọc hàng trăm tài liệu mỗi năm nhưng gặp khó khăn khi tìm kiếm ngữ nghĩa, kết nối ý tưởng chéo và tóm tắt luận điểm.<br>- Các công cụ cloud (NotebookLM, Notion AI) dễ lộ dữ liệu nghiên cứu nhạy cảm, hỗ trợ tiếng Việt kém hoặc chi phí cao.<br>- **Giải pháp**: Xây dựng trợ lý AI chạy offline hoàn toàn (Local-first), bảo mật dữ liệu tuyệt đối và tối ưu cho tiếng Việt. | - **Python**: Backend & Core AI Pipeline (*FastAPI, PyMuPDF, ChromaDB, SQLite, Sentence-Transformers*).<br>- **Rust**: Desktop Shell (*Tauri v2* giúp app siêu nhẹ).<br>- **TypeScript/JavaScript**: Frontend UI (*React 19, Tailwind CSS, shadcn/ui*). | - Định hướng sản phẩm không chỉ là "nhớ + search + chat" mà phải tập trung vào **"giúp hiểu + giúp nghĩ + giúp viết"**.<br>- **Yêu cầu thêm các tính năng đột phá (Killer Features)**:<br>  1. *Auto Literature Review Builder*: Tự động tổng hợp tài liệu (Background, Methods, Gaps, Insights) giúp tiết kiệm 50-70% thời gian đọc.<br>  2. *AI Phản biện (Critical Thinking)*: Đánh giá điểm hạn chế, lỗ hổng phương pháp của bài báo.<br>  3. *Debate Mode (AI vs AI)*: Tranh luận đa chiều giữa các Persona AI để gợi mở hướng đi mới.<br>  4. *Xuất báo cáo đa định dạng*: Cho phép xuất kết quả ra Word (`.docx`), Web (`.html`), Markdown (`.md`).<br>  5. *Tích hợp thêm*: Zotero Import và OCR cho PDF scan ở các giai đoạn tiếp theo. |

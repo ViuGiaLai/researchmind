@@ -5,7 +5,7 @@
  * Backend runs at http://127.0.0.1:8765 by default.
  */
 
-const BASE_URL = "http://127.0.0.1:8765";
+const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
 
 async function request<T>(
   method: string,

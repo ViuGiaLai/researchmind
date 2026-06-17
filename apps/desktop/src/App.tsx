@@ -34,14 +34,17 @@ function App() {
       if (!s.setup_completed) {
         setShowSetup(true);
       }
+      setCheckingSetup(false);
     } catch {
       // Retry up to 5 times with 2s delay
       retryCountRef.current += 1;
       if (retryCountRef.current < 5) {
         setTimeout(checkFirstRun, 2000);
+      } else {
+        setCheckingSetup(false);
+        // If backend never responded, show wizard anyway for fresh setup
+        setShowSetup(true);
       }
-    } finally {
-      setCheckingSetup(false);
     }
   };
 
