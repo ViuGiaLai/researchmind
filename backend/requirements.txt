@@ -19,7 +19,7 @@ chromadb==0.6.*
 httpx==0.28.*
 
 # System info
-psutil==6.*
+psutil==7.*
 
 # DOCX Import / Export
 python-docx==1.1.*
