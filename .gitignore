@@ -9,8 +9,7 @@ dist/
 build/
 out/
 
-# Tauri bundled resources (built in CI)
-apps/desktop/src-tauri/resources/
+
 
 # Vite
 .vite/
