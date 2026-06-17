@@ -21,6 +21,7 @@ function App() {
   const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate">("chat");
   const [showSetup, setShowSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
+  const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
   const retryCountRef = React.useRef(0);
 
   useEffect(() => {
@@ -29,20 +30,19 @@ function App() {
 
   const checkFirstRun = async () => {
     try {
+      const h = await api.health();
+      setInitMessage(h.init_message || "Đang khởi động...");
       const s = await api.getSettings();
-      // Show wizard if onboarding setup is not completed yet
       if (!s.setup_completed) {
         setShowSetup(true);
       }
       setCheckingSetup(false);
     } catch {
-      // Retry up to 5 times with 2s delay
       retryCountRef.current += 1;
       if (retryCountRef.current < 5) {
         setTimeout(checkFirstRun, 2000);
       } else {
         setCheckingSetup(false);
-        // If backend never responded, show wizard anyway for fresh setup
         setShowSetup(true);
       }
     }
@@ -89,8 +89,8 @@ function App() {
         {checkingSetup && !showSetup && (
           <div className="app-loading">
             <div className="app-loading-content">
-              <IconBrain size={48} className="icon-gradient" style={{ marginBottom: 16 }} />
-              <p>Đang khởi động ResearchMind VN...</p>
+              <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
+              <p>{initMessage}</p>
             </div>
           </div>
         )}
@@ -109,7 +109,7 @@ function App() {
         
         <nav className="sidebar-menu">
           {[
-            { tab: "wow" as Tab, icon: IconSparkle, label: "Phân tích WOW" },
+            { tab: "wow" as Tab, icon: IconSparkle, label: "Phân tích tài liệu AI" },
             { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
             { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },

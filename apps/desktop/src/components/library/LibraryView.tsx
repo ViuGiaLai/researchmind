@@ -479,7 +479,7 @@ export const LibraryView: React.FC<{
                     }}
                   >
                     <IconSparkle size={14} />
-                    <span>⚡ Phân tích WOW</span>
+                    <span>⚡ Phân tích tài liệu AI</span>
                   </button>
                 )}
                 <button

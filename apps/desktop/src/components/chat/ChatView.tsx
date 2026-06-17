@@ -12,6 +12,7 @@ import {
   IconStar,
   IconBook,
 } from "../Icons";
+import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
 
 interface Message {
   role: "user" | "assistant";
@@ -123,9 +124,18 @@ export const ChatView: React.FC<{
       setMessages((prev) => [...prev, assistantMsg]);
       loadUsage();
     } catch (e) {
+      const errorText = e instanceof Error ? e.message : "Không thể kết nối đến backend";
+      const isOllamaError = /ollama/i.test(errorText) || /11434/i.test(errorText);
+      let content = `❌ Lỗi: ${errorText}`;
+      if (isOllamaError) {
+        content = `❌ ${errorText}`;
+      } else {
+        content += `\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
+      }
       const errMsg: Message = {
         role: "assistant",
-        content: `❌ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối đến backend"}\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``,
+        content,
+        model_used: isOllamaError ? "ollama_error" : undefined,
       };
       setMessages((prev) => [...prev, errMsg]);
     } finally {
@@ -604,6 +614,14 @@ export const ChatView: React.FC<{
             <div className="chat-view-bubble">
               {initialMode === "debate" && msg.role === "assistant" ? (
                 renderDebate(msg.content)
+              ) : msg.role === "assistant" && msg.model_used === "ollama_error" ? (
+                <div style={{ padding: "8px 0" }}>
+                  <OllamaErrorBanner
+                    title={msg.content.replace(/^❌ /, "")}
+                    onRetry={() => handleSend(input || undefined)}
+                    showDocLink
+                  />
+                </div>
               ) : (
                 <>
                   <div className="chat-view-text">
@@ -623,7 +641,7 @@ export const ChatView: React.FC<{
                 </>
               )}
 
-              {msg.role === "assistant" && (
+              {msg.role === "assistant" && msg.model_used !== "ollama_error" && (
                 <div className="chat-view-model-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "8px", fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)" }}>
                   <div>{msg.model_used ? `🤖 ${msg.model_used}` : "🤖 Assistant"}</div>
                   <div style={{ display: "flex", gap: "10px" }}>

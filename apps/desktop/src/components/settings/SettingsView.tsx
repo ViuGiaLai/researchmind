@@ -17,6 +17,7 @@ import {
   IconRefresh,
   IconTrash,
 } from "../Icons";
+import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
 
@@ -632,6 +633,12 @@ export const SettingsView: React.FC = () => {
               <code className="settings-quick-code">ollama pull {ollamaModel}</code>
               <code className="settings-quick-code">ollama serve</code>
             </div>
+            <OllamaErrorBanner
+              compact
+              showDocLink
+              title="Cần hỗ trợ kết nối Ollama?"
+              message="Đảm bảo Ollama đang chạy ngầm trước khi sử dụng."
+            />
           </div>
         )}
 

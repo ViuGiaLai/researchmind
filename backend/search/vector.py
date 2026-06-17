@@ -10,6 +10,7 @@ from loguru import logger
 class VectorResult:
     chunk_id: str
     paper_id: str
+    paper_title: str
     chunk_index: int
     content: str
     page_number: Optional[int]
@@ -112,6 +113,7 @@ class VectorSearch:
             vector_results.append(VectorResult(
                 chunk_id=chunk_id,
                 paper_id=metadata.get("paper_id", ""),
+                paper_title=metadata.get("paper_title", ""),
                 chunk_index=int(metadata.get("chunk_index", 0)),
                 content=document,
                 page_number=metadata.get("page_number"),

@@ -93,6 +93,8 @@ export interface HealthResponse {
   ollama_model: string;
   total_papers: number;
   total_chunks: number;
+  embedder_ready?: boolean;
+  init_message?: string;
 }
 
 export interface Highlight {

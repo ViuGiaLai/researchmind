@@ -71,7 +71,8 @@ export function useChat() {
       // Add error as assistant message
       const errorMsg: ChatMessage = {
         role: "assistant",
-        content: `❌ ${errMsg}\n\n> 💡 Hãy đảm bảo Ollama đang chạy. Gõ \`ollama serve\` trong terminal.`,
+        content: `❌ ${errMsg}\n\n> 💡 Cách khắc phục:\n> 1. Mở terminal và chạy: \`ollama serve\`\n> 2. Kiểm tra kết nối: \`ollama list\`\n> 3. Nếu chưa cài: https://ollama.com/download`,
+        context_files: ["ollama_error"],
         created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);

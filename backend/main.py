@@ -40,6 +40,7 @@ from loguru import logger
 import shutil
 import uuid
 import re
+import threading
 from collections import Counter
 from datetime import datetime, timedelta, time
 
@@ -69,6 +70,8 @@ class AppState:
         self.retriever = None
         self.generator = None
         self.embedder = None
+        self.embedder_ready = False
+        self.init_message = "Khởi động..."
 
 state = AppState()
 
@@ -127,6 +130,22 @@ async def lifespan(app: FastAPI):
 
     # Embedder (lazy-loaded, just init placeholder)
     state.embedder = get_embedder(settings.embedding_model)
+    state.init_message = "Đang tải mô hình AI..."
+
+    # Warm-up model in background to avoid delay on first search
+    def _warmup_embedder():
+        try:
+            logger.info(f"Warming up embedding model: {settings.embedding_model}")
+            state.embedder._load_model()
+            state.embedder_ready = True
+            state.init_message = "Sẵn sàng"
+            logger.info("Embedding model ready")
+        except Exception as e:
+            logger.error(f"Failed to load embedding model: {e}")
+            state.embedder_ready = True  # allow app to proceed anyway
+            state.init_message = "Sẵn sàng (model lỗi)"
+
+    threading.Thread(target=_warmup_embedder, daemon=True).start()
 
     # Search engines
     db_session = get_session(state.engine)
@@ -224,6 +243,8 @@ async def health():
         "ollama_model": settings.ollama_model,
         "total_papers": _count_papers(),
         "total_chunks": _count_chunks(),
+        "embedder_ready": state.embedder_ready,
+        "init_message": state.init_message,
     }
 
 

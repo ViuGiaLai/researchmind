@@ -19,6 +19,7 @@ import {
   IconSettings,
   IconDownload,
 } from "../Icons";
+import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
 import "./AISetupWizard.css";
 
 interface Props {
@@ -661,14 +662,12 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
             
             {localStatus === "ollama_unreachable" ? (
               <div className="aiwizard-ollama-unreachable-premium">
-                <div className="error-banner">
-                  <IconError size={24} />
-                  <span>Không tìm thấy dịch vụ Ollama đang chạy!</span>
-                </div>
-                
-                <p className="local-setup-desc">
-                  Chế độ AI Cục bộ chạy hoàn toàn trên máy tính của bạn và yêu cầu ứng dụng <strong>Ollama</strong> hoạt động dưới nền. Vui lòng thực hiện theo các bước sau:
-                </p>
+                <OllamaErrorBanner
+                  title="Không tìm thấy dịch vụ Ollama đang chạy!"
+                  message="Chế độ AI Cục bộ chạy hoàn toàn trên máy tính của bạn và yêu cầu ứng dụng Ollama hoạt động dưới nền."
+                  showCommands
+                  showDocLink
+                />
 
                 <div className="stepper-guide">
                   <div className="guide-card">
@@ -997,7 +996,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 <div className="quick-start-card">
                   <div className="card-icon"><IconSparkle size={20} /></div>
                   <div className="card-text">
-                    <h5>Phân tích WOW</h5>
+                    <h5>Phân tích tài liệu AI</h5>
                     <p>Khám phá nhanh đóng góp cốt lõi (Core claims), phương pháp đột phá của từng paper trong tích tắc.</p>
                   </div>
                 </div>

@@ -10,6 +10,7 @@ import {
 } from "../Icons";
 import type { HealthStatus } from "../../hooks/useOllamaConfig";
 import type { OllamaConfig } from "../../hooks/useOllamaConfig";
+import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
 
 interface SettingsPanelProps {
   config: OllamaConfig;
@@ -132,11 +133,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="settings-health-indicator" style={{ background: healthColor }} />
           <div className="settings-health-info">
             <span className="settings-health-label">{healthLabel}</span>
-            {(health === "disconnected" || health === "unknown") && (
-              <span className="settings-health-hint">
-                Chạy <code>ollama serve</code> trong terminal
-              </span>
-            )}
           </div>
           <button
             className="settings-health-btn"
@@ -147,6 +143,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <span>Kiểm tra</span>
           </button>
         </div>
+
+        {(health === "disconnected" || health === "unknown") && (
+          <OllamaErrorBanner
+            onRetry={handleCheckHealth}
+            retryLoading={false}
+          />
+        )}
 
         {/* URL */}
         <div className="settings-field">

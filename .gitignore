@@ -9,6 +9,9 @@ dist/
 build/
 out/
 
+# Tauri bundled resources (built in CI)
+apps/desktop/src-tauri/resources/
+
 # Vite
 .vite/
 
@@ -52,3 +55,6 @@ __pycache__/
 
 # Blackbox
 .blackbox
+
+# nhật ký
+.nhat-ky-thuc-tap
