@@ -1,6 +1,6 @@
+import { describe, it, expect } from "vitest";
 import { parseDebate } from "./debateParser";
 
-// Sample debate response from the backend
 const sampleDebateResponse = `AI A (Ủng hộ):
 • Luận điểm chính: Transformer vượt trội vì khả năng song song và mô hình hóa phụ thuộc dài hạn hiệu quả hơn RNN. [Vaswani et al. 2017, trang 5] Transformer xử lý toàn bộ chuỗi cùng lúc thay vì tuần tự, cho phép training nhanh hơn và khả năng học pattern dài hạn tốt hơn.
 • Phản biện ngắn: RNN có chi phí tính toán cao khi xử lý chuỗi dài và dễ gặp vấn đề vanishing gradient. Transformer không có vấn đề này nhờ cơ chế attention.
@@ -17,25 +17,32 @@ Kết luận:
 2. Ablation: so sánh phiên bản Transformer đã nén/quantize với RNN để kiểm tra trade-off chi phí-hiệu suất.
 3. Kiểm tra robustness: đánh giá trên dữ liệu nhiễu và chuỗi dài để đo ảnh hưởng của overfitting và memory bandwidth.`;
 
-const parsed = parseDebate(sampleDebateResponse);
+describe("debateParser", () => {
+  it("parses AI A main argument and rebuttal", () => {
+    const result = parseDebate(sampleDebateResponse);
+    expect(result.aiA?.main).toContain("Transformer vượt trội");
+    expect(result.aiA?.rebuttal).toContain("vanishing gradient");
+  });
 
-console.log("=== Parsed Debate ===");
-console.log("\nAI A (Ủng hộ):");
-console.log("Main:", parsed.aiA?.main);
-console.log("Rebuttal:", parsed.aiA?.rebuttal);
-console.log("Citations:", parsed.aiA?.citations);
+  it("parses AI B main argument and rebuttal", () => {
+    const result = parseDebate(sampleDebateResponse);
+    expect(result.aiB?.main).toContain("RNN vẫn hiệu quả");
+    expect(result.aiB?.rebuttal).toContain("tinh chỉnh");
+  });
 
-console.log("\nAI B (Phản biện):");
-console.log("Main:", parsed.aiB?.main);
-console.log("Rebuttal:", parsed.aiB?.rebuttal);
-console.log("Citations:", parsed.aiB?.citations);
+  it("extracts citations", () => {
+    const result = parseDebate(sampleDebateResponse);
+    expect(result.aiA?.citations?.length).toBeGreaterThanOrEqual(1);
+    expect(result.aiA?.citations?.[0].source).toBe("Vaswani et al. 2017");
+  });
 
-console.log("\nConclusion:");
-console.log(parsed.conclusion);
+  it("parses conclusion", () => {
+    const result = parseDebate(sampleDebateResponse);
+    expect(result.conclusion).toContain("Transformer thường tốt hơn");
+  });
 
-console.log("\n3 Suggestions:");
-parsed.suggestions.forEach((s: string, i: number) => {
-  console.log(`${i + 1}. ${s}`);
+  it("parses suggestions", () => {
+    const result = parseDebate(sampleDebateResponse);
+    expect(result.suggestions?.length).toBe(3);
+  });
 });
-
-console.log("\n=== Test Passed ===");
