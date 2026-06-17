@@ -3,6 +3,13 @@ name: Build ResearchMind Desktop
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "apps/desktop/**"
+      - "backend/**"
+      - "docs/**"
+      - ".github/**"
+      - "Cargo.toml"
+      - "backend.spec"
     tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
@@ -12,7 +19,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'apps/desktop/src/**'
+              - 'apps/desktop/package.json'
+              - 'apps/desktop/pnpm-lock.yaml'
+              - 'apps/desktop/vite.config.ts'
+            backend:
+              - 'backend/**'
+              - 'backend.spec'
+            rust:
+              - 'apps/desktop/src-tauri/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
   lint-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,16 +65,20 @@ jobs:
         working-directory: apps/desktop
 
   test-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install -r backend/requirements.txt pytest
-      - run: pip install pytest-timeout && pytest test_debate.py test_all_exports.py -v --timeout=120
+      - run: pip install -r backend/requirements.txt pytest pytest-timeout
+      - run: pytest test_debate.py test_all_exports.py -v --timeout=120
         working-directory: backend
 
   lint-rust:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +90,8 @@ jobs:
       - run: cargo fmt --check
 
   build:
-    needs: [lint-frontend, test-backend, lint-rust]
+    needs: [changes, lint-frontend, test-backend, lint-rust]
+    if: github.ref_type == 'tag'
     strategy:
       fail-fast: false
       matrix:
