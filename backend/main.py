@@ -2244,7 +2244,7 @@ async def get_personal_brain():
                 insights.append({
                     "type": "progress",
                     "title": f"Tiến độ đọc: {pct}%",
-                    "description": f"Bạn đã đọc {len(read_papers)}/{total_papers} paper. {"Tuyệt vời!" if pct > 70 else "Cố gắng lên!" if pct > 30 else "Hãy đọc thêm paper nhé!"}",
+                    "description": f"Bạn đã đọc {len(read_papers)}/{total_papers} paper. {'Tuyệt vời!' if pct > 70 else 'Cố gắng lên!' if pct > 30 else 'Hãy đọc thêm paper nhé!'}",
                 })
             
             # Top topic suggestion
