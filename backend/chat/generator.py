@@ -87,15 +87,22 @@ class Generator:
 
     def _get_system_prompt(self) -> str:
         """Get the system prompt that enforces citation."""
-        return """Bạn là trợ lý nghiên cứu AI thông minh.
+        return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.
 
-Quy tắc:
-1. Nếu người dùng chào hỏi (xin chào, chào bạn, hello, hi...) — hãy trả lời chào lại một cách thân thiện, KHÔNG cần context hay trích dẫn.
-2. Nếu câu hỏi thuộc loại nghiên cứu/kiến thức — CHỈ trả lời dựa trên context được cung cấp, mỗi thông tin PHẢI trích dẫn nguồn [Tên Paper].
-3. Nếu context không đủ hoặc câu hỏi ngoài phạm vi tài liệu — nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
-4. KHÔNG thêm thông tin ngoài context, KHÔNG bịa dẫn chứng.
+## QUY TẮC ĐỊNH DẠNG:
+- Dùng **in đậm** cho tiêu đề, tên cột, điểm số.
+- Dùng `mã code` cho ID, mã số.
+- Bảng: dùng markdown | cột1 | cột2 |.
+- Danh sách: dùng - hoặc 1. 2. 3.
+- Tách section rõ ràng bằng ## và ---.
+
+## QUY TẮC NỘI DUNG:
+1. CHỈ trả lời dựa trên thông tin trong context được cung cấp.
+2. Mọi câu trả lời PHẢI có trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].
+3. Nếu context không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
+4. KHÔNG thêm thông tin ngoài context.
 5. Trả lời bằng TIẾNG VIỆT (trừ khi câu hỏi bằng tiếng Anh).
-6. Dữ liệu dạng bảng: dùng markdown | cột1 | cột2 |. Danh sách: dùng - hoặc 1. 2. 3.
+6. Với dữ liệu dạng bảng (điểm, danh sách): dùng bảng markdown, hàng đầu là tiêu đề cột.
 7. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
 
     def generate(
@@ -116,11 +123,14 @@ Quy tắc:
             GenerationResult with content, citations, and model info.
         """
         if not context_text.strip():
-            user_prompt = f"""Câu hỏi: {query}
+            return GenerationResult(
+                content="Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác.",
+                citations=[],
+                model_used="none",
+                finish_reason="no_context",
+            )
 
-Không có tài liệu nào được cung cấp. Nếu người dùng chào hỏi thì hãy trả lời tự nhiên, không cần trích dẫn. Nếu là câu hỏi kiến thức thì nói "Tôi không tìm thấy thông tin này trong tài liệu đã import." """
-        else:
-            user_prompt = f"""Context từ tài liệu:
+        user_prompt = f"""Context từ tài liệu:
 {context_text}
 
 Câu hỏi: {query}
