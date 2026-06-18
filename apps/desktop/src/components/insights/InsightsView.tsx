@@ -37,7 +37,7 @@ const INSIGHT_CARDS = [
     icon: "💡",
     title: "Topic Generator",
     description: "AI đề xuất đề tài nghiên cứu dựa trên thư viện của bạn",
-    color: "#8b5cf6",
+    color: "#2dd4bf",
   },
   {
     id: "evolution",

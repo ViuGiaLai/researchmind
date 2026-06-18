@@ -592,7 +592,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               { key: "summary", label: "✨ Tóm tắt ngay", color: "#10b981" },
               { key: "critique", label: "⚠️ Điểm yếu", color: "#ef4444" },
               { key: "conflict", label: "⚔️ Mâu thuẫn", color: "#f59e0b" },
-              { key: "gap", label: "🕳️ Research Gap", color: "#8b5cf6" },
+              { key: "gap", label: "🕳️ Research Gap", color: "#2dd4bf" },
               { key: "debate", label: "🧠 Tranh luận AI", color: "#06b6d4" },
             ].map((step, idx) => {
               const state = steps[step.key];

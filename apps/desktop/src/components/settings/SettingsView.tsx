@@ -66,6 +66,18 @@ export const SettingsView: React.FC = () => {
   const [stats, setStats] = useState<{ total_papers: number; total_chunks: number; chroma_chunks: number; data_dir?: string } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
 
+  // ── Theme State ──────────────────────────────────────────────
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    try { return (localStorage.getItem("app-theme") as "dark" | "light") || "dark"; } catch { return "dark"; }
+  });
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("app-theme", next); } catch {}
+  };
+
   // ── Data Management State ─────────────────────────────────────
   const [actionLoading, setActionLoading] = useState(false);
   const [storageMsg, setStorageMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -355,6 +367,32 @@ export const SettingsView: React.FC = () => {
             {checking ? <IconSpinner size={16} /> : <IconSearch size={16} />}
             <span>Kiểm tra</span>
           </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">
+          <IconSparkle size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+          Giao diện
+        </h3>
+        <div className="settings-field">
+          <label className="settings-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+            <span>Chế độ sáng / tối</span>
+            <div
+              onClick={toggleTheme}
+              style={{
+                width: 48, height: 26, borderRadius: 13, padding: 3, cursor: "pointer", display: "flex", alignItems: "center",
+                background: theme === "dark" ? "var(--color-primary)" : "var(--color-border)", transition: "background 0.3s ease", flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "transform 0.3s ease",
+                  transform: theme === "dark" ? "translateX(0)" : "translateX(22px)", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }}
+              />
+            </div>
+          </label>
         </div>
       </div>
 

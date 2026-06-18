@@ -15,7 +15,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(15, 23, 42, 0.85);
+  background-color: rgba(var(--color-bg-rgb), 0.85);
   backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
@@ -24,12 +24,12 @@
 }
 
 .wow-loading-card {
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid var(--color-primary, #8b5cf6);
+  background: rgba(var(--color-surface-rgb), 0.9);
+  border: 1px solid var(--color-primary, #2dd4bf);
   border-radius: var(--radius-lg, 16px);
   padding: var(--space-xl, 32px);
   text-align: center;
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 4px 16px rgba(45, 212, 191, 0.15);
   max-width: 450px;
   width: 90%;
   animation: wow-pulse 2s infinite alternate;
@@ -48,7 +48,7 @@
 
 .wow-spin {
   animation: wow-spin-anim 1s linear infinite;
-  color: var(--color-primary, #8b5cf6);
+  color: var(--color-primary, #2dd4bf);
 }
 
 @keyframes wow-spin-anim {
@@ -57,8 +57,8 @@
 }
 
 @keyframes wow-pulse {
-  0% { box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1); }
-  100% { box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2); }
+  0% { box-shadow: 0 4px 12px rgba(45, 212, 191, 0.1); }
+  100% { box-shadow: 0 4px 20px rgba(45, 212, 191, 0.2); }
 }
 
 /* State 1: Landing Dashboard */
@@ -94,8 +94,8 @@
 
 /* Drag and Drop Zone */
 .wow-dropzone {
-  background: rgba(30, 41, 59, 0.4);
-  border: 2px dashed rgba(139, 92, 246, 0.4);
+  background: rgba(var(--color-surface-rgb), 0.6);
+  border: 2px dashed rgba(45, 212, 191, 0.4);
   border-radius: var(--radius-lg, 16px);
   padding: 60px 40px;
   text-align: center;
@@ -114,15 +114,15 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.08), transparent 70%);
+  background: radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.08), transparent 70%);
   z-index: -1;
   pointer-events: none;
 }
 
 .wow-dropzone:hover, .wow-dropzone.drag-over {
-  border-color: var(--color-primary, #8b5cf6);
-  background: rgba(30, 41, 59, 0.65);
-  box-shadow: 0 8px 16px rgba(139, 92, 246, 0.15);
+  border-color: var(--color-primary, #2dd4bf);
+  background: rgba(var(--color-surface-rgb), 0.85);
+  box-shadow: 0 8px 16px rgba(var(--color-primary-rgb), 0.15);
   transform: translateY(-2px);
 }}
 
@@ -158,9 +158,9 @@
 
 .wow-dropzone-badge {
   display: inline-block;
-  background: rgba(139, 92, 246, 0.15);
-  color: var(--color-primary-hover, #9f7aea);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(45, 212, 191, 0.15);
+  color: var(--color-primary-hover, #5eead4);
+  border: 1px solid rgba(45, 212, 191, 0.3);
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -189,13 +189,13 @@
   top: 4px;
   bottom: 4px;
   width: 4px;
-  background: var(--color-primary, #8b5cf6);
+  background: var(--color-primary, #2dd4bf);
   border-radius: 2px;
 }
 
 .wow-library-loading, .wow-library-empty {
   padding: var(--space-xl, 32px);
-  background: rgba(30, 41, 59, 0.3);
+  background: rgba(var(--color-surface-rgb), 0.5);
   border-radius: var(--radius-md, 10px);
   border: 1px solid var(--color-border, #384252);
   color: var(--color-text-secondary, #94a3b8);
@@ -216,7 +216,7 @@
 }
 
 .wow-paper-card-select {
-  background: rgba(30, 41, 59, 0.4);
+  background: rgba(var(--color-surface-rgb), 0.6);
   border: 1px solid var(--color-border, #384252);
   border-radius: var(--radius-md, 10px);
   padding: var(--space-md, 16px);
@@ -231,17 +231,17 @@
 }
 
 .wow-paper-card-select:hover {
-  background: rgba(45, 55, 72, 0.7);
-  border-color: var(--color-primary, #8b5cf6);
+  background: rgba(var(--color-surface-hover-rgb), 0.8);
+  border-color: var(--color-primary, #2dd4bf);
   box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
   transform: translateY(-1px);
 }
 
 .wow-paper-icon {
-  background: rgba(139, 92, 246, 0.15);
+  background: rgba(45, 212, 191, 0.15);
   border-radius: 8px;
   padding: 8px;
-  color: var(--color-primary-hover, #9f7aea);
+  color: var(--color-primary-hover, #5eead4);
   flex-shrink: 0;
 }
 
@@ -272,7 +272,7 @@
   position: absolute;
   right: -50px;
   top: 10px;
-  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  background: linear-gradient(135deg, #2dd4bf, #ec4899);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
@@ -339,7 +339,7 @@
 
 .wow-doc-icon {
   margin-top: 3px;
-  color: var(--color-primary-hover, #9f7aea);
+  color: var(--color-primary-hover, #5eead4);
   flex-shrink: 0;
 }
 
@@ -349,9 +349,9 @@
 }
 
 .wow-action-btn-header {
-  background: rgba(139, 92, 246, 0.15);
-  color: var(--color-primary-hover, #9f7aea);
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(45, 212, 191, 0.15);
+  color: var(--color-primary-hover, #5eead4);
+  border: 1px solid rgba(45, 212, 191, 0.3);
   padding: 8px 16px;
   border-radius: var(--radius-sm, 6px);
   font-weight: 600;
@@ -364,15 +364,15 @@
 }
 
 .wow-action-btn-header:hover {
-  background: var(--color-primary, #8b5cf6);
+  background: var(--color-primary, #2dd4bf);
   color: #fff;
-  border-color: var(--color-primary, #8b5cf6);
+  border-color: var(--color-primary, #2dd4bf);
 }
 
 /* Stepper Status Bar */
 .wow-stepper {
   display: flex;
-  background: rgba(30, 41, 59, 0.4);
+  background: rgba(var(--color-surface-rgb), 0.6);
   border: 1px solid var(--color-border, #384252);
   border-radius: var(--radius-md, 10px);
   padding: var(--space-md, 16px);
@@ -401,9 +401,9 @@
 
 .wow-step-indicator.running {
   opacity: 1;
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.35);
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.35);
+  box-shadow: 0 0 10px rgba(45, 212, 191, 0.15);
   animation: pulse-glow-purple 2s infinite;
 }
 
@@ -413,7 +413,7 @@
 
 .wow-step-indicator:hover {
   opacity: 0.9;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--color-surface-hover-rgb), 0.5);
 }
 
 .wow-step-indicator-number {
@@ -431,7 +431,7 @@
 }
 
 .wow-step-indicator.running .wow-step-indicator-number {
-  background: var(--color-primary, #8b5cf6);
+  background: var(--color-primary, #2dd4bf);
   color: #fff;
 }
 
@@ -444,9 +444,9 @@
 }
 
 @keyframes pulse-glow-purple {
-  0% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.2); }
-  50% { box-shadow: 0 0 15px rgba(139, 92, 246, 0.5); }
-  100% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.2); }
+  0% { box-shadow: 0 0 5px rgba(var(--color-primary-rgb), 0.2); }
+  50% { box-shadow: 0 0 15px rgba(var(--color-primary-rgb), 0.5); }
+  100% { box-shadow: 0 0 5px rgba(var(--color-primary-rgb), 0.2); }
 }
 
 /* Sections Stack */
@@ -458,7 +458,7 @@
 }
 
 .wow-card-section {
-  background: rgba(30, 41, 59, 0.45);
+  background: rgba(var(--color-surface-rgb), 0.65);
   border: 1px solid var(--color-border, #384252);
   border-radius: var(--radius-lg, 16px);
   box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
@@ -468,12 +468,12 @@
 }
 
 .wow-card-section.running {
-  border-color: var(--color-primary, #8b5cf6);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+  border-color: var(--color-primary, #2dd4bf);
+  box-shadow: 0 0 20px rgba(45, 212, 191, 0.15);
 }
 
 .wow-card-section.completed {
-  border-color: rgba(56, 66, 82, 0.6);
+  border-color: rgba(var(--color-border-rgb), 0.6);
 }
 
 .wow-card-section.pending {
@@ -495,18 +495,18 @@
 }
 
 .wow-theme-gap.completed {
-  border-left: 5px solid var(--color-primary, #8b5cf6);
+  border-left: 5px solid var(--color-primary, #2dd4bf);
 }
 
 .wow-theme-debate.completed {
-  border-left: 5px solid #06b6d4;
+  border-left: 5px solid var(--color-primary, #06b6d4);
 }
 
 /* Header inside Card */
 .wow-card-header {
   padding: var(--space-md, 16px) var(--space-lg, 24px);
-  background: rgba(15, 23, 42, 0.3);
-  border-bottom: 1px solid rgba(56, 66, 82, 0.4);
+  background: rgba(var(--color-bg-rgb), 0.3);
+  border-bottom: 1px solid rgba(var(--color-border-rgb), 0.4);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -557,7 +557,7 @@
 }
 
 .loader-span {
-  color: var(--color-primary-hover, #9f7aea);
+  color: var(--color-primary-hover, #5eead4);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -604,7 +604,7 @@
 .wow-card-content-render {
   font-size: 1rem;
   line-height: 1.7;
-  color: #e2e8f0;
+  color: var(--color-text, #e2e8f0);
 }
 
 .wow-card-h3 {
@@ -614,13 +614,13 @@
   margin-top: 1.5rem;
   margin-bottom: 0.75rem;
   padding-bottom: 4px;
-  border-bottom: 1px solid rgba(56, 66, 82, 0.3);
+  border-bottom: 1px solid rgba(var(--color-border-rgb), 0.3);
 }
 
 .wow-card-h4 {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #cbd5e1;
+  color: var(--color-text-secondary, #cbd5e1);
   margin-top: 1.25rem;
   margin-bottom: 0.5rem;
 }
@@ -650,26 +650,26 @@
 
 .wow-card-item-label {
   font-weight: 700;
-  color: var(--color-primary-hover, #9f7aea);
+  color: var(--color-primary-hover, #5eead4);
   flex-shrink: 0;
 }
 
 .wow-card-item-value {
-  color: #e2e8f0;
+  color: var(--color-text, #e2e8f0);
 }
 
 /* Footer inside Card */
 .wow-card-footer {
   padding: var(--space-md, 16px) var(--space-lg, 24px);
-  background: rgba(15, 23, 42, 0.15);
-  border-top: 1px solid rgba(56, 66, 82, 0.2);
+  background: rgba(var(--color-bg-rgb), 0.15);
+  border-top: 1px solid rgba(var(--color-border-rgb), 0.2);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-md, 16px);
 }
 
 .wow-card-action-btn {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--color-surface-hover-rgb), 0.5);
   border: 1px solid var(--color-border, #384252);
   color: var(--color-text-secondary, #94a3b8);
   padding: 6px 14px;
@@ -681,20 +681,20 @@
 }
 
 .wow-card-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(var(--color-text-rgb), 0.08);
   color: var(--color-text, #f8fafc);
   border-color: var(--color-text-secondary, #94a3b8);
 }
 
 .wow-card-action-btn.primary {
-  background: var(--color-primary, #8b5cf6);
-  border-color: var(--color-primary, #8b5cf6);
+  background: var(--color-primary, #2dd4bf);
+  border-color: var(--color-primary, #2dd4bf);
   color: #fff;
 }
 
 .wow-card-action-btn.primary:hover {
-  background: var(--color-primary-hover, #9f7aea);
-  border-color: var(--color-primary-hover, #9f7aea);
+  background: var(--color-primary-hover, #5eead4);
+  border-color: var(--color-primary-hover, #5eead4);
 }
 
 /* Action Buttons */
@@ -714,8 +714,8 @@
   align-items: center;
   gap: var(--space-sm, 8px);
   padding: var(--space-lg, 24px) var(--space-md, 16px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(var(--color-surface-rgb), 0.8);
+  border: 2px solid rgba(var(--color-border-rgb), 0.4);
   border-radius: var(--radius-md, 10px);
   color: var(--color-text, #f8fafc);
   cursor: pointer;
@@ -725,10 +725,10 @@
 }
 
 .wow-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(var(--color-surface-hover-rgb), 0.5);
+  border-color: rgba(var(--color-border-rgb), 0.6);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
 }
 
 .wow-action-icon {
@@ -787,8 +787,8 @@
 }
 
 .wow-action-debate:hover {
-  border-color: var(--color-primary, #8b5cf6) !important;
-  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25) !important;
+  border-color: var(--color-primary, #2dd4bf) !important;
+  box-shadow: 0 8px 24px rgba(45, 212, 191, 0.25) !important;
 }
 
 /* Focused Highlight animations for Report Cards */
@@ -799,22 +799,22 @@
 @keyframes focused-glow-anim {
   0% {
     transform: scale(1);
-    border-color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 0 24px rgba(139, 92, 246, 0.4);
+    border-color: var(--color-primary, #2dd4bf);
+    box-shadow: 0 0 24px rgba(45, 212, 191, 0.4);
   }
   30% {
     transform: scale(1.02);
-    border-color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 0 32px rgba(139, 92, 246, 0.6);
+    border-color: var(--color-primary, #2dd4bf);
+    box-shadow: 0 0 32px rgba(45, 212, 191, 0.6);
   }
   70% {
     transform: scale(1.02);
-    border-color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 0 32px rgba(139, 92, 246, 0.6);
+    border-color: var(--color-primary, #2dd4bf);
+    box-shadow: 0 0 32px rgba(45, 212, 191, 0.6);
   }
   100% {
     transform: scale(1);
-    border-color: rgba(56, 66, 82, 0.6);
+    border-color: rgba(var(--color-border-rgb), 0.6);
     box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.4));
   }
 }

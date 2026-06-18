@@ -574,7 +574,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                   {pdfStatus === "indexing" && (
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
-                      background: "rgba(99, 102, 241, 0.1)", color: "var(--color-primary, #6366f1)",
+                      background: "rgba(45, 212, 191, 0.1)", color: "var(--color-primary, #2dd4bf)",
                       display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
                     }}>
                       <IconSpinner size={10} /> PDF

@@ -7,6 +7,20 @@ import "./styles/daily-reader.css";
 import "./styles/cite-panel.css";
 import "./styles/debate.css";
 
+// Apply saved theme before first render to prevent flash
+(function () {
+  try {
+    const saved = localStorage.getItem("app-theme");
+    if (saved === "light" || saved === "dark") {
+      document.documentElement.setAttribute("data-theme", saved);
+    } else {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <App />

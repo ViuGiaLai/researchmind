@@ -73,8 +73,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(167, 139, 250, 0.05));
-  border: 1px solid rgba(139, 92, 246, 0.25);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(94, 234, 212, 0.05));
+  border: 1px solid rgba(45, 212, 191, 0.25);
   border-radius: var(--radius-lg);
   padding: var(--space-xs) var(--space-md);
   color: var(--color-primary);
@@ -264,8 +264,8 @@
   justify-content: center;
   min-width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(167, 139, 250, 0.05));
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(94, 234, 212, 0.05));
+  border: 1px solid rgba(45, 212, 191, 0.2);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-weight: 700;

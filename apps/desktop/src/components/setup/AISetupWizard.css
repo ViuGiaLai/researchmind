@@ -20,7 +20,7 @@
   position: absolute;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0) 70%);
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.15) 0%, rgba(45, 212, 191, 0) 70%);
   top: -10%;
   left: -10%;
   border-radius: 50%;
@@ -79,7 +79,7 @@
   left: 20%;
   right: 20%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), rgba(59, 130, 246, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.4), rgba(59, 130, 246, 0.4), transparent);
 }
 
 @keyframes card-slide-up {
@@ -123,7 +123,7 @@
   position: absolute;
   width: 70px;
   height: 70px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0) 70%);
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.35) 0%, rgba(45, 212, 191, 0) 70%);
   border-radius: 50%;
   z-index: -1;
   animation: logo-pulse-glow 3s infinite ease-in-out;
@@ -144,8 +144,8 @@
 }
 
 .icon-gradient {
-  filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4));
-  color: #a78bfa;
+  filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.4));
+  color: #5eead4;
 }
 
 .aiwizard-title {
@@ -196,7 +196,7 @@
 
 .aiwizard-scan-hud {
   background: rgba(10, 15, 28, 0.6);
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(45, 212, 191, 0.15);
   border-radius: 14px;
   padding: 20px;
   display: flex;
@@ -362,9 +362,9 @@
 }
 
 .tier-badge-glow.medium {
-  background: rgba(139, 92, 246, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(45, 212, 191, 0.15);
+  color: #5eead4;
+  border: 1px solid rgba(45, 212, 191, 0.2);
 }
 
 .tier-badge-glow.strong {
@@ -413,8 +413,8 @@
 }
 
 .aiwizard-mode-card-premium.active.cloud-free {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 25px rgba(139, 92, 246, 0.2);
+  border-color: #2dd4bf;
+  box-shadow: 0 0 25px rgba(45, 212, 191, 0.2);
 }
 
 .aiwizard-mode-card-premium.active.cloud-custom {
@@ -451,7 +451,7 @@
 }
 
 .cloud-free.active .card-selection-glow {
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0) 70%);
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.08) 0%, rgba(45, 212, 191, 0) 70%);
 }
 
 .cloud-custom.active .card-selection-glow {
@@ -475,7 +475,7 @@
   transition: all 0.3s ease;
 }
 
-.cloud-free .card-header-icon { color: #c084fc; }
+.cloud-free .card-header-icon { color: #5eead4; }
 .cloud-custom .card-header-icon { color: #fbbf24; }
 .local .card-header-icon { color: #34d399; }
 
@@ -486,9 +486,9 @@
 
 .cloud-free.active .card-header-icon {
   color: #f8fafc;
-  background: rgba(139, 92, 246, 0.3);
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+  background: rgba(45, 212, 191, 0.3);
+  border-color: rgba(45, 212, 191, 0.5);
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.2);
 }
 
 .cloud-custom.active .card-header-icon {
@@ -571,9 +571,9 @@
 }
 
 .card-badge.recommended {
-  background: rgba(139, 92, 246, 0.1);
-  color: #a78bfa;
-  border-color: rgba(139, 92, 246, 0.2);
+  background: rgba(45, 212, 191, 0.1);
+  color: #5eead4;
+  border-color: rgba(45, 212, 191, 0.2);
 }
 
 .card-badge.info {
@@ -636,8 +636,8 @@
 }
 
 .provider-tab-btn-premium.gemini.active {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 16px rgba(139, 92, 246, 0.15);
+  border-color: #a855f7;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.15);
 }
 
 .provider-tab-btn-premium.claude.active {
@@ -646,8 +646,8 @@
 }
 
 .provider-info-box-premium {
-  background: rgba(139, 92, 246, 0.05);
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  background: rgba(45, 212, 191, 0.05);
+  border: 1px solid rgba(45, 212, 191, 0.15);
   border-radius: 12px;
   padding: 14px 18px;
   font-size: 0.86rem;
@@ -661,7 +661,7 @@
 }
 
 .info-box-sparkle {
-  color: #c084fc;
+  color: #5eead4;
   flex-shrink: 0;
   margin-top: 3px;
 }
@@ -712,8 +712,8 @@
 .aiwizard-input-premium:focus {
   outline: none;
   background: rgba(255, 255, 255, 0.06);
-  border-color: #8b5cf6;
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+  border-color: #2dd4bf;
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.15);
 }
 
 .aiwizard-input-suffix-btn {
@@ -748,14 +748,14 @@
 }
 
 .help-link {
-  color: #8b5cf6;
+  color: #2dd4bf;
   text-decoration: none;
   font-weight: 600;
 }
 
 .help-link:hover {
   text-decoration: underline;
-  color: #a78bfa;
+  color: #5eead4;
 }
 
 .aiwizard-error-message {
@@ -842,9 +842,9 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  color: #a78bfa;
+  background: rgba(45, 212, 191, 0.15);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  color: #5eead4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -874,7 +874,7 @@
 }
 
 .guide-content a {
-  color: #8b5cf6;
+  color: #2dd4bf;
   text-decoration: none;
   font-weight: 600;
 }
@@ -1032,8 +1032,8 @@
 }
 
 .aiwizard-tier-card-premium.active {
-  background: rgba(139, 92, 246, 0.08);
-  border-color: #8b5cf6;
+  background: rgba(45, 212, 191, 0.08);
+  border-color: #2dd4bf;
 }
 
 .tier-header-info {
@@ -1055,7 +1055,7 @@
 .tier-model-name {
   font-size: 0.76rem;
   font-family: monospace;
-  color: #8b5cf6;
+  color: #2dd4bf;
   font-weight: 600;
 }
 
@@ -1076,9 +1076,9 @@
 }
 
 .active .tier-check-circle {
-  background: #8b5cf6;
-  border-color: #8b5cf6;
-  color: white;
+  background: #2dd4bf;
+  border-color: #2dd4bf;
+  color: #0b1120;
 }
 
 .tier-badge-recommended {
@@ -1122,7 +1122,7 @@
   gap: 8px;
   font-weight: 700;
   font-size: 0.92rem;
-  color: #a78bfa;
+  color: #5eead4;
 }
 
 .info-summary-header svg {
@@ -1172,13 +1172,13 @@
 
 .storage-path-input-read:focus {
   outline: none;
-  border-color: #8b5cf6;
+  border-color: #2dd4bf;
 }
 
 .storage-path-browse-btn {
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  color: #a78bfa;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  color: #5eead4;
   padding: 0 16px;
   font-weight: 600;
   font-size: 0.9rem;
@@ -1188,8 +1188,8 @@
 }
 
 .storage-path-browse-btn:hover:not(:disabled) {
-  background: #8b5cf6;
-  color: white;
+  background: #2dd4bf;
+  color: #0b1120;
 }
 
 /* Disk details card */
@@ -1397,8 +1397,8 @@
 }
 
 .quick-start-card:hover .card-icon {
-  background: rgba(139, 92, 246, 0.1);
-  color: #a78bfa;
+  background: rgba(45, 212, 191, 0.1);
+  color: #5eead4;
 }
 
 .card-text {
@@ -1506,10 +1506,10 @@
 
 /* Active Step State */
 .tracker-step.active .tracker-node {
-  background: #8b5cf6;
-  border-color: #8b5cf6;
-  color: white;
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+  background: #2dd4bf;
+  border-color: #2dd4bf;
+  color: #0b1120;
+  box-shadow: 0 0 10px rgba(45, 212, 191, 0.5);
   transform: scale(1.15);
 }
 
@@ -1551,14 +1551,14 @@
 }
 
 .aiwizard-btn-primary {
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
-  color: white;
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25);
+  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  color: #0b1120;
+  box-shadow: 0 4px 15px rgba(45, 212, 191, 0.25);
 }
 
 .aiwizard-btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 25px rgba(45, 212, 191, 0.4);
 }
 
 .aiwizard-btn-primary:active:not(:disabled) {
@@ -1589,9 +1589,9 @@
 }
 
 @keyframes pulse-button-glow {
-  0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.5); }
-  70% { box-shadow: 0 0 0 12px rgba(139, 92, 246, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(45, 212, 191, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
 }
 
 .done-step .animate-pulse-glow {

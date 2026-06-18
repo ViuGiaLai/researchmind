@@ -23,7 +23,7 @@
   padding: var(--space-lg);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.05));
+  background: rgba(var(--color-surface-rgb), 0.8);
 }
 
 .debate-column h4 {
