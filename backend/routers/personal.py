@@ -1,7 +1,7 @@
 import json as _json
 import re
 from collections import Counter
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
@@ -344,8 +344,8 @@ Nếu không có paper nào phù hợp, hãy gợi ý:
         streak = 0
         for days_back in range(30):
             check_date = today - timedelta(days=days_back)
-            day_start = datetime.combine(check_date, time.min)
-            day_end = datetime.combine(check_date, time.max)
+            day_start = datetime.combine(check_date, datetime.min.time())
+            day_end = datetime.combine(check_date, datetime.max.time())
             has_activity = session.query(ChatHistory).filter(
                 ChatHistory.created_at >= day_start,
                 ChatHistory.created_at <= day_end

@@ -1,8 +1,8 @@
 import asyncio
 import json
 import re
-import time
-from datetime import datetime, timedelta, time
+import time as time_mod
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -13,6 +13,11 @@ from config.settings import settings
 from db.database import get_session
 from db.models import ChatHistory
 
+_GREETING_PATTERN = re.compile(
+    r'^(chào|hello|hi|hey|chúc|hế lô|hế nhô|hallo|helo|xin chào|good morning|good afternoon|good evening|greetings|yo)\b',
+    re.IGNORECASE
+)
+
 router = APIRouter(prefix="/api", tags=["Chat"])
 
 
@@ -20,7 +25,7 @@ router = APIRouter(prefix="/api", tags=["Chat"])
 
 def count_free_queries_today(session) -> int:
     """Count daily free queries logged in ChatHistory."""
-    today_start = datetime.combine(datetime.today(), time.min)
+    today_start = datetime.combine(datetime.today(), datetime.min.time())
     return session.query(ChatHistory).filter(
         ChatHistory.role == "assistant",
         ChatHistory.model_used == "gemini/free",
@@ -79,7 +84,7 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
 @router.post("/chat")
 async def chat(request: dict = Body(...)):
     """Chat with selected papers using RAG pipeline."""
-    t0 = time.time()
+    t0 = time_mod.time()
     message = request.get("message", "")
     paper_ids = request.get("paper_ids")
     stream = request.get("stream", False)
@@ -88,7 +93,9 @@ async def chat(request: dict = Body(...)):
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
 
-    if settings.llm_mode == "cloud_free":
+    is_greeting = bool(_GREETING_PATTERN.match(message.strip()))
+
+    if not is_greeting and settings.llm_mode == "cloud_free":
         session = get_session(state.engine)
         try:
             used = count_free_queries_today(session)
@@ -100,28 +107,31 @@ async def chat(request: dict = Body(...)):
         finally:
             session.close()
 
-    t1 = time.time()
-    retrieval = await asyncio.to_thread(
-        state.retriever.retrieve,
-        query=message,
-        paper_ids=paper_ids,
-        top_k=5,
-    )
-    t2 = time.time()
-    logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
+    t1 = time_mod.time()
+    retrieval = None
+    if not is_greeting:
+        retrieval = await asyncio.to_thread(
+            state.retriever.retrieve,
+            query=message,
+            paper_ids=paper_ids,
+            top_k=5,
+        )
+    t2 = time_mod.time()
+    context_text = retrieval.context_text if retrieval else ""
+    logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(context_text)}")
 
     if stream:
         return StreamingResponse(
-            _stream_chat(message, retrieval.context_text, session_id, paper_ids),
+            _stream_chat(message, context_text, session_id, paper_ids),
             media_type="text/event-stream",
         )
 
     generation = await asyncio.to_thread(
         state.generator.generate,
         query=message,
-        context_text=retrieval.context_text,
+        context_text=context_text,
     )
-    t3 = time.time()
+    t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")
 
     session = get_session(state.engine)
