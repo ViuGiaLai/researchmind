@@ -1,5 +1,6 @@
 """Hybrid search combining BM25 + Vector results with RRF fusion and cross-encoder re-ranking."""
 
+import functools
 from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
@@ -38,6 +39,7 @@ class HybridSearch:
         self.rrf_k = rrf_k
         self.top_k_final = top_k_final
         self._cross_encoder = None
+        self._embed_query_cached = functools.lru_cache(maxsize=128)(self.embedder.embed_query)
 
     def search(
         self,
@@ -62,14 +64,14 @@ class HybridSearch:
         # Step 1: BM25 search
         t0 = time.time()
         logger.debug(f"BM25 search: '{query}'")
-        bm25_results = self.bm25.search(query, paper_ids, top_k=20)
+        bm25_results = self.bm25.search(query, paper_ids, top_k=10)
         t1 = time.time()
         logger.debug(f"BM25 search: {len(bm25_results)} results in {t1-t0:.2f}s")
 
         # Step 2: Vector search
         logger.debug(f"Vector search: '{query}'")
-        query_embedding = self.embedder.embed_query(query)
-        vector_results = self.vector.search(query_embedding, paper_ids, top_k=20)
+        query_embedding = self._embed_query_cached(query)
+        vector_results = self.vector.search(query_embedding, paper_ids, top_k=10)
         t2 = time.time()
         logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
 

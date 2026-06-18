@@ -74,6 +74,7 @@ class Generator:
         self.freemodel_url = freemodel_url.rstrip("/")
         self.mode = "cloud_custom" if mode == "cloud" else mode  # backward compatibility
         self.custom_cloud_provider = custom_cloud_provider  # "deepseek" or "claude" or "gemini"
+        self.current_model: str = ""
         self._http_client = None
 
     @property
@@ -144,7 +145,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             if self.nvidia_api_key:
                 logger.info("cloud_free: trying NVIDIA NIM...")
                 t0 = time.time()
-                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model)
+                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model)
                 logger.info(f"TIMING: NVIDIA={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -153,7 +154,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             if self.freemodel_api_key:
                 logger.info("cloud_free: trying FreeModel.dev...")
                 t0 = time.time()
-                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model)
+                result = self._call_with_retry(self._generate_freemodel, user_prompt, self.freemodel_api_key, self.freemodel_model)
                 logger.info(f"TIMING: FreeModel={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -162,7 +163,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             if self.groq_api_key:
                 logger.info("cloud_free: trying Groq...")
                 t0 = time.time()
-                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model)
+                result = self._call_with_retry(self._generate_groq, user_prompt, self.groq_api_key, self.groq_model)
                 logger.info(f"TIMING: Groq={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -171,7 +172,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             if self.gemini_api_key:
                 logger.info("cloud_free: trying Gemini...")
                 t0 = time.time()
-                result = self._generate_gemini(user_prompt, self.gemini_api_key, is_free=True)
+                result = self._call_with_retry(self._generate_gemini, user_prompt, self.gemini_api_key, is_free=True)
                 logger.info(f"TIMING: Gemini={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -324,6 +325,17 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="stop",
             )
 
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Gemini generation failed: {e}")
+            detail = ""
+            if e.response.status_code == 400 and "API key" in e.response.text:
+                detail = " API Key không hợp lệ hoặc sai định dạng. Gemini key là chuỗi chữ-số dài, không phải OAuth token. Lấy key tại https://aistudio.google.com/app/apikey"
+            return GenerationResult(
+                content=f"⚠️ Lỗi Gemini Cloud (HTTP {e.response.status_code}): {e.response.text[:200]}{detail}",
+                citations=[],
+                model_used="gemini/error",
+                finish_reason="error",
+            )
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}")
             return GenerationResult(
@@ -417,6 +429,17 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 citations=citations,
                 model_used=f"groq/{model}",
                 finish_reason="stop",
+            )
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Groq generation failed: {e}")
+            detail = ""
+            if e.response.status_code == 401:
+                detail = " API Key không hợp lệ. Lấy key mới tại https://console.groq.com/keys"
+            return GenerationResult(
+                content=f"⚠️ Lỗi Groq Cloud (HTTP {e.response.status_code}): {e.response.text[:200]}{detail}",
+                citations=[],
+                model_used="groq/error",
+                finish_reason="error",
             )
         except Exception as e:
             logger.error(f"Groq generation failed: {e}")
@@ -550,6 +573,31 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
+    def _call_with_retry(self, fn, *args, max_retries=1, **kwargs):
+        """
+        Call a generation function with retry logic.
+        Retries up to max_retries times if finish_reason is 'error' or an exception is raised.
+        """
+        last_result = None
+        for attempt in range(max_retries + 1):
+            try:
+                result = fn(*args, **kwargs)
+                if result.finish_reason != "error":
+                    return result
+                last_result = result
+                if attempt < max_retries:
+                    logger.warning(f"Retry {attempt+1}/{max_retries} for {fn.__name__} (finish_reason={result.finish_reason})")
+            except Exception as e:
+                last_result = None
+                if attempt < max_retries:
+                    logger.warning(f"Retry {attempt+1}/{max_retries} for {fn.__name__}: {e}")
+                else:
+                    raise
+        # All retries exhausted — return last error result or raise
+        if last_result is not None:
+            return last_result
+        raise RuntimeError(f"All {max_retries+1} retries exhausted for {fn.__name__}")
+
     def _extract_citations(self, content: str) -> list[dict]:
         """
         Extract citations from the response.
@@ -597,6 +645,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         if self.mode == "cloud_free":
             # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama
             if self.nvidia_api_key:
+                self.current_model = f"nvidia/{self.nvidia_model}"
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.nvidia_api_key, self.nvidia_model,
@@ -607,6 +656,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 if yielded:
                     return
             if self.freemodel_api_key:
+                self.current_model = f"freemodel/{self.freemodel_model}"
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.freemodel_api_key, self.freemodel_model,
@@ -617,6 +667,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 if yielded:
                     return
             if self.groq_api_key:
+                self.current_model = f"groq/{self.groq_model}"
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.groq_api_key, self.groq_model,
@@ -627,12 +678,14 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 if yielded:
                     return
             if self.gemini_api_key:
+                self.current_model = f"gemini/{self.gemini_model}"
                 yielded = False
                 for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
                     yielded = True
                     yield chunk
                 if yielded:
                     return
+            self.current_model = f"ollama/{self.ollama_model}"
             yield "⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
             for chunk in self._stream_ollama(user_prompt):
                 yield chunk
@@ -640,20 +693,26 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         elif self.mode == "cloud_custom":
             if self.custom_cloud_provider == "deepseek":
                 if not self.deepseek_api_key:
+                    self.current_model = "deepseek/no_key"
                     yield "⚠️ Bạn chưa nhập DeepSeek API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
+                self.current_model = f"deepseek/{self.deepseek_model}"
                 for chunk in self._stream_deepseek(user_prompt, self.deepseek_api_key, is_free=False):
                     yield chunk
             elif self.custom_cloud_provider == "gemini":
                 if not self.gemini_api_key:
+                    self.current_model = "gemini/no_key"
                     yield "⚠️ Bạn chưa nhập Gemini API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
+                self.current_model = f"gemini/{self.gemini_model}"
                 for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=False):
                     yield chunk
             elif self.custom_cloud_provider == "claude":
                 if not self.claude_api_key:
+                    self.current_model = "claude/no_key"
                     yield "⚠️ Bạn chưa nhập Claude API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
+                self.current_model = f"claude/{self.claude_model}"
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=self.claude_api_key)
@@ -668,14 +727,17 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                         for text in stream.text_stream:
                             yield text
                 except Exception as e:
+                    self.current_model = f"ollama/{self.ollama_model}"
                     yield f"\n⚠️ Claude stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
                     for chunk in self._stream_ollama(user_prompt):
                         yield chunk
             else:
+                self.current_model = "unknown/invalid"
                 yield "⚠️ Cloud provider không hợp lệ."
 
         else:
             # Local mode (Ollama)
+            self.current_model = f"ollama/{self.ollama_model}"
             for chunk in self._stream_ollama(user_prompt):
                 yield chunk
 

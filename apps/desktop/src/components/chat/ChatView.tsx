@@ -35,10 +35,12 @@ export const ChatView: React.FC<{
   initialPaperIds?: string[];
   initialQuery?: string;
   initialMode?: "chat" | "review" | "critique" | "debate";
-}> = ({ initialPaperIds, initialQuery, initialMode = "chat" }) => {
+  stream?: boolean;
+}> = ({ initialPaperIds, initialQuery, initialMode = "chat", stream = true }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [paperIds] = useState<string[]>(initialPaperIds || []);
   const [usage, setUsage] = useState<{
     used: number;
@@ -100,36 +102,82 @@ export const ChatView: React.FC<{
     setLoading(true);
 
     try {
-      let res: ChatResponse;
-      if (initialMode === "review") {
-        res = await api.review(
-          text,
-          paperIds.length > 0 ? paperIds : undefined,
-        );
-      } else if (initialMode === "critique") {
-        res = await api.critique(
-          text,
-          paperIds.length > 0 ? paperIds : undefined,
-        );
-      } else if (initialMode === "debate") {
-        res = await api.debate(
-          text,
-          paperIds.length > 0 ? paperIds : undefined,
-        );
+      if (stream && initialMode === "chat") {
+        const ids = paperIds.length > 0 ? paperIds : undefined;
+        const streamCtrl = api.chatStream(text, ids);
+        const assistantIdx = messages.length + 1;
+
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        setIsStreaming(true);
+
+        let resolved = false;
+
+        const finishWithError = (errMsg: string) => {
+          if (resolved) return;
+          resolved = true;
+          setIsStreaming(false);
+          setLoading(false);
+          const isOllama = /ollama/i.test(errMsg) || /11434/i.test(errMsg);
+          const content = `❌ Lỗi: ${errMsg}` + (isOllama ? "" : `\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``);
+          setMessages((prev) => prev.map((m, i) =>
+            i === assistantIdx ? { ...m, content, model_used: isOllama ? "ollama_error" : undefined } : m
+          ));
+        };
+
+        streamCtrl.onChunk = (chunk) => {
+          setMessages((prev) => prev.map((m, i) =>
+            i === assistantIdx ? { ...m, content: m.content + chunk } : m
+          ));
+        };
+
+        streamCtrl.onDone = (model, citations) => {
+          if (resolved) return;
+          resolved = true;
+          setIsStreaming(false);
+          setMessages((prev) => prev.map((m, i) =>
+            i === assistantIdx ? { ...m, model_used: model, citations } : m
+          ));
+          loadUsage();
+        };
+
+        streamCtrl.onError = (err) => {
+          if (resolved) return;
+          resolved = true;
+          setIsStreaming(false);
+          finishWithError(err);
+        };
       } else {
-        res = await api.chat(
-          text,
-          paperIds.length > 0 ? paperIds : undefined,
-        );
+        let res: ChatResponse;
+        if (initialMode === "review") {
+          res = await api.review(
+            text,
+            paperIds.length > 0 ? paperIds : undefined,
+          );
+        } else if (initialMode === "critique") {
+          res = await api.critique(
+            text,
+            paperIds.length > 0 ? paperIds : undefined,
+          );
+        } else if (initialMode === "debate") {
+          res = await api.debate(
+            text,
+            paperIds.length > 0 ? paperIds : undefined,
+          );
+        } else {
+          res = await api.chat(
+            text,
+            paperIds.length > 0 ? paperIds : undefined,
+          );
+        }
+        const assistantMsg: Message = {
+          role: "assistant",
+          content: res.answer,
+          citations: res.citations,
+          model_used: res.model_used,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        loadUsage();
       }
-      const assistantMsg: Message = {
-        role: "assistant",
-        content: res.answer,
-        citations: res.citations,
-        model_used: res.model_used,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      loadUsage();
     } catch (e) {
       const errorText = e instanceof Error ? e.message : "Không thể kết nối đến backend";
       const isOllamaError = /ollama/i.test(errorText) || /11434/i.test(errorText);
@@ -625,22 +673,25 @@ export const ChatView: React.FC<{
                   />
                 </div>
               ) : (
-                <>
-                  <div className="chat-view-text">
-                    {formatContent(msg.content)}
-                  </div>
-                  {msg.citations && msg.citations.length > 0 && (
-                    <div className="chat-view-citations">
-                      <strong>📚 Nguồn:</strong>
-                      {msg.citations.map((c, j) => (
-                        <span key={j} className="chat-view-citation">
-                          [{c.source}]
-                          {c.page ? ` (trang ${c.page})` : ""}
-                        </span>
-                      ))}
+                  <>
+                    <div className="chat-view-text">
+                      {formatContent(msg.content)}
+                      {isStreaming && i === messages.length - 1 && (
+                        <span className="streaming-cursor">|</span>
+                      )}
                     </div>
-                  )}
-                </>
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="chat-view-citations">
+                        <strong>📚 Nguồn:</strong>
+                        {msg.citations.map((c, j) => (
+                          <span key={j} className="chat-view-citation">
+                            [{c.source}]
+                            {c.page ? ` (trang ${c.page})` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </>
               )}
 
               {msg.role === "assistant" && msg.model_used !== "ollama_error" && (

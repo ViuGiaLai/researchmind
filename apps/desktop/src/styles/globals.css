@@ -2676,6 +2676,18 @@ body {
   border-radius: 0;
 }
 
+.streaming-cursor {
+  display: inline-block;
+  animation: blink 0.8s step-end infinite;
+  font-weight: bold;
+  color: var(--color-primary, #6366f1);
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
 .chat-view-text ul,
 .chat-view-text ol {
   margin: 4px 0;

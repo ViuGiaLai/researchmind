@@ -1183,12 +1183,12 @@ async def _stream_chat(query: str, context_text: str, session_id: str, paper_ids
     full_response = ""
     for chunk in state.generator.stream_generate(query, context_text):
         full_response += chunk
-        yield f"data: {chunk}\n\n"
+        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
     # Save to history after stream finishes
+    model_used = state.generator.current_model
     db = get_session(state.engine)
     try:
-        import json
         # Save user message
         db.add(ChatHistory(
             session_id=session_id,
@@ -1199,19 +1199,9 @@ async def _stream_chat(query: str, context_text: str, session_id: str, paper_ids
             model_used="",
         ))
         
-        # Save assistant message
-        model_used = "gemini/free" if settings.llm_mode == "cloud_free" else (
-            f"deepseek/{settings.deepseek_model}" if settings.llm_mode == "cloud_custom" and settings.custom_cloud_provider == "deepseek" else (
-                f"gemini/{settings.gemini_model}" if settings.llm_mode == "cloud_custom" and settings.custom_cloud_provider == "gemini" else (
-                    f"claude/{settings.claude_model}" if settings.llm_mode == "cloud_custom" else f"ollama/{settings.ollama_model}"
-                )
-            )
-        )
-        
         # Extract citations from streaming result
         citations = []
         pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
-        import re
         for match in re.finditer(pattern, full_response):
             citations.append({
                 "source": match.group(1).strip(),
@@ -1233,6 +1223,8 @@ async def _stream_chat(query: str, context_text: str, session_id: str, paper_ids
         logger.error(f"Failed to save streamed chat history: {e}")
     finally:
         db.close()
+
+    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'citations': citations})}\n\n"
 
 
 @app.get("/api/chat/history")
@@ -1910,7 +1902,8 @@ async def find_research_gap(body: dict = Body(...)):
     paper_ids = body.get("paper_ids")
 
     # Retrieve diverse chunks from multiple papers
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query="research methodology findings results limitations future work gaps unexplored areas weaknesses",
         paper_ids=paper_ids,
         top_k=15,
@@ -1948,7 +1941,8 @@ Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung c�
 
 Context từ tài liệu:\n{retrieval.context_text}"""
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=gap_prompt,
         context_text=retrieval.context_text,
     )
@@ -1971,7 +1965,8 @@ async def find_conflicts(body: dict = Body(...)):
     paper_ids = body.get("paper_ids")
 
     # Retrieve chunks focusing on findings, conclusions, claims
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query="findings conclusions results claims arguments methodology approach results show demonstrate suggest",
         paper_ids=paper_ids,
         top_k=15,
@@ -2014,7 +2009,8 @@ Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung c�
 
 Context từ tài liệu:\n{retrieval.context_text}"""
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=conflict_prompt,
         context_text=retrieval.context_text,
     )
@@ -2037,7 +2033,8 @@ async def suggest_topics(body: dict = Body(...)):
     paper_ids = body.get("paper_ids")
 
     # Retrieve diverse chunks to understand the research landscape
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query="research topic methodology findings results future work direction novel approach innovative", 
         paper_ids=paper_ids,
         top_k=15,
@@ -2080,7 +2077,8 @@ Lưu ý: Đề xuất phải khả thi, cụ thể và dựa trên nội dung th
 
 Context từ tài liệu:\n{retrieval.context_text}"""
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=topic_prompt,
         context_text=retrieval.context_text,
     )
@@ -2103,7 +2101,8 @@ async def find_evolution_map(body: dict = Body(...)):
     paper_ids = body.get("paper_ids")
 
     # Single broad retrieval to capture evolution context
-    retrieval = state.retriever.retrieve(
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
         query="research evolution development history background methodology findings results improvement advancement novel approach future direction", 
         paper_ids=paper_ids,
         top_k=20,
@@ -2155,7 +2154,8 @@ Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung c�
 
 Context từ tài liệu:\n{retrieval.context_text}"""
 
-    generation = state.generator.generate(
+    generation = await asyncio.to_thread(
+        state.generator.generate,
         query=evolution_prompt,
         context_text=retrieval.context_text,
     )

@@ -223,6 +223,73 @@ export const api = {
   chat: (message: string, paperIds?: string[]) =>
     request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds }),
 
+  chatStream: (
+    message: string,
+    paperIds: string[] | undefined,
+    sessionId: string = "default",
+  ) => {
+    const url = `${BASE_URL}/api/chat`;
+    const body = JSON.stringify({ message, paper_ids: paperIds, stream: true, session_id: sessionId });
+    const controller = new AbortController();
+    const stream: {
+      onChunk: ((text: string) => void) | null;
+      onDone: ((model: string, citations: any[]) => void) | null;
+      onError: ((err: string) => void) | null;
+      abort: () => void;
+    } = { onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
+
+    (async () => {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          stream.onError?.(err || `HTTP ${res.status}`);
+          return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) {
+          stream.onError?.("No response body");
+          return;
+        }
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6).trim();
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.done) {
+                  stream.onDone?.(data.model_used || "", data.citations || []);
+                } else if (data.chunk !== undefined) {
+                  stream.onChunk?.(data.chunk);
+                }
+              } catch {
+                // skip
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          stream.onError?.(err instanceof Error ? err.message : String(err));
+        }
+      }
+    })();
+
+    return stream;
+  },
+
   review: (query: string, paperIds?: string[]) =>
     request<ChatResponse>("POST", "/api/review", { query, paper_ids: paperIds }),
   critique: (query: string, paperIds?: string[]) =>
