@@ -4,12 +4,57 @@
 
 ---
 
+## 0. Trạng thái hiện tại — commit `32dd8ed` (18/06/2026)
+
+```
+Phase 0: Research ────── Tuần 1-2 ──── ✅ Đã hoàn thành (phỏng vấn, validate pain point)
+     │
+Phase 1: MVP ─────────── Tuần 3-8 ──── ✅ Đã hoàn thành (4+ tính năng cốt lõi)
+     │                        └── v0.1: Multi-format import, NVIDIA fix, async, UI improvements
+     │
+Phase 2: Thu phí ──────── Tháng 3 ───── ⏳ Chưa bắt đầu
+     │
+Phase 3: Polish ───────── Tháng 4-6 ─── ⏳ Chưa bắt đầu
+     │
+Phase 4: Grow ─────────── Tháng 7-12 ── ⏳ Chưa bắt đầu
+     │
+Year 2: Mở rộng ───────── Năm 2 ─────── ⏳ Chưa bắt đầu
+```
+
+### v0.1 — Chi tiết (18/06/2026)
+
+#### Backend
+- **Multi-format import**: `extract_document()` dispatch tự động cho `.pdf`, `.docx`, `.doc`, `.txt`, `.md`, `.html`, `.htm`, `.epub`
+- **NVIDIA NIM** hoạt động: thêm `nvidia_api_key`/`nvidia_model`/`nvidia_url` vào Generator()
+- **Groq/Fix**: thêm `groq_api_key`/`groq_model` vào Settings model
+- **Async non-blocking**: wrap `asyncio.to_thread()` cho Chat, Search, Review, Critique, Debate, Highlights, Import
+- **Timing logs**: thêm `TIMING` log ở chat endpoint, generator providers, hybrid search
+- **EPUB support**: thêm `ebooklib` parser
+- **FreeModel URL**: sửa đúng `https://api.freemodel.dev/v1`
+
+#### Frontend
+- **MarkdownRenderer**: component render **bold**, *italic*, `code`, `# heading`, `- list`, `1. list`, `|table|`, code block, citation `[Source, trang X]`
+- **ChatView**: dùng MarkdownRenderer thay `formatContent` cũ, fix StrictMode double-send (`cancelled` flag)
+- **LibraryView narrow**: header ⚡ Phân tích AI + 💬 Hỏi AI + ⋮ menu, tab bar thành dropdown select
+- **Tab drag**: kéo ngang preview tabs bằng `onMouseDown/Move/Up`
+- **Splitter resize**: kéo thanh dọc giữa list và preview
+- **ImportPanel**: format badges pill, accept tất cả định dạng
+- **PDF inline**: xoá `filename` khỏi `FileResponse` → browser hiển thị inline
+
+#### Config
+- `.env`: thêm `GROQ_API_KEY`, `FREEMODEL_API_KEY`, `FREEMODEL_MODEL`, `NVIDIA_API_KEY`, `NVIDIA_MODEL`
+- `LLM_MODE=cloud_free` (mặc định)
+- `requirements.txt`: thêm `ebooklib==0.20`
+
+---
+
 ## 1. Tổng Quan Lộ Trình
 
 ```
 Phase 0: Research ─── Tuần 1-2 ─── Phỏng vấn, validate pain point
      │
-Phase 1: MVP ─────── Tuần 3-8 ─── 4 tính năng cốt lõi, 10 users
+Phase 1: MVP ─────── Tuần 3-8 ─── 4 tính năng cốt lõi, 10 users ✅
+     │                    └── v0.1 — 18/06/2026 (multi-format import, NVIDIA fix, async, UI)
      │
 Phase 2: Thu phí ─── Tháng 3 ────── Gói Pro 99k/tháng
      │

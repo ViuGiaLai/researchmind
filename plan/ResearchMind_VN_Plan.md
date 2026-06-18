@@ -9,6 +9,77 @@
 
 ---
 
+## 0. Trạng thái hiện tại — Phiên bản v0.1 (18/06/2026)
+
+> **Commit:** `32dd8ed` —`feat: multi-format import, NVIDIA fix, async non-blocking + UI improvements`
+
+### ✅ Đã hoàn thành (so với MVP plan)
+
+#### Backend Core
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| PDF Import & Index | ✅ Hoàn thành | PyMuPDF + OCR (rapidocr), chunk 512 tokens, embed bge-m3 |
+| Multi-format import (DOCX, TXT, MD, HTML, EPUB) | ✅ Hoàn thành (v0.1) | `extract_document()` dispatch theo extension |
+| Zotero Import (CSV + BibTeX) | ✅ Hoàn thành | Cả metadata lẫn tìm PDF tự động |
+| Semantic Search (Hybrid BM25 + Vector) | ✅ Hoàn thành | RRF fusion + Cross-encoder reranker |
+| Chat với Paper (RAG) | ✅ Hoàn thành | Retrieve top-5 chunks → LLM generate + citations |
+| Cloud LLM chain (NVIDIA → FreeModel → Groq → Gemini → Ollama) | ✅ Hoàn thành (v0.1) | `cloud_free` mode, fallback tự động |
+| Local LLM (Ollama) với 3 tier (weak/medium/strong) | ✅ Hoàn thành | qwen2.5:7b mặc định |
+| Daily Reader (gợi ý paper mỗi ngày) | ✅ Hoàn thành | LLM chọn paper theo lịch sử |
+| Insight features (gap analysis, conflict, topic, evolution) | ✅ Hoàn thành | LLM phân tích đa paper |
+| Highlights tự động | ✅ Hoàn thành | LLM chọn đoạn quan trọng + phân loại |
+| Async non-blocking (asyncio.to_thread) | ✅ Hoàn thành (v0.1) | Chat, Search, Review, Critique, Debate, Highlights, Import |
+| Timing logs cho debug | ✅ Hoàn thành (v0.1) | TIMING log ở chat, generator, hybrid search |
+| PDF inline view (iframe) | ✅ Hoàn thành | Không tải về, xem trực tiếp |
+
+#### Frontend (Tauri + React + TypeScript)
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Library (danh sách paper, filter, sort) | ✅ Hoàn thành | Splitter resize, narrow mode responsive |
+| Chat UI (Markdown, streaming, citations) | ✅ Hoàn thành | MarkdownRenderer custom (bold, code, table, list, heading) |
+| Search UI | ✅ Hoàn thành | Hybrid search + filters |
+| Settings (LLM mode, API keys, model selection) | ✅ Hoàn thành | env_only_keys masking |
+| Wow Analysis UI | ✅ Hoàn thành | Multi-step (summary, findings, debate, questions) |
+| Import Panel (PDF + BibTeX + Zotero) | ✅ Hoàn thành | Drag-drop, folder import, format badges |
+| MarkdownRenderer | ✅ Hoàn thành (v0.1) | Bold, italic, code, heading, table, list, citation |
+| Narrow mode responsive (< 480px) | ✅ Hoàn thành (v0.1) | Icon buttons, ⋮ menu, tab select |
+| Preview panel tabs (Info, AI, Related, Highlights, PDF) | ✅ Hoàn thành | Kéo ngang tabs, splitter |
+
+#### LLM Providers
+| Provider | Trạng thái | Ghi chú |
+|---|---|---|
+| **NVIDIA NIM** (moonshotai/kimi-k2.6) | ✅ Hoàn thành (v0.1) | Chạy đầu tiên trong cloud_free chain |
+| **FreeModel.dev** (gpt-4o-mini) | ✅ Hoàn thành | Hoạt động tốt, latency 5-11s |
+| **Groq** (llama-3.1-8b-instant) | ⚠️ Có vấn đề | Key 401 — cần key mới |
+| **Gemini** (gemini-1.5-flash) | ⚠️ Có vấn đề | Key sai format (OAuth token, cần AIza...) |
+| **Ollama** (qwen2.5:7b) | ✅ Hoàn thành | Local fallback cuối cùng |
+| **DeepSeek** | ✅ Hoàn thành | cloud_custom mode |
+| **Claude** | ✅ Hoàn thành | cloud_custom mode |
+
+### 🔧 Cần cải thiện
+
+| Vấn đề | Mức độ | Giải pháp |
+|---|---|---|
+| Groq key 401 | 🔴 Cao | Copy key mới từ https://console.groq.com/keys |
+| Gemini key sai format | 🔴 Cao | Lấy key dạng AIza... từ https://aistudio.google.com/apikey |
+| Chat response chậm (NVIDIA ~8-15s) | 🟡 TB | Timing log đã thêm, cần theo dõi. Có thể giảm top_k_retrieval |
+| Intel Iris Xe GPU chưa bật cho Ollama | 🟢 Thấp | Set OLLAMA_IGPU_ENABLE=1 |
+| insight endpoints chưa wrap asyncio.to_thread | 🟢 Thấp | Gap, conflict, topic, evolution |
+
+### 📋 So với MVP gốc (Phase 1)
+
+| MVP Feature | Plan | Actual | Vượt/Thiếu |
+|---|---|---|---|
+| Import & Index PDF | 🔴 MUST | ✅ PDF + DOCX + TXT + MD + HTML + EPUB | **Vượt** (thêm 5 format) |
+| Semantic Search | 🔴 MUST | ✅ Hybrid + Reranker | Đúng plan |
+| Chat với Paper | 🔴 MUST | ✅ RAG + 7 providers + citations | **Vượt** (nhiều provider) |
+| Library quản lý | 🟡 SHOULD | ✅ List + filter + sort + preview | Đúng plan |
+| Zotero import | ❌ Không làm MVP | ✅ CSV + BibTeX + auto PDF | **Vượt** |
+| Cloud LLM option | 🟡 SHOULD | ✅ 6 cloud providers | **Vượt** |
+| Insight features | ❌ Không làm MVP | ✅ Gap, conflict, topic, evolution - Wow Analysis | **Vượt** |
+
+---
+
 ## 1. Tầm nhìn & Định vị
 
 > **Tagline:** "Trợ lý nhớ mọi paper bạn đã đọc — chạy hoàn toàn trên máy bạn, không gửi dữ liệu ra ngoài."
