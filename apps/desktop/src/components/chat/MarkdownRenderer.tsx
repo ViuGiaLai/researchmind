@@ -125,7 +125,7 @@ function renderLine(line: string, i: number): React.ReactNode {
       {
         key: i,
         style: {
-          margin: "12px 0 6px",
+          margin: "8px 0 4px",
           fontSize: level === 1 ? "1.2em" : level === 2 ? "1.1em" : "1em",
           fontWeight: 600,
         },
@@ -183,7 +183,7 @@ function renderLine(line: string, i: number): React.ReactNode {
     return React.createElement("p", { key: i, style: { margin: "4px 0" } }, ...inner);
   }
 
-  return React.createElement("br", { key: i });
+  return null;
 }
 
 interface MarkdownRendererProps {
@@ -259,11 +259,14 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
     const colCount = Math.max(...tableRows.map((r) => r.length), 0);
     if (colCount === 0 || bodyRows.length === 0) { tableRows = []; return; }
 
-    const styleCell = (label: string, ci: number, isHeader: boolean) =>
-      React.createElement(isHeader ? "th" : "td", {
+    const styleCell = (label: string, ci: number, isHeader: boolean) => {
+      const parsed = parseInline(label).map((s, j) =>
+        renderSegment(s, j)
+      );
+      return React.createElement(isHeader ? "th" : "td", {
         key: ci,
         style: {
-          padding: "6px 12px",
+          padding: "4px 8px",
           fontSize: "0.9em",
           textAlign: "left",
           fontWeight: isHeader ? 600 : 400,
@@ -273,7 +276,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
             : "1px solid rgba(255,255,255,0.06)",
           verticalAlign: "top",
         },
-      }, label);
+      }, ...parsed);
+    };
 
     const renderRow = (row: string[], isHeader: boolean, ri: number) =>
       React.createElement("tr", { key: ri },
