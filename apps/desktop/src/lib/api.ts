@@ -220,16 +220,17 @@ export const api = {
     request<{ suggestions: string[] }>("GET", `/api/search/suggest?q=${encodeURIComponent(q)}`),
 
   // Chat
-  chat: (message: string, paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds }),
+  chat: (message: string, paperIds?: string[], scope?: string) =>
+    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope }),
 
   chatStream: (
     message: string,
     paperIds: string[] | undefined,
+    scope?: string,
     sessionId: string = "default",
   ) => {
     const url = `${BASE_URL}/api/chat`;
-    const body = JSON.stringify({ message, paper_ids: paperIds, stream: true, session_id: sessionId });
+    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId });
     const controller = new AbortController();
     const stream: {
       onChunk: ((text: string) => void) | null;
@@ -410,6 +411,7 @@ export const api = {
       chunk_overlap: number;
       top_k_retrieval: number;
       embedding_model: string;
+      embedding_mode: string;
       setup_completed: boolean;
     }>("GET", "/api/settings"),
 
@@ -424,6 +426,10 @@ export const api = {
       remaining: number;
       mode: string;
     }>("GET", "/api/chat/usage"),
+
+  // Embedding
+  testEmbedding: () =>
+    request<{ success: boolean; dimension?: number; message?: string; error?: string }>("POST", "/api/settings/test-embedding"),
 
   // Key Validation
   validateApiKey: (provider: string, apiKey: string, model?: string) =>
@@ -557,6 +563,22 @@ export interface ExternalSource {
     title: string;
     publication_year: number;
     doi?: string;
+  }>;
+  semantic_scholar?: {
+    paper_id: string;
+    citation_count: number;
+    influential_citation_count: number;
+    venue: string | null;
+  } | null;
+  s2_citations?: Array<{
+    title: string;
+    year: number | null;
+    citation_count: number;
+  }>;
+  s2_recommendations?: Array<{
+    title: string;
+    year: number | null;
+    citation_count: number;
   }>;
 }
 

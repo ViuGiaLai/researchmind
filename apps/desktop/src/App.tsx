@@ -181,6 +181,9 @@ function App() {
             initialPaperIds={chatPaperIds}
             initialQuery={initialQuery}
             initialMode={initialMode}
+            onGoToLibrary={() => {
+              setActiveTab("library");
+            }}
           />
         )}
         {activeTab === "insights" && <InsightsView onStartChat={handleStartChat} />}

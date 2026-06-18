@@ -63,6 +63,10 @@ export const SettingsView: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [embeddingModel, setEmbeddingModel] = useState("");
+  const [embeddingMode, setEmbeddingMode] = useState("local");
+  const [testingEmbedding, setTestingEmbedding] = useState(false);
+  const [embeddingTestResult, setEmbeddingTestResult] = useState<"success" | "error" | null>(null);
+  const [embeddingTestMsg, setEmbeddingTestMsg] = useState<string>("");
   const [stats, setStats] = useState<{ total_papers: number; total_chunks: number; chroma_chunks: number; data_dir?: string } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
 
@@ -106,8 +110,32 @@ export const SettingsView: React.FC = () => {
       setModelTierMedium(s.model_tier_medium);
       setModelTierStrong(s.model_tier_strong);
       setEmbeddingModel(s.embedding_model);
+      setEmbeddingMode(s.embedding_mode || "local");
     } catch (e) {
       console.error("Failed to load settings:", e);
+    }
+  };
+
+  const testEmbedding = async () => {
+    setTestingEmbedding(true);
+    setEmbeddingTestResult(null);
+    setEmbeddingTestMsg("");
+    try {
+      // Auto-save embedding_mode before testing so the change persists
+      await api.updateSettings({ embedding_mode: embeddingMode });
+      const res = await api.testEmbedding();
+      if (res.success) {
+        setEmbeddingTestResult("success");
+        setEmbeddingTestMsg(res.message || "Kết nối thành công!");
+      } else {
+        setEmbeddingTestResult("error");
+        setEmbeddingTestMsg(res.error || "Kết nối thất bại.");
+      }
+    } catch (e) {
+      setEmbeddingTestResult("error");
+      setEmbeddingTestMsg(e instanceof Error ? e.message : "Lỗi kết nối backend.");
+    } finally {
+      setTestingEmbedding(false);
     }
   };
 
@@ -314,6 +342,7 @@ export const SettingsView: React.FC = () => {
         gemini_model: geminiModel,
         ollama_url: ollamaUrl,
         ollama_model: ollamaModel,
+        embedding_mode: embeddingMode,
       });
       setSaveMsg({ type: "success", text: "Đã lưu cấu hình!" });
       loadUsage();
@@ -767,7 +796,69 @@ export const SettingsView: React.FC = () => {
               )}
             </strong>
           </p>
-          <p>Embedding model: <strong>{embeddingModel || "bge-m3"}</strong></p>
+          <p>
+            Embedding:{" "}
+            <strong>
+              {embeddingMode === "cloud"
+                ? `☁️ Gemini`
+                : `💻 ${embeddingModel || "bge-m3"} (local)`}
+            </strong>
+            <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <select
+                value={embeddingMode}
+                onChange={async (e) => {
+                  const newMode = e.target.value;
+                  setEmbeddingMode(newMode);
+                  setEmbeddingTestResult(null);
+                  setEmbeddingTestMsg("");
+                  // Auto-save ngay khi đổi dropdown
+                  try {
+                    await api.updateSettings({ embedding_mode: newMode });
+                  } catch { /* silent */ }
+                }}
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "1px 4px",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--color-text-secondary)",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="local">Local</option>
+                <option value="cloud">Cloud Gemini</option>
+              </select>
+              {embeddingMode === "cloud" && (
+                <button
+                  onClick={testEmbedding}
+                  disabled={testingEmbedding}
+                  title="Kiểm tra kết nối Gemini Embedding"
+                  style={{
+                    fontSize: "0.7rem",
+                    padding: "2px 6px",
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    color: embeddingTestResult === "success" ? "var(--color-success)" : embeddingTestResult === "error" ? "var(--color-error)" : "var(--color-text-muted)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {testingEmbedding ? "⏳" : embeddingTestResult === "success" ? "✅ OK" : embeddingTestResult === "error" ? "❌ Lỗi" : "🔌 Kiểm tra"}
+                </button>
+              )}
+              {embeddingTestMsg && (
+                <span style={{
+                  fontSize: "0.7rem",
+                  color: embeddingTestResult === "success" ? "var(--color-success)" : "var(--color-error)",
+                  marginLeft: 4,
+                }}>
+                  {embeddingTestMsg}
+                </span>
+              )}
+            </span>
+          </p>
           {stats && (
             <>
               <p>Papers: <strong>{stats.total_papers}</strong></p>

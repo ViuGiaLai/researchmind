@@ -1,7 +1,9 @@
 """
-POST /api/verify — Verify Mode endpoint.
-Kết hợp Local RAG (Tầng 1) + OpenAlex + Crossref (Tầng 2) + LLM (Tầng 3).
+POST /api/verify — Academic Verification endpoint.
+Kết hợp Local RAG + OpenAlex + Crossref + Semantic Scholar.
+Cung cấp: metadata verification, citation analysis, related research, evolution.
 """
+
 import asyncio
 import json
 import re
@@ -18,11 +20,10 @@ from loguru import logger
 
 from academic.openalex import get_work_by_doi, get_work_by_title, get_recent_citing_works
 from academic.crossref import get_work_by_doi as crossref_get_work
+from academic.semantic_scholar import get_paper_by_doi as s2_get_by_doi, get_citations as s2_get_citations, get_recommendations as s2_get_recommendations
 from academic.doi_extractor import extract_doi_from_paper, extract_multiple_dois
 from academic.paper_check import check_papers_ready
-from academic.context_builder import (
-    build_verify_context, ExternalPaperData
-)
+from academic.context_builder import ExternalPaperData
 from academic.cache import cache_get, cache_set, TTL_OPENALEX, TTL_CROSSREF
 
 router = APIRouter(prefix="/api/verify", tags=["verify"])
@@ -59,10 +60,9 @@ async def verify_research(request: VerifyRequest = Body(...)):
         top_k=5,
     )
 
-    papers_meta = await asyncio.to_thread(
-        _get_papers_metadata, paper_ids
-    )
+    papers_meta = await asyncio.to_thread(_get_papers_metadata, paper_ids)
 
+    # --- Extract DOIs ---
     dois_to_lookup = []
     for paper in papers_meta:
         doi = await extract_doi_from_paper(
@@ -79,11 +79,12 @@ async def verify_research(request: VerifyRequest = Body(...)):
         if doi not in [d for d, _ in dois_to_lookup]:
             dois_to_lookup.append((doi, ""))
 
+    # --- Lookup ALL sources ---
     external_data = []
     verify_status = "local_only"
 
     if dois_to_lookup:
-        tasks = [_lookup_paper(doi, title) for doi, title in dois_to_lookup[:3]]
+        tasks = [_full_lookup(doi, title) for doi, title in dois_to_lookup[:3]]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in results:
@@ -91,17 +92,23 @@ async def verify_research(request: VerifyRequest = Body(...)):
                 external_data.append(result)
 
         if external_data:
-            has_full = any(
+            has_full_meta = any(
                 ep.openalex is not None and ep.crossref is not None
                 for ep in external_data
             )
-            verify_status = "full" if has_full else "partial"
+            has_any = any(
+                ep.openalex is not None or ep.crossref is not None or ep.semantic_scholar is not None
+                for ep in external_data
+            )
+            verify_status = "full" if has_full_meta else ("partial" if has_any else "local_only")
 
     external_sources_json = [_serialize_external(ep) for ep in external_data]
 
-    combined_context = build_verify_context(
+    # --- Build rich academic prompt ---
+    combined_context = _build_academic_context(
         local_context=retrieval.context_text,
-        external_data=external_data
+        external_data=external_data,
+        papers_meta=papers_meta,
     )
 
     if do_stream:
@@ -157,74 +164,144 @@ async def verify_research(request: VerifyRequest = Body(...)):
     }
 
 
-def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id):
-    full_response = ""
-    model_used = ""
+def _build_academic_context(
+    local_context: str,
+    external_data: list[ExternalPaperData],
+    papers_meta: list[dict],
+) -> str:
+    sections = []
 
-    # Event 1: academic data
-    yield f"data: {json.dumps({'type': 'academic', 'data': external_sources_json, 'verify_status': verify_status})}\n\n"
+    # Local context
+    sections.append(
+        "=== TÀI LIỆU CỦA NGƯỜI DÙNG (Local) ===\n"
+        + local_context
+    )
 
-    # Event 2: stream LLM tokens
-    for chunk in state.generator.stream_generate_verify(query, combined_context):
-        full_response += chunk
-        yield f"data: {json.dumps({'type': 'chunk', 'chunk': chunk})}\n\n"
+    # Paper metadata summary
+    if papers_meta:
+        meta_lines = []
+        for p in papers_meta:
+            title = p.get("title", "Unknown")
+            authors = ", ".join(p.get("authors", [])[:3]) or "N/A"
+            meta_lines.append(f"- {title} (tác giả: {authors})")
+        if meta_lines:
+            sections.append("=== PAPER ĐƯỢC PHÂN TÍCH ===\n" + "\n".join(meta_lines))
 
-    model_used = state.generator.current_model
+    # External academic data
+    if external_data:
+        ext_sections = []
+        for ep in external_data:
+            block = _format_rich_external(ep)
+            if block:
+                ext_sections.append(block)
+        if ext_sections:
+            sections.append(
+                "=== DỮ LIỆU HỌC THUẬT BÊN NGOÀI (OpenAlex + Crossref + Semantic Scholar) ===\n"
+                + "\n\n".join(ext_sections)
+            )
+    else:
+        sections.append(
+            "=== DỮ LIỆU HỌC THUẬT BÊN NGOÀI ===\n"
+            "Không tìm thấy DOI hoặc dữ liệu external cho các paper này. "
+            "Hãy trả lời dựa trên tài liệu local và kiến thức của bạn."
+        )
 
-    # Extract citations
-    citations = []
-    pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
-    for match in re.finditer(pattern, full_response):
-        citations.append({
-            "source": match.group(1).strip(),
-            "page": int(match.group(2)) if match.group(2) else None,
-            "text": match.group(0),
-        })
-
-    # Save to history
-    db = get_session(state.engine)
-    try:
-        db.add(ChatHistory(
-            session_id=session_id, role="user",
-            content=query, context_papers=json.dumps(papers_used),
-            citations="[]", model_used="",
-        ))
-        db.add(ChatHistory(
-            session_id=session_id, role="assistant",
-            content=full_response,
-            context_papers=json.dumps(papers_used),
-            citations=json.dumps(citations),
-            model_used=model_used,
-        ))
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to save streamed verify history: {e}")
-    finally:
-        db.close()
-
-    # Event 3: done
-    yield f"data: {json.dumps({'type': 'done', 'model_used': model_used, 'citations': citations, 'external_sources': external_sources_json, 'verify_status': verify_status})}\n\n"
+    return "\n\n".join(sections)
 
 
-async def _lookup_paper(doi: str, fallback_title: str) -> ExternalPaperData:
+def _format_rich_external(ep: ExternalPaperData) -> str:
+    lines = []
+    title = ep.title or ep.doi
+    lines.append(f"[PAPER: {title}]")
+    lines.append(f"DOI: {ep.doi}")
+
+    # Crossref metadata
+    if ep.crossref and ep.crossref.is_valid:
+        cr = ep.crossref
+        if cr.authors:
+            lines.append(f"Tác giả: {', '.join(cr.authors[:3])}" + (" et al." if len(cr.authors) > 3 else ""))
+        if cr.journal:
+            lines.append(f"Tạp chí: {cr.journal}")
+        if cr.year:
+            lines.append(f"Năm: {cr.year}")
+        lines.append(f"Citations (Crossref): {cr.citation_count}")
+
+    # OpenAlex data
+    if ep.openalex:
+        oa = ep.openalex
+        lines.append(f"Citations (OpenAlex): {oa.citation_count}")
+        lines.append(f"Số paper liên quan: {len(oa.related_work_ids)}")
+        if oa.publication_year:
+            lines.append(f"Năm xuất bản: {oa.publication_year}")
+
+    # Semantic Scholar data
+    if ep.semantic_scholar:
+        ss = ep.semantic_scholar
+        lines.append(f"Citations (Semantic Scholar): {ss.citation_count}")
+        lines.append(f"Influential citations: {ss.influential_citation_count}")
+        if ss.venue:
+            lines.append(f"Venue: {ss.venue}")
+
+    # Recent citing works (evolution)
+    if ep.recent_citing:
+        lines.append(f"\nCác nghiên cứu gần đây (từ 2022) trích dẫn paper này:")
+        for i, work in enumerate(ep.recent_citing[:5], 1):
+            r_title = work.get("title", "Unknown")
+            r_year = work.get("publication_year", "?")
+            r_doi = work.get("doi", "")
+            lines.append(f"  {i}. {r_title} ({r_year})" + (f" — doi:{r_doi}" if r_doi else ""))
+
+    # Semantic Scholar citations
+    if ep.s2_citations:
+        lines.append(f"\nCác paper trích dẫn (Semantic Scholar, top 5):")
+        for i, cite in enumerate(ep.s2_citations[:5], 1):
+            lines.append(f"  {i}. {cite.title} ({cite.year or '?'}) — {cite.citation_count} citations")
+
+    # Semantic Scholar recommendations
+    if ep.s2_recommendations:
+        lines.append(f"\nPaper tương tự được đề xuất:")
+        for i, rec in enumerate(ep.s2_recommendations[:3], 1):
+            lines.append(f"  {i}. {rec.title} ({rec.year or '?'}) — {rec.citation_count} citations")
+
+    return "\n".join(lines)
+
+
+async def _full_lookup(doi: str, fallback_title: str) -> ExternalPaperData:
+    """Lookup paper across OpenAlex + Crossref + Semantic Scholar."""
     oa_cached = cache_get(f"oa:{doi}", TTL_OPENALEX)
     cr_cached = cache_get(f"cr:{doi}", TTL_CROSSREF)
 
     oa_task = _cached_or_fetch(oa_cached, get_work_by_doi(doi))
     cr_task = _cached_or_fetch(cr_cached, crossref_get_work(doi))
+    s2_task = _cached_or_fetch(None, s2_get_by_doi(doi))
 
-    oa_result, cr_result = await asyncio.gather(oa_task, cr_task)
+    oa_result, cr_result, s2_result = await asyncio.gather(oa_task, cr_task, s2_task, return_exceptions=True)
+
+    oa_result = oa_result if not isinstance(oa_result, BaseException) else None
+    cr_result = cr_result if not isinstance(cr_result, BaseException) else None
+    s2_result = s2_result if not isinstance(s2_result, BaseException) else None
 
     if oa_result is None and fallback_title:
         oa_result = await get_work_by_title(fallback_title)
 
+    # Recent citing from OpenAlex
     recent_citing = []
     if oa_result and oa_result.openalex_id:
-        recent_citing = await get_recent_citing_works(
-            oa_result.openalex_id, since_year=2022, limit=5
-        )
+        recent_citing = await get_recent_citing_works(oa_result.openalex_id, since_year=2022, limit=5)
 
+    # Semantic Scholar citations + recommendations
+    s2_citations = []
+    s2_recommendations = []
+    if s2_result and s2_result.paper_id:
+        cite_task = s2_get_citations(s2_result.paper_id, limit=10)
+        rec_task = s2_get_recommendations(s2_result.paper_id, limit=5)
+        s2_cite_res, s2_rec_res = await asyncio.gather(cite_task, rec_task, return_exceptions=True)
+        if not isinstance(s2_cite_res, BaseException):
+            s2_citations = s2_cite_res
+        if not isinstance(s2_rec_res, BaseException):
+            s2_recommendations = s2_rec_res
+
+    # Cache
     if oa_result:
         cache_set(f"oa:{doi}", "openalex", {
             "openalex_id": oa_result.openalex_id,
@@ -254,7 +331,10 @@ async def _lookup_paper(doi: str, fallback_title: str) -> ExternalPaperData:
         title=title,
         openalex=oa_result,
         crossref=cr_result,
-        recent_citing=recent_citing
+        semantic_scholar=s2_result,
+        recent_citing=recent_citing,
+        s2_citations=s2_citations,
+        s2_recommendations=s2_recommendations,
     )
 
 
@@ -273,14 +353,17 @@ def _serialize_external(ep: ExternalPaperData) -> dict:
         "title": ep.title,
         "openalex": None,
         "crossref": None,
-        "recent_citing": ep.recent_citing
+        "semantic_scholar": None,
+        "recent_citing": ep.recent_citing,
+        "s2_citations": [],
+        "s2_recommendations": [],
     }
     if ep.openalex:
         result["openalex"] = {
             "citation_count": ep.openalex.citation_count,
             "publication_year": ep.openalex.publication_year,
             "related_count": len(ep.openalex.related_work_ids),
-            "openalex_id": ep.openalex.openalex_id
+            "openalex_id": ep.openalex.openalex_id,
         }
     if ep.crossref:
         result["crossref"] = {
@@ -289,9 +372,71 @@ def _serialize_external(ep: ExternalPaperData) -> dict:
             "year": ep.crossref.year,
             "publisher": ep.crossref.publisher,
             "citation_count": ep.crossref.citation_count,
-            "is_valid": ep.crossref.is_valid
+            "is_valid": ep.crossref.is_valid,
         }
+    if ep.semantic_scholar:
+        result["semantic_scholar"] = {
+            "paper_id": ep.semantic_scholar.paper_id,
+            "citation_count": ep.semantic_scholar.citation_count,
+            "influential_citation_count": ep.semantic_scholar.influential_citation_count,
+            "venue": ep.semantic_scholar.venue,
+        }
+    if ep.s2_citations:
+        result["s2_citations"] = [
+            {"title": c.title, "year": c.year, "citation_count": c.citation_count}
+            for c in ep.s2_citations[:5]
+        ]
+    if ep.s2_recommendations:
+        result["s2_recommendations"] = [
+            {"title": r.title, "year": r.year, "citation_count": r.citation_count}
+            for r in ep.s2_recommendations[:3]
+        ]
     return result
+
+
+def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id):
+    full_response = ""
+    model_used = ""
+
+    yield f"data: {json.dumps({'type': 'academic', 'data': external_sources_json, 'verify_status': verify_status})}\n\n"
+
+    for chunk in state.generator.stream_generate_verify(query, combined_context):
+        full_response += chunk
+        yield f"data: {json.dumps({'type': 'chunk', 'chunk': chunk})}\n\n"
+
+    model_used = state.generator.current_model
+
+    citations = []
+    pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
+    for match in re.finditer(pattern, full_response):
+        citations.append({
+            "source": match.group(1).strip(),
+            "page": int(match.group(2)) if match.group(2) else None,
+            "text": match.group(0),
+        })
+
+    db = get_session(state.engine)
+    try:
+        db.add(ChatHistory(
+            session_id=session_id, role="user",
+            content=query, context_papers=json.dumps(papers_used),
+            citations="[]", model_used="",
+        ))
+        db.add(ChatHistory(
+            session_id=session_id, role="assistant",
+            content=full_response,
+            context_papers=json.dumps(papers_used),
+            citations=json.dumps(citations),
+            model_used=model_used,
+        ))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save streamed verify history: {e}")
+    finally:
+        db.close()
+
+    yield f"data: {json.dumps({'type': 'done', 'model_used': model_used, 'citations': citations, 'external_sources': external_sources_json, 'verify_status': verify_status})}\n\n"
 
 
 def _get_papers_metadata(paper_ids: list[str]) -> list[dict]:
@@ -304,7 +449,9 @@ def _get_papers_metadata(paper_ids: list[str]) -> list[dict]:
             {
                 "file_path": p.file_path,
                 "title": p.title,
-                "authors": p.authors.split(",") if p.authors else []
+                "authors": p.authors.split(",") if p.authors else [],
+                "year": p.year,
+                "doi": p.doi,
             }
             for p in papers
         ]

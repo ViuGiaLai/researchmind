@@ -215,7 +215,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       await waitForIndexed(paperId, runId);
     } catch (e: any) {
       const errMsg = e.message || "Không thể index paper";
-      setSteps((prev) => ({
+      setSteps(() => ({
         summary: { status: "error", content: "", error: errMsg },
         critique: { status: "error", content: "", error: errMsg },
         conflict: { status: "error", content: "", error: errMsg },

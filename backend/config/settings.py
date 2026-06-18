@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     # Embedding
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024
+    embedding_mode: str = "local"  # "local" (sentence-transformers) or "cloud" (Gemini API)
 
     # Search
     top_k_bm25: int = 20
@@ -82,6 +83,8 @@ class Settings(BaseSettings):
     nvidia_api_key: str = ""
     nvidia_model: str = "moonshotai/kimi-k2.6"
     nvidia_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_deepseek_api_key: str = ""
+    nvidia_deepseek_model: str = "deepseek-ai/deepseek-v4-pro"
     
     # Groq Cloud
     groq_api_key: str = ""

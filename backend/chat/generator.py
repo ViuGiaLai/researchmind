@@ -50,6 +50,8 @@ class Generator:
         nvidia_api_key: str = "",
         nvidia_model: str = "moonshotai/kimi-k2.6",
         nvidia_url: str = "https://integrate.api.nvidia.com/v1",
+        nvidia_deepseek_api_key: str = "",
+        nvidia_deepseek_model: str = "deepseek-ai/deepseek-v4-pro",
         freemodel_api_key: str = "",
         freemodel_model: str = "gpt-4o-mini",
         freemodel_url: str = "https://freemodel.dev/v1",
@@ -69,6 +71,8 @@ class Generator:
         self.nvidia_api_key = nvidia_api_key
         self.nvidia_model = nvidia_model
         self.nvidia_url = nvidia_url.rstrip("/")
+        self.nvidia_deepseek_api_key = nvidia_deepseek_api_key
+        self.nvidia_deepseek_model = nvidia_deepseek_model
         self.freemodel_api_key = freemodel_api_key
         self.freemodel_model = freemodel_model
         self.freemodel_url = freemodel_url.rstrip("/")
@@ -131,7 +135,12 @@ class Generator:
                 finish_reason="no_context",
             )
 
-        user_prompt = f"""Context từ tài liệu:
+        if context_text == "__EXTERNAL_KNOWLEDGE__":
+            user_prompt = f"""Câu hỏi: {query}
+
+Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+        else:
+            user_prompt = f"""Context từ tài liệu:
 {context_text}
 
 Câu hỏi: {query}
@@ -141,16 +150,26 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         import time
         # LLM Routing
         if self.mode == "cloud_free":
-            # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama (last resort)
-            # 1. Try NVIDIA NIM
+            # Chain: NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama (last resort)
+            # 1. Try NVIDIA NIM (Kimi)
             if self.nvidia_api_key:
-                logger.info("cloud_free: trying NVIDIA NIM...")
+                logger.info("cloud_free: trying NVIDIA NIM Kimi...")
                 t0 = time.time()
                 result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model)
-                logger.info(f"TIMING: NVIDIA={time.time()-t0:.2f}s finish={result.finish_reason}")
+                logger.info(f"TIMING: NVIDIA Kimi={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
-                logger.warning(f"NVIDIA failed ({result.finish_reason}), trying FreeModel...")
+                logger.warning(f"NVIDIA Kimi failed ({result.finish_reason}), trying NVIDIA NIM DeepSeek...")
+
+            # 2. Try NVIDIA NIM (DeepSeek)
+            if self.nvidia_deepseek_api_key:
+                logger.info("cloud_free: trying NVIDIA NIM DeepSeek...")
+                t0 = time.time()
+                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model)
+                logger.info(f"TIMING: NVIDIA DeepSeek={time.time()-t0:.2f}s finish={result.finish_reason}")
+                if result.finish_reason != "error":
+                    return result
+                logger.warning(f"NVIDIA DeepSeek failed ({result.finish_reason}), trying FreeModel...")
             # 2. Try FreeModel.dev
             if self.freemodel_api_key:
                 logger.info("cloud_free: trying FreeModel.dev...")
@@ -294,9 +313,13 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         mode = self.mode
 
         if mode == "cloud_free":
-            # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama
+            # Chain: NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama
             if self.nvidia_api_key:
                 result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, system_prompt_override=system_prompt)
+                if result.finish_reason != "error":
+                    return result
+            if self.nvidia_deepseek_api_key:
+                result = self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
                     return result
             if self.freemodel_api_key:
@@ -755,7 +778,12 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
             yield "Không tìm thấy tài liệu liên quan."
             return
 
-        user_prompt = f"""Context từ tài liệu:
+        if context_text == "__EXTERNAL_KNOWLEDGE__":
+            user_prompt = f"""Câu hỏi: {query}
+
+Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+        else:
+            user_prompt = f"""Context từ tài liệu:
 {context_text}
 
 Câu hỏi: {query}
@@ -787,12 +815,23 @@ Câu hỏi: {query}"""
     def _stream_chain(self, user_prompt: str):
 
         if self.mode == "cloud_free":
-            # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama
+            # Chain: NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama
             if self.nvidia_api_key:
                 self.current_model = f"nvidia/{self.nvidia_model}"
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.nvidia_api_key, self.nvidia_model,
+                    self.nvidia_url
+                ):
+                    yielded = True
+                    yield chunk
+                if yielded:
+                    return
+            if self.nvidia_deepseek_api_key:
+                self.current_model = f"nvidia/{self.nvidia_deepseek_model}"
+                yielded = False
+                for chunk in self._stream_openai(
+                    user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
                     self.nvidia_url
                 ):
                     yielded = True

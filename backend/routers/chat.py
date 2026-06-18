@@ -106,15 +106,25 @@ async def chat(request: dict = Body(...)):
         finally:
             session.close()
 
-    t1 = time_mod.time()
-    retrieval = await asyncio.to_thread(
-        state.retriever.retrieve,
-        query=message,
-        paper_ids=paper_ids,
-        top_k=5,
-    )
-    t2 = time_mod.time()
-    logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
+    scope = request.get("scope", "current")
+
+    if scope == "external":
+        from types import SimpleNamespace
+        retrieval = SimpleNamespace(
+            context_text="__EXTERNAL_KNOWLEDGE__",
+            total_chunks=0,
+            papers_used=[],
+        )
+    else:
+        t1 = time_mod.time()
+        retrieval = await asyncio.to_thread(
+            state.retriever.retrieve,
+            query=message,
+            paper_ids=paper_ids,
+            top_k=5,
+        )
+        t2 = time_mod.time()
+        logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
 
     if stream:
         return StreamingResponse(

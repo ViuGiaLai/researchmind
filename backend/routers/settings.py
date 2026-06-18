@@ -40,6 +40,7 @@ async def get_settings():
         "chunk_overlap": settings.chunk_overlap,
         "top_k_retrieval": settings.top_k_retrieval,
         "embedding_model": settings.embedding_model,
+        "embedding_mode": settings.embedding_mode,
         "setup_completed": settings.setup_completed,
         "zotero_data_dir": getattr(settings, "zotero_data_dir", ""),
     }
@@ -63,6 +64,13 @@ async def update_settings(new_settings: dict = Body(...)):
                     session.add(Setting(key=key, value=str(value)))
         session.commit()
 
+        if "embedding_mode" in new_settings:
+            from ingestion.embedder import _embedder
+            if _embedder is not None:
+                _embedder._model = None
+                _embedder._mode = settings.embedding_mode
+                logger.info("Embedder reset: mode={}", settings.embedding_mode)
+
         state.generator = Generator(
             ollama_url=settings.ollama_url,
             ollama_model=settings.ollama_model,
@@ -77,6 +85,8 @@ async def update_settings(new_settings: dict = Body(...)):
             nvidia_api_key=settings.nvidia_api_key,
             nvidia_model=settings.nvidia_model,
             nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
+            nvidia_deepseek_api_key=getattr(settings, "nvidia_deepseek_api_key", ""),
+            nvidia_deepseek_model=getattr(settings, "nvidia_deepseek_model", "deepseek-ai/deepseek-v4-pro"),
             freemodel_api_key=settings.freemodel_api_key,
             freemodel_model=settings.freemodel_model,
             freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
@@ -90,6 +100,41 @@ async def update_settings(new_settings: dict = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
+
+
+# ─── Test Embedding Connection ────────────────────────────────────
+
+@router.post("/settings/test-embedding")
+async def test_embedding_connection():
+    """Test Gemini Embedding API connection."""
+    api_key = settings.gemini_api_key
+    if not api_key:
+        return {"success": False, "error": "Chưa có Gemini API Key. Vào mục Custom API Key để nhập."}
+
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+                params={"key": api_key},
+                json={
+                    "model": "models/gemini-embedding-001",
+                    "content": {"parts": [{"text": "test"}]},
+                },
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                embedding = data.get("embedding", {}).get("values", [])
+                dim = len(embedding)
+                return {"success": True, "dimension": dim, "message": f"Kết nối Gemini Embedding thành công! Dimension: {dim}"}
+            else:
+                try:
+                    err = resp.json().get("error", {}).get("message", resp.text)
+                except:
+                    err = resp.text
+                return {"success": False, "error": f"Gemini API lỗi: {err}"}
+    except Exception as e:
+        return {"success": False, "error": f"Lỗi kết nối: {str(e)}"}
 
 
 # ─── Validate API Key ────────────────────────────────────────────

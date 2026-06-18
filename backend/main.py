@@ -189,6 +189,8 @@ async def lifespan(app: FastAPI):
         nvidia_api_key=settings.nvidia_api_key,
         nvidia_model=settings.nvidia_model,
         nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
+        nvidia_deepseek_api_key=getattr(settings, "nvidia_deepseek_api_key", ""),
+        nvidia_deepseek_model=getattr(settings, "nvidia_deepseek_model", "deepseek-ai/deepseek-v4-pro"),
         freemodel_api_key=settings.freemodel_api_key,
         freemodel_model=settings.freemodel_model,
         freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),

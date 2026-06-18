@@ -12,6 +12,12 @@ import {
   IconFileText,
   IconStar,
   IconBook,
+  IconLibrary,
+  IconSearch,
+  IconZap,
+  IconCheck,
+  IconDownload,
+  IconClose,
 } from "../Icons";
 import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
 import { useToast } from "../shared/Toast";
@@ -24,6 +30,7 @@ interface Message {
   model_used?: string;
 }
 
+type Scope = "current" | "library" | "external";
 type CitationStyle = "apa" | "ieee" | "vancouver";
 
 const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
@@ -37,12 +44,16 @@ export const ChatView: React.FC<{
   initialQuery?: string;
   initialMode?: "chat" | "review" | "critique" | "debate" | "verify";
   stream?: boolean;
-}> = ({ initialPaperIds, initialQuery, initialMode = "chat", stream = true }) => {
+  onGoToLibrary?: () => void;
+}> = ({ initialPaperIds, initialQuery, initialMode = "chat", stream = true, onGoToLibrary }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [paperIds] = useState<string[]>(initialPaperIds || []);
+  const [paperIds, setPaperIds] = useState<string[]>(initialPaperIds || []);
+  const [paperTitles, setPaperTitles] = useState<Map<string, string>>(new Map());
+  const [availablePapers, setAvailablePapers] = useState<{ id: string; title: string; authors: string }[]>([]);
+  const [loadingPapers, setLoadingPapers] = useState(false);
   const [usage, setUsage] = useState<{
     used: number;
     limit: number;
@@ -61,7 +72,75 @@ export const ChatView: React.FC<{
   const [copiedAll, setCopiedAll] = useState(false);
   const [exportingSynthesis, setExportingSynthesis] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
+  const [scope, setScope] = useState<Scope>("current");
+  const [showPaperPicker, setShowPaperPicker] = useState(false);
+  const [paperSearch, setPaperSearch] = useState("");
+  const [tempPaperIds, setTempPaperIds] = useState<string[]>([]);
+  const paperSearchRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+
+  const openPaperPicker = () => {
+    setTempPaperIds([...paperIds]);
+    setPaperSearch("");
+    setShowPaperPicker(true);
+  };
+
+  // Fetch paper titles for display
+  useEffect(() => {
+    if (paperIds.length === 0) {
+      setPaperTitles(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(paperIds.map(id =>
+      api.getPaper(id).then(p => ({ id, title: p.title })).catch(() => null)
+    )).then(results => {
+      if (cancelled) return;
+      const map = new Map<string, string>();
+      results.forEach(r => { if (r) map.set(r.id, r.title); });
+      setPaperTitles(map);
+    });
+    return () => { cancelled = true; };
+  }, [paperIds.join(",")]);
+
+  // Focus search input when modal opens; close on Escape
+  useEffect(() => {
+    if (showPaperPicker) {
+      paperSearchRef.current?.focus();
+    }
+  }, [showPaperPicker]);
+
+  useEffect(() => {
+    if (!showPaperPicker) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPaperPicker(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [showPaperPicker]);
+
+  // Fetch available papers for inline selection
+  useEffect(() => {
+    if (scope !== "current" || paperIds.length > 0) {
+      setAvailablePapers([]);
+      setLoadingPapers(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingPapers(true);
+    api.listPapers(1, 100)
+      .then(data => {
+        if (cancelled) return;
+        setAvailablePapers(data.papers.map(p => ({
+          id: p.id,
+          title: p.title || p.filename,
+          authors: p.authors || "",
+        })));
+      })
+      .catch(() => { if (!cancelled) setAvailablePapers([]); })
+      .finally(() => { if (!cancelled) setLoadingPapers(false); });
+    return () => { cancelled = true; };
+  }, [scope, paperIds.join(",")]);
 
   useEffect(() => {
     loadUsage();
@@ -106,13 +185,36 @@ export const ChatView: React.FC<{
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    // Phân biệt rõ 3 chế độ scope:
+    // - current: chỉ tìm trong paper(s) đã chọn (yêu cầu phải có paperIds)
+    // - library: tìm trong tất cả papers
+    // - external: không dùng tài liệu, AI tự trả lời
+    let effectiveIds: string[] | undefined;
+    if (scope === "current") {
+      if (paperIds.length === 0) {
+        const errMsg: Message = {
+          role: "assistant",
+          content: "❌ **Chưa chọn paper nào!**\n\nChế độ **📄 Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.\n\n👉 Chuyển sang **📚 Toàn bộ thư viện** để hỏi tất cả, hoặc quay lại thư viện chọn paper.",
+        };
+        setMessages((prev) => [...prev, errMsg]);
+        setLoading(false);
+        return;
+      }
+      effectiveIds = paperIds;
+    } else if (scope === "library") {
+      effectiveIds = undefined; // search tất cả papers
+    } else {
+      effectiveIds = undefined; // external: không filter
+    }
+
     try {
       if (stream && initialMode === "chat") {
-        const ids = paperIds.length > 0 ? paperIds : undefined;
-        const streamCtrl = api.chatStream(text, ids);
+        const ids = effectiveIds;
+        const streamCtrl = api.chatStream(text, ids, scope);
         const assistantIdx = messages.length + 1;
 
-        setMessages((prev) => [...prev, { role: "assistant", content: "🔍 Đang tra cứu tài liệu..." }]);
+        const loadingMsg = scope === "external" ? "🔍 Đang xử lý câu hỏi..." : "🔍 Đang tra cứu tài liệu...";
+        setMessages((prev) => [...prev, { role: "assistant", content: loadingMsg }]);
         setIsStreaming(true);
 
         let resolved = false;
@@ -159,23 +261,14 @@ export const ChatView: React.FC<{
       } else {
         let res: ChatResponse;
         if (initialMode === "review") {
-          res = await api.review(
-            text,
-            paperIds.length > 0 ? paperIds : undefined,
-          );
+          res = await api.review(text, effectiveIds);
         } else if (initialMode === "critique") {
-          res = await api.critique(
-            text,
-            paperIds.length > 0 ? paperIds : undefined,
-          );
+          res = await api.critique(text, effectiveIds);
         } else if (initialMode === "debate") {
-          res = await api.debate(
-            text,
-            paperIds.length > 0 ? paperIds : undefined,
-          );
+          res = await api.debate(text, effectiveIds);
         } else if (initialMode === "verify") {
           if (stream) {
-            const ids = paperIds.length > 0 ? paperIds : undefined;
+            const ids = effectiveIds;
             const streamCtrl = api.verifyStream(text, ids);
             const assistantIdx = messages.length + 1;
 
@@ -231,10 +324,7 @@ export const ChatView: React.FC<{
             // Early return — skip the non-streaming res assignment below
             return;
           } else {
-            const vres = await api.verify(
-              text,
-              paperIds.length > 0 ? paperIds : undefined,
-            );
+            const vres = await api.verify(text, effectiveIds);
             setVerifyResult(vres);
             res = {
               answer: vres.answer,
@@ -245,10 +335,7 @@ export const ChatView: React.FC<{
             };
           }
         } else {
-          res = await api.chat(
-            text,
-            paperIds.length > 0 ? paperIds : undefined,
-          );
+          res = await api.chat(text, effectiveIds, scope);
         }
         const assistantMsg: Message = {
           role: "assistant",
@@ -277,6 +364,86 @@ export const ChatView: React.FC<{
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickAction = async (action: string) => {
+    const actions: Record<string, { query: string; mode: string }> = {
+      summary: { query: "Tóm tắt các ý chính của paper này", mode: "chat" },
+      verify: { query: "Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài", mode: "verify" },
+      debate: { query: "Tạo tranh luận AI: ủng hộ và phản biện các luận điểm chính", mode: "debate" },
+      related: { query: "Tìm các nghiên cứu liên quan đến chủ đề của paper này", mode: "chat" },
+      insight: { query: "Phân tích khoảng trống nghiên cứu, điểm mạnh điểm yếu và hướng phát triển", mode: "gap" },
+    };
+    const act = actions[action];
+    if (!act) return;
+
+    // Kiểm tra scope trước khi xử lý quick action
+    const quickIds = (() => {
+      if (scope === "current") {
+        if (paperIds.length === 0) return "error";
+        return paperIds;
+      }
+      return undefined; // library hoặc external → search tất cả
+    })();
+
+    if (quickIds === "error") {
+      setMessages((prev) => [...prev, { role: "user", content: act.query }]);
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: "❌ **Chưa chọn paper nào!**\n\nChế độ **📄 Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.",
+      }]);
+      return;
+    }
+
+    if (scope === "external") {
+      setInput(act.query);
+      await handleSend(act.query);
+      return;
+    }
+
+    setInput(act.query);
+    if (act.mode === "verify") {
+      setMessages((prev) => [...prev, { role: "user", content: act.query }]);
+      setLoading(true);
+      try {
+        const vres = await api.verify(act.query, quickIds);
+        setVerifyResult(vres);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: vres.answer,
+          citations: vres.citations,
+          model_used: vres.model_used,
+        }]);
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
+        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Lỗi: ${errMsg}` }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (act.mode === "gap") {
+      setMessages((prev) => [...prev, { role: "user", content: act.query }]);
+      setLoading(true);
+      try {
+        const res = await api.findResearchGap(quickIds);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: res.answer,
+          citations: res.citations,
+          model_used: res.model_used,
+        }]);
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
+        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Lỗi: ${errMsg}` }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    await handleSend(act.query);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -428,11 +595,36 @@ export const ChatView: React.FC<{
     }
   }, []);
 
-  const suggestedQuestions = [
-    "Tóm tắt các paper trong thư viện",
-    "So sánh phương pháp trong các paper đã chọn",
-    "Những xu hướng nghiên cứu chính trong các paper này?",
-  ];
+  // Filter papers based on search
+  const filteredPapers = availablePapers.filter(p =>
+    !paperSearch || p.title.toLowerCase().includes(paperSearch.toLowerCase()) ||
+    p.authors.toLowerCase().includes(paperSearch.toLowerCase())
+  );
+
+  const handleSelectAllPapers = () => {
+    const allFilteredIds = filteredPapers.map(p => p.id);
+    setTempPaperIds(prev => {
+      const merged = new Set([...prev, ...allFilteredIds]);
+      return Array.from(merged);
+    });
+  };
+
+  const handleDeselectAllPapers = () => {
+    const allFilteredIds = filteredPapers.map(p => p.id);
+    setTempPaperIds(prev => prev.filter(id => !allFilteredIds.includes(id)));
+  };
+
+  const suggestedQuestions = scope === "external"
+    ? [
+      "Transformer là gì?",
+      "Sự khác nhau giữa CNN và RNN?",
+      "Các xu hướng AI năm 2025?",
+    ]
+    : [
+      "Tóm tắt các paper trong thư viện",
+      "So sánh phương pháp trong các paper đã chọn",
+      "Những xu hướng nghiên cứu chính trong các paper này?",
+    ];
 
   const formatContent = (text: string) => {
     return <MarkdownRenderer text={text} />;
@@ -540,7 +732,7 @@ export const ChatView: React.FC<{
               ) : (
                 <IconStar size={14} />
               )}
-              📝 Citation
+              Citation
             </button>
           )}
           {/* Export buttons in header — prominent position */}
@@ -593,7 +785,7 @@ export const ChatView: React.FC<{
                 border: "1px solid rgba(99, 102, 241, 0.2)",
               }}
             >
-              ⚡ Free Cloud: {usage.used}/{usage.limit} câu
+              <IconZap size={14} /> Free Cloud: {usage.used}/{usage.limit} câu
             </span>
           )}
           {paperIds.length > 0 && (
@@ -610,7 +802,7 @@ export const ChatView: React.FC<{
                 border: "1px solid rgba(16, 185, 129, 0.2)",
               }}
             >
-              ✅ Review tự động
+              <IconCheck size={14} /> Review tự động
             </span>
           )}
           {initialMode === "verify" && (
@@ -622,7 +814,7 @@ export const ChatView: React.FC<{
                 border: "1px solid rgba(245, 158, 11, 0.2)",
               }}
             >
-              🔍 Xác thực nghiên cứu
+              <IconSearch size={14} /> Xác thực nghiên cứu
             </span>
           )}
           {messages.length > 0 && (
@@ -631,6 +823,92 @@ export const ChatView: React.FC<{
             </button>
           )}
         </div>
+      </div>
+
+      <div className="chat-view-controls-bar">
+        <div className="chat-view-scope-tabs">
+          <button
+            type="button"
+            className={`chat-view-scope-tab ${scope === "current" ? "active" : ""}`}
+            onClick={() => setScope("current")}
+          >
+            📄 Paper hiện tại
+          </button>
+          <button
+            type="button"
+            className={`chat-view-scope-tab ${scope === "library" ? "active" : ""}`}
+            onClick={() => setScope("library")}
+          >
+            📚 Toàn bộ thư viện
+          </button>
+          <button
+            type="button"
+            className={`chat-view-scope-tab ${scope === "external" ? "active" : ""}`}
+            onClick={() => setScope("external")}
+          >
+            🌐 Nghiên cứu bên ngoài
+          </button>
+        </div>
+
+        {scope === "current" && (
+          <div className="chat-view-selected-papers-tray">
+            {paperIds.length > 0 ? (
+              <div className="selected-papers-list">
+                {paperIds.map(id => {
+                  const title = paperTitles.get(id) || "Đang tải...";
+                  return (
+                    <div key={id} className="selected-paper-badge" title={title}>
+                      <IconFileText size={12} className="paper-badge-icon" />
+                      <span className="paper-badge-title">{title}</span>
+                      <button
+                        type="button"
+                        className="paper-badge-remove"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPaperIds(prev => prev.filter(x => x !== id));
+                        }}
+                        title="Bỏ chọn"
+                      >
+                        <IconClose size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  className="chat-view-paper-picker-trigger-btn"
+                  onClick={openPaperPicker}
+                  title="Thay đổi hoặc thêm paper"
+                >
+                  <IconLibrary size={12} />
+                  Thay đổi
+                </button>
+              </div>
+            ) : (
+              <div className="selected-papers-empty">
+                <span className="empty-hint">Chưa chọn paper nào để chat.</span>
+                {availablePapers.length > 0 ? (
+                  <button
+                    type="button"
+                    className="chat-view-paper-picker-trigger-btn primary-trigger"
+                    onClick={openPaperPicker}
+                  >
+                    <IconLibrary size={12} />
+                    Chọn paper
+                  </button>
+                ) : loadingPapers ? (
+                  <span className="loading-hint">⏳ Đang tải tài liệu...</span>
+                ) : (
+                  <span className="import-hint">
+                    Chưa có paper trong thư viện. {onGoToLibrary ? (
+                      <button type="button" onClick={onGoToLibrary} className="inline-import-btn">Import</button>
+                    ) : <strong>Import</strong>} ngay.
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="chat-view-messages" ref={listRef}>
@@ -685,20 +963,20 @@ export const ChatView: React.FC<{
                   className="cite-copy-all-btn"
                   onClick={() => copyToClipboard(bibliography)}
                 >
-                  {copiedAll ? "✓ Đã copy" : "📋 Copy tất cả"}
+                  {copiedAll ? "✓ Đã copy" : "Copy tất cả"}
                 </button>
                 <button
                   className="cite-export-bib-btn"
                   onClick={handleExportBibtex}
                   title="Export BibTeX (.bib)"
                 >
-                  📥 .bib
+                  <IconDownload size={14} /> .bib
                 </button>
                 <button
                   className="cite-close-btn"
                   onClick={() => setShowCitePanel(false)}
                 >
-                  ✕
+                  <IconClose size={14} />
                 </button>
               </div>
             </div>
@@ -806,7 +1084,7 @@ export const ChatView: React.FC<{
                       style={{ background: "transparent", border: "none", color: "var(--color-text-muted, #94a3b8)", cursor: "pointer", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       title="Sao chép nội dung"
                     >
-                      📋 Sao chép
+                      Sao chép
                     </button>
                   </div>
                 </div>
@@ -829,6 +1107,50 @@ export const ChatView: React.FC<{
             </div>
           </div>
         )}
+      </div>          {/* ─── Quick Actions + Scope Selector ─────────────────────── */}
+      <div className="chat-view-toolbar">
+        <div className="chat-view-quick-actions">
+          <button
+            className="chat-view-action-btn"
+            onClick={() => handleQuickAction("summary")}
+            disabled={loading}
+            title="Tóm tắt paper"
+          >
+            <IconFileText size={13} /> Tóm tắt
+          </button>
+          <button
+            className="chat-view-action-btn"
+            onClick={() => handleQuickAction("verify")}
+            disabled={loading}
+            title="Xác thực học thuật"
+          >
+            <IconSearch size={13} /> Xác thực
+          </button>
+          <button
+            className="chat-view-action-btn"
+            onClick={() => handleQuickAction("debate")}
+            disabled={loading}
+            title="Tranh luận AI đa chiều"
+          >
+            Tranh luận
+          </button>
+          <button
+            className="chat-view-action-btn"
+            onClick={() => handleQuickAction("related")}
+            disabled={loading}
+            title="Tìm nghiên cứu liên quan"
+          >
+            Liên quan
+          </button>
+          <button
+            className="chat-view-action-btn"
+            onClick={() => handleQuickAction("insight")}
+            disabled={loading}
+            title="Phân tích chuyên sâu"
+          >
+            <IconBulb size={13} /> Insight
+          </button>
+        </div>
       </div>
 
       <div className="chat-view-input">
@@ -837,7 +1159,11 @@ export const ChatView: React.FC<{
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Hỏi về research của bạn..."
+          placeholder={
+            scope === "external"
+              ? "Hỏi về nghiên cứu bên ngoài thư viện..."
+              : "Hỏi về research của bạn..."
+          }
           rows={2}
           disabled={loading}
         />
@@ -849,6 +1175,123 @@ export const ChatView: React.FC<{
           {loading ? <IconSpinner size={20} /> : <IconSend size={20} />}
         </button>
       </div>
+
+      {/* ─── Paper Picker Modal ────────────────────────────────── */}
+      {showPaperPicker && (
+        <div
+          className="paper-picker-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowPaperPicker(false); }}
+        >
+          <div className="paper-picker-modal">
+            <div className="paper-picker-header">
+              <div className="paper-picker-title">
+                <IconLibrary size={18} />
+                Chọn paper để chat
+              </div>
+              <button
+                className="paper-picker-close"
+                onClick={() => setShowPaperPicker(false)}
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+
+            <div className="paper-picker-search">
+              <input
+                ref={paperSearchRef}
+                type="text"
+                className="paper-picker-search-input"
+                placeholder="Tìm kiếm paper..."
+                value={paperSearch}
+                onChange={(e) => setPaperSearch(e.target.value)}
+              />
+              <div className="paper-picker-quick-actions">
+                <button
+                  type="button"
+                  className="picker-quick-btn"
+                  onClick={handleSelectAllPapers}
+                >
+                  Chọn tất cả
+                </button>
+                <button
+                  type="button"
+                  className="picker-quick-btn"
+                  onClick={handleDeselectAllPapers}
+                >
+                  Bỏ chọn tất cả
+                </button>
+              </div>
+            </div>
+
+            <div className="paper-picker-list">
+              {filteredPapers.length === 0 ? (
+                <div className="paper-picker-empty">
+                  {paperSearch ? "Không tìm thấy paper phù hợp." : "Chưa có paper nào trong thư viện."}
+                </div>
+              ) : (
+                filteredPapers.map(p => {
+                  const isSelected = tempPaperIds.includes(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`paper-picker-item ${isSelected ? "selected" : ""}`}
+                      onClick={() => {
+                        setTempPaperIds(prev =>
+                          prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                        );
+                      }}
+                    >
+                      <div className="paper-picker-checkbox-wrapper">
+                        <input
+                          type="checkbox"
+                          className="paper-picker-checkbox"
+                          checked={isSelected}
+                          readOnly
+                        />
+                      </div>
+                      <div className="paper-picker-item-icon">
+                        <IconFileText size={16} />
+                      </div>
+                      <div className="paper-picker-item-info">
+                        <div className="paper-picker-item-title">{p.title}</div>
+                        {p.authors && (
+                          <div className="paper-picker-item-authors">{p.authors}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="paper-picker-footer">
+              <span className="paper-picker-count">
+                Đã chọn <strong>{tempPaperIds.length}</strong> / {availablePapers.length} papers
+              </span>
+              <div className="paper-picker-footer-buttons">
+                <button
+                  className="paper-picker-library-btn"
+                  onClick={() => {
+                    setShowPaperPicker(false);
+                    onGoToLibrary?.();
+                  }}
+                >
+                  Vào Thư viện
+                </button>
+                <button
+                  className="paper-picker-confirm-btn"
+                  onClick={() => {
+                    setPaperIds(tempPaperIds);
+                    setShowPaperPicker(false);
+                  }}
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

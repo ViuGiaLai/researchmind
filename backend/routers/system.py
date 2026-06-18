@@ -267,40 +267,58 @@ async def move_storage(body: dict = Body(...)):
 @router.post("/data/clear-data")
 async def clear_all_data():
     """Clear all papers, chunks, chat history, and files (retains settings)."""
+    deleted = {"papers": 0, "chunks": 0, "chat_history": 0, "chroma_chunks": 0, "files": []}
+
     try:
+        # ── 1. Đếm trước khi xoá ────────────────────────────────
         db = get_session(state.engine)
         try:
+            deleted["chunks"] = db.query(Chunk).count()
+            deleted["papers"] = db.query(Paper).count()
+            deleted["chat_history"] = db.query(ChatHistory).count()
+
             db.query(Chunk).delete()
             db.query(Paper).delete()
             db.query(ChatHistory).delete()
             db.commit()
+            logger.info(f"🧹 SQLite: xoá {deleted['papers']} papers, {deleted['chunks']} chunks, {deleted['chat_history']} lịch sử chat")
         except Exception as e:
             db.rollback()
             raise e
         finally:
             db.close()
 
-        db_session = get_session(state.engine)
-        state.bm25 = BM25Search(db_session)
-        state.bm25.ensure_fts_table()
-        db_session.close()
-
+        # ── 2. Xoá file PDFs trong thư mục papers ────────────────
         if settings.papers_dir.exists():
             for item in settings.papers_dir.iterdir():
                 try:
                     if item.is_file():
                         item.unlink()
+                        deleted["files"].append(item.name)
                     elif item.is_dir():
                         shutil.rmtree(item)
+                        deleted["files"].append(f"{item.name}/")
                 except Exception as e:
                     logger.warning(f"Failed to delete {item}: {e}")
+            logger.info(f"🧹 File PDFs: xoá {len(deleted['files'])} files")
 
+        # ── 3. Khởi tạo lại BM25 ────────────────────────────────
+        db_session = get_session(state.engine)
+        state.bm25 = BM25Search(db_session)
+        state.bm25.ensure_fts_table()
+        db_session.close()
+
+        # ── 4. Xoá ChromaDB ─────────────────────────────────────
         try:
+            old_count = state.vector.count() if state.vector else 0
             state.vector = VectorSearch(settings.chroma_dir)
             state.vector.clear_collection()
+            deleted["chroma_chunks"] = old_count
+            logger.info(f"🧹 ChromaDB: xoá collection cũ, tạo mới")
         except Exception as e:
             logger.warning(f"ChromaDB collection clear failed: {e}")
 
+        # ── 5. Khởi tạo lại hybrid search ───────────────────────
         state.hybrid = HybridSearch(
             bm25_search=state.bm25,
             vector_search=state.vector,
@@ -309,7 +327,25 @@ async def clear_all_data():
             top_k_final=settings.top_k_final,
         )
 
-        return {"success": True, "message": "Đã xoá toàn bộ dữ liệu tài liệu (giữ lại cài đặt)."}
+        # ── 6. Kết quả ──────────────────────────────────────────
+        # Liệt kê file đã xoá (tối đa 5 file)
+        file_list = deleted["files"][:5]
+        file_preview = ", ".join(file_list)
+        if len(deleted["files"]) > 5:
+            file_preview += f", ... và {len(deleted['files'])-5} file khác"
+
+        result_msg = (
+            f"🧹 Đã xoá: {deleted['papers']} papers, "
+            f"{deleted['chunks']} chunks, "
+            f"{deleted['chroma_chunks']} vectors, "
+            f"{deleted['chat_history']} lịch sử chat."
+        )
+        if file_preview:
+            result_msg += f"\n📄 File PDF đã xoá: {file_preview}"
+        result_msg += "\n✅ Giữ lại cài đặt."
+
+        logger.info(f"✅ {result_msg}")
+        return {"success": True, "message": result_msg}
     except Exception as e:
         logger.error(f"Failed to clear data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
