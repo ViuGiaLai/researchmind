@@ -19,7 +19,7 @@ function App() {
   const [wowPaperId, setWowPaperId] = useState<string | null>(null);
   const [chatPaperIds, setChatPaperIds] = useState<string[]>([]);
   const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
-  const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate">("chat");
+  const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate" | "verify">("chat");
   const [showSetup, setShowSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
@@ -73,6 +73,13 @@ function App() {
   const handleStartDebate = (paperIds: string[]) => {
     setInitialQuery("Hãy tạo một cuộc tranh luận giữa hai AI (AI A và AI B) về chủ đề liên quan đến các paper này. Mỗi bên nêu luận điểm và phản biện, có trích dẫn và kết luận ngắn. Cuối cùng đưa ra 3 đề xuất kiểm chứng.");
     setInitialMode("debate");
+    setChatPaperIds(paperIds);
+    setActiveTab("chat");
+  };
+
+  const handleStartVerify = (paperIds: string[]) => {
+    setInitialQuery("Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài.");
+    setInitialMode("verify");
     setChatPaperIds(paperIds);
     setActiveTab("chat");
   };
@@ -137,7 +144,7 @@ function App() {
             <span>Dữ liệu cục bộ</span>
           </div>
           <div className="sidebar-version">
-            v0.1.0
+            v0.2.0
           </div>
         </div>
       </aside>
@@ -159,6 +166,7 @@ function App() {
             onStartReview={handleStartReview}
             onStartCritique={handleStartCritique}
             onStartDebate={handleStartDebate}
+            onStartVerify={handleStartVerify}
             onStartWow={handleStartWow}
           />
         )}

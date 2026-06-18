@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { api, ChatResponse, CitationEntry } from "../../lib/api";
+import { api, ChatResponse, CitationEntry, VerifyResponse } from "../../lib/api";
+import { VerifyPanel } from "./VerifyPanel";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
   IconBrain,
@@ -34,7 +35,7 @@ const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
 export const ChatView: React.FC<{
   initialPaperIds?: string[];
   initialQuery?: string;
-  initialMode?: "chat" | "review" | "critique" | "debate";
+  initialMode?: "chat" | "review" | "critique" | "debate" | "verify";
   stream?: boolean;
 }> = ({ initialPaperIds, initialQuery, initialMode = "chat", stream = true }) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,6 +60,7 @@ export const ChatView: React.FC<{
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [exportingSynthesis, setExportingSynthesis] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -107,7 +109,7 @@ export const ChatView: React.FC<{
         const streamCtrl = api.chatStream(text, ids);
         const assistantIdx = messages.length + 1;
 
-        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: "🔍 Đang tra cứu tài liệu..." }]);
         setIsStreaming(true);
 
         let resolved = false;
@@ -125,9 +127,14 @@ export const ChatView: React.FC<{
         };
 
         streamCtrl.onChunk = (chunk) => {
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, content: m.content + chunk } : m
-          ));
+          setMessages((prev) => prev.map((m, i) => {
+            if (i !== assistantIdx) return m;
+            const current = m.content;
+            if (current === "🔍 Đang tra cứu tài liệu...") {
+              return { ...m, content: chunk };
+            }
+            return { ...m, content: current + chunk };
+          }));
         };
 
         streamCtrl.onDone = (model, citations) => {
@@ -163,6 +170,77 @@ export const ChatView: React.FC<{
             text,
             paperIds.length > 0 ? paperIds : undefined,
           );
+        } else if (initialMode === "verify") {
+          if (stream) {
+            const ids = paperIds.length > 0 ? paperIds : undefined;
+            const streamCtrl = api.verifyStream(text, ids);
+            const assistantIdx = messages.length + 1;
+
+            setMessages((prev) => [...prev, { role: "assistant", content: "🔍 Đang tra cứu tài liệu..." }]);
+            setIsStreaming(true);
+
+            streamCtrl.onAcademic = (data, status) => {
+              setVerifyResult({
+                answer: "",
+                citations: [],
+                model_used: "",
+                papers_used: [],
+                external_sources: data,
+                verify_status: status as "full" | "partial" | "local_only",
+              });
+            };
+
+            streamCtrl.onChunk = (chunk) => {
+              setMessages((prev) => prev.map((m, i) => {
+                if (i !== assistantIdx) return m;
+                const current = m.content;
+                if (current === "🔍 Đang tra cứu tài liệu...") {
+                  return { ...m, content: chunk };
+                }
+                return { ...m, content: current + chunk };
+              }));
+            };
+
+            streamCtrl.onDone = (model, citations, externalSources, status) => {
+              setIsStreaming(false);
+              setVerifyResult({
+                answer: messages[messages.length]?.content || "",
+                citations,
+                model_used: model,
+                papers_used: [],
+                external_sources: externalSources,
+                verify_status: status as "full" | "partial" | "local_only",
+              });
+              setMessages((prev) => prev.map((m, i) =>
+                i === assistantIdx ? { ...m, model_used: model, citations } : m
+              ));
+              loadUsage();
+            };
+
+            streamCtrl.onError = (err) => {
+              setIsStreaming(false);
+              const content = `❌ Lỗi: ${err}\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
+              setMessages((prev) => prev.map((m, i) =>
+                i === assistantIdx ? { ...m, content } : m
+              ));
+            };
+
+            // Early return — skip the non-streaming res assignment below
+            return;
+          } else {
+            const vres = await api.verify(
+              text,
+              paperIds.length > 0 ? paperIds : undefined,
+            );
+            setVerifyResult(vres);
+            res = {
+              answer: vres.answer,
+              citations: vres.citations,
+              model_used: vres.model_used,
+              papers_used: vres.papers_used,
+              chunks_used: 0,
+            };
+          }
         } else {
           res = await api.chat(
             text,
@@ -210,6 +288,7 @@ export const ChatView: React.FC<{
     setCitations([]);
     setBibliography("");
     setShowCitePanel(false);
+    setVerifyResult(null);
   };
 
   // ─── Auto-Cite Handlers ────────────────────────────────────
@@ -281,6 +360,8 @@ export const ChatView: React.FC<{
         title = "Paper_Critique_Report";
       } else if (initialMode === "debate") {
         title = "AI_Debate_Transcript";
+      } else if (initialMode === "verify") {
+        title = "Verification_Report";
       }
       
       const blob = await api.exportSynthesis(title, content, format);
@@ -529,6 +610,18 @@ export const ChatView: React.FC<{
               ✅ Review tự động
             </span>
           )}
+          {initialMode === "verify" && (
+            <span
+              className="chat-view-papers-badge"
+              style={{
+                background: "rgba(245, 158, 11, 0.08)",
+                color: "var(--color-warning, #f59e0b)",
+                border: "1px solid rgba(245, 158, 11, 0.2)",
+              }}
+            >
+              🔍 Xác thực nghiên cứu
+            </span>
+          )}
           {messages.length > 0 && (
             <button className="chat-view-clear-btn" onClick={clearChat}>
               <IconTrash size={16} /> Xoá
@@ -692,6 +785,13 @@ export const ChatView: React.FC<{
                       </div>
                     )}
                   </>
+              )}
+
+              {initialMode === "verify" && verifyResult && i === messages.length - 1 && msg.role === "assistant" && (
+                <VerifyPanel
+                  sources={verifyResult.external_sources}
+                  status={verifyResult.verify_status}
+                />
               )}
 
               {msg.role === "assistant" && msg.model_used !== "ollama_error" && (

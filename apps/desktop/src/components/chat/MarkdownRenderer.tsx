@@ -1,13 +1,5 @@
 import React from "react";
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 interface Segment {
   type: "text" | "bold" | "italic" | "code" | "citation";
   text: string;
@@ -73,13 +65,13 @@ function parseInline(text: string): (string | Segment)[] {
 
 function renderSegment(seg: string | Segment, i: number): React.ReactNode {
   if (typeof seg === "string") {
-    return escapeHtml(seg);
+    return seg;
   }
   switch (seg.type) {
     case "bold":
-      return React.createElement("strong", { key: i }, escapeHtml(seg.text));
+      return React.createElement("strong", { key: i }, seg.text);
     case "italic":
-      return React.createElement("em", { key: i }, escapeHtml(seg.text));
+      return React.createElement("em", { key: i }, seg.text);
     case "code":
       return React.createElement(
         "code",
@@ -93,7 +85,7 @@ function renderSegment(seg: string | Segment, i: number): React.ReactNode {
             fontFamily: "monospace",
           },
         },
-        escapeHtml(seg.text)
+        seg.text
       );
     case "citation":
       return React.createElement(
@@ -107,10 +99,10 @@ function renderSegment(seg: string | Segment, i: number): React.ReactNode {
           },
           title: seg.page ? `Trang ${seg.page}` : seg.text,
         },
-        `[${escapeHtml(seg.text)}${seg.page ? `, tr.${seg.page}` : ""}]`
+        `[${seg.text}${seg.page ? `, tr.${seg.page}` : ""}]`
       );
     default:
-      return escapeHtml(seg.text);
+      return seg.text;
   }
 }
 
@@ -166,30 +158,13 @@ function renderLine(line: string, i: number): React.ReactNode {
       .split("|")
       .slice(1, -1)
       .map((c) => c.trim());
-    // skip separator rows (|---|)
-    if (cells.length > 0 && !cells.every((c) => /^-+$/.test(c))) {
-      return React.createElement(
-        "div",
-        {
-          key: i,
-          style: {
-            display: "flex",
-            gap: 12,
-            padding: "4px 0",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-          },
-        },
-        ...cells.map((c, j) =>
-          React.createElement(
-            "span",
-            {
-              key: j,
-              style: { flex: 1, minWidth: 80, fontSize: "0.9em" },
-            },
-            escapeHtml(c)
-          )
-        )
-      );
+    const isSeparator = cells.every((c) => /^:?-+:?$/.test(c));
+    if (cells.length > 0 && !isSeparator) {
+      return {
+        isTableRow: true,
+        cells,
+        key: i,
+      } as any;
     }
     return null;
   }
@@ -269,9 +244,78 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
     }
   }
 
+  // ─── Batch consecutive table rows into a single <table> ───
+  const batched: React.ReactNode[] = [];
+  let tableRows: string[][] = [];
+  let tableKey = 0;
+
+  const flushTable = () => {
+    if (tableRows.length === 0) return;
+    const separatorIdx = tableRows.findIndex((row) =>
+      row.every((c) => /^:?-+:?$/.test(c))
+    );
+    const headerRows = separatorIdx >= 0 ? tableRows.slice(0, separatorIdx) : [];
+    const bodyRows = separatorIdx >= 0 ? tableRows.slice(separatorIdx + 1) : tableRows;
+    const colCount = Math.max(...tableRows.map((r) => r.length), 0);
+    if (colCount === 0 || bodyRows.length === 0) { tableRows = []; return; }
+
+    const styleCell = (label: string, ci: number, isHeader: boolean) =>
+      React.createElement(isHeader ? "th" : "td", {
+        key: ci,
+        style: {
+          padding: "6px 12px",
+          fontSize: "0.9em",
+          textAlign: "left",
+          fontWeight: isHeader ? 600 : 400,
+          color: isHeader ? "var(--color-primary, #6366f1)" : undefined,
+          borderBottom: isHeader
+            ? "2px solid rgba(99, 102, 241, 0.3)"
+            : "1px solid rgba(255,255,255,0.06)",
+          verticalAlign: "top",
+        },
+      }, label);
+
+    const renderRow = (row: string[], isHeader: boolean, ri: number) =>
+      React.createElement("tr", { key: ri },
+        ...row.map((c, ci) => styleCell(c, ci, isHeader))
+      );
+
+    const children: React.ReactNode[] = [];
+    if (headerRows.length > 0) {
+      children.push(React.createElement("thead", { key: "h" },
+        ...headerRows.map((r, ri) => renderRow(r, true, ri))
+      ));
+    }
+    children.push(React.createElement("tbody", { key: "b" },
+      ...bodyRows.map((r, ri) => renderRow(r, false, ri))
+    ));
+
+    batched.push(React.createElement("table", {
+      key: `table-${tableKey++}`,
+      style: {
+        width: "100%",
+        borderCollapse: "collapse",
+        margin: "8px 0",
+      },
+    }, ...children));
+
+    tableRows = [];
+  };
+
+  for (const el of elements) {
+    const tblRow = el as any;
+    if (tblRow?.isTableRow) {
+      tableRows.push(tblRow.cells as string[]);
+    } else {
+      flushTable();
+      batched.push(el);
+    }
+  }
+  flushTable();
+
   // close unclosed code block
   if (inCodeBlock && codeLines.length > 0) {
-    elements.push(
+    batched.push(
       React.createElement(
         "pre",
         {
@@ -313,7 +357,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
     }
   };
 
-  for (const el of elements) {
+  for (const el of batched) {
     if (React.isValidElement(el) && el.type === "li") {
       const newType: "ul" | "ol" = el.props.value !== undefined ? "ol" : "ul";
       if (listType === null) {

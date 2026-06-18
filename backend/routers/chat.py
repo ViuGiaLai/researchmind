@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from academic.paper_check import check_papers_ready
 from app_state import state
 from config.settings import settings
 from db.database import get_session
@@ -87,6 +88,11 @@ async def chat(request: dict = Body(...)):
 
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
+
+    if paper_ids:
+        paper_error = check_papers_ready(paper_ids)
+        if paper_error:
+            return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
     if settings.llm_mode == "cloud_free":
         session = get_session(state.engine)
@@ -241,6 +247,10 @@ Trả về kết quả với cấu trúc sau:
 
 Lưu ý: chỉ dùng thông tin từ các đoạn đã cung cấp, nêu rõ trích dẫn nguồn [Tên Paper] khi cần. Giữ văn phong học thuật, súc tích và dễ hiểu."""
 
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
+
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
         query=query,
@@ -313,6 +323,10 @@ Trả về kết quả theo dạng gạch đầu dòng, mỗi điểm ngắn g�
         full_query = f"{critique_prompt}\nUSER_REQUEST: {query}"
     else:
         full_query = critique_prompt
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -408,6 +422,10 @@ Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạ
     else:
         full_query = debate_prompt
 
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
+
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
         query=full_query,
@@ -457,3 +475,6 @@ Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạ
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
     }
+
+
+

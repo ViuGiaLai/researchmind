@@ -296,6 +296,82 @@ export const api = {
     request<ChatResponse>("POST", "/api/critique", { query, paper_ids: paperIds }),
   debate: (query: string, paperIds?: string[]) =>
     request<ChatResponse>("POST", "/api/debate", { query, paper_ids: paperIds }),
+  verify: (query: string, paperIds?: string[]) =>
+    request<VerifyResponse>("POST", "/api/verify", { query, paper_ids: paperIds }),
+
+  verifyStream: (
+    message: string,
+    paperIds: string[] | undefined,
+    sessionId: string = "verify",
+  ) => {
+    const url = `${BASE_URL}/api/verify`;
+    const body = JSON.stringify({ message, paper_ids: paperIds, stream: true, session_id: sessionId });
+    const controller = new AbortController();
+    const stream: {
+      onAcademic: ((data: any[], status: string) => void) | null;
+      onChunk: ((text: string) => void) | null;
+      onDone: ((model: string, citations: any[], externalSources: any[], status: string) => void) | null;
+      onError: ((err: string) => void) | null;
+      abort: () => void;
+    } = { onAcademic: null, onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
+
+    (async () => {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          stream.onError?.(err || `HTTP ${res.status}`);
+          return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) {
+          stream.onError?.("No response body");
+          return;
+        }
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.slice(6).trim();
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.type === "academic") {
+                  stream.onAcademic?.(data.data || [], data.verify_status || "local_only");
+                } else if (data.type === "chunk") {
+                  stream.onChunk?.(data.chunk || "");
+                } else if (data.type === "done") {
+                  stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only");
+                }
+              } catch {
+                // skip
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          stream.onError?.(err instanceof Error ? err.message : String(err));
+        }
+      }
+    })();
+
+    return stream;
+  },
+  academicLookupDoi: (doi: string) =>
+    request<{ source: string; data: any }>("GET", `/api/academic/doi?doi=${encodeURIComponent(doi)}`),
+  academicLookupPaper: (doi: string) =>
+    request<{ source: string; data: any }>("GET", `/api/academic/paper?doi=${encodeURIComponent(doi)}`),
 
   // Machine specs
   detectSpecs: () =>
@@ -457,6 +533,41 @@ export const api = {
   getDailyReader: () =>
     request<DailyReaderResponse>("GET", "/api/personal/daily-reader"),
 };
+
+// ─── Verify Types ────────────────────────────────────────
+
+export interface ExternalSource {
+  doi: string;
+  title: string;
+  openalex: {
+    citation_count: number;
+    publication_year: number | null;
+    related_count: number;
+    openalex_id: string;
+  } | null;
+  crossref: {
+    authors: string[];
+    journal: string | null;
+    year: number | null;
+    publisher: string | null;
+    citation_count: number;
+    is_valid: boolean;
+  } | null;
+  recent_citing: Array<{
+    title: string;
+    publication_year: number;
+    doi?: string;
+  }>;
+}
+
+export interface VerifyResponse {
+  answer: string;
+  citations: { source: string; page: number | null; text: string }[];
+  model_used: string;
+  papers_used: string[];
+  external_sources: ExternalSource[];
+  verify_status: "full" | "partial" | "local_only";
+}
 
 // ─── Daily Reader Types ─────────────────────────────────────
 

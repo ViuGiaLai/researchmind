@@ -54,6 +54,8 @@ from routers.insights import router as insights_router
 from routers.settings import router as settings_router
 from routers.system import router as system_router
 from routers.personal import router as personal_router
+from routers.verify import router as verify_router
+from routers.academic import router as academic_router
 
 
 # ─── Lifespan ────────────────────────────────────────────────────
@@ -240,6 +242,8 @@ app.include_router(insights_router)
 app.include_router(settings_router)
 app.include_router(system_router)
 app.include_router(personal_router)
+app.include_router(verify_router)
+app.include_router(academic_router)
 
 
 # ─── Global Exception Handler ────────────────────────────────────

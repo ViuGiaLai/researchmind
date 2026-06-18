@@ -86,7 +86,8 @@ class Generator:
         return self._http_client
 
     def _get_system_prompt(self) -> str:
-        """Get the system prompt that enforces citation."""
+        if getattr(self, '_system_prompt_override', None):
+            return self._system_prompt_override
         return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.
 
 ## QUY TẮC ĐỊNH DẠNG:
@@ -225,9 +226,122 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         # Local mode
         return self._generate_ollama(user_prompt)
 
-    def _generate_deepseek(self, prompt: str, api_key: str, is_free: bool = False) -> GenerationResult:
+    def _get_verify_system_prompt(self) -> str:
+        return """Bạn là chuyên gia xác thực nghiên cứu học thuật (Research Verification AI). Nhiệm vụ của bạn là KIỂM CHỨNG các tuyên bố khoa học dựa trên dữ liệu từ LOCAL PDF và NGUỒN HỌC THUẬT BÊN NGOÀI (OpenAlex, Crossref).
+
+## QUY TẮC ĐỊNH DẠNG:
+- Dùng **in đậm** cho tiêu đề, tên paper, điểm số quan trọng.
+- Dùng `mã code` cho ID, DOI.
+- Danh sách: dùng - hoặc 1. 2. 3.
+- Tách section rõ ràng bằng ## và ---.
+- Nguồn phải được trích dẫn: [Tên Paper] cho local PDF, [OpenAlex: Tên Paper] cho dữ liệu từ OpenAlex, [Crossref: DOI] cho dữ liệu từ Crossref.
+
+## QUY TẮC XÁC THỰC:
+1. **PHÂN BIỆT rõ ràng** giữa thông tin từ local PDF (tài liệu người dùng) và thông tin từ nguồn bên ngoài (OpenAlex/Crossref).
+2. Khi có dữ liệu từ bên ngoài, hãy hiển thị:
+   - 📊 **Số trích dẫn**: Paper này đã được trích dẫn bao nhiêu lần.
+   - 📄 **Các paper trích dẫn gần đây**: Liệt kê 3-5 paper gần đây nhất trích dẫn nó.
+   - 📚 **Nghiên cứu liên quan**: Các nghiên cứu liên quan từ OpenAlex.
+   - ✅ **DOI Verification**: DOI có hợp lệ không, metadata có khớp không.
+3. **So sánh kết luận** trong paper với các nghiên cứu khác để phát hiện:
+   - Kết luận được hỗ trợ ✅
+   - Kết luận bị phản bác / mâu thuẫn ⚠️
+   - Kết luận cần thêm bằng chứng ❓
+4. Nếu không có dữ liệu từ nguồn bên ngoài, chỉ dựa trên local PDF và ghi rõ "Không có dữ liệu học thuật bên ngoài cho paper này."
+5. Nếu context local không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
+6. KHÔNG thêm thông tin ngoài context đã cung cấp.
+7. Trả lời bằng TIẾNG VIỆT (trừ khi câu hỏi bằng tiếng Anh).
+8. Giữ câu trả lời có cấu trúc rõ ràng, học thuật, súc tích."""
+
+    def generate_verify(
+        self,
+        query: str,
+        context_text: str,
+        external_data_text: str = "",
+        citations_meta: Optional[list[dict]] = None,
+    ) -> GenerationResult:
+        """Generate a verification response using local RAG + external academic data.
+
+        Args:
+            query: User's question.
+            context_text: Retrieved context from local RAG pipeline.
+            external_data_text: Formatted text from OpenAlex/Crossref lookups.
+            citations_meta: Metadata about available citations.
+
+        Returns:
+            GenerationResult with verification content, citations, and model info.
+        """
+        combined_context = context_text
+        if external_data_text.strip():
+            combined_context += f"\n\n## DỮ LIỆU HỌC THUẬT BÊN NGOÀI (OpenAlex + Crossref)\n{external_data_text}"
+
+        if not combined_context.strip():
+            return GenerationResult(
+                content="Không có dữ liệu để xác thực. Vui lòng chọn paper hoặc nhập câu hỏi.",
+                citations=[],
+                model_used="none",
+                finish_reason="no_context",
+            )
+
+        user_prompt = f"""Context từ tài liệu và nguồn học thuật bên ngoài:
+{combined_context}
+
+Câu hỏi: {query}
+
+Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. Phân biệt rõ nguồn từ local PDF và nguồn từ OpenAlex/Crossref."""
+
+        system_prompt = self._get_verify_system_prompt()
+        mode = self.mode
+
+        if mode == "cloud_free":
+            # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama
+            if self.nvidia_api_key:
+                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, system_prompt_override=system_prompt)
+                if result.finish_reason != "error":
+                    return result
+            if self.freemodel_api_key:
+                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model, system_prompt_override=system_prompt)
+                if result.finish_reason != "error":
+                    return result
+            if self.groq_api_key:
+                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, system_prompt_override=system_prompt)
+                if result.finish_reason != "error":
+                    return result
+            if self.gemini_api_key:
+                result = self._generate_gemini(user_prompt, is_free=True, system_prompt_override=system_prompt)
+                if result.finish_reason != "error":
+                    return result
+            return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+
+        elif mode == "cloud_custom":
+            provider = self.custom_cloud_provider
+            if provider == "deepseek" and self.deepseek_api_key:
+                result = self._generate_deepseek(user_prompt, self.deepseek_api_key, system_prompt_override=system_prompt)
+                if result.finish_reason == "error":
+                    logger.warning("Custom DeepSeek failed. Falling back to local Ollama...")
+                    return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+                return result
+            if provider == "claude" and self.claude_api_key:
+                result = self._generate_claude(user_prompt, system_prompt_override=system_prompt)
+                if result.finish_reason == "error":
+                    logger.warning("Custom Claude failed. Falling back to local Ollama...")
+                    return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+                return result
+            if provider == "gemini" and self.gemini_api_key:
+                result = self._generate_gemini(user_prompt, is_free=False, system_prompt_override=system_prompt)
+                if result.finish_reason == "error":
+                    logger.warning("Custom Gemini failed. Falling back to local Ollama...")
+                    return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+                return result
+            return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+
+        # Local mode
+        return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+
+    def _generate_deepseek(self, prompt: str, api_key: str, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using DeepSeek API (OpenAI-compatible)."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -235,7 +349,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             payload = {
                 "model": self.deepseek_model,
                 "messages": [
-                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "system", "content": sp},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
@@ -274,9 +388,10 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
-    def _generate_gemini(self, prompt: str, api_key: str, is_free: bool = False) -> GenerationResult:
+    def _generate_gemini(self, prompt: str, api_key: str, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Google Gemini API (Native)."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={api_key}"
             headers = {"Content-Type": "application/json"}
             payload = {
@@ -287,7 +402,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     }
                 ],
                 "systemInstruction": {
-                    "parts": [{"text": self._get_system_prompt()}]
+                    "parts": [{"text": sp}]
                 },
                 "generationConfig": {
                     "temperature": 0.3,
@@ -345,15 +460,16 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
-    def _generate_ollama(self, prompt: str) -> GenerationResult:
+    def _generate_ollama(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Ollama (local LLM)."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             response = self.http_client.post(
                 f"{self.ollama_url}/api/chat",
                 json={
                     "model": self.ollama_model,
                     "messages": [
-                        {"role": "system", "content": self._get_system_prompt()},
+                        {"role": "system", "content": sp},
                         {"role": "user", "content": prompt},
                     ],
                     "stream": False,
@@ -396,9 +512,10 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
-    def _generate_groq(self, prompt: str, api_key: str, model: str) -> GenerationResult:
+    def _generate_groq(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Groq API (OpenAI-compatible)."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -406,7 +523,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "system", "content": sp},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
@@ -450,9 +567,10 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
-    def _generate_nvidia(self, prompt: str, api_key: str, model: str) -> GenerationResult:
+    def _generate_nvidia(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using NVIDIA NIM API (OpenAI-compatible)."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -460,7 +578,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "system", "content": sp},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
@@ -493,9 +611,10 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
-    def _generate_freemodel(self, prompt: str, api_key: str, model: str) -> GenerationResult:
+    def _generate_freemodel(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using FreeModel.dev API (OpenAI-compatible)."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -503,7 +622,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             payload = {
                 "model": model,
                 "messages": [
-                    {"role": "system", "content": self._get_system_prompt()},
+                    {"role": "system", "content": sp},
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
@@ -536,9 +655,10 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 finish_reason="error",
             )
 
-    def _generate_claude(self, prompt: str) -> GenerationResult:
+    def _generate_claude(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Claude API."""
         try:
+            sp = system_prompt_override or self._get_system_prompt()
             # Import anthropic only when needed
             import anthropic
 
@@ -548,7 +668,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 model=self.claude_model,
                 max_tokens=2048,
                 temperature=0.3,
-                system=self._get_system_prompt(),
+                system=sp,
                 messages=[{"role": "user", "content": prompt}],
             )
 
@@ -641,6 +761,30 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
 Câu hỏi: {query}
 
 Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
+
+        self._system_prompt_override = None
+
+        yield from self._stream_chain(user_prompt)
+
+    def stream_generate_verify(
+        self,
+        query: str,
+        context_text: str,
+    ):
+        if not context_text.strip():
+            yield "Không tìm thấy tài liệu liên quan."
+            return
+
+        self._system_prompt_override = self._get_verify_system_prompt()
+
+        user_prompt = f"""Context:
+{context_text}
+
+Câu hỏi: {query}"""
+
+        yield from self._stream_chain(user_prompt)
+
+    def _stream_chain(self, user_prompt: str):
 
         if self.mode == "cloud_free":
             # Chain: NVIDIA → FreeModel → Groq → Gemini → Ollama

@@ -4,6 +4,7 @@ from loguru import logger
 
 from app_state import state
 from config.settings import settings
+from academic.paper_check import check_papers_ready
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
 
@@ -15,6 +16,16 @@ async def find_research_gap(body: dict = Body(...)):
     Uses RAG to retrieve relevant chunks, then LLM analyzes what's missing.
     """
     paper_ids = body.get("paper_ids")
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {
+            "answer": paper_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -77,6 +88,16 @@ async def find_conflicts(body: dict = Body(...)):
     Uses RAG to retrieve diverse chunks, then LLM compares claims.
     """
     paper_ids = body.get("paper_ids")
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {
+            "answer": paper_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -145,6 +166,16 @@ async def suggest_topics(body: dict = Body(...)):
     """
     paper_ids = body.get("paper_ids")
 
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {
+            "answer": paper_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
+
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
         query="research topic methodology findings results future work direction novel approach innovative",
@@ -211,6 +242,16 @@ async def find_evolution_map(body: dict = Body(...)):
     Uses RAG to retrieve diverse chunks, then LLM maps the evolution of ideas.
     """
     paper_ids = body.get("paper_ids")
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {
+            "answer": paper_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+        }
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,

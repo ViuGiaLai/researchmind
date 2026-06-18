@@ -178,6 +178,19 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     };
   }, []);
 
+  const waitForIndexed = async (paperId: string, runId: string) => {
+    let attempts = 0;
+    while (attempts < 60) {
+      if (activeAnalysisRunId.current !== runId) return;
+      const paper = await api.getPaper(paperId);
+      if (paper.status === "indexed") return;
+      if (paper.status === "failed") throw new Error("Paper index thất bại. Vui lòng import lại.");
+      await new Promise((r) => setTimeout(r, 1500));
+      attempts++;
+    }
+    throw new Error("Paper xử lý quá lâu. Vui lòng thử lại sau.");
+  };
+
   const handleSelectPaper = (paper: Paper) => {
     setSelectedPaper(paper);
     triggerWowPipeline(paper.id);
@@ -197,129 +210,127 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     };
     setSteps(initialStepsState);
 
-    // 1. ✨ Tóm tắt ngay
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({ ...prev, summary: { status: "running", content: "" } }));
+    // Chờ paper index xong trước khi chạy pipeline
+    try {
+      await waitForIndexed(paperId, runId);
+    } catch (e: any) {
+      const errMsg = e.message || "Không thể index paper";
+      setSteps((prev) => ({
+        summary: { status: "error", content: "", error: errMsg },
+        critique: { status: "error", content: "", error: errMsg },
+        conflict: { status: "error", content: "", error: errMsg },
+        gap: { status: "error", content: "", error: errMsg },
+        debate: { status: "error", content: "", error: errMsg },
+      }));
+      return;
+    }
+
+    // Chạy 5 bước song song để tăng tốc
+    setSteps((prev) => ({
+      summary: { ...prev.summary, status: "running" },
+      critique: { ...prev.critique, status: "running" },
+      conflict: { ...prev.conflict, status: "running" },
+      gap: { ...prev.gap, status: "running" },
+      debate: { ...prev.debate, status: "running" },
+    }));
     startLoadingMessages("summary");
-    try {
-      // Fetch fresh paper details to see if it has auto_summary
-      const paper = await api.getPaper(paperId);
-      if (activeAnalysisRunId.current === runId) {
-        if (paper.auto_summary) {
-          setSteps((prev) => ({
-            ...prev,
-            summary: { status: "completed", content: paper.auto_summary, modelUsed: "Auto-ingested" },
-          }));
-        } else {
-          const res = await api.review("", [paperId]);
-          setSteps((prev) => ({
-            ...prev,
-            summary: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-          }));
-        }
-      }
-    } catch (e: any) {
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          summary: { status: "error", content: "", error: e.message || "Không thể tạo tóm tắt" },
-        }));
-      }
-    } finally {
-      stopLoadingMessages("summary");
-    }
-
-    // 2. ⚠️ Điểm yếu (Critique)
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({ ...prev, critique: { status: "running", content: "" } }));
     startLoadingMessages("critique");
-    try {
-      const res = await api.critique("", [paperId]);
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          critique: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      }
-    } catch (e: any) {
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          critique: { status: "error", content: "", error: e.message || "Không thể phân tích phản biện" },
-        }));
-      }
-    } finally {
-      stopLoadingMessages("critique");
-    }
-
-    // 3. ⚔️ Mâu thuẫn (Conflict Analysis)
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({ ...prev, conflict: { status: "running", content: "" } }));
     startLoadingMessages("conflict");
-    try {
-      const res = await api.findConflicts([paperId]);
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          conflict: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      }
-    } catch (e: any) {
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          conflict: { status: "error", content: "", error: e.message || "Không thể phân tích mâu thuẫn" },
-        }));
-      }
-    } finally {
-      stopLoadingMessages("conflict");
-    }
-
-    // 4. 🕳️ Research Gap
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({ ...prev, gap: { status: "running", content: "" } }));
     startLoadingMessages("gap");
-    try {
-      const res = await api.findResearchGap([paperId]);
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          gap: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      }
-    } catch (e: any) {
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          gap: { status: "completed", content: "", error: e.message || "Không thể tìm khoảng trống nghiên cứu" },
-        }));
-      }
-    } finally {
-      stopLoadingMessages("gap");
-    }
-
-    // 5. 🧠 Tranh luận AI (Debate)
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({ ...prev, debate: { status: "running", content: "" } }));
     startLoadingMessages("debate");
-    try {
-      const res = await api.debate("", [paperId]);
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          debate: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      }
-    } catch (e: any) {
-      if (activeAnalysisRunId.current === runId) {
-        setSteps((prev) => ({
-          ...prev,
-          debate: { status: "error", content: "", error: e.message || "Không thể tạo cuộc tranh luận AI" },
-        }));
-      }
-    } finally {
-      stopLoadingMessages("debate");
+
+    const results = await Promise.allSettled([
+      api.getPaper(paperId),
+      api.review("", [paperId]),
+      api.critique("", [paperId]),
+      api.findConflicts([paperId]),
+      api.findResearchGap([paperId]),
+      api.debate("", [paperId]),
+    ]);
+
+    if (activeAnalysisRunId.current !== runId) return;
+
+    const paperRes = results[0];
+    const summaryRes = results[1];
+    const critiqueRes = results[2];
+    const conflictRes = results[3];
+    const gapRes = results[4];
+    const debateRes = results[5];
+
+    // Summary
+    if (paperRes.status === "fulfilled" && paperRes.value.auto_summary) {
+      setSteps((prev) => ({
+        ...prev,
+        summary: { status: "completed", content: paperRes.value.auto_summary, modelUsed: "Auto-ingested" },
+      }));
+    } else if (summaryRes.status === "fulfilled") {
+      setSteps((prev) => ({
+        ...prev,
+        summary: { status: "completed", content: summaryRes.value.answer, citations: summaryRes.value.citations, modelUsed: summaryRes.value.model_used },
+      }));
+    } else {
+      setSteps((prev) => ({
+        ...prev,
+        summary: { status: "error", content: "", error: summaryRes.reason?.message || "Không thể tạo tóm tắt" },
+      }));
     }
+    stopLoadingMessages("summary");
+
+    // Critique
+    if (critiqueRes.status === "fulfilled") {
+      setSteps((prev) => ({
+        ...prev,
+        critique: { status: "completed", content: critiqueRes.value.answer, citations: critiqueRes.value.citations, modelUsed: critiqueRes.value.model_used },
+      }));
+    } else {
+      setSteps((prev) => ({
+        ...prev,
+        critique: { status: "error", content: "", error: critiqueRes.reason?.message || "Không thể phân tích phản biện" },
+      }));
+    }
+    stopLoadingMessages("critique");
+
+    // Conflict
+    if (conflictRes.status === "fulfilled") {
+      setSteps((prev) => ({
+        ...prev,
+        conflict: { status: "completed", content: conflictRes.value.answer, citations: conflictRes.value.citations, modelUsed: conflictRes.value.model_used },
+      }));
+    } else {
+      setSteps((prev) => ({
+        ...prev,
+        conflict: { status: "error", content: "", error: conflictRes.reason?.message || "Không thể phân tích mâu thuẫn" },
+      }));
+    }
+    stopLoadingMessages("conflict");
+
+    // Gap
+    if (gapRes.status === "fulfilled") {
+      setSteps((prev) => ({
+        ...prev,
+        gap: { status: "completed", content: gapRes.value.answer, citations: gapRes.value.citations, modelUsed: gapRes.value.model_used },
+      }));
+    } else {
+      setSteps((prev) => ({
+        ...prev,
+        gap: { status: "error", content: "", error: gapRes.reason?.message || "Không thể tìm khoảng trống nghiên cứu" },
+      }));
+    }
+    stopLoadingMessages("gap");
+
+    // Debate
+    if (debateRes.status === "fulfilled") {
+      setSteps((prev) => ({
+        ...prev,
+        debate: { status: "completed", content: debateRes.value.answer, citations: debateRes.value.citations, modelUsed: debateRes.value.model_used },
+      }));
+    } else {
+      setSteps((prev) => ({
+        ...prev,
+        debate: { status: "error", content: "", error: debateRes.reason?.message || "Không thể tạo cuộc tranh luận AI" },
+      }));
+    }
+    stopLoadingMessages("debate");
   };
 
   // Drag & Drop Ingestion

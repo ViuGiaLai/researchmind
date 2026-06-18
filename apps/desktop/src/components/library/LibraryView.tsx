@@ -4,6 +4,7 @@ import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import {
   IconBrain,
+  IconSearch,
   IconStar,
   IconTrash,
   IconFileText,
@@ -35,8 +36,9 @@ export const LibraryView: React.FC<{
   onStartReview: (paperIds: string[]) => void;
   onStartCritique: (paperIds: string[]) => void;
   onStartDebate?: (paperIds: string[]) => void;
+  onStartVerify?: (paperIds: string[]) => void;
   onStartWow?: (paperId: string) => void;
-}> = ({ onStartChat, onStartReview, onStartCritique, onStartDebate, onStartWow }) => {
+}> = ({ onStartChat, onStartReview, onStartCritique, onStartDebate, onStartVerify, onStartWow }) => {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -427,6 +429,12 @@ export const LibraryView: React.FC<{
                       <button className="library-debate-btn" onClick={() => onStartDebate(Array.from(selected))}>
                         <IconBulb size={16} style={{ marginRight: 4 }} />
                         Tranh luận ({selected.size})
+                      </button>
+                    )}
+                    {onStartVerify && (
+                      <button className="library-secondary-btn" onClick={() => onStartVerify(Array.from(selected))}>
+                        <IconSearch size={16} style={{ marginRight: 4 }} />
+                        Xác thực ({selected.size})
                       </button>
                     )}
                     <button className="library-secondary-btn" onClick={() => onStartReview(Array.from(selected))}>

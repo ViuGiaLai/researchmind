@@ -105,6 +105,14 @@ async def import_document(
 
     background_tasks.add_task(_index_paper, file_id, doc)
 
+    background_tasks.add_task(
+        _enrich_paper_background,
+        paper_id=file_id,
+        file_path=str(save_path),
+        title=doc.title or file.filename,
+        authors=doc.authors.split(",") if doc.authors else []
+    )
+
     return {
         "paper_id": file_id,
         "filename": file.filename,
@@ -179,6 +187,13 @@ async def import_folder(
                 session.close()
 
             background_tasks.add_task(_index_paper, file_id, doc)
+            background_tasks.add_task(
+                _enrich_paper_background,
+                paper_id=file_id,
+                file_path=str(save_path),
+                title=doc.title or doc_file.name,
+                authors=doc.authors.split(",") if doc.authors else []
+            )
             import_results.append({
                 "filename": doc_file.name,
                 "status": "indexing",
@@ -296,6 +311,60 @@ Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
         session.commit()
     finally:
         session.close()
+
+
+async def _enrich_paper_background(paper_id: str, file_path: str, title: str, authors: list):
+    """Chạy ngầm sau khi import — fetch metadata từ OpenAlex + Crossref vào cache."""
+    try:
+        from academic.doi_extractor import extract_doi_from_paper
+        from academic.openalex import get_work_by_doi as oa_get
+        from academic.crossref import get_work_by_doi as cr_get
+        from academic.cache import cache_set, TTL_OPENALEX, TTL_CROSSREF
+
+        doi = await extract_doi_from_paper(
+            pdf_path=file_path,
+            title=title,
+            authors=authors
+        )
+        if not doi:
+            return
+
+        oa, cr = await asyncio.gather(
+            oa_get(doi),
+            cr_get(doi),
+            return_exceptions=True
+        )
+
+        if isinstance(oa, Exception):
+            oa = None
+        if isinstance(cr, Exception):
+            cr = None
+
+        if oa:
+            cache_set(f"oa:{doi}", "openalex", {
+                "openalex_id": oa.openalex_id,
+                "doi": oa.doi,
+                "title": oa.title,
+                "publication_year": oa.publication_year,
+                "citation_count": oa.citation_count,
+                "related_work_ids": oa.related_work_ids,
+                "referenced_work_ids": oa.referenced_work_ids,
+            })
+        if cr:
+            cache_set(f"cr:{doi}", "crossref", {
+                "doi": cr.doi,
+                "title": cr.title,
+                "authors": cr.authors,
+                "journal": cr.journal,
+                "year": cr.year,
+                "publisher": cr.publisher,
+                "citation_count": cr.citation_count,
+                "is_valid": cr.is_valid,
+            })
+
+        logger.info(f"Background enrichment done for {title} (DOI: {doi})")
+    except Exception:
+        pass
 
 
 # ─── Paper CRUD ──────────────────────────────────────────────────
