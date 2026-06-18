@@ -130,7 +130,12 @@ function App() {
             <button
               key={tab}
               className={`sidebar-menu-btn ${activeTab === tab ? "active" : ""}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                if (activeTab !== tab) {
+                  setInitialQuery(undefined);
+                }
+                setActiveTab(tab);
+              }}
             >
               <Icon size={18} style={{ marginRight: 12 }} />
               <span>{label}</span>

@@ -67,8 +67,11 @@ export const ChatView: React.FC<{
     loadUsage();
   }, []);
 
+  const initialQuerySent = useRef(false);
+
   useEffect(() => {
-    if (initialQuery && paperIds.length > 0) {
+    if (initialQuery && paperIds.length > 0 && !initialQuerySent.current) {
+      initialQuerySent.current = true;
       let cancelled = false;
       setInput(initialQuery);
       const timer = setTimeout(() => {

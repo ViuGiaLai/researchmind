@@ -3010,6 +3010,26 @@ body {
   background: var(--color-primary-hover);
 }
 
+.library-secondary-btn {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-md);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.library-secondary-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .library-empty-import {
   margin-top: var(--space-md);
   font-size: 0.95rem;
@@ -4973,6 +4993,27 @@ body {
   gap: var(--space-sm);
   font-size: 0.8rem;
   color: var(--color-text-muted);
+}
+
+.insights-papers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.insights-paper-tag {
+  display: inline-block;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .insights-result-content {

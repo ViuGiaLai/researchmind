@@ -27,13 +27,17 @@ async def extract_doi_from_paper(
         if doi:
             return _clean_doi(doi)
 
+        doi = _extract_from_pdf_text(pdf_path)
+        if doi:
+            return _clean_doi(doi)
+
     if context_text:
         doi = _extract_from_text(context_text)
         if doi:
             return _clean_doi(doi)
 
     if title:
-        doi = await find_doi_by_title(title, authors)
+        doi = await find_doi_by_title(_clean_title(title), authors)
         if doi:
             return _clean_doi(doi)
 
@@ -59,6 +63,21 @@ def _extract_from_pdf_metadata(pdf_path: str) -> Optional[str]:
         return None
 
 
+def _extract_from_pdf_text(pdf_path: str) -> Optional[str]:
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        text = ""
+        for page in doc.pages(0, min(3, len(doc))):
+            text += page.get_text("text")
+        doc.close()
+
+        match = DOI_PATTERN.search(text[:3000])
+        return match.group(1) if match else None
+    except Exception:
+        return None
+
+
 def _extract_from_text(text: str) -> Optional[str]:
     search_zone = text[:2000]
     match = DOI_PATTERN.search(search_zone)
@@ -67,6 +86,15 @@ def _extract_from_text(text: str) -> Optional[str]:
 
     match = DOI_PATTERN.search(text)
     return match.group(1) if match else None
+
+
+def _clean_title(title: str) -> str:
+    """Remove UUID prefix, URL encoding, and leading garbage from paper titles."""
+    import re as _re
+    cleaned = _re.sub(r'^[0-9a-f-]{36}_', '', title)
+    cleaned = cleaned.replace('+', ' ')
+    cleaned = _re.sub(r'%[0-9a-fA-F]{2}', '', cleaned)
+    return cleaned.strip()
 
 
 def _clean_doi(doi: str) -> str:

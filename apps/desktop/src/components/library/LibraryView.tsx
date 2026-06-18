@@ -421,30 +421,16 @@ export const LibraryView: React.FC<{
                 </button>
                 {selected.size > 0 && (
                   <>
-                    <button className="library-danger-btn" onClick={() => onStartCritique(Array.from(selected))}>
-                      <IconBrain size={16} style={{ marginRight: 4 }} />
-                      Phản biện ({selected.size})
+                    <button className="library-chat-btn" onClick={() => onStartChat(Array.from(selected))}>
+                      <IconChat size={16} style={{ marginRight: 4 }} />
+                      Chat ({selected.size})
                     </button>
-                    {onStartDebate && (
-                      <button className="library-debate-btn" onClick={() => onStartDebate(Array.from(selected))}>
-                        <IconBulb size={16} style={{ marginRight: 4 }} />
-                        Tranh luận ({selected.size})
-                      </button>
-                    )}
                     {onStartVerify && (
                       <button className="library-secondary-btn" onClick={() => onStartVerify(Array.from(selected))}>
                         <IconSearch size={16} style={{ marginRight: 4 }} />
                         Xác thực ({selected.size})
                       </button>
                     )}
-                    <button className="library-secondary-btn" onClick={() => onStartReview(Array.from(selected))}>
-                      <IconFileText size={16} style={{ marginRight: 4 }} />
-                      Tạo Review ({selected.size})
-                    </button>
-                    <button className="library-chat-btn" onClick={() => onStartChat(Array.from(selected))}>
-                      <IconChat size={16} style={{ marginRight: 4 }} />
-                      Chat ({selected.size})
-                    </button>
                   </>
                 )}
               </div>

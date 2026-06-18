@@ -69,7 +69,7 @@ async def find_doi_by_title(title: str, authors: list[str] = None, timeout: floa
                 return None
 
             top = items[0]
-            if top.get("score", 0) >= 60.0:
+            if top.get("score", 0) >= 40.0:
                 return top.get("DOI")
             return None
         except (httpx.TimeoutException, httpx.RequestError):

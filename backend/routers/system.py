@@ -29,7 +29,7 @@ async def health():
     """Health check endpoint."""
     return {
         "status": "ok",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "embedding_model": settings.embedding_model,
         "llm_mode": settings.llm_mode,
         "ollama_model": settings.ollama_model,

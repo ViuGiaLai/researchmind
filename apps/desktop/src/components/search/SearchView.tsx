@@ -118,10 +118,14 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                     <div className="search-result-header">
                       <span className="search-result-title">
                         <IconFileText size={16} style={{ marginRight: 4 }} />
-                        {r.paper_title}
+                        {r.paper_title
+                          .replace(/^[0-9a-f-]{36}_/, '')
+                          .replace(/\+/g, ' ')
+                          .replace(/%[0-9a-fA-F]{2}/g, '')
+                          || "Không có tiêu đề"}
                       </span>
                       <span className="search-result-score">
-                        ⭐ {(r.score * 100).toFixed(0)}%
+                        ⭐ {Math.abs(r.score).toFixed(2)}
                       </span>
                     </div>
                     {r.page_number && (

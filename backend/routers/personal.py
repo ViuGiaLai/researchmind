@@ -13,6 +13,8 @@ from db.models import ChatHistory, Paper
 
 router = APIRouter(prefix="/api/personal", tags=["Personal"])
 
+_daily_cache: dict = {"data": None, "date": ""}
+
 
 # ─── Personalized Knowledge Brain ────────────────────────────────
 
@@ -257,11 +259,15 @@ async def get_daily_reader():
         daily_suggestion = None
 
         if len(all_papers) > 0:
-            papers_context = _json.dumps(paper_summaries[:30], ensure_ascii=False, indent=1)
-            interests_context = f"Top interests: {', '.join(top_interests)}" if top_interests else "No tags yet"
-            recent_context = f"Recent chat topics: {query_text[:500]}" if query_text else "No recent chat"
+            today = datetime.now().strftime("%Y-%m-%d")
+            if _daily_cache["date"] == today and _daily_cache["data"] is not None:
+                daily_suggestion = _daily_cache["data"]
+            else:
+                papers_context = _json.dumps(paper_summaries[:30], ensure_ascii=False, indent=1)
+                interests_context = f"Top interests: {', '.join(top_interests)}" if top_interests else "No tags yet"
+                recent_context = f"Recent chat topics: {query_text[:500]}" if query_text else "No recent chat"
 
-            daily_prompt = f"""Bạn là trợ lý nghiên cứu cá nhân. Dựa trên thư viện paper và sở thích của người dùng, hãy gợi ý paper nên đọc HÔM NAY.
+                daily_prompt = f"""Bạn là trợ lý nghiên cứu cá nhân. Dựa trên thư viện paper và sở thích của người dùng, hãy gợi ý paper nên đọc HÔM NAY.
 
 ## Thư viện paper:
 {papers_context}
@@ -293,6 +299,8 @@ Nếu không có paper nào phù hợp, hãy gợi ý:
                 "suggestion": generation.content,
                 "model_used": generation.model_used,
             }
+            _daily_cache["data"] = daily_suggestion
+            _daily_cache["date"] = today
 
         def paper_priority(p):
             score = 0

@@ -23,9 +23,14 @@ class Embedder:
 
         logger.info(f"Loading embedding model: {self.model_name}")
         from sentence_transformers import SentenceTransformer
+        import torch
         self._model = SentenceTransformer(
             self.model_name,
-            model_kwargs={"low_cpu_mem_usage": False}
+            model_kwargs={
+                "low_cpu_mem_usage": False,
+                "trust_remote_code": True,
+            },
+            device="cpu" if not torch.cuda.is_available() else "cuda",
         )
         logger.info(f"Model loaded. Embedding dimension: {self._model.get_sentence_embedding_dimension()}")
 

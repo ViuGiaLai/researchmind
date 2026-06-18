@@ -8,7 +8,7 @@ interface VerifyPanelProps {
 const STATUS_MESSAGES: Record<string, string> = {
   full: "✅ Đã verify qua OpenAlex + Crossref",
   partial: "⚠️ Verify một phần — một số nguồn không phản hồi",
-  local_only: "📄 Không tìm được dữ liệu external — chỉ dựa trên tài liệu local",
+  local_only: "Không tìm được dữ liệu external — chỉ dựa trên tài liệu local",
 };
 
 export function VerifyPanel({ sources, status }: VerifyPanelProps) {

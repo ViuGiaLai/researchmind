@@ -313,6 +313,15 @@ export const InsightsView: React.FC<{
               <span>·</span>
               <span>{result.model_used}</span>
             </div>
+            {result.papers_used.length > 0 && (
+              <div className="insights-papers-list">
+                {result.papers_used.map((pid) => {
+                  const p = papers.find((pp) => pp.id === pid);
+                  const title = p?.title || p?.filename || pid.slice(0, 12);
+                  return <span key={pid} className="insights-paper-tag">{title}</span>;
+                })}
+              </div>
+            )}
           </div>
 
           <div className="insights-result-content">
