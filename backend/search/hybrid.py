@@ -4,6 +4,7 @@ import functools
 from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
+from config.settings import settings
 
 
 @dataclass
@@ -80,7 +81,7 @@ class HybridSearch:
         fused = self._rrf_fuse(bm25_results, vector_results)
 
         # Step 4: Cross-encoder re-ranking
-        if use_reranker and fused:
+        if use_reranker and settings.enable_reranker and fused:
             fused = self._rerank(query, fused)
             t3 = time.time()
             logger.debug(f"Cross-encoder rerank: {len(fused)} results in {t3-t2:.2f}s")

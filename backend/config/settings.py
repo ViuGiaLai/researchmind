@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     freemodel_model: str = "gpt-4o-mini"
     freemodel_url: str = "https://api.freemodel.dev/v1"
     
+    # Reranking settings (disabled by default for CPU performance)
+    enable_reranker: bool = False
+    
     # Free Cloud settings (tries Groq → Gemini → FreeModel → Ollama)
     free_cloud_daily_limit: int = 10
     

@@ -612,7 +612,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 f"{self.nvidia_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=60.0,
+                timeout=20.0,
             )
             response.raise_for_status()
             data = response.json()
@@ -990,7 +990,7 @@ Câu hỏi: {query}"""
                 f"{base_url.rstrip('/')}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=60.0,
+                timeout=20.0,
             ) as response:
                 response.raise_for_status()
                 for line in response.iter_lines():
