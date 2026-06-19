@@ -4,7 +4,7 @@ from loguru import logger
 from app_state import state
 from config.settings import settings
 from db.database import get_session
-from db.models import Paper
+from db.models import CollectionPaper, Paper
 
 router = APIRouter(prefix="/api/search", tags=["Search"])
 
@@ -18,6 +18,8 @@ async def search(query: dict = Body(...)):
     text = query.get("text", "")
     paper_ids = query.get("paper_ids") or []
     top_k = query.get("top_k", 10)
+    filters = query.get("filters") or {}
+    collection_id = query.get("collection_id") or filters.get("collection_id")
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="Query text is required")
@@ -38,22 +40,59 @@ async def search(query: dict = Body(...)):
     if not clean_text and tags_to_filter:
         clean_text = " ".join(tags_to_filter)
 
-    # Filter papers by tags in database
-    if tags_to_filter:
+    structured_tags = filters.get("tags") or []
+    if isinstance(structured_tags, str):
+        structured_tags = [structured_tags]
+    tags_to_filter.extend([t.strip().lower() for t in structured_tags if str(t).strip()])
+
+    author_filter = (filters.get("author") or "").strip().lower()
+    year_from = filters.get("year_from")
+    year_to = filters.get("year_to")
+    read_status = filters.get("read_status")
+    starred = filters.get("starred")
+    sort_by = filters.get("sort_by") or "relevance"
+    sort_order = filters.get("sort_order") or "desc"
+
+    # Filter papers by metadata in database before retrieval.
+    if tags_to_filter or author_filter or year_from or year_to or read_status or starred is not None or collection_id:
         session = get_session(state.engine)
         try:
-            papers = session.query(Paper).filter(Paper.status == "indexed").all()
-            tagged_paper_ids = []
+            papers_query = session.query(Paper).filter(Paper.status == "indexed")
+            if collection_id:
+                collection_paper_ids = [
+                    row.paper_id
+                    for row in session.query(CollectionPaper.paper_id)
+                    .filter(CollectionPaper.collection_id == collection_id)
+                    .all()
+                ]
+                if not collection_paper_ids:
+                    return {"query": text, "total": 0, "results": []}
+                papers_query = papers_query.filter(Paper.id.in_(collection_paper_ids))
+            if author_filter:
+                papers_query = papers_query.filter(Paper.authors.ilike(f"%{author_filter}%"))
+            if year_from:
+                papers_query = papers_query.filter(Paper.year >= int(year_from))
+            if year_to:
+                papers_query = papers_query.filter(Paper.year <= int(year_to))
+            if read_status:
+                papers_query = papers_query.filter(Paper.read_status == read_status)
+            if starred is not None:
+                papers_query = papers_query.filter(Paper.starred == (1 if bool(starred) else 0))
+
+            papers = papers_query.all()
+            filtered_paper_ids = []
             for p in papers:
-                if p.tags:
+                if tags_to_filter and p.tags:
                     try:
                         p_tags = [t.lower() for t in json.loads(p.tags)]
                         if all(t in p_tags for t in tags_to_filter):
-                            tagged_paper_ids.append(p.id)
+                            filtered_paper_ids.append(p.id)
                     except Exception:
                         pass
+                elif not tags_to_filter:
+                    filtered_paper_ids.append(p.id)
             
-            if not tagged_paper_ids:
+            if not filtered_paper_ids:
                 return {
                     "query": text,
                     "total": 0,
@@ -62,7 +101,7 @@ async def search(query: dict = Body(...)):
             
             if paper_ids:
                 # Intersect with user-selected paper IDs
-                paper_ids = list(set(paper_ids).intersection(tagged_paper_ids))
+                paper_ids = list(set(paper_ids).intersection(filtered_paper_ids))
                 if not paper_ids:
                     return {
                         "query": text,
@@ -70,9 +109,9 @@ async def search(query: dict = Body(...)):
                         "results": []
                     }
             else:
-                paper_ids = tagged_paper_ids
+                paper_ids = filtered_paper_ids
         except Exception as e:
-            logger.error(f"Error filtering papers by tag: {e}")
+            logger.error(f"Error filtering papers for search: {e}")
         finally:
             session.close()
 
@@ -87,6 +126,20 @@ async def search(query: dict = Body(...)):
         top_k=top_k,
         use_reranker=True,
     )
+
+    if sort_by in {"year", "title", "created_at"} and results:
+        session = get_session(state.engine)
+        try:
+            paper_map = {p.id: p for p in session.query(Paper).filter(Paper.id.in_([r.paper_id for r in results])).all()}
+            reverse = sort_order != "asc"
+            if sort_by == "year":
+                results.sort(key=lambda r: paper_map.get(r.paper_id).year if paper_map.get(r.paper_id) else 0, reverse=reverse)
+            elif sort_by == "title":
+                results.sort(key=lambda r: (paper_map.get(r.paper_id).title or "").lower() if paper_map.get(r.paper_id) else "", reverse=reverse)
+            elif sort_by == "created_at":
+                results.sort(key=lambda r: paper_map.get(r.paper_id).created_at if paper_map.get(r.paper_id) else None, reverse=reverse)
+        finally:
+            session.close()
 
     return {
         "query": text,

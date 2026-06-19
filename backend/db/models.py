@@ -32,10 +32,34 @@ class Paper(Base):
     tags = Column(Text, default="[]")             # JSON array
     notes = Column(Text, default="")
     auto_summary = Column(Text, default="")  # AI-generated summary
+    ocr_pages_count = Column(Integer, default=0)
+    ocr_pages_failed = Column(Integer, default=0)
+    is_scanned = Column(Integer, default=0)
     read_status = Column(String, default="unread")  # unread / reading / read
     starred = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
     indexed_at = Column(DateTime, nullable=True)
+
+
+class ImportJob(Base):
+    __tablename__ = "import_jobs"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    paper_id = Column(String, nullable=True)
+    filename = Column(String, nullable=False)
+    source_path = Column(String, default="")
+    file_path = Column(String, default="")
+    status = Column(String, default="queued")
+    stage = Column(String, default="queued")
+    progress = Column(Integer, default=0)
+    error = Column(Text, default="")
+    ocr_pages_count = Column(Integer, default=0)
+    ocr_pages_failed = Column(Integer, default=0)
+    is_scanned = Column(Integer, default=0)
+    attempts = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    finished_at = Column(DateTime, nullable=True)
 
 
 class Chunk(Base):
@@ -89,3 +113,37 @@ class EmbeddingCache(Base):
     key_hash = Column(String, primary_key=True)  # md5 hash of chunk/query text
     vector = Column(Text, nullable=False)  # JSON-serialized list of floats
     created_at = Column(DateTime, server_default=func.now())
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    description = Column(Text, default="")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class CollectionPaper(Base):
+    __tablename__ = "collection_papers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    collection_id = Column(String, nullable=False)
+    paper_id = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("collection_id", "paper_id", name="uq_collection_paper"),
+    )
+
+
+class SavedSearch(Base):
+    __tablename__ = "saved_searches"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    query = Column(Text, nullable=False)
+    filters = Column(Text, default="{}")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

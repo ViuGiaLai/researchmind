@@ -26,6 +26,9 @@ class ExtractedDocument:
     language: str
     text_by_page: dict[int, str]  # page_number -> text
     full_text: str
+    ocr_pages_count: int = 0
+    ocr_pages_failed: int = 0
+    is_scanned: bool = False
 
 
 def extract_document(file_path: str) -> Optional[ExtractedDocument]:
@@ -53,11 +56,13 @@ def extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     return _extract_pdf(file_path)
 
 
-def _process_single_page(file_path: str, page_num: int) -> tuple[int, str]:
+def _process_single_page(file_path: str, page_num: int) -> tuple[int, str, bool, bool]:
     import fitz
     import re
     
     text = ""
+    ocr_attempted = False
+    ocr_succeeded = False
     try:
         doc = fitz.open(file_path)
         page = doc[page_num]
@@ -75,6 +80,7 @@ def _process_single_page(file_path: str, page_num: int) -> tuple[int, str]:
                     is_garbled = False
                     
         if is_garbled or len(text.strip()) < 40:
+            ocr_attempted = True
             try:
                 with _ocr_lock:
                     global _global_ocr_engine
@@ -95,6 +101,7 @@ def _process_single_page(file_path: str, page_num: int) -> tuple[int, str]:
                     ocr_text = "\n".join(ocr_text_list)
                     if ocr_text.strip():
                         text = ocr_text
+                        ocr_succeeded = True
                         total_elapse = sum(elapse) if isinstance(elapse, (list, tuple)) else (elapse or 0.0)
                         logger.info(f"Page {page_num + 1} OCR completed in {total_elapse:.2f}s")
             except Exception as e:
@@ -103,7 +110,7 @@ def _process_single_page(file_path: str, page_num: int) -> tuple[int, str]:
     except Exception as e:
         logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
         
-    return page_num, text
+    return page_num, text, ocr_attempted, ocr_attempted and not ocr_succeeded
 
 
 def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
@@ -118,6 +125,8 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     doc.close()
 
     text_by_page: dict[int, str] = {}
+    ocr_pages_count = 0
+    ocr_pages_failed = 0
     max_workers = min(4, page_count) if page_count > 0 else 1
     pages_to_process = list(range(page_count))
     
@@ -125,16 +134,24 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # We map processing onto the threads. Under python threads, this releases the GIL during fitz parsing and ONNX runtime
             results = executor.map(lambda p: _process_single_page(file_path, p), pages_to_process)
-            for page_num, text in results:
+            for page_num, text, ocr_attempted, ocr_failed in results:
                 text_by_page[page_num + 1] = text
+                if ocr_attempted:
+                    ocr_pages_count += 1
+                if ocr_failed:
+                    ocr_pages_failed += 1
     except Exception as e:
         logger.error(f"Error during parallel PDF parsing: {e}")
         text_by_page = {}
         try:
             doc = fitz.open(file_path)
             for page_num in range(len(doc)):
-                p_num, text = _process_single_page(file_path, page_num)
+                p_num, text, ocr_attempted, ocr_failed = _process_single_page(file_path, page_num)
                 text_by_page[p_num + 1] = text
+                if ocr_attempted:
+                    ocr_pages_count += 1
+                if ocr_failed:
+                    ocr_pages_failed += 1
             doc.close()
         except Exception as fallback_err:
             logger.error(f"Fallback parsing also failed: {fallback_err}")
@@ -186,6 +203,9 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page=text_by_page,
         full_text=full_text,
+        ocr_pages_count=ocr_pages_count,
+        ocr_pages_failed=ocr_pages_failed,
+        is_scanned=ocr_pages_count > 0,
     )
 
 
@@ -246,6 +266,9 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page={1: full_text},
         full_text=full_text,
+        ocr_pages_count=0,
+        ocr_pages_failed=0,
+        is_scanned=False,
     )
 
 
@@ -278,6 +301,9 @@ def _extract_txt(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page={1: full_text},
         full_text=full_text,
+        ocr_pages_count=0,
+        ocr_pages_failed=0,
+        is_scanned=False,
     )
 
 
@@ -332,6 +358,9 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page={1: clean},
         full_text=clean,
+        ocr_pages_count=0,
+        ocr_pages_failed=0,
+        is_scanned=False,
     )
 
 
@@ -375,6 +404,9 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page={1: full_text},
         full_text=full_text,
+        ocr_pages_count=0,
+        ocr_pages_failed=0,
+        is_scanned=False,
     )
 
 
@@ -438,6 +470,9 @@ def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page={1: full_text},
         full_text=full_text,
+        ocr_pages_count=0,
+        ocr_pages_failed=0,
+        is_scanned=False,
     )
 
 

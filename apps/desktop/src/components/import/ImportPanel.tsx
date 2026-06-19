@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { api } from "../../lib/api";
+import { api, ImportJob } from "../../lib/api";
 import {
   IconFileText,
   IconSpinner,
@@ -26,15 +26,21 @@ const SUPPORTED_ACCEPT = SUPPORTED_FORMATS.map(f => f.ext).join(",");
 const SUPPORTED_SUFFIXES = new Set(SUPPORTED_FORMATS.map(f => f.ext));
 
 type ImportTab = "pdf" | "bibtex" | "zotero";
-type ImportStatus = "importing" | "indexing" | "indexed" | "failed" | "success" | "imported" | "duplicate" | "error" | "pending";
+type ImportStatus = "queued" | "saved" | "parsing" | "indexing" | "summarizing" | "enriching" | "ready" | "needs_ocr" | "importing" | "indexed" | "failed" | "success" | "imported" | "duplicate" | "error" | "pending";
 
 interface ImportResult {
+  job_id?: string;
   filename: string;
   status: ImportStatus | string;
+  stage?: string;
+  progress?: number;
   paper_id?: string;
   error?: string;
   pages?: number;
   title?: string;
+  ocrPagesCount?: number;
+  ocrPagesFailed?: number;
+  isScanned?: boolean;
   pdfStatus?: string;
   pdfError?: string;
 }
@@ -59,8 +65,27 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
 
   useEffect(() => clearStatusPolling, [clearStatusPolling]);
 
-  const startStatusPolling = useCallback((paperIds: string[]) => {
-    const ids = [...new Set(paperIds.filter(Boolean))];
+  const mergeJobsIntoResults = useCallback((jobs: ImportJob[]) => {
+    setResults((prev) => prev.map((result) => {
+      const latest = jobs.find((job) => job.id === result.job_id || (result.paper_id && job.paper_id === result.paper_id));
+      if (!latest) return result;
+      return {
+        ...result,
+        job_id: latest.id,
+        paper_id: latest.paper_id || result.paper_id,
+        status: latest.status,
+        stage: latest.stage,
+        progress: latest.progress,
+        error: latest.error || result.error,
+        ocrPagesCount: latest.ocr_pages_count,
+        ocrPagesFailed: latest.ocr_pages_failed,
+        isScanned: latest.is_scanned,
+      };
+    }));
+  }, []);
+
+  const startStatusPolling = useCallback((jobIds: string[]) => {
+    const ids = [...new Set(jobIds.filter(Boolean))];
     if (ids.length === 0) return;
 
     clearStatusPolling();
@@ -68,38 +93,28 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
 
     const poll = async () => {
       attempts += 1;
-      const papers = await Promise.all(
-        ids.map((id) => api.getPaper(id).then((paper) => ({ id, paper })).catch(() => null))
-      );
+      const res = await api.listImportJobs(100);
+      const tracked = res.jobs.filter((job) => ids.includes(job.id));
+      mergeJobsIntoResults(tracked);
 
-      setResults((prev) => prev.map((result) => {
-        if (!result.paper_id) return result;
-        const latest = papers.find((item) => item?.id === result.paper_id)?.paper;
-        if (!latest) return result;
-        return {
-          ...result,
-          title: latest.title || result.title,
-          pages: latest.page_count || result.pages,
-          status: latest.status,
-          error: latest.status === "failed" ? "Không thể lập chỉ mục tài liệu này." : result.error,
-        };
-      }));
-
-      const stillProcessing = papers.some((item) => {
-        const status = item?.paper.status;
-        return status === "pending" || status === "indexing";
-      });
+      const stillProcessing = tracked.some((job) => ["queued", "saved", "parsing", "indexing", "summarizing", "enriching"].includes(job.status));
 
       if (!stillProcessing || attempts >= 90) {
         clearStatusPolling();
-        const firstReady = papers.find((item) => item?.paper.status === "indexed");
-        onImported(firstReady?.id || ids[0]);
+        const firstReady = tracked.find((job) => job.status === "ready" && job.paper_id);
+        onImported(firstReady?.paper_id || tracked.find((job) => job.paper_id)?.paper_id || undefined);
       }
     };
 
     poll();
     pollIntervalRef.current = setInterval(poll, 2000);
-  }, [clearStatusPolling, onImported]);
+  }, [clearStatusPolling, mergeJobsIntoResults, onImported]);
+
+  const retryJob = async (jobId: string) => {
+    await api.retryImportJob(jobId);
+    setResults((prev) => prev.map((result) => result.job_id === jobId ? { ...result, status: "queued", stage: "retry", progress: 0, error: "" } : result));
+    startStatusPolling([jobId]);
+  };
 
   // ── PDF Import ────────────────────────────────────────────
 
@@ -157,11 +172,16 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       try {
         const res = await api.importPaper(file);
         newResults.push({
+          job_id: res.job_id,
           filename: file.name,
           status: res.status || "indexing",
+          progress: 35,
           paper_id: res.paper_id,
           pages: res.page_count,
           title: res.title,
+          ocrPagesCount: res.ocr_pages_count,
+          ocrPagesFailed: res.ocr_pages_failed,
+          isScanned: res.is_scanned,
         });
       } catch (e) {
         newResults.push({
@@ -175,8 +195,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     setResults(newResults);
     setImporting(false);
     const indexingIds = newResults
-      .filter((r) => r.paper_id && r.status !== "error")
-      .map((r) => r.paper_id as string);
+      .filter((r) => r.job_id && r.status !== "error")
+      .map((r) => r.job_id as string);
     if (indexingIds.length > 0) startStatusPolling(indexingIds);
     else onImported();
   };
@@ -189,8 +209,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       const importResults = res.results as ImportResult[];
       setResults(importResults);
       const indexingIds = importResults
-        .filter((r) => r.paper_id && r.status !== "error" && r.status !== "failed")
-        .map((r) => r.paper_id as string);
+        .filter((r) => r.job_id && r.status !== "error" && r.status !== "failed")
+        .map((r) => r.job_id as string);
       if (indexingIds.length > 0) startStatusPolling(indexingIds);
       else onImported();
     } catch (e) {
@@ -294,6 +314,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
         // Import with PDF finding
         const res = await api.importZoteroCsvWithPdfs(file, zoteroDataDir.trim());
         const importResults = res.results.map(r => ({
+          job_id: (r as any).job_id,
           filename: r.filename,
           status: r.status === "imported" ? "success" : r.status,
           paper_id: r.paper_id,
@@ -305,8 +326,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
         }));
         setResults(importResults);
         const indexingIds = importResults
-          .filter((r) => r.paper_id && (r.pdfStatus === "indexing" || r.status === "success"))
-          .map((r) => r.paper_id as string);
+          .filter((r) => r.job_id && (r.pdfStatus === "indexing" || r.status === "success"))
+          .map((r) => r.job_id as string);
         if (indexingIds.length > 0) startStatusPolling(indexingIds);
         else onImported();
       } else {
@@ -334,8 +355,9 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     e.target.value = "";
   };
 
-  const successCount = results.filter(r => ["success", "imported", "indexed"].includes(r.status)).length;
-  const processingCount = results.filter(r => ["importing", "indexing", "pending"].includes(r.status)).length;
+  const successCount = results.filter(r => ["success", "imported", "indexed", "ready"].includes(r.status)).length;
+  const processingCount = results.filter(r => ["queued", "saved", "parsing", "importing", "indexing", "summarizing", "enriching", "pending"].includes(r.status)).length;
+  const needsOcrCount = results.filter(r => r.status === "needs_ocr").length;
   const failedCount = results.filter(r => r.status === "failed").length;
   const duplicateCount = results.filter(r => r.status === "duplicate").length;
   const errorCount = results.filter(r => r.status === "error").length;
@@ -605,6 +627,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               {successCount > 0 && <IconCheck size={16} style={{ color: "var(--color-success)", marginRight: 4 }} />}
               {successCount} thành công
               {processingCount > 0 && `, ${processingCount} đang xử lý`}
+              {needsOcrCount > 0 && `, ${needsOcrCount} cần OCR`}
               {duplicateCount > 0 && `, ${duplicateCount} trùng`}
               {failedCount > 0 && `, ${failedCount} thất bại`}
               {errorCount > 0 && `, ${errorCount} lỗi`}
@@ -616,10 +639,13 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             {results.map((r, i) => {
               let iconColor: string;
               let rowClass: string;
-              const isProcessing = ["importing", "indexing", "pending"].includes(r.status);
+              const isProcessing = ["queued", "saved", "parsing", "importing", "indexing", "summarizing", "enriching", "pending"].includes(r.status);
               if (r.status === "error" || r.status === "failed") {
                 iconColor = "var(--color-error, #ef4444)";
                 rowClass = "import-error";
+              } else if (r.status === "needs_ocr") {
+                iconColor = "var(--color-warning, #f59e0b)";
+                rowClass = "import-duplicate";
               } else if (r.status === "duplicate") {
                 iconColor = "var(--color-text-muted, #94a3b8)";
                 rowClass = "import-duplicate";
@@ -638,6 +664,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                   <span className="import-result-icon">
                     {r.status === "error" || r.status === "failed" ? (
                       <IconError size={16} style={{ color: iconColor }} />
+                    ) : r.status === "needs_ocr" ? (
+                      <span style={{ color: iconColor, fontSize: 16 }}>⚠</span>
                     ) : r.status === "duplicate" ? (
                       <span style={{ color: iconColor, fontSize: 16 }}>⏺</span>
                     ) : isProcessing ? (
@@ -648,10 +676,29 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                   </span>
                   <span className="import-result-name">{r.title || r.filename}</span>
                   {r.pages && <span className="import-result-pages">{r.pages} trang</span>}
-                  {isProcessing && <span className="import-result-pages">đang lập chỉ mục...</span>}
-                  {r.status === "indexed" && <span className="import-result-pages">sẵn sàng</span>}
+                  {isProcessing && <span className="import-result-pages">{r.stage || r.status} {typeof r.progress === "number" ? `${r.progress}%` : ""}</span>}
+                  {["indexed", "ready"].includes(r.status) && <span className="import-result-pages">sẵn sàng</span>}
+                  {r.status === "needs_ocr" && <span className="import-result-pages" style={{ color: "var(--color-warning, #f59e0b)" }}>cần OCR</span>}
                   {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted, #94a3b8)" }}>đã có</span>}
+                  {r.isScanned && (
+                    <span style={{
+                      fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
+                      background: "rgba(245, 158, 11, 0.1)", color: "var(--color-warning, #f59e0b)",
+                      whiteSpace: "nowrap",
+                    }}>
+                      OCR {r.ocrPagesCount || 0} trang{r.ocrPagesFailed ? `, lỗi ${r.ocrPagesFailed}` : ""}
+                    </span>
+                  )}
                   {r.error && <span className="import-result-error">{r.error}</span>}
+                  {r.job_id && ["failed", "needs_ocr"].includes(r.status) && (
+                    <button
+                      type="button"
+                      className="import-retry-btn"
+                      onClick={() => retryJob(r.job_id as string)}
+                    >
+                      Retry
+                    </button>
+                  )}
                   {/* PDF status badge */}
                   {pdfStatus === "indexing" && (
                     <span style={{

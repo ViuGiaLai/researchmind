@@ -244,6 +244,8 @@ async def move_storage(body: dict = Body(...)):
             rrf_k=settings.rrf_k,
             top_k_final=settings.top_k_final,
         )
+        if hasattr(state.hybrid, "clear_rerank_cache"):
+            state.hybrid.clear_rerank_cache()
 
         for sub in ["papers", "chroma", "db"]:
             old_sub = old_path / sub
@@ -326,6 +328,8 @@ async def clear_all_data():
             rrf_k=settings.rrf_k,
             top_k_final=settings.top_k_final,
         )
+        if hasattr(state.hybrid, "clear_rerank_cache"):
+            state.hybrid.clear_rerank_cache()
 
         # ── 6. Kết quả ──────────────────────────────────────────
         # Liệt kê file đã xoá (tối đa 5 file)

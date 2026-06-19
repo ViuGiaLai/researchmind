@@ -2416,10 +2416,54 @@ body {
   white-space: nowrap;
 }
 
+.library-mini-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.library-mini-badge.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning, #f59e0b);
+}
+
+.library-mini-badge.danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error, #ef4444);
+}
+
 .library-card-actions {
   display: flex;
   gap: var(--space-xs);
   flex-shrink: 0;
+}
+
+.library-collection-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.library-collection-select,
+.chat-collection-select,
+.search-filter-input {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #1a1a1a);
+  font-size: 0.8rem;
+  padding: 7px 9px;
+  min-height: 34px;
+}
+
+.library-collection-select {
+  min-width: 160px;
 }
 
 .library-action-btn {
@@ -3460,6 +3504,59 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.import-retry-btn,
+.metadata-inline-btn {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 5px;
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #1a1a1a);
+  cursor: pointer;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.import-retry-btn:hover,
+.metadata-inline-btn:hover {
+  border-color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #6366f1);
+}
+
+.search-filter-bar,
+.saved-search-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.search-filter-input {
+  min-width: 120px;
+}
+
+.search-filter-input.compact {
+  min-width: 86px;
+  width: 96px;
+}
+
+.search-filter-btn,
+.saved-search-chip {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #1a1a1a);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 7px 10px;
+}
+
+.search-filter-btn:hover,
+.saved-search-chip:hover {
+  border-color: var(--color-primary, #6366f1);
+  color: var(--color-primary, #6366f1);
 }
 
 /* Library import section */

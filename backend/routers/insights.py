@@ -415,6 +415,14 @@ Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, k
                 data = json.loads(content[start:end+1])
         except Exception as e:
             logger.warning(f"Failed to parse LLM comparison JSON for {title}: {e}")
+            fallback_text = content.strip()
+            data = {
+                "objective": fallback_text[:500] if fallback_text else "Không thể trích xuất chi tiết.",
+                "methodology": "LLM trả về JSON không hợp lệ; xem phần mục tiêu để đọc fallback text.",
+                "dataset": "Không thể trích xuất chi tiết.",
+                "findings": fallback_text[:500] if fallback_text else "Không thể trích xuất chi tiết.",
+                "limitations": "Không thể trích xuất chi tiết.",
+            }
             
         for key in ["objective", "methodology", "dataset", "findings", "limitations"]:
             if key not in data or not str(data[key]).strip():

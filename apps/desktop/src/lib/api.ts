@@ -48,6 +48,9 @@ export interface Paper {
   file_size: number;
   language: string;
   status: string;
+  ocr_pages_count?: number;
+  ocr_pages_failed?: number;
+  is_scanned?: boolean;
   tags: string;
   notes: string;
   auto_summary: string;
@@ -131,6 +134,55 @@ export interface RelatedPaper {
   matching_chunks: number;
 }
 
+export interface ImportJob {
+  id: string;
+  paper_id: string | null;
+  filename: string;
+  source_path: string;
+  file_path: string;
+  status: string;
+  stage: string;
+  progress: number;
+  error: string;
+  ocr_pages_count: number;
+  ocr_pages_failed: number;
+  is_scanned: boolean;
+  attempts: number;
+  created_at: string | null;
+  updated_at: string | null;
+  finished_at: string | null;
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  description: string;
+  paper_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  filters: SearchFilters;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SearchFilters {
+  collection_id?: string;
+  author?: string;
+  year_from?: number | null;
+  year_to?: number | null;
+  tags?: string[];
+  read_status?: string;
+  starred?: boolean | null;
+  sort_by?: string;
+  sort_order?: string;
+}
+
 // ─── API functions ─────────────────────────────────────────────
 
 export const api = {
@@ -138,11 +190,26 @@ export const api = {
   health: () => request<HealthResponse>("GET", "/api/health"),
 
   // Papers
-  listPapers: (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean) => {
+  listPapers: (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean, extra?: {
+    collection_id?: string;
+    author?: string;
+    year_from?: number | null;
+    year_to?: number | null;
+    tag?: string;
+    sort_by?: string;
+    order?: string;
+  }) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) params.set("status", status);
     if (readStatus) params.set("read_status", readStatus);
     if (starred !== undefined) params.set("starred", String(starred));
+    if (extra?.collection_id) params.set("collection_id", extra.collection_id);
+    if (extra?.author) params.set("author", extra.author);
+    if (extra?.year_from) params.set("year_from", String(extra.year_from));
+    if (extra?.year_to) params.set("year_to", String(extra.year_to));
+    if (extra?.tag) params.set("tag", extra.tag);
+    if (extra?.sort_by) params.set("sort_by", extra.sort_by);
+    if (extra?.order) params.set("order", extra.order);
     return request<{ total: number; page: number; limit: number; papers: Paper[] }>(
       "GET", `/api/papers?${params}`
     );
@@ -154,6 +221,9 @@ export const api = {
     request<Paper>("PATCH", `/api/papers/${id}`, update),
 
   deletePaper: (id: string) => request<{ status: string }>("DELETE", `/api/papers/${id}`),
+
+  retryPaperOcr: (id: string) =>
+    request<{ status: string; job_id: string; paper_id: string }>("POST", `/api/papers/${id}/retry-ocr`),
 
   importPaper: async (file: File) => {
     const formData = new FormData();
@@ -167,6 +237,12 @@ export const api = {
     request<{ total: number; results: unknown[] }>("POST", "/api/papers/import/folder", {
       folder_path: folderPath,
     }),
+
+  listImportJobs: (limit = 50) =>
+    request<{ jobs: ImportJob[] }>("GET", `/api/jobs?limit=${limit}`),
+
+  retryImportJob: (jobId: string) =>
+    request<{ status: string; job_id: string }>("POST", `/api/jobs/${jobId}/retry`),
 
   importBibtex: async (file: File) => {
     const formData = new FormData();
@@ -221,11 +297,12 @@ export const api = {
     }>("POST", "/api/papers/import/zotero-sqlite-sync"),
 
   // Search
-  search: (text: string, paperIds?: string[], topK = 10) =>
+  search: (text: string, paperIds?: string[], topK = 10, filters?: SearchFilters) =>
     request<{ query: string; total: number; results: SearchResult[] }>("POST", "/api/search", {
       text,
       paper_ids: paperIds,
       top_k: topK,
+      filters,
     }),
 
   searchSuggest: (q: string) =>
@@ -234,17 +311,21 @@ export const api = {
     ),
 
   // Chat
-  chat: (message: string, paperIds?: string[], scope?: string) =>
-    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope }),
+  chat: (message: string, paperIds?: string[], scope?: string, collectionId?: string) =>
+    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope, collection_id: collectionId }),
+
+  chatCollection: (message: string, collectionId: string) =>
+    request<ChatResponse>("POST", "/api/chat", { message, scope: "collection", collection_id: collectionId }),
 
   chatStream: (
     message: string,
     paperIds: string[] | undefined,
     scope?: string,
     sessionId: string = "default",
+    collectionId?: string,
   ) => {
     const url = `${BASE_URL}/api/chat`;
-    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId });
+    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId, collection_id: collectionId });
     const controller = new AbortController();
     const stream: {
       onChunk: ((text: string) => void) | null;
@@ -305,22 +386,23 @@ export const api = {
     return stream;
   },
 
-  review: (query: string, paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/review", { query, paper_ids: paperIds }),
-  critique: (query: string, paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/critique", { query, paper_ids: paperIds }),
-  debate: (query: string, paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/debate", { query, paper_ids: paperIds }),
-  verify: (query: string, paperIds?: string[]) =>
-    request<VerifyResponse>("POST", "/api/verify", { query, paper_ids: paperIds }),
+  review: (query: string, paperIds?: string[], collectionId?: string) =>
+    request<ChatResponse>("POST", "/api/review", { query, paper_ids: paperIds, collection_id: collectionId }),
+  critique: (query: string, paperIds?: string[], collectionId?: string) =>
+    request<ChatResponse>("POST", "/api/critique", { query, paper_ids: paperIds, collection_id: collectionId }),
+  debate: (query: string, paperIds?: string[], collectionId?: string) =>
+    request<ChatResponse>("POST", "/api/debate", { query, paper_ids: paperIds, collection_id: collectionId }),
+  verify: (query: string, paperIds?: string[], collectionId?: string) =>
+    request<VerifyResponse>("POST", "/api/verify", { query, paper_ids: paperIds, collection_id: collectionId }),
 
   verifyStream: (
     message: string,
     paperIds: string[] | undefined,
     sessionId: string = "verify",
+    collectionId?: string,
   ) => {
     const url = `${BASE_URL}/api/verify`;
-    const body = JSON.stringify({ message, paper_ids: paperIds, stream: true, session_id: sessionId });
+    const body = JSON.stringify({ message, paper_ids: paperIds, collection_id: collectionId, stream: true, session_id: sessionId });
     const controller = new AbortController();
     const stream: {
       onAcademic: ((data: any[], status: string) => void) | null;
@@ -387,6 +469,39 @@ export const api = {
     request<{ source: string; data: any }>("GET", `/api/academic/doi?doi=${encodeURIComponent(doi)}`),
   academicLookupPaper: (doi: string) =>
     request<{ source: string; data: any }>("GET", `/api/academic/paper?doi=${encodeURIComponent(doi)}`),
+  invalidateAcademicCache: (doi: string) =>
+    request<{ status: string; doi: string; message: string }>("DELETE", `/api/academic/cache/${encodeURIComponent(doi)}`),
+
+  // Collections / Projects
+  listCollections: () =>
+    request<{ collections: Collection[] }>("GET", "/api/collections"),
+
+  createCollection: (name: string, description = "") =>
+    request<Collection>("POST", "/api/collections", { name, description }),
+
+  updateCollection: (id: string, update: Partial<Collection>) =>
+    request<Collection>("PATCH", `/api/collections/${id}`, update),
+
+  deleteCollection: (id: string) =>
+    request<{ status: string; collection_id: string }>("DELETE", `/api/collections/${id}`),
+
+  listCollectionPapers: (id: string) =>
+    request<{ collection_id: string; paper_ids: string[] }>("GET", `/api/collections/${id}/papers`),
+
+  addPapersToCollection: (id: string, paperIds: string[]) =>
+    request<{ status: string; added: number; collection_id: string }>("POST", `/api/collections/${id}/papers`, { paper_ids: paperIds }),
+
+  removePaperFromCollection: (id: string, paperId: string) =>
+    request<{ status: string; removed: number }>("DELETE", `/api/collections/${id}/papers/${paperId}`),
+
+  listSavedSearches: () =>
+    request<{ saved_searches: SavedSearch[] }>("GET", "/api/saved-searches"),
+
+  createSavedSearch: (name: string, query: string, filters: SearchFilters) =>
+    request<SavedSearch>("POST", "/api/saved-searches", { name, query, filters }),
+
+  deleteSavedSearch: (id: string) =>
+    request<{ status: string; saved_search_id: string }>("DELETE", `/api/saved-searches/${id}`),
 
   // Machine specs
   detectSpecs: () =>
@@ -576,7 +691,72 @@ export const api = {
   // Daily AI Reader
   getDailyReader: () =>
     request<DailyReaderResponse>("GET", "/api/personal/daily-reader"),
+
+  // Literature Review Builder
+  generateReviewDraft: (paperIds: string[], title?: string, sections?: string[]) =>
+    request<ReviewDraftResponse>("POST", "/api/review/builder/draft", {
+      paper_ids: paperIds,
+      title,
+      sections,
+    }),
+
+  generateReviewSection: (paperIds: string[], section: string) =>
+    request<ReviewSectionResponse>("POST", "/api/review/builder/section", {
+      paper_ids: paperIds,
+      section,
+    }),
+
+  generateReviewMatrix: (paperIds: string[]) =>
+    request<ReviewMatrixResponse>("POST", "/api/review/builder/matrix", {
+      paper_ids: paperIds,
+    }),
+
+  exportReview: (title: string, content: string, format: string) =>
+    fetch(`${BASE_URL}/api/review/builder/export`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content, format }),
+    }).then((res) => {
+      if (!res.ok) throw new Error(`Export Review failed: ${res.status}`);
+      return res.blob();
+    }),
 };
+
+// ─── Review Builder Types ────────────────────────────────
+
+export interface ReviewSection {
+  section: string;
+  title: string;
+  content: string;
+  papers_used: string[];
+  chunks_used: number;
+  model_used?: string;
+  error?: string;
+}
+
+export interface ReviewDraftResponse {
+  title: string;
+  paper_titles: string[];
+  sections: ReviewSection[];
+  full_text: string;
+  error?: string;
+}
+
+export interface ReviewSectionResponse {
+  section: string;
+  title: string;
+  content: string;
+  papers_used: string[];
+  chunks_used: number;
+  model_used?: string;
+  error?: string;
+}
+
+export interface ReviewMatrixResponse {
+  matrix: { columns: string[]; rows: string[][] };
+  markdown: string;
+  error?: string;
+}
 
 // ─── Verify Types ────────────────────────────────────────
 
@@ -682,4 +862,3 @@ export interface PersonalBrainResponse {
   recent_activity: { type: string; content: string; date: string | null }[];
   insights: { type: string; title: string; description: string; action?: string }[];
 }
-

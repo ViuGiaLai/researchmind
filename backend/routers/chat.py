@@ -12,9 +12,24 @@ from academic.paper_check import check_papers_ready
 from app_state import state
 from config.settings import settings
 from db.database import get_session
-from db.models import ChatHistory
+from db.models import ChatHistory, CollectionPaper
 
 router = APIRouter(prefix="/api", tags=["Chat"])
+
+
+def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
+    if not collection_id:
+        return []
+    session = get_session(state.engine)
+    try:
+        return [
+            row.paper_id
+            for row in session.query(CollectionPaper.paper_id)
+            .filter(CollectionPaper.collection_id == collection_id)
+            .all()
+        ]
+    finally:
+        session.close()
 
 
 # ─── Helpers ─────────────────────────────────────────────────────
@@ -29,10 +44,21 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list):
+def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None):
     """Stream chat response chunks and save to history once completed."""
+    timing = timing or {}
+    stream_start = time_mod.time()
+    first_token_at = None
     full_response = ""
     for chunk in state.generator.stream_generate(query, context_text):
+        if first_token_at is None:
+            first_token_at = time_mod.time()
+            logger.info(
+                "CHAT_TTFT "
+                f"ttft={first_token_at - timing.get('start', stream_start):.2f}s "
+                f"retrieve={timing.get('retrieve', 0.0):.2f}s "
+                f"context_len={len(context_text)}"
+            )
         full_response += chunk
         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
@@ -73,6 +99,12 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
         db.close()
 
     yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'citations': citations})}\n\n"
+    logger.info(
+        "CHAT_STREAM_TIMING "
+        f"stream_generate={time_mod.time() - stream_start:.2f}s "
+        f"total={time_mod.time() - timing.get('start', stream_start):.2f}s "
+        f"model={model_used}"
+    )
 
 
 # ─── Chat ────────────────────────────────────────────────────────
@@ -85,11 +117,19 @@ async def chat(request: dict = Body(...)):
     paper_ids = request.get("paper_ids")
     stream = request.get("stream", False)
     session_id = request.get("session_id", "default")
+    collection_id = request.get("collection_id")
 
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
 
     if paper_ids:
+        paper_error = check_papers_ready(paper_ids)
+        if paper_error:
+            return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
+    elif collection_id:
+        paper_ids = _resolve_collection_paper_ids(collection_id)
+        if not paper_ids:
+            return {"answer": "Collection này chưa có tài liệu để chat.", "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
         paper_error = check_papers_ready(paper_ids)
         if paper_error:
             return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
@@ -107,6 +147,30 @@ async def chat(request: dict = Body(...)):
             session.close()
 
     scope = request.get("scope", "current")
+    collection_id = request.get("collection_id")
+
+    if scope == "collection" and collection_id:
+        session = get_session(state.engine)
+        try:
+            paper_ids = [
+                row.paper_id
+                for row in session.query(CollectionPaper.paper_id)
+                .filter(CollectionPaper.collection_id == collection_id)
+                .all()
+            ]
+        finally:
+            session.close()
+        if not paper_ids:
+            return {
+                "answer": "Collection này chưa có tài liệu để chat.",
+                "citations": [],
+                "model_used": "",
+                "papers_used": [],
+                "chunks_used": 0,
+            }
+        paper_error = check_papers_ready(paper_ids)
+        if paper_error:
+            return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
     if scope == "external":
         from types import SimpleNamespace
@@ -115,6 +179,8 @@ async def chat(request: dict = Body(...)):
             total_chunks=0,
             papers_used=[],
         )
+        t2 = time_mod.time()
+        retrieve_time = 0.0
     else:
         t1 = time_mod.time()
         retrieval = await asyncio.to_thread(
@@ -124,11 +190,12 @@ async def chat(request: dict = Body(...)):
             top_k=5,
         )
         t2 = time_mod.time()
+        retrieve_time = t2 - t1
         logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
 
     if stream:
         return StreamingResponse(
-            _stream_chat(message, retrieval.context_text, session_id, paper_ids),
+            _stream_chat(message, retrieval.context_text, session_id, paper_ids, {"start": t0, "retrieve": retrieve_time}),
             media_type="text/event-stream",
         )
 
@@ -242,6 +309,10 @@ async def review(request: dict = Body(...)):
     paper_ids = request.get("paper_ids")
     query = request.get("query", "").strip()
     session_id = request.get("session_id", "review")
+    collection_id = request.get("collection_id")
+
+    if collection_id and not paper_ids:
+        paper_ids = _resolve_collection_paper_ids(collection_id)
 
     if not query:
         query = """Hãy viết một review nghiên cứu bằng tiếng Việt cho các tài liệu đã chọn.
@@ -316,6 +387,10 @@ async def critique(request: dict = Body(...)):
     paper_ids = request.get("paper_ids")
     query = request.get("query", "").strip()
     session_id = request.get("session_id", "critique")
+    collection_id = request.get("collection_id")
+
+    if collection_id and not paper_ids:
+        paper_ids = _resolve_collection_paper_ids(collection_id)
 
     critique_prompt = """Bạn là một chuyên gia phản biện học thuật. Dựa trên các đoạn trích được cung cấp từ những paper đã chọn, hãy:
 
@@ -393,6 +468,10 @@ async def debate(request: dict = Body(...)):
     paper_ids = request.get("paper_ids")
     query = request.get("query", "").strip()
     session_id = request.get("session_id", "debate")
+    collection_id = request.get("collection_id")
+
+    if collection_id and not paper_ids:
+        paper_ids = _resolve_collection_paper_ids(collection_id)
 
     debate_prompt = """Bạn là một trợ lý phân tích học thuật. Hãy tạo một cuộc tranh luận giữa hai persona AI: **AI A (Ủng hộ)** và **AI B (Phản biện)**, dựa chỉ trên các đoạn trích được cung cấp từ các paper đã chọn.
 
@@ -485,6 +564,3 @@ Lưu ý: giữ output ngắn gọn và chỉ dùng chứng cứ từ các đoạ
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
     }
-
-
-

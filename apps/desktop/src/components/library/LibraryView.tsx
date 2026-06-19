@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { api, Paper, RelatedPaper, Highlight } from "../../lib/api";
+import { api, Collection, Paper, RelatedPaper, Highlight } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import {
@@ -32,6 +32,15 @@ const renderStatusIcon = (status: string, size = 16) => {
   return <IconFileText size={size} style={{ color: "var(--color-text-muted, #94a3b8)" }} />;
 };
 
+const getIndexStatusLabel = (status: string) => {
+  if (status === "indexed") return "Đã trích xuất & vector hóa";
+  if (status === "needs_ocr") return "Cần OCR lại";
+  if (status === "failed") return "Index thất bại";
+  if (status === "summarizing") return "Đang tóm tắt";
+  if (status === "indexing") return "Đang lập chỉ mục";
+  return status || "Chưa rõ";
+};
+
 export const LibraryView: React.FC<{
   onStartChat: (paperIds: string[]) => void;
   onStartReview: (paperIds: string[]) => void;
@@ -50,6 +59,9 @@ export const LibraryView: React.FC<{
   const [syncingZotero, setSyncingZotero] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [activeCollectionId, setActiveCollectionId] = useState<string>("");
+  const [targetCollectionId, setTargetCollectionId] = useState<string>("");
   const toast = useToast();
 
   // Zotero-style preview panel states
@@ -78,7 +90,20 @@ export const LibraryView: React.FC<{
 
   useEffect(() => {
     loadPapers();
-  }, [page, filter]);
+  }, [page, filter, activeCollectionId]);
+
+  useEffect(() => {
+    loadCollections();
+  }, []);
+
+  const loadCollections = async () => {
+    try {
+      const res = await api.listCollections();
+      setCollections(res.collections);
+    } catch (e) {
+      console.error("Failed to load collections:", e);
+    }
+  };
 
   const handleZoteroSync = async () => {
     setSyncingZotero(true);
@@ -138,7 +163,9 @@ export const LibraryView: React.FC<{
         starredFilter = true;
       }
 
-      const res = await api.listPapers(page, PAGE_SIZE, statusFilter, readStatusFilter, starredFilter);
+      const res = await api.listPapers(page, PAGE_SIZE, statusFilter, readStatusFilter, starredFilter, {
+        collection_id: activeCollectionId || undefined,
+      });
 
       setPapers(res.papers);
       setTotal(res.total);
@@ -198,6 +225,45 @@ export const LibraryView: React.FC<{
       loadPapers();
     } catch (e) {
       console.error("Failed to delete paper:", e);
+    }
+  };
+
+  const createCollection = async () => {
+    const name = prompt("Tên collection/project:");
+    if (!name?.trim()) return;
+    try {
+      const collection = await api.createCollection(name.trim());
+      setCollections((prev) => [...prev, collection]);
+      setActiveCollectionId(collection.id);
+      toast.addToast("success", "Đã tạo collection.");
+    } catch (e) {
+      console.error("Failed to create collection:", e);
+      toast.addToast("error", "Không thể tạo collection.");
+    }
+  };
+
+  const addSelectedToCollection = async () => {
+    if (!targetCollectionId || selected.size === 0) return;
+    try {
+      const res = await api.addPapersToCollection(targetCollectionId, Array.from(selected));
+      toast.addToast("success", `Đã thêm ${res.added} paper vào collection.`);
+      setSelected(new Set());
+      loadCollections();
+      loadPapers();
+    } catch (e) {
+      console.error("Failed to add papers to collection:", e);
+      toast.addToast("error", "Không thể thêm paper vào collection.");
+    }
+  };
+
+  const retryOcr = async (paper: Paper) => {
+    try {
+      await api.retryPaperOcr(paper.id);
+      toast.addToast("success", "Đã đưa tài liệu vào hàng đợi OCR/index lại.");
+      loadPapers();
+    } catch (e) {
+      console.error("Failed to retry OCR:", e);
+      toast.addToast("error", "Không thể chạy OCR lại cho tài liệu này.");
     }
   };
 
@@ -427,6 +493,41 @@ export const LibraryView: React.FC<{
               <span className="library-count">{total} papers</span>
             </div>
             <div className="library-actions">
+              <div className="library-collection-bar">
+                <select
+                  className="library-collection-select"
+                  value={activeCollectionId}
+                  onChange={(e) => { setActiveCollectionId(e.target.value); setPage(1); setSelected(new Set()); }}
+                  title="Collection/project"
+                >
+                  <option value="">Toàn thư viện</option>
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name} ({collection.paper_count})
+                    </option>
+                  ))}
+                </select>
+                <button className="library-secondary-btn" onClick={createCollection}>
+                  + Collection
+                </button>
+              </div>
+              {selected.size > 0 && collections.length > 0 && (
+                <div className="library-collection-bar">
+                  <select
+                    className="library-collection-select"
+                    value={targetCollectionId}
+                    onChange={(e) => setTargetCollectionId(e.target.value)}
+                  >
+                    <option value="">Chọn collection để thêm</option>
+                    {collections.map((collection) => (
+                      <option key={collection.id} value={collection.id}>{collection.name}</option>
+                    ))}
+                  </select>
+                  <button className="library-secondary-btn" onClick={addSelectedToCollection} disabled={!targetCollectionId}>
+                    Thêm {selected.size} paper
+                  </button>
+                </div>
+              )}
               <div className="library-filters">
                 {["all", "indexed", "starred", "unread", "reading", "read"].map((f) => (
                   <button
@@ -531,9 +632,16 @@ export const LibraryView: React.FC<{
                     {p.year && <span>{p.year} · </span>}
                     <span>{p.language.toUpperCase()} · </span>
                     <span>{p.page_count || "?"} trang</span>
+                    {p.is_scanned && <span className="library-mini-badge warning">PDF scan</span>}
+                    {p.status === "needs_ocr" && <span className="library-mini-badge danger">Cần OCR</span>}
                   </div>
                 </div>
                 <div className="library-card-actions" onClick={(e) => e.stopPropagation()}>
+                  {p.status === "needs_ocr" && (
+                    <button className="library-action-btn" onClick={() => retryOcr(p)} title="Chạy OCR lại">
+                      <IconRefresh size={16} />
+                    </button>
+                  )}
                   <button className="library-action-btn" onClick={() => toggleReadStatus(p.id, p.read_status)} title="Đổi trạng thái đọc">
                     {renderStatusIcon(p.read_status)}
                   </button>
@@ -895,9 +1003,26 @@ export const LibraryView: React.FC<{
                   <div className="metadata-item">
                     <span className="metadata-label">Trạng thái index</span>
                     <span className="metadata-value">
-                      {activePaper.status === "indexed" ? "✅ Đã trích xuất & Vector hóa" : "⏳ Đang xử lý"}
+                      {getIndexStatusLabel(activePaper.status)}
                     </span>
                   </div>
+                  {(activePaper.is_scanned || activePaper.status === "needs_ocr") && (
+                    <div className="metadata-item">
+                      <span className="metadata-label">OCR</span>
+                      <span className="metadata-value">
+                        {activePaper.is_scanned
+                          ? `Đã OCR ${activePaper.ocr_pages_count || 0} trang${activePaper.ocr_pages_failed ? `, lỗi ${activePaper.ocr_pages_failed}` : ""}`
+                          : "Chưa có OCR metadata"}
+                        <button
+                          className="metadata-inline-btn"
+                          onClick={() => retryOcr(activePaper)}
+                          style={{ marginLeft: 8 }}
+                        >
+                          Chạy OCR lại
+                        </button>
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : previewTab === "related" ? (

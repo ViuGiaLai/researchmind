@@ -4,6 +4,7 @@ import re
 import shutil
 import threading
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Query, UploadFile
@@ -12,11 +13,12 @@ from loguru import logger
 from app_state import state
 from config.settings import settings
 from db.database import get_session
-from db.models import Paper, Chunk, Setting
+from db.models import Paper, Chunk, Setting, ImportJob, CollectionPaper
 from ingestion.parser import extract_document, SUPPORTED_EXTENSIONS
 from ingestion.chunker import chunk_text
 
 router = APIRouter(prefix="/api/papers", tags=["Papers"])
+jobs_router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
 
 
 # ─── Helpers ─────────────────────────────────────────────────────
@@ -34,6 +36,9 @@ def _paper_to_dict(paper) -> dict:
         "file_size": paper.file_size,
         "language": paper.language,
         "status": paper.status,
+        "ocr_pages_count": getattr(paper, "ocr_pages_count", 0) or 0,
+        "ocr_pages_failed": getattr(paper, "ocr_pages_failed", 0) or 0,
+        "is_scanned": bool(getattr(paper, "is_scanned", 0)),
         "tags": paper.tags,
         "notes": paper.notes,
         "auto_summary": getattr(paper, "auto_summary", ""),
@@ -54,6 +59,66 @@ def _escape_html(text: str) -> str:
     )
 
 
+def _job_to_dict(job: ImportJob) -> dict:
+    return {
+        "id": job.id,
+        "paper_id": job.paper_id,
+        "filename": job.filename,
+        "source_path": job.source_path,
+        "file_path": job.file_path,
+        "status": job.status,
+        "stage": job.stage,
+        "progress": job.progress,
+        "error": job.error,
+        "ocr_pages_count": job.ocr_pages_count or 0,
+        "ocr_pages_failed": job.ocr_pages_failed or 0,
+        "is_scanned": bool(job.is_scanned),
+        "attempts": job.attempts or 0,
+        "created_at": str(job.created_at) if job.created_at else None,
+        "updated_at": str(job.updated_at) if job.updated_at else None,
+        "finished_at": str(job.finished_at) if job.finished_at else None,
+    }
+
+
+def _create_import_job(filename: str, source_path: str = "") -> str:
+    session = get_session(state.engine)
+    try:
+        job = ImportJob(filename=filename, source_path=source_path, status="queued", stage="queued", progress=0)
+        session.add(job)
+        session.commit()
+        return job.id
+    finally:
+        session.close()
+
+
+def _update_import_job(job_id: str | None, **fields) -> None:
+    if not job_id:
+        return
+    session = get_session(state.engine)
+    try:
+        job = session.query(ImportJob).filter(ImportJob.id == job_id).first()
+        if not job:
+            return
+        for key, value in fields.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+        job.updated_at = datetime.utcnow()
+        if fields.get("status") in {"ready", "failed", "needs_ocr"}:
+            job.finished_at = datetime.utcnow()
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.warning(f"Failed to update import job {job_id}: {e}")
+    finally:
+        session.close()
+
+
+def _document_needs_ocr(doc) -> bool:
+    text_len = len((doc.full_text or "").strip())
+    page_count = max(doc.page_count or 1, 1)
+    return bool(getattr(doc, "is_scanned", False)) and text_len < max(120, page_count * 40)
+
+
 # ─── Paper Import ────────────────────────────────────────────────
 
 @router.post("/import")
@@ -71,12 +136,16 @@ async def import_document(
 
     file_id = str(uuid.uuid4())
     save_path = settings.papers_dir / f"{file_id}_{file.filename}"
+    job_id = _create_import_job(file.filename or "untitled")
+    _update_import_job(job_id, status="saved", stage="saved", progress=10, paper_id=file_id, file_path=str(save_path))
 
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
+    _update_import_job(job_id, status="parsing", stage="parsing", progress=25)
     doc = await asyncio.to_thread(extract_document, str(save_path))
     if doc is None:
+        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=f"Cannot parse file: {file.filename}")
         raise HTTPException(status_code=400, detail=f"Cannot parse file: {file.filename}")
 
     session = get_session(state.engine)
@@ -93,17 +162,21 @@ async def import_document(
             file_path=str(save_path),
             language=doc.language,
             status="indexing",
+            ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+            ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+            is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
         )
         session.add(paper)
         session.commit()
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to save paper metadata: {e}")
+        _update_import_job(job_id, status="failed", stage="saved", progress=100, error=f"Database error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     finally:
         session.close()
 
-    background_tasks.add_task(_index_paper, file_id, doc)
+    background_tasks.add_task(_index_paper, file_id, doc, job_id)
 
     background_tasks.add_task(
         _enrich_paper_background,
@@ -115,11 +188,15 @@ async def import_document(
 
     return {
         "paper_id": file_id,
+        "job_id": job_id,
         "filename": file.filename,
         "title": doc.title,
         "page_count": doc.page_count,
         "language": doc.language,
         "status": "indexing",
+        "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
+        "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
+        "is_scanned": bool(getattr(doc, "is_scanned", False)),
     }
 
 
@@ -144,10 +221,14 @@ async def import_folder(
 
     import_results = []
     for doc_file in doc_files:
+        job_id = _create_import_job(doc_file.name, str(doc_file))
         try:
+            _update_import_job(job_id, status="parsing", stage="parsing", progress=20)
             doc = await asyncio.to_thread(extract_document, str(doc_file))
             if doc is None:
+                _update_import_job(job_id, status="failed", stage="parsing", progress=100, error="Cannot parse document")
                 import_results.append({
+                    "job_id": job_id,
                     "filename": doc_file.name,
                     "status": "failed",
                     "error": "Cannot parse document",
@@ -157,6 +238,7 @@ async def import_folder(
             file_id = str(uuid.uuid4())
             save_path = settings.papers_dir / f"{file_id}_{doc_file.name}"
             shutil.copy2(str(doc_file), str(save_path))
+            _update_import_job(job_id, status="saved", stage="saved", progress=35, paper_id=file_id, file_path=str(save_path))
 
             session = get_session(state.engine)
             try:
@@ -172,12 +254,17 @@ async def import_folder(
                     file_path=str(save_path),
                     language=doc.language,
                     status="indexing",
+                    ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+                    ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+                    is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
                 )
                 session.add(paper)
                 session.commit()
             except Exception as e:
                 session.rollback()
+                _update_import_job(job_id, status="failed", stage="saved", progress=100, error=str(e))
                 import_results.append({
+                    "job_id": job_id,
                     "filename": doc_file.name,
                     "status": "failed",
                     "error": str(e),
@@ -186,7 +273,7 @@ async def import_folder(
             finally:
                 session.close()
 
-            background_tasks.add_task(_index_paper, file_id, doc)
+            background_tasks.add_task(_index_paper, file_id, doc, job_id)
             background_tasks.add_task(
                 _enrich_paper_background,
                 paper_id=file_id,
@@ -195,14 +282,20 @@ async def import_folder(
                 authors=doc.authors.split(",") if doc.authors else []
             )
             import_results.append({
+                "job_id": job_id,
                 "filename": doc_file.name,
                 "status": "indexing",
                 "paper_id": file_id,
                 "pages": doc.page_count,
+                "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
+                "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
+                "is_scanned": bool(getattr(doc, "is_scanned", False)),
             })
 
         except Exception as e:
+            _update_import_job(job_id, status="failed", stage="import", progress=100, error=str(e))
             import_results.append({
+                "job_id": job_id,
                 "filename": doc_file.name,
                 "status": "error",
                 "error": str(e),
@@ -278,12 +371,21 @@ def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
     return extracted
 
 
-def _index_paper(file_id: str, doc):
+def _index_paper(file_id: str, doc, job_id: str | None = None):
     """
     Background indexing: chunk -> embed -> store in ChromaDB + FTS5.
     Runs as a background task after PDF import.
     """
     logger.info(f"Indexing paper: {file_id} ({doc.filename})")
+    _update_import_job(
+        job_id,
+        status="indexing",
+        stage="indexing",
+        progress=45,
+        ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+        ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+        is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
+    )
 
     session = get_session(state.engine)
     try:
@@ -295,11 +397,20 @@ def _index_paper(file_id: str, doc):
 
         if not chunks:
             logger.warning(f"No chunks generated for {doc.filename}")
-            session.query(Paper).filter(Paper.id == file_id).update({"status": "failed"})
+            next_status = "needs_ocr" if getattr(doc, "is_scanned", False) else "failed"
+            session.query(Paper).filter(Paper.id == file_id).update({"status": next_status})
             session.commit()
+            _update_import_job(
+                job_id,
+                status=next_status,
+                stage="ocr" if next_status == "needs_ocr" else "indexing",
+                progress=100,
+                error="Không trích xuất đủ text. Tài liệu có thể là PDF scan cần OCR lại." if next_status == "needs_ocr" else "Không tạo được chunk từ tài liệu.",
+            )
             return
 
         logger.info(f"Generated {len(chunks)} chunks for {doc.filename}")
+        _update_import_job(job_id, status="indexing", stage="indexing", progress=60)
 
         for chunk in chunks:
             chunk.paper_id = file_id
@@ -332,7 +443,8 @@ def _index_paper(file_id: str, doc):
         embeddings = state.embedder.embed(chunk_texts)
         state.vector.add_chunks(chunk_ids, embeddings, metadatas, chunk_texts)
 
-        session.query(Paper).filter(Paper.id == file_id).update({"status": "indexed"})
+        _update_import_job(job_id, status="summarizing", stage="summarizing", progress=82)
+        session.query(Paper).filter(Paper.id == file_id).update({"status": "summarizing"})
         session.commit()
 
         # Extract keywords and save as tags automatically
@@ -376,12 +488,18 @@ Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
         except Exception as sum_err:
             logger.warning(f"Auto-summary generation failed for {doc.filename}: {sum_err}")
 
+        session.query(Paper).filter(Paper.id == file_id).update({"status": "indexed"})
+        session.commit()
+        if state.hybrid and hasattr(state.hybrid, "clear_rerank_cache"):
+            state.hybrid.clear_rerank_cache()
+        _update_import_job(job_id, status="ready", stage="ready", progress=100, error="")
         logger.info(f"Indexed {doc.filename}: {len(chunks)} chunks")
 
     except Exception as e:
         logger.error(f"Indexing failed for {doc.filename}: {e}")
         session.query(Paper).filter(Paper.id == file_id).update({"status": "failed"})
         session.commit()
+        _update_import_job(job_id, status="failed", stage="indexing", progress=100, error=str(e))
     finally:
         session.close()
 
@@ -440,6 +558,130 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
         pass
 
 
+def _retry_import_job(job_id: str):
+    session = get_session(state.engine)
+    try:
+        job = session.query(ImportJob).filter(ImportJob.id == job_id).first()
+        if not job:
+            return
+        file_path = job.file_path or job.source_path
+        if not file_path or not Path(file_path).exists():
+            job.status = "failed"
+            job.stage = "retry"
+            job.error = "Không tìm thấy file để retry."
+            job.progress = 100
+            job.finished_at = datetime.utcnow()
+            session.commit()
+            return
+
+        job.status = "parsing"
+        job.stage = "parsing"
+        job.progress = 20
+        job.error = ""
+        job.attempts = (job.attempts or 0) + 1
+        session.commit()
+    finally:
+        session.close()
+
+    doc = extract_document(file_path)
+    if doc is None:
+        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error="Cannot parse document")
+        return
+
+    session = get_session(state.engine)
+    try:
+        job = session.query(ImportJob).filter(ImportJob.id == job_id).first()
+        if not job:
+            return
+
+        paper = session.query(Paper).filter(Paper.id == job.paper_id).first() if job.paper_id else None
+        if not paper:
+            paper_id = job.paper_id or str(uuid.uuid4())
+            paper = Paper(
+                id=paper_id,
+                filename=job.filename,
+                title=doc.title,
+                authors=doc.authors,
+                year=doc.year,
+                doi=doc.doi,
+                page_count=doc.page_count,
+                file_size=doc.file_size,
+                file_path=file_path,
+                language=doc.language,
+                status="indexing",
+                ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+                ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+                is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
+            )
+            session.add(paper)
+            job.paper_id = paper_id
+        else:
+            session.query(Chunk).filter(Chunk.paper_id == paper.id).delete()
+            try:
+                state.vector.delete_paper_chunks(paper.id)
+            except Exception as e:
+                logger.warning(f"ChromaDB delete before retry failed: {e}")
+            paper.title = doc.title
+            paper.authors = doc.authors
+            paper.year = doc.year
+            paper.doi = doc.doi
+            paper.page_count = doc.page_count
+            paper.file_size = doc.file_size
+            paper.language = doc.language
+            paper.status = "indexing"
+            paper.ocr_pages_count = getattr(doc, "ocr_pages_count", 0)
+            paper.ocr_pages_failed = getattr(doc, "ocr_pages_failed", 0)
+            paper.is_scanned = 1 if getattr(doc, "is_scanned", False) else 0
+
+        job.file_path = file_path
+        job.status = "indexing"
+        job.stage = "indexing"
+        job.progress = 40
+        job.ocr_pages_count = getattr(doc, "ocr_pages_count", 0)
+        job.ocr_pages_failed = getattr(doc, "ocr_pages_failed", 0)
+        job.is_scanned = 1 if getattr(doc, "is_scanned", False) else 0
+        session.commit()
+        paper_id = paper.id
+    except Exception as e:
+        session.rollback()
+        _update_import_job(job_id, status="failed", stage="retry", progress=100, error=str(e))
+        return
+    finally:
+        session.close()
+
+    _index_paper(paper_id, doc, job_id)
+
+
+@jobs_router.get("")
+async def list_import_jobs(limit: int = Query(50, ge=1, le=200)):
+    session = get_session(state.engine)
+    try:
+        jobs = session.query(ImportJob).order_by(ImportJob.created_at.desc()).limit(limit).all()
+        return {"jobs": [_job_to_dict(job) for job in jobs]}
+    finally:
+        session.close()
+
+
+@jobs_router.post("/{job_id}/retry")
+async def retry_import_job(job_id: str, background_tasks: BackgroundTasks):
+    session = get_session(state.engine)
+    try:
+        job = session.query(ImportJob).filter(ImportJob.id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Import job not found")
+        job.status = "queued"
+        job.stage = "retry"
+        job.progress = 0
+        job.error = ""
+        job.finished_at = None
+        session.commit()
+    finally:
+        session.close()
+
+    background_tasks.add_task(_retry_import_job, job_id)
+    return {"status": "queued", "job_id": job_id}
+
+
 # ─── Paper CRUD ──────────────────────────────────────────────────
 
 @router.get("")
@@ -449,6 +691,11 @@ async def list_papers(
     status: str = Query(None),
     read_status: str = Query(None),
     starred: bool = Query(None),
+    collection_id: str = Query(None),
+    author: str = Query(None),
+    year_from: int = Query(None),
+    year_to: int = Query(None),
+    tag: str = Query(None),
     sort_by: str = Query("created_at"),
     order: str = Query("desc"),
 ):
@@ -462,8 +709,33 @@ async def list_papers(
             query = query.filter(Paper.read_status == read_status)
         if starred is not None:
             query = query.filter(Paper.starred == (1 if starred else 0))
+        if collection_id:
+            paper_ids = [
+                row.paper_id
+                for row in session.query(CollectionPaper.paper_id)
+                .filter(CollectionPaper.collection_id == collection_id)
+                .all()
+            ]
+            if not paper_ids:
+                return {"total": 0, "page": page, "limit": limit, "papers": []}
+            query = query.filter(Paper.id.in_(paper_ids))
+        if author:
+            query = query.filter(Paper.authors.ilike(f"%{author}%"))
+        if year_from:
+            query = query.filter(Paper.year >= year_from)
+        if year_to:
+            query = query.filter(Paper.year <= year_to)
+        if tag:
+            query = query.filter(Paper.tags.ilike(f"%{tag}%"))
 
-        sort_col = getattr(Paper, sort_by, Paper.created_at)
+        allowed_sort = {
+            "created_at": Paper.created_at,
+            "indexed_at": Paper.indexed_at,
+            "year": Paper.year,
+            "title": Paper.title,
+            "filename": Paper.filename,
+        }
+        sort_col = allowed_sort.get(sort_by, Paper.created_at)
         if order == "desc":
             query = query.order_by(sort_col.desc())
         else:
@@ -543,10 +815,40 @@ async def delete_paper(paper_id: str):
             pass
 
         state.bm25._rebuild_fts()
+        if state.hybrid and hasattr(state.hybrid, "clear_rerank_cache"):
+            state.hybrid.clear_rerank_cache()
 
         return {"status": "deleted", "paper_id": paper_id}
     finally:
         session.close()
+
+
+@router.post("/{paper_id}/retry-ocr")
+async def retry_paper_ocr(paper_id: str, background_tasks: BackgroundTasks):
+    """Retry parsing/indexing for a paper, primarily for scanned PDFs that need OCR."""
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+        job = ImportJob(
+            paper_id=paper.id,
+            filename=paper.filename,
+            source_path=paper.file_path,
+            file_path=paper.file_path,
+            status="queued",
+            stage="retry_ocr",
+            progress=0,
+        )
+        session.add(job)
+        paper.status = "indexing"
+        session.commit()
+        job_id = job.id
+    finally:
+        session.close()
+
+    background_tasks.add_task(_retry_import_job, job_id)
+    return {"status": "queued", "job_id": job_id, "paper_id": paper_id}
 
 
 @router.get("/{paper_id}/file")
@@ -938,7 +1240,14 @@ Nội dung paper:\n{retrieval.context_text}"""
                 highlights = json.loads(json_str)
         except Exception as parse_err:
             logger.warning(f"Failed to parse highlights JSON: {parse_err}")
-            highlights = []
+            fallback_text = generation.content.strip()
+            highlights = [{
+                "category": "important_claim",
+                "text": fallback_text[:200] if fallback_text else "AI không trả về JSON hợp lệ.",
+                "page_hint": None,
+                "importance": "medium",
+                "note": "Fallback từ phản hồi text vì JSON highlights không hợp lệ.",
+            }]
 
         return {
             "highlights": highlights[:limit],

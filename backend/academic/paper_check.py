@@ -21,9 +21,12 @@ def check_papers_ready(paper_ids: Optional[list[str]]) -> Optional[str]:
     try:
         papers = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
         for p in papers:
-            if p.status == "indexing":
+            if p.status in ("indexing", "summarizing"):
                 logger.warning(f"Paper {p.id} ({p.filename}) still indexing")
                 return f"⚠️ Paper **{p.filename}** đang được index. Vui lòng đợi vài giây rồi thử lại."
+            if p.status == "needs_ocr":
+                logger.warning(f"Paper {p.id} ({p.filename}) needs OCR")
+                return f"⚠️ Paper **{p.filename}** có vẻ là PDF scan và cần OCR lại trước khi dùng AI."
             if p.status == "failed":
                 logger.warning(f"Paper {p.id} ({p.filename}) indexing failed")
                 return f"⚠️ Paper **{p.filename}** index thất bại. Vui lòng import lại."

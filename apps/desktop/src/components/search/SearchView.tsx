@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { api, SearchResult } from "../../lib/api";
+import React, { useEffect, useState } from "react";
+import { api, Collection, SavedSearch, SearchFilters, SearchResult } from "../../lib/api";
 import {
   IconSearch,
   IconBrain,
@@ -25,13 +25,25 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   const [searched, setSearched] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [filters, setFilters] = useState<SearchFilters>({
+    sort_by: "relevance",
+    sort_order: "desc",
+    starred: null,
+  });
 
-  const performSearch = async (searchQuery: string) => {
+  useEffect(() => {
+    api.listCollections().then((res) => setCollections(res.collections)).catch(() => {});
+    api.listSavedSearches().then((res) => setSavedSearches(res.saved_searches)).catch(() => {});
+  }, []);
+
+  const performSearch = async (searchQuery: string, filterOverride?: SearchFilters) => {
     if (!searchQuery.trim()) return;
     setSearching(true);
     setSearched(true);
     try {
-      const res = await api.search(searchQuery, undefined, 10);
+      const res = await api.search(searchQuery, undefined, 10, filterOverride || filters);
       setResults(res.results);
     } catch (e) {
       console.error("Search failed:", e);
@@ -64,6 +76,20 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   const handleSearch = () => {
     performSearch(query);
     setShowSuggestions(false);
+  };
+
+  const saveCurrentSearch = async () => {
+    if (!query.trim()) return;
+    const name = prompt("Tên saved search:", query.slice(0, 40));
+    if (!name) return;
+    const saved = await api.createSavedSearch(name, query, filters);
+    setSavedSearches((prev) => [saved, ...prev]);
+  };
+
+  const applySavedSearch = (saved: SavedSearch) => {
+    setQuery(saved.query);
+    setFilters(saved.filters || {});
+    performSearch(saved.query, saved.filters || {});
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -154,6 +180,86 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
           </div>
         )}
       </div>
+
+      <div className="search-filter-bar">
+        <select
+          className="search-filter-input"
+          value={filters.collection_id || ""}
+          onChange={(e) => setFilters((prev) => ({ ...prev, collection_id: e.target.value || undefined }))}
+          title="Collection"
+        >
+          <option value="">Toàn thư viện</option>
+          {collections.map((collection) => (
+            <option key={collection.id} value={collection.id}>{collection.name}</option>
+          ))}
+        </select>
+        <input
+          className="search-filter-input"
+          value={filters.author || ""}
+          onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value }))}
+          placeholder="Author"
+        />
+        <input
+          className="search-filter-input compact"
+          type="number"
+          value={filters.year_from || ""}
+          onChange={(e) => setFilters((prev) => ({ ...prev, year_from: e.target.value ? Number(e.target.value) : null }))}
+          placeholder="Từ năm"
+        />
+        <input
+          className="search-filter-input compact"
+          type="number"
+          value={filters.year_to || ""}
+          onChange={(e) => setFilters((prev) => ({ ...prev, year_to: e.target.value ? Number(e.target.value) : null }))}
+          placeholder="Đến năm"
+        />
+        <input
+          className="search-filter-input"
+          value={(filters.tags || []).join(", ")}
+          onChange={(e) => setFilters((prev) => ({ ...prev, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }))}
+          placeholder="Tags"
+        />
+        <select
+          className="search-filter-input compact"
+          value={filters.read_status || ""}
+          onChange={(e) => setFilters((prev) => ({ ...prev, read_status: e.target.value || undefined }))}
+        >
+          <option value="">Read</option>
+          <option value="unread">Chưa đọc</option>
+          <option value="reading">Đang đọc</option>
+          <option value="read">Đã đọc</option>
+        </select>
+        <select
+          className="search-filter-input compact"
+          value={filters.starred === true ? "true" : filters.starred === false ? "false" : ""}
+          onChange={(e) => setFilters((prev) => ({ ...prev, starred: e.target.value === "" ? null : e.target.value === "true" }))}
+        >
+          <option value="">Star</option>
+          <option value="true">Yêu thích</option>
+          <option value="false">Không star</option>
+        </select>
+        <select
+          className="search-filter-input compact"
+          value={filters.sort_by || "relevance"}
+          onChange={(e) => setFilters((prev) => ({ ...prev, sort_by: e.target.value }))}
+        >
+          <option value="relevance">Relevance</option>
+          <option value="year">Year</option>
+          <option value="title">Title</option>
+          <option value="created_at">Imported</option>
+        </select>
+        <button className="search-filter-btn" onClick={saveCurrentSearch}>Lưu search</button>
+      </div>
+
+      {savedSearches.length > 0 && (
+        <div className="saved-search-row">
+          {savedSearches.slice(0, 6).map((saved) => (
+            <button key={saved.id} className="saved-search-chip" onClick={() => applySavedSearch(saved)}>
+              {saved.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="search-results">
         {searching && (

@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     top_k_retrieval: int = 5
 
     # LLM
+    provider_timeout: float = 60.0
     ollama_url: str = "http://localhost:11434"
     # Model tiers: yếu (3b), TB (7b), mạnh (14b)
     model_tier_weak: str = "qwen2.5:3b"
@@ -123,4 +124,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

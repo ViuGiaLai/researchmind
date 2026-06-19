@@ -12,6 +12,7 @@ import json
 import re
 import httpx
 from loguru import logger
+from config.settings import settings
 
 # Type hint for anthropic (optional import)
 from typing import TYPE_CHECKING
@@ -86,7 +87,7 @@ class Generator:
         """Lazy-init HTTP client."""
         if self._http_client is None:
             import httpx
-            self._http_client = httpx.Client(timeout=300.0)
+            self._http_client = httpx.Client(timeout=settings.provider_timeout)
         return self._http_client
 
     def _get_system_prompt(self) -> str:

@@ -10,6 +10,7 @@ Routes are organized into routers/:
 - routers/settings.py Settings + Validate Key + Ollama management
 - routers/system.py   Health + Stats + Specs + Data management + Zotero
 - routers/personal.py Personalized Knowledge Brain + Daily Reader
+- routers/review.py   Literature Review Builder (draft, section, matrix, export)
 """
 
 import os
@@ -47,7 +48,7 @@ from chat.generator import Generator
 from export import router as export_router
 from zotero_import import router as zotero_import_router
 
-from routers.papers import router as papers_router
+from routers.papers import router as papers_router, jobs_router
 from routers.search import router as search_router
 from routers.chat import router as chat_router
 from routers.insights import router as insights_router
@@ -56,6 +57,8 @@ from routers.system import router as system_router
 from routers.personal import router as personal_router
 from routers.verify import router as verify_router
 from routers.academic import router as academic_router
+from routers.collections import router as collections_router
+from routers.review import router as review_router
 
 
 # ─── Lifespan ────────────────────────────────────────────────────
@@ -100,7 +103,7 @@ def load_persisted_settings():
 
 
 def _migrate_auto_summary(engine):
-    """Add auto_summary column to papers table if it doesn't exist."""
+    """Add paper columns introduced after the initial SQLite schema."""
     from sqlalchemy import text
     try:
         with engine.connect() as conn:
@@ -108,10 +111,19 @@ def _migrate_auto_summary(engine):
             columns = [row[1] for row in result.fetchall()]
             if "auto_summary" not in columns:
                 conn.execute(text("ALTER TABLE papers ADD COLUMN auto_summary TEXT DEFAULT ''"))
-                conn.commit()
                 logger.info("Migration: Added auto_summary column to papers table")
+            if "ocr_pages_count" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN ocr_pages_count INTEGER DEFAULT 0"))
+                logger.info("Migration: Added ocr_pages_count column to papers table")
+            if "ocr_pages_failed" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN ocr_pages_failed INTEGER DEFAULT 0"))
+                logger.info("Migration: Added ocr_pages_failed column to papers table")
+            if "is_scanned" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN is_scanned INTEGER DEFAULT 0"))
+                logger.info("Migration: Added is_scanned column to papers table")
+            conn.commit()
     except Exception as e:
-        logger.warning(f"Migration auto_summary skipped (may already exist): {e}")
+        logger.warning(f"Paper schema migration skipped (may already exist): {e}")
 
 
 @asynccontextmanager
@@ -241,6 +253,7 @@ app.mount("/static/papers", StaticFiles(directory=settings.papers_dir), name="pa
 app.include_router(export_router)
 app.include_router(zotero_import_router)
 app.include_router(papers_router)
+app.include_router(jobs_router)
 app.include_router(search_router)
 app.include_router(chat_router)
 app.include_router(insights_router)
@@ -249,6 +262,8 @@ app.include_router(system_router)
 app.include_router(personal_router)
 app.include_router(verify_router)
 app.include_router(academic_router)
+app.include_router(collections_router)
+app.include_router(review_router)
 
 
 # ─── Global Exception Handler ────────────────────────────────────

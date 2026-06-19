@@ -1,6 +1,10 @@
 """Hybrid search combining BM25 + Vector results with RRF fusion and cross-encoder re-ranking."""
 
 import functools
+import copy
+import hashlib
+import json
+from collections import OrderedDict
 from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
@@ -43,6 +47,8 @@ class HybridSearch:
         self.top_k_final = top_k_final
         self._cross_encoder = None
         self._embed_query_cached = functools.lru_cache(maxsize=128)(self.embedder.embed_query)
+        self._rerank_cache = OrderedDict()
+        self._rerank_cache_max = 128
         self.last_used = time.time()
         self._start_unload_thread()
 
@@ -195,6 +201,13 @@ class HybridSearch:
         if not results:
             return results
 
+        cache_key = self._rerank_cache_key(query, results)
+        cached = self._rerank_cache.get(cache_key)
+        if cached is not None:
+            self._rerank_cache.move_to_end(cache_key)
+            logger.debug(f"Rerank cache hit: {len(cached)} results")
+            return copy.deepcopy(cached)
+
         try:
             model = self._get_cross_encoder()
             if model is None:
@@ -207,10 +220,22 @@ class HybridSearch:
                 results[i]["score"] = float(score)
 
             results.sort(key=lambda x: x["score"], reverse=True)
+            self._rerank_cache[cache_key] = copy.deepcopy(results)
+            self._rerank_cache.move_to_end(cache_key)
+            if len(self._rerank_cache) > self._rerank_cache_max:
+                self._rerank_cache.popitem(last=False)
         except Exception as e:
             logger.warning(f"Cross-encoder re-ranking failed: {e}")
 
         return results
+
+    def _rerank_cache_key(self, query: str, results: list[dict]) -> str:
+        chunk_ids = [str(r.get("chunk_id") or f"{r.get('paper_id')}_{r.get('chunk_index')}") for r in results]
+        payload = json.dumps({"query": query.strip().lower(), "chunk_ids": chunk_ids}, ensure_ascii=False)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def clear_rerank_cache(self):
+        self._rerank_cache.clear()
 
     def _get_cross_encoder(self):
         """Lazy-load cross-encoder model."""
