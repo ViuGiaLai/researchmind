@@ -25,6 +25,12 @@ fn is_backend_port_open() -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
 }
 
+fn use_external_backend() -> bool {
+    std::env::var("RESEARCHMIND_EXTERNAL_BACKEND")
+        .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
+        .unwrap_or(false)
+}
+
 /// Try to locate the backend executable.
 /// Priority:
 ///   1. Backend binary next to Tauri binary (production bundle)
@@ -110,6 +116,11 @@ struct BackendProcess(Mutex<Option<Child>>);
 
 /// Try to spawn the backend (bundled exe or python main.py).
 fn spawn_backend(app: &tauri::AppHandle) -> Option<Child> {
+    if use_external_backend() {
+        info!("RESEARCHMIND_EXTERNAL_BACKEND=1; using external backend at http://127.0.0.1:8765");
+        return None;
+    }
+
     if is_backend_port_open() {
         info!("Backend already running on http://127.0.0.1:8765; using existing process");
         return None;
