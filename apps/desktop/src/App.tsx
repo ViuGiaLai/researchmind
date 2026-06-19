@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark } from "./components/Icons";
+import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
 import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
 import { SearchView } from "./components/search/SearchView";
@@ -9,11 +9,12 @@ import { InsightsView } from "./components/insights/InsightsView";
 import { PersonalBrainView } from "./components/personal/PersonalBrainView";
 import { DailyReaderView } from "./components/personal/DailyReaderView";
 import { WowAnalysisView } from "./components/insights/WowAnalysisView";
+import { ReviewBuilderView } from "./components/review/ReviewBuilderView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { ToastProvider } from "./components/shared/Toast";
 import { api } from "./lib/api";
 
-type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "brain" | "daily" | "settings";
+type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "settings";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("wow");
@@ -125,6 +126,7 @@ function App() {
             { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
             { tab: "insights" as Tab, icon: IconBulb, label: "Insights" },
+            { tab: "review" as Tab, icon: IconBookOpen, label: "Review Builder" },
             { tab: "brain" as Tab, icon: IconBrain, label: "Bộ não" },
             { tab: "daily" as Tab, icon: IconCalendar, label: "Đọc hôm nay" },
             { tab: "settings" as Tab, icon: IconSettings, label: "Cài đặt" },
@@ -192,6 +194,7 @@ function App() {
           />
         )}
         {activeTab === "insights" && <InsightsView onStartChat={handleStartChat} />}
+        {activeTab === "review" && <ReviewBuilderView />}
         {activeTab === "brain" && <PersonalBrainView />}
         {activeTab === "daily" && <DailyReaderView />}
         {activeTab === "settings" && <SettingsView />}
