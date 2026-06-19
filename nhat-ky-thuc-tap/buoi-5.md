@@ -1,29 +1,26 @@
 # Buổi 5 — Thứ 4, 24/06/2026
 
 ## Nội dung
-- Tích hợp LLM providers: Ollama, Gemini, DeepSeek, Claude + streaming
+- v0.5 Sprint 2: Tauri cold start + Import event-based update
 
 ## Đã làm
-1. Code `chat/generator.py` — class Generator quản lý 4 providers
-2. Tích hợp **Ollama** — HTTP API `/api/chat`, hỗ trợ streaming SSE
-3. Tích hợp **Gemini** — REST API `generateContent`, streaming via SSE
-4. Tích hợp **DeepSeek** — OpenAI-compatible `/chat/completions`
-5. Tích hợp **Claude** — Anthropic SDK `messages.create`
-6. Fallback chain: Cloud → local Ollama nếu cloud fail
-7. System prompt tiếng Việt + citation format `[Paper Name, trang X]`
-8. Citation extraction bằng regex từ response
+1. Xử lý Tauri cold start: skeleton UI xuất hiện ngay (<500ms) trước khi backend ready
+2. Lazy connect backend: user thấy Library từ SQLite cache trước, sau đó mới kết nối FastAPI
+3. Log Python spawn time để baseline
+4. Import chuyển từ polling cứng sang event-based update
+5. Import không chặn người dùng — cho phép thao tác khác trong lúc import chạy
+6. Tách rõ trạng thái: "đã lưu", "đang index", "đang OCR", "đã sẵn sàng"
 
 ## Học được
-- Cách tích hợp nhiều LLM providers với interface chung
-- SSE streaming pattern cho real-time response
-- Prompt engineering cho academic citation
+- Tauri cold start bottleneck: Python spawn mất 3-8 giây
+- Event-driven update pattern thay vì polling
 
 ## Kết quả đạt được
-- Chat RAG hoàn chỉnh với 4 providers, streaming, citation extraction
-- Fallback tự động khi cloud fail
+- Skeleton UI trong <500ms, Python cold start còn ≤4s
+- Import không block UI
 
 ## Kế hoạch buổi sau
-- Xây dựng API endpoints: paper CRUD, import, export
+- Tối ưu Chat/Verify/Review speed: cache paper_ids, giảm retrieval latency
 
 ---
 **Ký tên:** Rmah Viu

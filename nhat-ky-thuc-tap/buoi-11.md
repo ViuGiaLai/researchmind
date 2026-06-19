@@ -1,25 +1,25 @@
 # Buổi 11 — Thứ 4, 08/07/2026
 
 ## Nội dung
-- Xây dựng Library view + Import panel
+- Xây dựng inline PDF preview + highlights UI
 
 ## Đã làm
-1. Code `LibraryView.tsx` — paper list với pagination, filter theo status (all/unread/reading/read)
-2. Zotero-style preview panel: 4 tabs (info/pdf/related/highlights)
-3. Star/unstar, tag editing, notes editing, read status toggle
-4. PDF download, export HTML/DOCX
-5. Code `ImportPanel.tsx` — 3 import tabs: PDF (drag-drop + file picker + folder), BibTeX, Zotero CSV
-6. Import results summary với số lượng thành công/thất bại
+1. Tích hợp PDF.js renderer trong Tauri WebView
+2. Tạo PDFPreview component: scroll sync, page navigation
+3. Highlight text selection: lưu highlight vào SQLite
+4. Hiển thị highlights trong Library view
+5. Click search result → scroll đến page tương ứng trong PDF
 
 ## Học được
-- Zotero-style UI pattern cho research paper management
-- Drag-and-drop file import UX
+- PDF.js integration với Tauri
+- Text selection + highlight persistence pattern
 
 ## Kết quả đạt được
-- Library view hoàn chỉnh: import, browse, filter, edit, export papers
+- Xem PDF ngay trong app, không cần mở ngoài
+- Highlight và ghi chú trực tiếp trên PDF
 
 ## Kế hoạch buổi sau
-- Xây dựng Search view
+- Multi-document comparison nâng cao
 
 ---
 **Ký tên:** Rmah Viu

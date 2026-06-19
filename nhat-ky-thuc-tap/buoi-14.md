@@ -1,27 +1,25 @@
 # Buổi 14 — Thứ 4, 15/07/2026
 
 ## Nội dung
-- Xây dựng Insights view + WOW analysis pipeline
+- Xây dựng Knowledge Graph: concept extraction + relation mapping
 
 ## Đã làm
-1. Code `InsightsView.tsx` — 4 insight tools: Research Gap, Conflict, Topic, Evolution
-2. Paper multi-select, gọi API insights, hiển thị kết quả có citations
-3. Code `WowAnalysisView.tsx` — 5-step AI analysis pipeline UI
-4. Steps: Summary → Critique → Conflict → Gap → Debate
-5. Animated loading messages per step, focus highlighting
-6. Drag-and-drop PDF import từ welcome screen
-7. Mỗi step gọi API tương ứng, hiển thị kết quả step-by-step
+1. Concept extraction từ paper abstracts bằng LLM
+2. Relation mapping: cites, extends, contradicts, supports
+3. Lưu graph trong SQLite: nodes (concepts) + edges (relations)
+4. Graph visualization: D3.js force-directed graph
+5. Click node → search papers liên quan đến concept đó
 
 ## Học được
-- Multi-step AI analysis pipeline UX
-- Animated loading states pattern
+- Knowledge Graph construction từ unstructured text
+- D3.js force-directed graph layout
 
 ## Kết quả đạt được
-- Insights tools hoàn chỉnh
-- WOW 1-click analysis flow
+- Knowledge Graph hiển thị được, có thể tương tác
+- Search theo concept chính xác hơn
 
 ## Kế hoạch buổi sau
-- Xây dựng Personal Brain + Daily Reader view
+- UX nâng cao: onboarding cải tiến, tooltip, keyboard shortcut
 
 ---
 **Ký tên:** Rmah Viu

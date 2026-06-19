@@ -1,25 +1,24 @@
 # Buổi 7 — Thứ 2, 29/06/2026
 
 ## Nội dung
-- Xây dựng AI features: structured review, critique, debate
+- v0.5 Sprint 4: Giảm thời gian vào app
 
 ## Đã làm
-1. Viết `POST /api/review` — tạo literature review có cấu trúc (Background, Related Work, Methods, Findings, Gaps)
-2. Viết `POST /api/critique` — phản biện học thuật: assumptions, weaknesses, reproducibility, overclaim detection
-3. Viết `POST /api/debate` — tranh luận AI A vs AI B, có trích dẫn, kết luận + 3 đề xuất
-4. Prompt engineering chuyên biệt cho từng chế độ
-5. Tích hợp citation extraction + papers_used tracking
+1. Tách startup thành các mảnh nhẹ: health → model status → stats
+2. Không khóa app vì model status/stats — hiển thị dần
+3. Tải panel nặng (preview, related, highlights) sau khi vào tab
+4. Lazy load settings views: model status, cache stats, provider latency
+5. Giữ last-open tab và last-used collection giữa các lần mở app
 
 ## Học được
-- Prompt engineering cho từng task học thuật cụ thể
-- Structured debate generation
+- Progressive loading pattern cho desktop app startup
 
 ## Kết quả đạt được
-- 3 chế độ chat chuyên sâu: review, critique, debate
-- Mỗi chế độ có system prompt riêng, output có cấu trúc
+- App hiển thị UI ngay, không loading toàn màn hình
+- Panel nặng load sau không ảnh hưởng thao tác chính
 
 ## Kế hoạch buổi sau
-- Xây dựng Insights APIs: research gap, conflict, topic, evolution
+- Baseline metrics logging: đo tốc độ bằng số
 
 ---
 **Ký tên:** Rmah Viu

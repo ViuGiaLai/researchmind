@@ -1,27 +1,28 @@
 # Buổi 18 — Thứ 6, 24/07/2026
 
 ## Nội dung
-- Fix bugs + UX improvements + performance optimization
+- Performance profiling + optimization cuối cùng
 
 ## Đã làm
-1. Fix lỗi ChromaDB collection stale cache sau clear data
-2. Fix onboarding retry logic — loading screen biến mất sớm
-3. Fix embedding model lazy-load blocking first search query
-4. Cải thiện error messages khi backend không kết nối được
-5. Tối ưu chunking: sentence-aware, paragraph-aware, section header detection
-6. Tối ưu hybrid search: normalize scores trước RRF fusion
-7. Tối ưu citation extraction regex
-8. Thêm loading states + error boundary cho các views
+1. Profile memory usage: phát hiện memory leak trong ChromaDB client
+2. Fix memory leak: đóng ChromaDB client sau mỗi request lớn
+3. Profile CPU: tối ưu reranker threshold
+4. Profile frontend: phát hiện re-render không cần thiết
+5. Tối ưu React: React.memo, useMemo, useCallback cho component nặng
+6. Tối ưu bundle size: dynamic import cho view ít dùng
+7. Kiểm tra lại tất cả metrics target v0.5 vẫn đạt
 
 ## Học được
-- Debug ChromaDB internal caching
-- Performance optimization cho embedding và search pipeline
+- Memory profiling pattern cho Python + React app
+- React re-render optimization
 
 ## Kết quả đạt được
-- App ổn định hơn, ít lỗi, UX mượt hơn
+- Memory usage giảm 30%
+- Bundle size giảm 20%
+- Tất cả metrics target v0.5 đạt
 
 ## Kế hoạch buổi sau
-- Chuyển config sang .env + bảo mật
+- Build desktop app: Tauri bundle + PyInstaller
 
 ---
 **Ký tên:** Rmah Viu

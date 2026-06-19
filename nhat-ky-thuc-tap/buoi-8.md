@@ -1,25 +1,27 @@
 # Buổi 8 — Thứ 4, 01/07/2026
 
 ## Nội dung
-- Xây dựng Insights endpoints + Personal Brain + Daily Reader
+- v0.5 Sprint 5: Baseline metrics logging
 
 ## Đã làm
-1. Viết `POST /api/insights/gap` — phân tích research gap giữa các papers
-2. Viết `POST /api/insights/conflict` — tìm mâu thuẫn giữa các papers
-3. Viết `POST /api/insights/topic` — gợi ý đề tài nghiên cứu dựa trên thư viện
-4. Viết `POST /api/insights/evolution` — bản đồ tiến hoá ý tưởng theo thời gian
-5. Viết `GET /api/personal/brain` — thống kê đọc, chủ đề quan tâm, tác giả yêu thích, timeline
-6. Viết `GET /api/personal/daily-reader` — gợi ý đọc hôm nay, reading streak
+1. Log search latency (p50/p95) — backend TIMING log
+2. Log TTFT cho Chat/Verify/Review
+3. Log import throughput (queued → ready) — files/phút
+4. Log thời gian mở paper và render preview
+5. Log Python startup time
+6. Hiển thị metrics dashboard trong Settings view
+7. So sánh với baseline từ trước Sprint 1
 
 ## Học được
-- Cách phân tích chủ đề từ metadata papers (tags, keywords, query history)
-- Tính reading streak từ chat_history
+- Performance metrics collection pattern
+- p50/p95 latency tracking
 
 ## Kết quả đạt được
-- 6 endpoints insights + personal features hoàn chỉnh
+- Dashboard metrics trực quan trong app
+- Biết chính xác cải thiện bao nhiêu so với baseline
 
 ## Kế hoạch buổi sau
-- Xây dựng system management: settings, health, stats, data management
+- Tổng kết v0.5, so sánh trước/sau
 
 ---
 **Ký tên:** Rmah Viu

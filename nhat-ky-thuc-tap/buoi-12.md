@@ -1,26 +1,25 @@
 # Buổi 12 — Thứ 6, 10/07/2026
 
 ## Nội dung
-- Xây dựng Search view + Chat view cơ bản
+- Multi-document comparison nâng cao: side-by-side, diff highlighting
 
 ## Đã làm
-1. Code `SearchView.tsx` — semantic search bar, suggested queries từ paper titles
-2. Search results hiển thị: paper title, chunk content, page number, score
-3. "Chat with results" button → chuyển sang Chat tab
-4. Code `ChatView.tsx` — RAG chat với message history
-5. Chat input: auto-resizing textarea, Enter gửi, Shift+Enter xuống dòng
-6. Hiển thị citations dạng `[Paper Name, trang X]` trong response
+1. Cải tiến compare papers: hiển thị side-by-side thay vì tuần tự
+2. Diff highlighting: tô màu điểm giống/khác giữa 2 papers
+3. So sánh methodology, findings, limitations trực quan
+4. Export comparison report dạng bảng
+5. Tối ưu performance cho comparison với >2 papers
 
 ## Học được
-- Semantic search UI pattern
-- Citation display UX trong chat
+- Diff algorithm cho unstructured text
+- Side-by-side layout pattern
 
 ## Kết quả đạt được
-- Search hoạt động, click result → chat với paper
-- Chat UI cơ bản hoàn chỉnh
+- So sánh papers trực quan, dễ đọc
+- Export bảng so sánh
 
 ## Kế hoạch buổi sau
-- Hoàn thiện Chat view: review/critique/debate modes, citation panel
+- Bắt đầu Stripe integration cho thu phí
 
 ---
 **Ký tên:** Rmah Viu

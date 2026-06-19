@@ -1,28 +1,27 @@
 # Buổi 6 — Thứ 6, 26/06/2026
 
 ## Nội dung
-- Xây dựng Paper management APIs + export module + Zotero import
+- v0.5 Sprint 3: Chat/Verify/Review speed optimization
 
 ## Đã làm
-1. Viết CRUD endpoints: list, get, update, delete paper + chunk cleanup
-2. Import single PDF + import folder + import BibTeX
-3. Export module: HTML (single paper), DOCX (single paper)
-4. Synthesis export: Markdown, HTML (highlight.js themes), PDF (fpdf2), DOCX
-5. Zotero import: CSV metadata + auto-detect PDF từ Zotero storage
-6. Citation generation: APA 7th, IEEE, Vancouver, BibTeX, HTML
-7. API key validation endpoints cho Gemini, DeepSeek, Claude
+1. Cache theo paper_ids set — câu hỏi lặp trả lời trong <1s
+2. Giảm retrieval latency trước generate — cache chunk IDs theo query
+3. Review: section nào xong hiện ngay, không đợi toàn bộ draft
+4. Reuse context thay vì dựng lại mỗi lần chat
+5. Streaming giữ vững ổn định (đã có từ v0.2)
+6. TTFT chat: giữ ≤2s
 
 ## Học được
-- PyMuPDF (fitz) cho PDF parsing và metadata extraction
-- python-docx cho Word export
-- fpdf2 cho PDF generation
+- Cache invalidation strategy cho RAG context
+- Incremental rendering pattern cho review sections
 
 ## Kết quả đạt được
-- 20+ API endpoints cho paper management, export, import, citation
-- Hỗ trợ đầy đủ các định dạng xuất file học thuật
+- Chat TTFT: ≤2s
+- Verify cache hit: ≤0.5s, cache miss: ≤6s
+- Review section render ngay khi generate xong
 
 ## Kế hoạch buổi sau
-- Xây dựng AI features: review, critique, debate, insights
+- Giảm thời gian vào app: lazy load panel nặng
 
 ---
 **Ký tên:** Rmah Viu

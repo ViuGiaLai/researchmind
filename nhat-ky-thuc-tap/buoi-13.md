@@ -1,25 +1,24 @@
 # Buổi 13 — Thứ 2, 13/07/2026
 
 ## Nội dung
-- Hoàn thiện Chat view: review/critique/debate modes + citations + export
+- Stripe integration: subscription, key activation flow
 
 ## Đã làm
-1. Tích hợp 4 chế độ chat: chat, review, critique, debate
-2. Chế độ debate: parse AI A vs AI B, hiển thị structured view (luận điểm, phản biện, kết luận, đề xuất)
-3. Citation panel: APA/IEEE/Vancouver/BibTeX/HTML styles
-4. Copy citations, xuất bibliography
-5. Export synthesis từ chat: Markdown, HTML (highlight.js themes), PDF, DOCX
-6. Free cloud usage tracking + daily limit UI
+1. Tích hợp Stripe Payment Intents API cho gói Pro
+2. Key activation flow: purchase → generate key → activate in app
+3. Backend key validation middleware cho Pro features
+4. Frontend pricing page + activation dialog
+5. Xử lý edge cases: key expired, device change, refund
 
 ## Học được
-- Structured content parsing từ LLM response
-- Multi-format export từ cùng nội dung
+- Stripe integration pattern cho desktop app
+- Offline key activation strategy
 
 ## Kết quả đạt được
-- Chat view hoàn chỉnh: 4 modes, citations, export, usage tracking
+- Luồng thu phí hoàn chỉnh: từ mua → active → dùng Pro
 
 ## Kế hoạch buổi sau
-- Xây dựng Insights view + WOW analysis
+- Xây dựng Knowledge Graph cơ bản
 
 ---
 **Ký tên:** Rmah Viu

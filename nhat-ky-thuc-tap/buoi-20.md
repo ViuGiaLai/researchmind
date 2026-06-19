@@ -1,28 +1,25 @@
 # Buổi 20 — Thứ 4, 29/07/2026
 
 ## Nội dung
-- Build desktop app: Tauri bundle + PyInstaller backend
+- Viết báo cáo thực tập, chuẩn bị demo
 
 ## Đã làm
-1. Cấu hình Tauri build: Windows MSI installer, app icon
-2. Bundle Python backend với PyInstaller thành single .exe
-3. Tích hợp: Tauri spawn Python .exe thay vì chạy uvicorn riêng
-4. Test bản build trên máy sạch (không có Python)
-5. Fix lỗi đường dẫn, port conflict khi bundle
-6. Optimize dung lượng: loại bỏ file không cần thiết khỏi bundle
-7. Tạo installer với NSIS hoặc Inno Setup
+1. Viết báo cáo tổng kết: kiến trúc, tính năng, kết quả đạt được
+2. Chuẩn bị slide demo: luồng Import → Search → Chat → Verify → Review
+3. Quay video demo các tính năng chính
+4. Kiểm tra lại toàn bộ code, xoá debug, thêm comment
+5. Cập nhật README, tài liệu hướng dẫn sử dụng
+6. Chốt version cuối, tag release
 
 ## Học được
-- PyInstaller build process cho FastAPI app
-- Tauri production build + bundling
-- Windows installer creation
+- Cách viết báo cáo kỹ thuật cho thực tập
+- Chuẩn bị demo sản phẩm
 
 ## Kết quả đạt được
-- ResearchMind VN chạy được như desktop app độc lập
-- File cài đặt ~50-100MB (tuỳ model embedding có bundle hay không)
+- Báo cáo + slide + video demo sẵn sàng
 
 ## Kế hoạch buổi sau
-- Tổng kết đợt thực tập, viết báo cáo
+- Tổng kết, demo với mentor
 
 ---
 **Ký tên:** Rmah Viu

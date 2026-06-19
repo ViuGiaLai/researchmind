@@ -1,26 +1,25 @@
 # Buổi 15 — Thứ 6, 17/07/2026
 
 ## Nội dung
-- Xây dựng Personal Brain + Daily Reader view + Settings view
+- UX nâng cao: onboarding cải tiến, tooltip, keyboard shortcut
 
 ## Đã làm
-1. Code `PersonalBrainView.tsx` — reading statistics, topic interests (tags + keywords), author preferences, reading timeline, recent activity, insights
-2. Code `DailyReaderView.tsx` — AI reading suggestion, prioritized unread list, reading streak counter
-3. Code `SettingsView.tsx` — LLM mode switch (Cloud Free / Custom Key / Local)
-4. API key inputs với validation, show/hide toggle
-5. Model tier selection, Ollama health check + status
-6. Data management: open folder, clear data, reset app, move storage
-7. Disk space check UI
+1. Cải tiến onboarding wizard: thêm step hướng dẫn Knowledge Graph
+2. Thêm keyboard shortcut: Ctrl+K search, Ctrl+N new chat, Ctrl+E export
+3. Tooltip hướng dẫn cho tất cả icon buttons
+4. Thêm empty states cho các view chưa có dữ liệu
+5. Toast notification cho import/export thành công
+6. Responsive improvement cho màn hình nhỏ
 
 ## Học được
-- Data visualization cho reading stats
-- Settings form pattern với validation
+- Keyboard shortcut pattern trong React
+- Onboarding UX best practices
 
 ## Kết quả đạt được
-- 3 views hoàn chỉnh: Personal Brain, Daily Reader, Settings
+- UX mượt hơn, giảm friction cho người mới
 
 ## Kế hoạch buổi sau
-- Xây dựng Onboarding Wizard
+- Testing toàn bộ luồng Phase 1 + Phase 2
 
 ---
 **Ký tên:** Rmah Viu

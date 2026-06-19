@@ -1,28 +1,31 @@
 # Buổi 2 — Thứ 4, 17/06/2026
 
 ## Nội dung
-- Setup project backend FastAPI + database models + config
-- Fix lỗi ChromaDB và onboarding, chuyển secret sang .env
+- Xây dựng backend core: database models, ingestion pipeline, search engine
+- Fix lỗi ChromaDB, chuyển secret sang .env
 
 ## Đã làm
-1. Tạo cấu trúc backend: FastAPI app, pydantic settings, CORS middleware
-2. Thiết kế SQLAlchemy models: Paper, Chunk (FTS5), ChatHistory, Setting
-3. Tạo ingestion pipeline: PDF parser (PyMuPDF → RapidOCR fallback), chunker (512 tokens), embedder (bge-m3)
-4. Fix lỗi ChromaDB `clear_collection` — tạo lại collection ngay sau xoá
-5. Fix luồng onboarding wizard không hiển thị do bug `finally` block trong `App.tsx`
-6. Chuyển config sang `backend/.env`, xoá hardcoded Gemini key khỏi code
+1. Thiết kế SQLAlchemy models: Paper, Chunk (FTS5), ChatHistory, Setting
+2. Tạo ingestion pipeline: PDF parser (PyMuPDF → RapidOCR), chunker 512 tokens, embedder bge-m3
+3. Xây dựng search engine: BM25 FTS5 + ChromaDB vector + Hybrid RRF fusion
+4. Thêm cross-encoder reranker rerank kết quả
+5. Code search API: `POST /api/search` + `GET /api/search/suggest`
+6. Fix ChromaDB `clear_collection` — tạo lại collection ngay sau xoá
+7. Chuyển config sang `.env`, xoá hardcoded API key
+8. Tạo frontend UI: sidebar, API client (`api.ts`), App.tsx với các tabs
 
 ## Học được
-- SQLAlchemy + SQLite FTS5 setup
+- SQLAlchemy + SQLite FTS5 setup với unicode61 tokenizer tiếng Việt
+- Reciprocal Rank Fusion algorithm cho hybrid search
 - ChromaDB internal cache behavior
-- Pydantic Settings + .env pattern
 
 ## Kết quả đạt được
-- Backend core: models + database + ingestion pipeline hoạt động
+- Backend core hoàn chỉnh: models → ingestion → search
+- Frontend core: sidebar + routing + API client
 - Code sạch, không còn secret hardcode
 
 ## Kế hoạch buổi sau
-- Xây dựng search engine (BM25 + vector + hybrid)
+- Hoàn thiện tất cả tính năng: RAG chat, verify, review builder, collections
 
 ---
 **Ký tên:** Rmah Viu

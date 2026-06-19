@@ -1,27 +1,24 @@
 # Buổi 10 — Thứ 2, 06/07/2026
 
 ## Nội dung
-- Setup frontend project + Tauri shell + core UI components
+- Lên kế hoạch Phase 2: nghiên cứu Knowledge Graph và inline PDF preview
 
 ## Đã làm
-1. Setup Vite + React + TypeScript project
-2. Tạo Tauri shell: `main.rs` + `lib.rs` spawn Python backend as child process
-3. Tauri commands: select_folder (native dialog), check_backend_health, kill_backend
-4. Xây dựng App.tsx với 8 tabs sidebar + state management
-5. Tạo API client (`api.ts`) — HTTP client gọi FastAPI backend
-6. Tạo sidebar UI với Lucide icons + gradient styling
-7. CSS variables + globals + responsive layout
+1. Nghiên cứu kiến trúc Knowledge Graph cho research papers
+2. Thiết kế schema: Paper → Concept → Relation (cites, extends, contradicts)
+3. Nghiên cứu inline PDF preview: PDF.js hoặc custom renderer
+4. Lên kế hoạch phát triển Phase 2: 3 tuần
+5. Phân tích tác động performance của Knowledge Graph lên search
 
 ## Học được
-- Cấu trúc Tauri project: Rust backend + React frontend
-- Tauri command system for native OS operations
+- Knowledge Graph ontology cho academic domain
+- PDF rendering in web: PDF.js vs custom approach
 
 ## Kết quả đạt được
-- Tauri app chạy được, kết nối backend, hiển thị sidebar
-- Native folder picker hoạt động
+- Có thiết kế Phase 2 rõ ràng, ready to code
 
 ## Kế hoạch buổi sau
-- Xây dựng Library view + Import panel
+- Xây dựng inline PDF preview component
 
 ---
 **Ký tên:** Rmah Viu

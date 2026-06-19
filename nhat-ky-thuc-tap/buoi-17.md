@@ -1,28 +1,26 @@
 # Buổi 17 — Thứ 4, 22/07/2026
 
 ## Nội dung
-- Testing toàn bộ luồng Import → Index → Search → Chat → Export
+- Fix bugs từ testing + UX improvements
 
 ## Đã làm
-1. Test import PDF: file picker, drag-drop, folder import, BibTeX, Zotero CSV
-2. Test indexing pipeline: parser → chunker → embedder → ChromaDB + FTS5
-3. Test search: BM25, Vector, Hybrid, cross-encoder reranker
-4. Test chat: 4 modes (chat/review/critique/debate), 4 providers (Ollama/Gemini/DeepSeek/Claude)
-5. Test export: HTML, DOCX, PDF, Markdown cho single paper + synthesis
-6. Test citation generation: APA, IEEE, Vancouver, BibTeX, HTML
-7. Test settings: save/load, API key validation, disk space
-8. Test data management: clear data, reset app, move storage
+1. Fix: PDF không text → OCR fallback treo UI
+2. Fix: search filter collection đôi khi không áp dụng
+3. Fix: review builder mất nội dung khi chuyển tab
+4. Fix: highlight không persist sau refresh
+5. Fix: cold start skeleton đôi khi không biến mất
+6. Cải tiến: loading state chi tiết hơn cho từng panel
+7. Cải tiến: error message thân thiện hơn, không hiển thị stack trace
 
 ## Học được
-- Testing patterns cho RAG pipeline
-- Edge cases: PDF không text (OCR fallback), paper trùng
+- Debug patterns cho React + FastAPI app
+- Error boundary pattern cho từng view
 
 ## Kết quả đạt được
-- Phát hiện và fix nhiều bug nhỏ
-- Toàn bộ luồng chính hoạt động ổn định
+- Fix 15+ bugs, UX mượt hơn
 
 ## Kế hoạch buổi sau
-- Fix bugs từ testing + UX improvements
+- Performance profiling + optimization
 
 ---
 **Ký tên:** Rmah Viu

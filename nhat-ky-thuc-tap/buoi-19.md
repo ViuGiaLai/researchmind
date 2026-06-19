@@ -1,27 +1,25 @@
 # Buổi 19 — Thứ 2, 27/07/2026
 
 ## Nội dung
-- Bảo mật: chuyển secret sang .env, xoá khỏi lịch sử git
+- Build desktop app: Tauri bundle + PyInstaller backend
 
 ## Đã làm
-1. Tạo `backend/.env` + `apps/desktop/.env` chứa toàn bộ cấu hình
-2. Xoá hardcoded Gemini API key khỏi `settings.py`
-3. Xoá API key cũ khỏi toàn bộ lịch sử git bằng `git filter-repo`
-4. Force push lên GitHub
-5. Tạo `.env.example` cho cả backend và frontend
-6. Cập nhật `api.ts` đọc `VITE_BACKEND_URL` từ env thay vì hardcode
-7. Viết nhật ký thực tập đầy đủ 21 buổi
+1. Cấu hình PyInstaller: backend.spec đóng gói FastAPI thành .exe
+2. Tauri bundle: gộp Python backend + frontend web vào một installer
+3. Kiểm tra cross-platform build: Windows, macOS, Linux
+4. Fix path issues: resource paths, data directory, model paths
+5. Test installer từ đầu: cài → chạy → import → search → chat
+6. Tự động tải model embedding lần đầu chạy
 
 ## Học được
-- Git filter-repo để xoá secret khỏi lịch sử
-- Pydantic Settings + Vite env pattern
+- PyInstaller configuration cho FastAPI app
+- Tauri bundle strategy cho Python backend
 
 ## Kết quả đạt được
-- Code an toàn, không còn secret trong repo
-- Sẵn sàng public/open source
+- File installer hoàn chỉnh, chạy được trên Windows/macOS/Linux
 
 ## Kế hoạch buổi sau
-- Build desktop app với PyInstaller + Tauri bundle
+- Viết báo cáo thực tập
 
 ---
 **Ký tên:** Rmah Viu

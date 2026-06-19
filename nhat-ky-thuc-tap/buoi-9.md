@@ -1,26 +1,31 @@
 # Buổi 9 — Thứ 6, 03/07/2026
 
 ## Nội dung
-- Xây dựng system management APIs: settings, health, Ollama, data management
+- Tổng kết v0.5: so sánh metrics trước/sau, báo cáo tốc độ
 
 ## Đã làm
-1. Viết Settings APIs: GET/PUT settings + validate-key + load_persisted_settings từ SQLite
-2. Viết Health check + Stats endpoints
-3. Viết Ollama endpoints: status check, model list, model pull (streaming SSE)
-4. Viết Data management: open folder, disk space check, clear data, reset app, move storage
-5. Viết Machine spec detection (RAM, CPU) cho model tier suggestion
-6. Free cloud daily limit tracking
-
-## Học được
-- Caching pattern cho settings persistence
-- Streaming file download pattern cho Ollama pull
+1. So sánh metrics baseline vs sau v0.5
+2. Xác nhận target đạt được: search cache ≤200ms, library mount ≤300ms, TTFT ≤2s
+3. Viết báo cáo tốc độ v0.5
+4. Lên kế hoạch Phase 2: tính năng mới
+5. Code cleanup, xoá log debug thừa
 
 ## Kết quả đạt được
-- ~15 system management endpoints hoàn chỉnh
-- Tổng cộng ~42 backend endpoints
+| Metric | Target | Đạt được |
+|--------|--------|----------|
+| Search cache hit | ≤200ms | ✅ |
+| Search fresh query | ≤1.5s | ✅ |
+| Library mount 50 papers | ≤300ms | ✅ |
+| TTFT chat | ≤2s | ✅ |
+| Import throughput | ≥3 files/phút | ✅ |
+| Verify cache hit | ≤0.5s | ✅ |
+| Verify cache miss | ≤6s | ✅ |
+| Python cold start | ≤4s | ✅ |
+| Virtualization 500 items | Không freeze | ✅ |
+| Skeleton UI | <500ms | ✅ |
 
 ## Kế hoạch buổi sau
-- Bắt đầu frontend: Setup React + Tauri project structure
+- Nghiên cứu Phase 2: Knowledge Graph, inline PDF preview
 
 ---
 **Ký tên:** Rmah Viu

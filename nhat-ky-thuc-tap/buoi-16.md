@@ -1,27 +1,27 @@
 # Buổi 16 — Thứ 2, 20/07/2026
 
 ## Nội dung
-- Xây dựng Onboarding Wizard (AISetupWizard)
+- Testing toàn bộ luồng Phase 1 (v0.1-v0.5) + Phase 2 (inline PDF, Knowledge Graph)
 
 ## Đã làm
-1. Code `AISetupWizard.tsx` — 5-step onboarding wizard (1054 dòng)
-2. Step 1 — Welcome: hardware scan animation (CPU, RAM, storage), auto suggest model tier
-3. Step 2 — Choose AI Mode: 3 cards (Cloud Free, Custom Key, Local) với so sánh
-4. Step 3 — Configure: API key input với provider tabs (DeepSeek/Gemini/Claude), validation, links
-5. Step 4 — Storage: directory picker, disk space gauge, warning <10GB
-6. Step 5 — Done: "cyber activation" animation, quick start dashboard
-7. Local mode: Ollama connectivity check, model pull progress bar, install guide
-8. Step tracker indicator ở bottom
+1. Test import: PDF, DOCX, EPUB, folder, retry, OCR
+2. Test search: BM25, vector, hybrid, filter, sort, saved search
+3. Test chat: 4 modes (chat/review/critique/debate), streaming, citation
+4. Test verify: DOI lookup, cache, refresh, degraded mode
+5. Test review builder: draft, section, matrix, export
+6. Test collections: CRUD, paper membership, scope chat
+7. Test inline PDF preview: scroll, highlight, search → page
+8. Test Knowledge Graph: concept extraction, visualization
+9. Test stripe: purchase, key activation, expiry
 
 ## Học được
-- UX onboarding "zero-friction" design
-- Animated UI với CSS transitions
+- End-to-end testing strategy cho RAG desktop app
 
 ## Kết quả đạt được
-- Onboarding wizard hoàn chỉnh, auto-detect specs, zero-friction setup
+- Phát hiện 15+ bug, đã ghi lại để fix
 
 ## Kế hoạch buổi sau
-- Testing + Fix bug toàn bộ luồng
+- Fix bugs từ testing
 
 ---
 **Ký tên:** Rmah Viu

@@ -1,269 +1,127 @@
 # ResearchMind VN
 
-> ResearchMind không chỉ giúp bạn đọc PDF. Nó giúp bạn hiểu nhanh, phản biện sâu và khám phá những ý tưởng nghiên cứu mới từ toàn bộ thư viện tài liệu của bạn.
+> Trợ lý nghiên cứu AI Local-First cho học giả Việt Nam.
+> Hiểu nhanh, phản biện sâu, viết review tự động — tất cả chạy trên máy bạn.
 
-ResearchMind VN là hệ thống trợ lý nghiên cứu AI Local-First dành cho sinh viên cao học, nghiên cứu sinh và giảng viên Việt Nam. Toàn bộ dữ liệu được lưu trữ và xử lý cục bộ trên máy tính nhằm đảm bảo quyền riêng tư và bảo mật tuyệt đối.
+ResearchMind VN là hệ thống quản lý tri thức học thuật cá nhân, chạy hoàn toàn offline. Hỗ trợ import, search, chat RAG, verify, và literature review — không gửi dữ liệu ra ngoài.
+
+**Version hiện tại:** v0.4 · **Kế tiếp:** [v0.5 — Speed Plan](VERSION/VERSION_v0.5.md)
+
+---
 
 ## Tính năng chính
 
-### 📥 Import & Indexing PDF
-* Kéo và thả file PDF để AI phân tích tức thì.
-* Tự động trích xuất cấu trúc văn bản khoa học.
-* Lập chỉ mục thông minh đảm bảo bảo mật 100% cục bộ trên ổ đĩa của bạn.
+### Import & Index
+- Kéo thả PDF/DOCX/EPUB/TXT/MD/HTML — tự động parse, chunk, embedding
+- Import Queue: theo dõi trạng thái từng file (queued → parsing → indexing → OCR → summarizing → ready)
+- Retry từng file, OCR thủ công cho PDF scan
+- Zotero SQLite sync — nhập thư viện metadata có sẵn
 
-### 🔍 Tìm kiếm ngữ nghĩa (Semantic Search)
-* Tìm kiếm ý tưởng bằng ngôn ngữ tự nhiên (tiếng Việt & tiếng Anh).
-* Truy hồi chính xác thuật ngữ khoa học và nội dung theo ngữ cảnh.
-* Định vị chính xác số trang và trích dẫn nguồn.
+### Semantic Search
+- Hybrid search: BM25 (FTS5) + Vector (ChromaDB) + Cross-Encoder rerank
+- Search theo collection/author/year/tag/read status/starred
+- Filter + sort nâng cao, saved search
 
-### 💬 Trò chuyện RAG & Phản biện học thuật (Chat AI & Critique)
-* Đặt câu hỏi trực tiếp trên một hoặc nhóm nhiều bài báo cùng lúc.
-* **Tóm tắt nhanh:** Trích xuất nhanh Background, Methods, Findings của tài liệu.
-* **Phản biện khoa học:** AI đánh giá điểm hạn chế, lỗ hổng phương pháp và giả thiết chưa hợp lý.
-* **Tranh luận học thuật:** Giả lập tranh luận đa chiều giữa các Persona AI nhằm gợi mở hướng nghiên cứu mới.
+### Chat RAG & Phản biện
+- Chat với 1 paper hoặc nhiều paper cùng lúc, scope theo collection
+- **Streaming** real-time, provider chain tự động fallback
+- **Multi-layer cache:** LLM cache, embedding cache, rerank cache, academic cache — giảm latency lặp lại
+- **Critique:** AI đánh giá hạn chế, lỗ hổng phương pháp
+- **Debate:** Tranh luận đa chiều giữa nhiều Persona AI
+- **Verify:** Tra cứu DOI → OpenAlex/Crossref/Semantic Scholar, cache + refresh
 
-### 📚 Quản lý thư viện tri thức cá nhân
-* Ghi chú và phân loại tài liệu bằng thẻ tags trực quan.
-* Nhập nhanh thư viện siêu dữ liệu từ Zotero.
-* **Xây dựng liên kết:** Khám phá sự liên kết tri thức chéo giữa các bài nghiên cứu.
-* **Gợi ý đọc mỗi ngày:** Gợi ý paper đáng đọc nhất mỗi ngày kèm tóm tắt nội dung sẵn có.
+### Literature Review Builder
+- Chọn papers → Generate draft theo 7 section (Background → Future Directions)
+- Chỉnh sửa inline, regenerate từng section riêng
+- Comparison matrix giữa các papers
+- Export: DOCX / HTML / Markdown
 
----
-
-# Kiến trúc hệ thống
-
-## Luồng Import PDF
-
-User Upload PDF
-
-↓
-
-Tauri UI (React)
-
-↓
-
-FastAPI Backend
-
-↓
-
-PyMuPDF Parser
-
-↓
-
-Chunking (512 tokens)
-
-↓
-
-bge-m3 Embedder
-
-↓
-
-├── SQLite (Metadata)
-
-├── SQLite FTS5 (Full-text Search)
-
-└── ChromaDB (Vector Database)
-
-## Luồng Chat với Paper (RAG)
-
-User Question
-
-↓
-
-Query Processing
-
-↓
-
-Hybrid Search
-
-├── BM25 (SQLite FTS5)
-
-└── Vector Search (ChromaDB)
-
-↓
-
-Cross-Encoder Re-ranker
-
-↓
-
-LLM (Qwen / Claude / Ollama)
-
-↓
-
-Answer + Citation
-
-↓
-
-User
+### Library & Collections
+- Collections/Projects — nhóm paper theo chủ đề, luận văn
+- Highlights, ghi chú, tags
+- Preview panel: abstract, metadata, related papers
+- Gợi ý đọc hàng ngày
 
 ---
 
-# Công nghệ sử dụng
+## Công nghệ
 
-## Frontend
-
-* React 19
-* TypeScript
-* Tailwind CSS
-* shadcn/ui
-* Tauri v2
-
-## Backend
-
-* Python 3.11+
-* FastAPI
-* Pydantic
-
-## AI & Search
-
-* PyMuPDF
-* bge-m3
-* ChromaDB
-* SQLite FTS5
-* Cross Encoder Re-ranker
-* Ollama
-* Claude API (Optional)
+| Layer | Công nghệ |
+|---|---|
+| Desktop Shell | **Tauri v2** (Rust) |
+| Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
+| Backend | Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy |
+| Embedding | bge-m3 (Sentence-Transformers) |
+| Vector DB | ChromaDB |
+| Full-text | SQLite FTS5 |
+| Rerank | Cross-Encoder (tắt mặc định) |
+| OCR | RapidOCR (ONNX) |
+| LLM Providers | NVIDIA NIM, FreeModel, Groq, Gemini, Ollama (local), Claude API |
 
 ---
 
-# Cấu trúc thư mục
+## Kiến trúc
 
 ```text
-researchmind/
-├── apps/
-│   └── desktop/
-│       ├── src/
-│       └── src-tauri/
-│
-├── backend/
-│   ├── ingestion/
-│   ├── search/
-│   ├── chat/
-│   └── db/
-│
-├── data/
-│   ├── papers/
-│   ├── chroma/
-│   └── researchmind.db
-│
-├── models/
-│
-└── docs/
+Tauri App (React)
+    │
+    ▼
+FastAPI Backend ────────────────────────────────────────┐
+    │                                                    │
+    ├── ingestion/ (parser, chunker, embedder, OCR)     ├── data/
+    ├── search/ (hybrid, reranker, cache)                  ├── papers/
+    ├── chat/ (generator, provider chain)                   ├── chroma/
+    ├── routers/ (papers, chat, search, verify, review)     ├── models/
+    ├── db/ (SQLAlchemy models, migrations)                 └── researchmind.db
+    └── academic/ (OpenAlex, Crossref, S2 clients)
 ```
 
 ---
 
-# Cài đặt
+## Cài đặt
 
-## Yêu cầu
+### Yêu cầu
+- Node.js 22+, pnpm
+- Python 3.11+, Rust Stable, Tauri CLI
 
-* Node.js 22+
-* pnpm
-* Python 3.11+
-* Rust Stable
-* Tauri CLI
-
-## Clone dự án
-
+### Clone & cài
 ```bash
-git clone https://github.com/your-org/researchmind-vn.git
-
-cd researchmind-vn
-```
-
-## Cài đặt Frontend
-
-```bash
+git clone https://github.com/your-org/researchmind.git
+cd researchmind
 pnpm install
+cd backend && pip install -r requirements.txt
 ```
 
-## Cài đặt Backend
-
-```bash
-cd backend
-
-pip install -r requirements.txt
-```
-
-## Chạy Development
-
+### Chạy
 ```bash
 pnpm tauri dev
 ```
 
 ---
 
-# Hybrid Search
+## Roadmap
 
-ResearchMind sử dụng chiến lược tìm kiếm kết hợp:
+| Version | Trọng tâm | Trạng thái |
+|---|---|---|
+| **v0.1** | Import, Search, Chat cơ bản | ✅ |
+| **v0.2** | Streaming, Cache, Retry, Provider chain | ✅ |
+| **v0.3** | Verify (OpenAlex/Crossref/S2), Critique, Debate | ✅ |
+| **v0.4** | Import Queue, OCR UX, Review Builder, Collections | ✅ |
+| **v0.5** | Speed: virtualization, cold start, debounce, lazy load | 🔜 |
 
-```text
-Final Score =
-α × BM25 Score
-+
-(1 - α) × Vector Similarity
-```
-
-Ưu điểm:
-
-* Hiểu ngữ nghĩa câu hỏi
-* Tìm chính xác từ khóa kỹ thuật
-* Tăng độ chính xác retrieval
-* Hoạt động tốt với tiếng Việt
+Xem chi tiết từng version tại [`VERSION/`](VERSION/).
 
 ---
 
-# Bảo mật
+## Bảo mật
 
-ResearchMind được thiết kế theo triết lý Local-First:
-
-* Dữ liệu mặc định lưu trên máy người dùng
-* Không gửi PDF lên server
-* Không chia sẻ dữ liệu nghiên cứu với bên thứ ba
-* Có thể hoạt động hoàn toàn offline
+- Local-First: toàn bộ dữ liệu trên máy người dùng
+- Không gửi PDF ra ngoài
+- Có thể chạy hoàn toàn offline (dùng Ollama local)
+- LLM cloud providers là optional, user chọn
 
 ---
 
-# Roadmap
-
-## MVP
-
-* [x] Import PDF
-* [x] Semantic Search
-* [x] Chat với Paper
-* [x] Library Management
-
-## Giai đoạn tiếp theo
-
-* [ ] Zotero Integration
-* [ ] OCR cho PDF Scan
-* [ ] Multi-document Comparison
-* [ ] Knowledge Graph
-* [ ] Team Collaboration
-* [ ] Cloud Sync
-
----
-
-# Đối tượng sử dụng
-
-* Nghiên cứu sinh
-* Sinh viên cao học
-* Giảng viên đại học
-* Nhóm nghiên cứu
-* Viện nghiên cứu
-
----
-
-# Giấy phép
+## Giấy phép
 
 MIT License
-
-Copyright (c) ResearchMind VN
-
----
-
-# Tóm tắt Đề tài & Định hướng Phát triển
-
-| TÊN ĐỀ TÀI | LÝ DO CHỌN | NGÔN NGỮ THỰC HIỆN | SINH VIÊN CÓ Ý KIẾN, YÊU CẦU THÊM |
-| :--- | :--- | :--- | :--- |
-| **ResearchMind VN**<br>*(Trợ lý nghiên cứu AI Local-first cho học giả Việt Nam)* | - Học viên cao học & NCS phải đọc hàng trăm tài liệu mỗi năm nhưng gặp khó khăn khi tìm kiếm ngữ nghĩa, kết nối ý tưởng chéo và tóm tắt luận điểm.<br>- Các công cụ cloud (NotebookLM, Notion AI) dễ lộ dữ liệu nghiên cứu nhạy cảm, hỗ trợ tiếng Việt kém hoặc chi phí cao.<br>- **Giải pháp**: Xây dựng trợ lý AI chạy offline hoàn toàn (Local-first), bảo mật dữ liệu tuyệt đối và tối ưu cho tiếng Việt. | - **Python**: Backend & Core AI Pipeline (*FastAPI, PyMuPDF, ChromaDB, SQLite, Sentence-Transformers*).<br>- **Rust**: Desktop Shell (*Tauri v2* giúp app siêu nhẹ).<br>- **TypeScript/JavaScript**: Frontend UI (*React 19, Tailwind CSS, shadcn/ui*). | - Định hướng sản phẩm không chỉ là "nhớ + search + chat" mà phải tập trung vào **"giúp hiểu + giúp nghĩ + giúp viết"**.<br>- **Yêu cầu thêm các tính năng đột phá (Killer Features)**:<br>  1. *Auto Literature Review Builder*: Tự động tổng hợp tài liệu (Background, Methods, Gaps, Insights) giúp tiết kiệm 50-70% thời gian đọc.<br>  2. *AI Phản biện (Critical Thinking)*: Đánh giá điểm hạn chế, lỗ hổng phương pháp của bài báo.<br>  3. *Debate Mode (AI vs AI)*: Tranh luận đa chiều giữa các Persona AI để gợi mở hướng đi mới.<br>  4. *Xuất báo cáo đa định dạng*: Cho phép xuất kết quả ra Word (`.docx`), Web (`.html`), Markdown (`.md`).<br>  5. *Tích hợp thêm*: Zotero Import và OCR cho PDF scan ở các giai đoạn tiếp theo. |
