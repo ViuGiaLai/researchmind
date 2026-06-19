@@ -42,7 +42,7 @@ export const SettingsView: React.FC = () => {
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
-  const [groqModel, setGroqModel] = useState("llama-3.1-8b-instant");
+  const [groqModel, setGroqModel] = useState("llama-3.3-70b-versatile");
   const [nvidiaApiKey, setNvidiaApiKey] = useState("");
   const [nvidiaModel, setNvidiaModel] = useState("moonshotai/kimi-k2.6");
   const [freemodelApiKey, setFreemodelApiKey] = useState("");
@@ -138,7 +138,7 @@ export const SettingsView: React.FC = () => {
       setGeminiApiKey(s.gemini_api_key === "***" ? "" : s.gemini_api_key);
       setGeminiModel(s.gemini_model || "gemini-1.5-flash");
       setGroqApiKey((s as any).groq_api_key === "***" ? "" : (s as any).groq_api_key || "");
-      setGroqModel((s as any).groq_model || "llama-3.1-8b-instant");
+      setGroqModel((s as any).groq_model || "llama-3.3-70b-versatile");
       setNvidiaApiKey((s as any).nvidia_api_key === "***" ? "" : (s as any).nvidia_api_key || "");
       setNvidiaModel((s as any).nvidia_model || "moonshotai/kimi-k2.6");
       setFreemodelApiKey((s as any).freemodel_api_key === "***" ? "" : (s as any).freemodel_api_key || "");
@@ -463,6 +463,7 @@ export const SettingsView: React.FC = () => {
         await api.saveZoteroPath(zoteroDataDir.trim());
       }
       setSaveMsg({ type: "success", text: "Đã lưu cấu hình!" });
+      loadSettings();
       loadUsage();
     } catch (e) {
       setSaveMsg({ type: "error", text: `Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}` });
@@ -601,7 +602,7 @@ export const SettingsView: React.FC = () => {
             <button
               key={m.mode}
               className={`settings-mode-card ${llmMode === m.mode ? "active" : ""}`}
-              onClick={() => setLlmMode(m.mode)}
+              onClick={() => { setLlmMode(m.mode); setSaveMsg(null); }}
             >
               <div className="settings-mode-card-radio">
                 {llmMode === m.mode && <div className="settings-mode-card-dot" />}
@@ -822,7 +823,7 @@ export const SettingsView: React.FC = () => {
                 <div className="settings-field">
                   <label className="settings-label">Groq Model</label>
                   <select className="settings-select" value={groqModel} onChange={(e) => setGroqModel(e.target.value)}>
-                    <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (cực nhanh, nhẹ)</option>
+                    <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (cực nhanh, nhẹ)</option>
                     <option value="llama-3.3-70b-versatile">llama-3.3-70b-specdec (mạnh mẽ, thông minh)</option>
                     <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 (context lớn)</option>
                   </select>

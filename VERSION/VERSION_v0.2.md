@@ -218,7 +218,7 @@ def _call_with_retry(self, fn, *args, max_retries=1, **kwargs):
 
 ### Groq
 
-- **Vấn đề:** Key `gsk_TIWorg0...` bị invalid (401)
+- **Vấn đề:** Groq key bị invalid (401)
 - **Cần:** Copy key mới từ https://console.groq.com/keys
 - **Cập nhật:** `backend/.env` → `GROQ_API_KEY=key_mới`
 

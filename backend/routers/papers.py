@@ -1218,9 +1218,7 @@ Phân loại:
 - limitation: Hạn chế được thảo luận
 - important_claim: Khái niệm/quan điểm quan trọng
 
-CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng Việt.
-
-Nội dung paper:\n{retrieval.context_text}"""
+CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng Việt."""
 
         generation = await asyncio.to_thread(
             state.generator.generate,

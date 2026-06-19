@@ -22,6 +22,7 @@ function App() {
   const [chatPaperIds, setChatPaperIds] = useState<string[]>([]);
   const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
   const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate" | "verify">("chat");
+  const [chatSessionKey, setChatSessionKey] = useState(0);
   const [showSetup, setShowSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [backendUnavailable, setBackendUnavailable] = useState(false);
@@ -65,6 +66,7 @@ function App() {
     setInitialQuery(undefined);
     setInitialMode("chat");
     setChatPaperIds(paperIds);
+    setChatSessionKey((k) => k + 1);
     setActiveTab("chat");
   };
 
@@ -72,6 +74,7 @@ function App() {
     setInitialQuery("Tóm tắt giúp tôi các paper này theo cấu trúc: Background, Related Work, Methods, Key Findings, Research Gaps, và Insights.");
     setInitialMode("review");
     setChatPaperIds(paperIds);
+    setChatSessionKey((k) => k + 1);
     setActiveTab("chat");
   };
 
@@ -79,6 +82,7 @@ function App() {
     setInitialQuery("Phản biện giúp tôi các paper này: liệt kê giả thiết sai hoặc chưa hợp lý, thiếu sót dữ liệu, hạn chế phương pháp, nguy cơ overclaim, và 3 đề xuất cải thiện.");
     setInitialMode("critique");
     setChatPaperIds(paperIds);
+    setChatSessionKey((k) => k + 1);
     setActiveTab("chat");
   };
 
@@ -86,6 +90,7 @@ function App() {
     setInitialQuery("Hãy tạo một cuộc tranh luận giữa hai AI (AI A và AI B) về chủ đề liên quan đến các paper này. Mỗi bên nêu luận điểm và phản biện, có trích dẫn và kết luận ngắn. Cuối cùng đưa ra 3 đề xuất kiểm chứng.");
     setInitialMode("debate");
     setChatPaperIds(paperIds);
+    setChatSessionKey((k) => k + 1);
     setActiveTab("chat");
   };
 
@@ -93,6 +98,7 @@ function App() {
     setInitialQuery("Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài.");
     setInitialMode("verify");
     setChatPaperIds(paperIds);
+    setChatSessionKey((k) => k + 1);
     setActiveTab("chat");
   };
 
@@ -178,6 +184,13 @@ function App() {
               onClick={() => {
                 if (activeTab !== tab) {
                   setInitialQuery(undefined);
+                  if (activeTab === "chat") {
+                    setChatPaperIds([]);
+                    setInitialMode("chat");
+                  }
+                  if (tab === "chat") {
+                    setChatSessionKey((k) => k + 1);
+                  }
                 }
                 setActiveTab(tab);
               }}
@@ -225,7 +238,7 @@ function App() {
         )}
         {activeTab === "chat" && (
           <ChatView
-            key={`${chatPaperIds.join(",")}-${initialQuery ?? ""}-${initialMode}`}
+            key={`${chatPaperIds.join(",")}-${initialQuery ?? ""}-${initialMode}-s${chatSessionKey}`}
             initialPaperIds={chatPaperIds}
             initialQuery={initialQuery}
             initialMode={initialMode}

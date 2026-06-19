@@ -358,10 +358,11 @@ export const api = {
     const controller = new AbortController();
     const stream: {
       onChunk: ((text: string) => void) | null;
+      onStatus: ((text: string) => void) | null;
       onDone: ((model: string, citations: any[]) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
-    } = { onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
+    } = { onChunk: null, onStatus: null, onDone: null, onError: null, abort: () => controller.abort() };
 
     (async () => {
       try {
@@ -396,6 +397,8 @@ export const api = {
                 const data = JSON.parse(dataStr);
                 if (data.done) {
                   stream.onDone?.(data.model_used || "", data.citations || []);
+                } else if (data.status !== undefined) {
+                  stream.onStatus?.(data.status);
                 } else if (data.chunk !== undefined) {
                   stream.onChunk?.(data.chunk);
                 }

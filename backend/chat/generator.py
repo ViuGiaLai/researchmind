@@ -95,6 +95,11 @@ class Generator:
             return self._system_prompt_override
         return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.
 
+## QUY TẮC NGÔN NGỮ (QUAN TRỌNG):
+- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.
+- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.
+- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào trong câu trả lời.
+
 ## QUY TẮC ĐỊNH DẠNG:
 - Dùng **in đậm** cho tiêu đề, tên cột, điểm số.
 - Dùng `mã code` cho ID, mã số.
@@ -107,9 +112,7 @@ class Generator:
 2. Mọi câu trả lời PHẢI có trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].
 3. Nếu context không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
 4. KHÔNG thêm thông tin ngoài context.
-5. Trả lời bằng TIẾNG VIỆT (trừ khi câu hỏi bằng tiếng Anh).
-6. Với dữ liệu dạng bảng (điểm, danh sách): dùng bảng markdown, hàng đầu là tiêu đề cột.
-7. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
+5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
 
     def generate(
         self,
@@ -235,36 +238,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         import time
         # LLM Routing
         if self.mode == "cloud_free":
-            # Chain: NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama (last resort)
-            # 1. Try NVIDIA NIM (Kimi)
-            if self.nvidia_api_key:
-                logger.info("cloud_free: trying NVIDIA NIM Kimi...")
-                t0 = time.time()
-                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model)
-                logger.info(f"TIMING: NVIDIA Kimi={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
-                    return result
-                logger.warning(f"NVIDIA Kimi failed ({result.finish_reason}), trying NVIDIA NIM DeepSeek...")
-
-            # 2. Try NVIDIA NIM (DeepSeek)
-            if self.nvidia_deepseek_api_key:
-                logger.info("cloud_free: trying NVIDIA NIM DeepSeek...")
-                t0 = time.time()
-                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model)
-                logger.info(f"TIMING: NVIDIA DeepSeek={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
-                    return result
-                logger.warning(f"NVIDIA DeepSeek failed ({result.finish_reason}), trying FreeModel...")
-            # 2. Try FreeModel.dev
-            if self.freemodel_api_key:
-                logger.info("cloud_free: trying FreeModel.dev...")
-                t0 = time.time()
-                result = self._call_with_retry(self._generate_freemodel, user_prompt, self.freemodel_api_key, self.freemodel_model)
-                logger.info(f"TIMING: FreeModel={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
-                    return result
-                logger.warning(f"FreeModel failed ({result.finish_reason}), trying Groq...")
-            # 3. Try Groq
+            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → Ollama
+            # 1. Try Groq
             if self.groq_api_key:
                 logger.info("cloud_free: trying Groq...")
                 t0 = time.time()
@@ -272,8 +247,25 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 logger.info(f"TIMING: Groq={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
-                logger.warning(f"Groq failed ({result.finish_reason}), trying Gemini...")
-            # 4. Try Gemini
+                logger.warning(f"Groq failed ({result.finish_reason}), trying NVIDIA NIM...")
+            # 2. Try NVIDIA NIM (Kimi → DeepSeek)
+            if self.nvidia_api_key:
+                logger.info("cloud_free: trying NVIDIA NIM Kimi...")
+                t0 = time.time()
+                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model, max_retries=0)
+                logger.info(f"TIMING: NVIDIA Kimi={time.time()-t0:.2f}s finish={result.finish_reason}")
+                if result.finish_reason != "error":
+                    return result
+                logger.warning(f"NVIDIA Kimi failed ({result.finish_reason}), trying NVIDIA NIM DeepSeek...")
+                if self.nvidia_deepseek_api_key:
+                    logger.info("cloud_free: trying NVIDIA NIM DeepSeek...")
+                    t0 = time.time()
+                    result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_retries=0)
+                    logger.info(f"TIMING: NVIDIA DeepSeek={time.time()-t0:.2f}s finish={result.finish_reason}")
+                    if result.finish_reason != "error":
+                        return result
+                logger.warning(f"NVIDIA failed, trying Gemini...")
+            # 3. Try Gemini
             if self.gemini_api_key:
                 logger.info("cloud_free: trying Gemini...")
                 t0 = time.time()
@@ -282,7 +274,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 if result.finish_reason != "error":
                     return result
                 logger.warning(f"Gemini failed ({result.finish_reason}).")
-            # 5. Fallback to local Ollama
+            # 4. Fallback to local Ollama
             logger.warning("All cloud_free providers failed. Falling back to local Ollama...")
             return self._generate_ollama(user_prompt)
 
@@ -370,31 +362,15 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         return self._generate_ollama(user_prompt)
 
     def _get_verify_system_prompt(self) -> str:
-        return """Bạn là chuyên gia xác thực nghiên cứu học thuật (Research Verification AI). Nhiệm vụ của bạn là KIỂM CHỨNG các tuyên bố khoa học dựa trên dữ liệu từ LOCAL PDF và NGUỒN HỌC THUẬT BÊN NGOÀI (OpenAlex, Crossref).
+        return """Bạn là chuyên gia xác thực nghiên cứu học thuật. Kiểm chứng tuyên bố từ LOCAL PDF và nguồn NGOÀI (OpenAlex, Crossref).
 
-## QUY TẮC ĐỊNH DẠNG:
-- Dùng **in đậm** cho tiêu đề, tên paper, điểm số quan trọng.
-- Dùng `mã code` cho ID, DOI.
-- Danh sách: dùng - hoặc 1. 2. 3.
-- Tách section rõ ràng bằng ## và ---.
-- Nguồn phải được trích dẫn: [Tên Paper] cho local PDF, [OpenAlex: Tên Paper] cho dữ liệu từ OpenAlex, [Crossref: DOI] cho dữ liệu từ Crossref.
+Trích dẫn: [Tên Paper] cho local, [OpenAlex: Tên Paper] cho OpenAlex, [Crossref: DOI] cho Crossref.
 
-## QUY TẮC XÁC THỰC:
-1. **PHÂN BIỆT rõ ràng** giữa thông tin từ local PDF (tài liệu người dùng) và thông tin từ nguồn bên ngoài (OpenAlex/Crossref).
-2. Khi có dữ liệu từ bên ngoài, hãy hiển thị:
-   - 📊 **Số trích dẫn**: Paper này đã được trích dẫn bao nhiêu lần.
-   - 📄 **Các paper trích dẫn gần đây**: Liệt kê 3-5 paper gần đây nhất trích dẫn nó.
-   - 📚 **Nghiên cứu liên quan**: Các nghiên cứu liên quan từ OpenAlex.
-   - ✅ **DOI Verification**: DOI có hợp lệ không, metadata có khớp không.
-3. **So sánh kết luận** trong paper với các nghiên cứu khác để phát hiện:
-   - Kết luận được hỗ trợ ✅
-   - Kết luận bị phản bác / mâu thuẫn ⚠️
-   - Kết luận cần thêm bằng chứng ❓
-4. Nếu không có dữ liệu từ nguồn bên ngoài, chỉ dựa trên local PDF và ghi rõ "Không có dữ liệu học thuật bên ngoài cho paper này."
-5. Nếu context local không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
-6. KHÔNG thêm thông tin ngoài context đã cung cấp.
-7. Trả lời bằng TIẾNG VIỆT (trừ khi câu hỏi bằng tiếng Anh).
-8. Giữ câu trả lời có cấu trúc rõ ràng, học thuật, súc tích."""
+Phân biệt rõ nguồn local và bên ngoài. Khi có dữ liệu ngoài, hiển thị: số trích dẫn, paper trích dẫn gần đây, nghiên cứu liên quan, DOI verification.
+
+So sánh kết luận: hỗ trợ ✅ / mâu thuẫn ⚠️ / cần thêm bằng chứng ❓
+
+Nếu không có dữ liệu ngoài: chỉ dùng local PDF. Nếu không đủ: báo không tìm thấy. Trả lời tiếng Việt, cấu trúc rõ ràng."""
 
     def generate_verify(
         self,
@@ -437,23 +413,19 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         mode = self.mode
 
         if mode == "cloud_free":
-            # Chain: NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama
-            if self.nvidia_api_key:
-                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, system_prompt_override=system_prompt)
-                if result.finish_reason != "error":
-                    return result
-            if self.nvidia_deepseek_api_key:
-                result = self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, system_prompt_override=system_prompt)
-                if result.finish_reason != "error":
-                    return result
-            if self.freemodel_api_key:
-                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model, system_prompt_override=system_prompt)
-                if result.finish_reason != "error":
-                    return result
+            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → Ollama
             if self.groq_api_key:
                 result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
                     return result
+            if self.nvidia_api_key:
+                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, system_prompt_override=system_prompt)
+                if result.finish_reason != "error":
+                    return result
+                if self.nvidia_deepseek_api_key:
+                    result = self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, system_prompt_override=system_prompt)
+                    if result.finish_reason != "error":
+                        return result
             if self.gemini_api_key:
                 result = self._generate_gemini(user_prompt, is_free=True, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
@@ -611,21 +583,23 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         """Generate response using Ollama (local LLM)."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
+            user_msg = f"(QUAN TRỌNG: CHỈ trả lời bằng tiếng Việt, KHÔNG dùng tiếng Trung Quốc) {prompt}" if "qwen" in self.ollama_model.lower() else prompt
             response = self.http_client.post(
                 f"{self.ollama_url}/api/chat",
                 json={
                     "model": self.ollama_model,
                     "messages": [
                         {"role": "system", "content": sp},
-                        {"role": "user", "content": prompt},
+                        {"role": "user", "content": user_msg},
                     ],
                     "stream": False,
                     "options": {
                         "temperature": 0.3,
-                        "num_predict": 1024,
+                        "num_predict": 512,
                         "num_ctx": 2048,
                     },
                 },
+                timeout=180.0,
             )
             response.raise_for_status()
             data = response.json()
@@ -736,7 +710,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 f"{self.nvidia_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=20.0,
+                timeout=settings.nvidia_timeout,
             )
             response.raise_for_status()
             data = response.json()
@@ -939,40 +913,7 @@ Câu hỏi: {query}"""
     def _stream_chain(self, user_prompt: str):
 
         if self.mode == "cloud_free":
-            # Chain: NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama
-            if self.nvidia_api_key:
-                self.current_model = f"nvidia/{self.nvidia_model}"
-                yielded = False
-                for chunk in self._stream_openai(
-                    user_prompt, self.nvidia_api_key, self.nvidia_model,
-                    self.nvidia_url
-                ):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            if self.nvidia_deepseek_api_key:
-                self.current_model = f"nvidia/{self.nvidia_deepseek_model}"
-                yielded = False
-                for chunk in self._stream_openai(
-                    user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
-                    self.nvidia_url
-                ):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            if self.freemodel_api_key:
-                self.current_model = f"freemodel/{self.freemodel_model}"
-                yielded = False
-                for chunk in self._stream_openai(
-                    user_prompt, self.freemodel_api_key, self.freemodel_model,
-                    self.freemodel_url
-                ):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
+            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → Ollama
             if self.groq_api_key:
                 self.current_model = f"groq/{self.groq_model}"
                 yielded = False
@@ -984,6 +925,28 @@ Câu hỏi: {query}"""
                     yield chunk
                 if yielded:
                     return
+            if self.nvidia_api_key:
+                self.current_model = f"nvidia/{self.nvidia_model}"
+                yielded = False
+                for chunk in self._stream_openai(
+                    user_prompt, self.nvidia_api_key, self.nvidia_model,
+                    self.nvidia_url
+                ):
+                    yielded = True
+                    yield chunk
+                if yielded:
+                    return
+                if self.nvidia_deepseek_api_key:
+                    self.current_model = f"nvidia/{self.nvidia_deepseek_model}"
+                    yielded = False
+                    for chunk in self._stream_openai(
+                        user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
+                        self.nvidia_url
+                    ):
+                        yielded = True
+                        yield chunk
+                    if yielded:
+                        return
             if self.gemini_api_key:
                 self.current_model = f"gemini/{self.gemini_model}"
                 yielded = False
@@ -1162,7 +1125,7 @@ Câu hỏi: {query}"""
                 f"{base_url.rstrip('/')}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=20.0,
+                timeout=settings.openai_stream_timeout,
             ) as response:
                 response.raise_for_status()
                 for line in response.iter_lines():
@@ -1240,8 +1203,9 @@ Câu hỏi: {query}"""
                         {"role": "user", "content": prompt},
                     ],
                     "stream": True,
-                    "options": {"temperature": 0.3, "num_predict": 1024, "num_ctx": 2048},
+                    "options": {"temperature": 0.3, "num_predict": 512, "num_ctx": 2048},
                 },
+                timeout=180.0,
             ) as response:
                 response.raise_for_status()
                 for line in response.iter_lines():

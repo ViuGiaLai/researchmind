@@ -75,7 +75,6 @@ def load_persisted_settings():
         "ollama_model", "claude_model", "deepseek_model", "gemini_model",
         "groq_model", "freemodel_model",
         "model_tier_weak", "model_tier_medium", "model_tier_strong",
-        "llm_mode", "custom_cloud_provider",
     }
 
     session = get_session(state.engine)

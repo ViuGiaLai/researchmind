@@ -61,6 +61,7 @@ export const ChatView: React.FC<{
     mode: string;
   } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const activeChatStreamRef = useRef<{ abort: () => void } | null>(null);
 
   // Auto-cite state
   const [citeStyle, setCiteStyle] = useState<CitationStyle>("apa");
@@ -217,6 +218,18 @@ export const ChatView: React.FC<{
     }
   };
 
+  const handleCancelStream = () => {
+    activeChatStreamRef.current?.abort();
+    activeChatStreamRef.current = null;
+    setIsStreaming(false);
+    setLoading(false);
+    setMessages((prev) => prev.map((m, i) =>
+      i === prev.length - 1 && m.role === "assistant"
+        ? { ...m, content: `${m.content}\n\n[Da huy yeu cau.]` }
+        : m
+    ));
+  };
+
   const handleSend = async (overrideText?: string) => {
     const text = overrideText?.trim() ?? input.trim();
     if (!text || loading) return;
@@ -263,6 +276,7 @@ export const ChatView: React.FC<{
       if (stream && initialMode === "chat") {
         const ids = effectiveIds;
         const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined);
+        activeChatStreamRef.current = streamCtrl;
         const assistantIdx = messages.length + 1;
 
         const loadingMsg = scope === "external" ? "🔍 Đang xử lý câu hỏi..." : "🔍 Đang tra cứu tài liệu...";
@@ -274,6 +288,7 @@ export const ChatView: React.FC<{
         const finishWithError = (errMsg: string) => {
           if (resolved) return;
           resolved = true;
+          activeChatStreamRef.current = null;
           setIsStreaming(false);
           setLoading(false);
           const isOllama = /ollama/i.test(errMsg) || /11434/i.test(errMsg);
@@ -283,10 +298,19 @@ export const ChatView: React.FC<{
           ));
         };
 
+        streamCtrl.onStatus = (status) => {
+          setMessages((prev) => prev.map((m, i) =>
+            i === assistantIdx ? { ...m, content: status } : m
+          ));
+        };
+
         streamCtrl.onChunk = (chunk) => {
           setMessages((prev) => prev.map((m, i) => {
             if (i !== assistantIdx) return m;
             const current = m.content;
+            if (current.startsWith("Dang ")) {
+              return { ...m, content: chunk };
+            }
             if (current === "🔍 Đang tra cứu tài liệu...") {
               return { ...m, content: chunk };
             }
@@ -297,6 +321,7 @@ export const ChatView: React.FC<{
         streamCtrl.onDone = (model, citations) => {
           if (resolved) return;
           resolved = true;
+          activeChatStreamRef.current = null;
           setIsStreaming(false);
           setMessages((prev) => prev.map((m, i) =>
             i === assistantIdx ? { ...m, model_used: model, citations } : m
@@ -307,6 +332,7 @@ export const ChatView: React.FC<{
         streamCtrl.onError = (err) => {
           if (resolved) return;
           resolved = true;
+          activeChatStreamRef.current = null;
           setIsStreaming(false);
           finishWithError(err);
         };
@@ -1331,10 +1357,11 @@ export const ChatView: React.FC<{
         />
         <button
           className="chat-view-send-btn"
-          onClick={() => handleSend()}
-          disabled={loading || !input.trim()}
+          onClick={() => isStreaming ? handleCancelStream() : handleSend()}
+          disabled={!isStreaming && (loading || !input.trim())}
+          title={isStreaming ? "Huy yeu cau dang chay" : "Gui"}
         >
-          {loading ? <IconSpinner size={20} /> : <IconSend size={20} />}
+          {isStreaming ? <IconClose size={20} /> : loading ? <IconSpinner size={20} /> : <IconSend size={20} />}
         </button>
       </div>
 
