@@ -1,7 +1,7 @@
 """
-POST /api/verify — Academic Verification endpoint.
-Kết hợp Local RAG + OpenAlex + Crossref + Semantic Scholar.
-Cung cấp: metadata verification, citation analysis, related research, evolution.
+POST /api/verify â€” Academic Verification endpoint.
+Káº¿t há»£p Local RAG + OpenAlex + Crossref + Semantic Scholar.
+Cung cáº¥p: metadata verification, citation analysis, related research, evolution.
 """
 
 import asyncio
@@ -18,9 +18,9 @@ from db.database import get_session
 from db.models import ChatHistory, Paper
 from loguru import logger
 
-from academic.openalex import get_work_by_doi, get_work_by_title, get_recent_citing_works
-from academic.crossref import get_work_by_doi as crossref_get_work
-from academic.semantic_scholar import get_paper_by_doi as s2_get_by_doi, get_citations as s2_get_citations, get_recommendations as s2_get_recommendations
+from academic.openalex import OpenAlexWork, get_work_by_doi, get_work_by_title, get_recent_citing_works
+from academic.crossref import CrossrefWork, get_work_by_doi as crossref_get_work
+from academic.semantic_scholar import S2Paper, get_paper_by_doi as s2_get_by_doi, get_citations as s2_get_citations, get_recommendations as s2_get_recommendations
 from academic.doi_extractor import extract_doi_from_paper, extract_multiple_dois
 from academic.paper_check import check_papers_ready
 from academic.context_builder import ExternalPaperData
@@ -42,7 +42,7 @@ async def verify_research(request: VerifyRequest = Body(...)):
     t0 = time_mod.time()
 
     if not request.message:
-        raise HTTPException(400, "message không được để trống")
+        raise HTTPException(400, "message khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng")
 
     query = request.message
     paper_ids = request.paper_ids
@@ -173,7 +173,7 @@ def _build_academic_context(
 
     # Local context
     sections.append(
-        "=== TÀI LIỆU CỦA NGƯỜI DÙNG (Local) ===\n"
+        "=== TÃ€I LIá»†U Cá»¦A NGÆ¯á»œI DÃ™NG (Local) ===\n"
         + local_context
     )
 
@@ -183,9 +183,9 @@ def _build_academic_context(
         for p in papers_meta:
             title = p.get("title", "Unknown")
             authors = ", ".join(p.get("authors", [])[:3]) or "N/A"
-            meta_lines.append(f"- {title} (tác giả: {authors})")
+            meta_lines.append(f"- {title} (tÃ¡c giáº£: {authors})")
         if meta_lines:
-            sections.append("=== PAPER ĐƯỢC PHÂN TÍCH ===\n" + "\n".join(meta_lines))
+            sections.append("=== PAPER ÄÆ¯á»¢C PHÃ‚N TÃCH ===\n" + "\n".join(meta_lines))
 
     # External academic data
     if external_data:
@@ -196,14 +196,14 @@ def _build_academic_context(
                 ext_sections.append(block)
         if ext_sections:
             sections.append(
-                "=== DỮ LIỆU HỌC THUẬT BÊN NGOÀI (OpenAlex + Crossref + Semantic Scholar) ===\n"
+                "=== Dá»® LIá»†U Há»ŒC THUáº¬T BÃŠN NGOÃ€I (OpenAlex + Crossref + Semantic Scholar) ===\n"
                 + "\n\n".join(ext_sections)
             )
     else:
         sections.append(
-            "=== DỮ LIỆU HỌC THUẬT BÊN NGOÀI ===\n"
-            "Không tìm thấy DOI hoặc dữ liệu external cho các paper này. "
-            "Hãy trả lời dựa trên tài liệu local và kiến thức của bạn."
+            "=== Dá»® LIá»†U Há»ŒC THUáº¬T BÃŠN NGOÃ€I ===\n"
+            "KhÃ´ng tÃ¬m tháº¥y DOI hoáº·c dá»¯ liá»‡u external cho cÃ¡c paper nÃ y. "
+            "HÃ£y tráº£ lá»i dá»±a trÃªn tÃ i liá»‡u local vÃ  kiáº¿n thá»©c cá»§a báº¡n."
         )
 
     return "\n\n".join(sections)
@@ -219,20 +219,20 @@ def _format_rich_external(ep: ExternalPaperData) -> str:
     if ep.crossref and ep.crossref.is_valid:
         cr = ep.crossref
         if cr.authors:
-            lines.append(f"Tác giả: {', '.join(cr.authors[:3])}" + (" et al." if len(cr.authors) > 3 else ""))
+            lines.append(f"TÃ¡c giáº£: {', '.join(cr.authors[:3])}" + (" et al." if len(cr.authors) > 3 else ""))
         if cr.journal:
-            lines.append(f"Tạp chí: {cr.journal}")
+            lines.append(f"Táº¡p chÃ­: {cr.journal}")
         if cr.year:
-            lines.append(f"Năm: {cr.year}")
+            lines.append(f"NÄƒm: {cr.year}")
         lines.append(f"Citations (Crossref): {cr.citation_count}")
 
     # OpenAlex data
     if ep.openalex:
         oa = ep.openalex
         lines.append(f"Citations (OpenAlex): {oa.citation_count}")
-        lines.append(f"Số paper liên quan: {len(oa.related_work_ids)}")
+        lines.append(f"Sá»‘ paper liÃªn quan: {len(oa.related_work_ids)}")
         if oa.publication_year:
-            lines.append(f"Năm xuất bản: {oa.publication_year}")
+            lines.append(f"NÄƒm xuáº¥t báº£n: {oa.publication_year}")
 
     # Semantic Scholar data
     if ep.semantic_scholar:
@@ -244,32 +244,32 @@ def _format_rich_external(ep: ExternalPaperData) -> str:
 
     # Recent citing works (evolution)
     if ep.recent_citing:
-        lines.append(f"\nCác nghiên cứu gần đây (từ 2022) trích dẫn paper này:")
+        lines.append(f"\nCÃ¡c nghiÃªn cá»©u gáº§n Ä‘Ã¢y (tá»« 2022) trÃ­ch dáº«n paper nÃ y:")
         for i, work in enumerate(ep.recent_citing[:5], 1):
             r_title = work.get("title", "Unknown")
             r_year = work.get("publication_year", "?")
             r_doi = work.get("doi", "")
-            lines.append(f"  {i}. {r_title} ({r_year})" + (f" — doi:{r_doi}" if r_doi else ""))
+            lines.append(f"  {i}. {r_title} ({r_year})" + (f" â€” doi:{r_doi}" if r_doi else ""))
 
     # Semantic Scholar citations
     if ep.s2_citations:
-        lines.append(f"\nCác paper trích dẫn (Semantic Scholar, top 5):")
+        lines.append(f"\nCÃ¡c paper trÃ­ch dáº«n (Semantic Scholar, top 5):")
         for i, cite in enumerate(ep.s2_citations[:5], 1):
-            lines.append(f"  {i}. {cite.title} ({cite.year or '?'}) — {cite.citation_count} citations")
+            lines.append(f"  {i}. {cite.title} ({cite.year or '?'}) â€” {cite.citation_count} citations")
 
     # Semantic Scholar recommendations
     if ep.s2_recommendations:
-        lines.append(f"\nPaper tương tự được đề xuất:")
+        lines.append(f"\nPaper tÆ°Æ¡ng tá»± Ä‘Æ°á»£c Ä‘á» xuáº¥t:")
         for i, rec in enumerate(ep.s2_recommendations[:3], 1):
-            lines.append(f"  {i}. {rec.title} ({rec.year or '?'}) — {rec.citation_count} citations")
+            lines.append(f"  {i}. {rec.title} ({rec.year or '?'}) â€” {rec.citation_count} citations")
 
     return "\n".join(lines)
 
 
 async def _full_lookup(doi: str, fallback_title: str) -> ExternalPaperData:
     """Lookup paper across OpenAlex + Crossref + Semantic Scholar."""
-    oa_cached = cache_get(f"oa:{doi}", TTL_OPENALEX)
-    cr_cached = cache_get(f"cr:{doi}", TTL_CROSSREF)
+    oa_cached = _openalex_from_cache(cache_get(f"oa:{doi}", TTL_OPENALEX))
+    cr_cached = _crossref_from_cache(cache_get(f"cr:{doi}", TTL_CROSSREF))
 
     oa_task = _cached_or_fetch(oa_cached, get_work_by_doi(doi))
     cr_task = _cached_or_fetch(cr_cached, crossref_get_work(doi))
@@ -340,11 +340,42 @@ async def _full_lookup(doi: str, fallback_title: str) -> ExternalPaperData:
 
 async def _cached_or_fetch(cached, coro):
     if cached is not None:
+        coro.close()
         return cached
     try:
         return await asyncio.wait_for(coro, timeout=5.0)
     except (asyncio.TimeoutError, Exception):
         return None
+
+
+def _openalex_from_cache(data: dict | None) -> OpenAlexWork | None:
+    if not data:
+        return None
+    return OpenAlexWork(
+        openalex_id=data.get("openalex_id", ""),
+        doi=data.get("doi"),
+        title=data.get("title", ""),
+        publication_year=data.get("publication_year"),
+        citation_count=data.get("citation_count", 0),
+        related_work_ids=data.get("related_work_ids", []),
+        referenced_work_ids=data.get("referenced_work_ids", []),
+        recent_citing_works=data.get("recent_citing_works", []),
+    )
+
+
+def _crossref_from_cache(data: dict | None) -> CrossrefWork | None:
+    if not data:
+        return None
+    return CrossrefWork(
+        doi=data.get("doi", ""),
+        title=data.get("title", ""),
+        authors=data.get("authors", []),
+        journal=data.get("journal"),
+        year=data.get("year"),
+        publisher=data.get("publisher"),
+        citation_count=data.get("citation_count", 0),
+        is_valid=data.get("is_valid", True),
+    )
 
 
 def _serialize_external(ep: ExternalPaperData) -> dict:
