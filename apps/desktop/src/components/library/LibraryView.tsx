@@ -494,7 +494,7 @@ export const LibraryView: React.FC<{
             </div>
             <div className="library-actions">
               <div className="library-collection-bar">
-                <select
+                {/* <select
                   className="library-collection-select"
                   value={activeCollectionId}
                   onChange={(e) => { setActiveCollectionId(e.target.value); setPage(1); setSelected(new Set()); }}
@@ -506,7 +506,7 @@ export const LibraryView: React.FC<{
                       {collection.name} ({collection.paper_count})
                     </option>
                   ))}
-                </select>
+                </select> */}
                 <button className="library-secondary-btn" onClick={createCollection}>
                   + Collection
                 </button>

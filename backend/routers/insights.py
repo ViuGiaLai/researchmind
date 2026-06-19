@@ -44,28 +44,15 @@ async def find_research_gap(body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    gap_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và chỉ ra:
+    gap_prompt = """Phân tích research gap từ các paper. Với mỗi gap, nêu vấn đề và nguyên nhân chưa giải quyết.
 
 ## 🔍 Research Gap Analysis
+1. **Lỗ hổng nghiên cứu chính** — vấn đề chưa được giải quyết
+2. **Điểm yếu chung** — hạn chế nhiều paper cùng gặp
+3. **Hướng nghiên cứu mới** — 2-3 hướng dựa trên lỗ hổng
+4. **Cơ hội đóng góp** — nghiên cứu sinh có thể làm gì ngay
 
-### 1. Lỗ hổng nghiên cứu chính (Main Research Gaps)
-- Chỉ ra những vấn đề CHƯA được giải quyết hoặc giải quyết chưa tốt trong các paper.
-- Với mỗi lỗ hổng, nêu rõ: vấn đề gì, tại sao chưa giải quyết được.
-
-### 2. Điểm yếu chung (Common Weaknesses)
-- Các hạn chế mà nhiều paper cùng gặp phải.
-- Phương pháp nào còn thiếu sót?
-
-### 3. Hướng nghiên cứu mới (New Research Directions)
-- Đề xuất 2-3 hướng nghiên cứu mới dựa trên các lỗ hổng tìm được.
-- Với mỗi hướng, giải thích tại sao đây là cơ hội tốt.
-
-### 4. Cơ hội đóng góp (Contribution Opportunities)
-- Cụ thể, một nghiên cứu sinh có thể đóng góp gì ngay bây giờ?
-
-Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] khi cần. Trả lời bằng tiếng Việt.
-
-Context từ tài liệu:\n{retrieval.context_text}"""
+Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -116,33 +103,16 @@ async def find_conflicts(body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    conflict_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và chỉ ra:
+    conflict_prompt = """Phân tích mâu thuẫn và xung đột giữa các paper.
 
 ## ⚠️ Conflict Analysis
+1. **Mâu thuẫn trực tiếp** — Paper nào đối lập nhau? Paper A nói X, Paper B nói Y
+2. **Khác biệt phương pháp** — Cùng vấn đề, phương pháp khác nhau?
+3. **Kết quả mâu thuẫn** — Cùng vấn đề, kết quả khác nhau?
+4. **Góc nhìn đa chiều** — Cách tiếp cận từ nhiều hướng?
+5. **Cơ hội từ mâu thuẫn** — Nên ưu tiên giải quyết mâu thuẫn nào?
 
-### 1. Mâu thuẫn trực tiếp (Direct Contradictions)
-- Paper nào đưa ra kết luận/trường phái đối lập nhau?
-- Cụ thể: Paper A nói X, Paper B nói Y — mâu thuẫn ở điểm nào?
-
-### 2. Khác biệt về phương pháp (Methodological Differences)
-- Các paper sử dụng phương pháp khác nhau cho cùng vấn đề?
-- Kết quả khác nhau do phương pháp hay do dữ liệu?
-
-### 3. Kết quả mâu thuẫn (Conflicting Results)
-- Cùng 1 vấn đề nhưng kết quả đo lường khác nhau?
-- Giải thích nguyên nhân có thể.
-
-### 4. Góc nhìn đa chiều (Diverse Perspectives)
-- Các paper có cách tiếp cận vấn đề từ nhiều góc nhìn khác nhau?
-- Góc nhìn nào mạnh/yếu?
-
-### 5. Cơ hội nghiên cứu từ mâu thuẫn (Opportunities)
-- Mâu thuẫn nào tạo cơ hội nghiên cứu tốt nhất?
-- Nên ưu tiên giải quyết mâu thuẫn nào?
-
-Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] cho mỗi claim. Trả lời bằng tiếng Việt.
-
-Context từ tài liệu:\n{retrieval.context_text}"""
+Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -193,33 +163,15 @@ async def suggest_topics(body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    topic_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và đề xuất:
+    topic_prompt = """Phân tích và đề xuất đề tài nghiên cứu dựa trên thư viện paper.
 
 ## 💡 Research Topic Suggestions
+1. **Tổng quan lĩnh vực** — xu hướng chính, lĩnh vực con
+2. **Đề xuất 3-5 đề tài** — mỗi đề tài: tên, mô tả, tầm quan trọng, phương pháp
+3. **Top Pick** — chọn 1 đề tài tốt nhất, giải thích chi tiết
+4. **Bước tiếp theo** — nên đọc thêm paper/phương pháp nào
 
-### 1. Tổng quan lĩnh vực nghiên cứu (Research Landscape)
-- Nhận xét nhanh về lĩnh vực/lĩnh vực con mà các paper đang tập trung.
-- Xu hướng chính hiện tại là gì?
-
-### 2. Đề xuất đề tài nghiên cứu (Suggested Topics)
-Đề xuất 3-5 đề tài nghiên cứu cụ thể, mỗi đề tài bao gồm:
-- **Tên đề tài** (gợi cảm hứng, rõ ràng)
-- **Mô tả ngắn** (2-3 dòng giải thích đề tài)
-- **Tại sao quan trọng** (cơ hội và tiềm năng đóng góp)
-- **Gợi ý phương pháp tiếp cận** (cách triển khai sơ bộ)
-
-### 3. Đề tài có tiềm năng cao nhất (Top Pick)
-- Chọn 1 đề tài từ danh sách trên.
-- Giải thích chi tiết hơn: tại sao đây là cơ hội vàng cho nghiên cứu sinh.
-- Cần đọc thêm tài liệu nào để bắt đầu?
-
-### 4. Gợi ý bước tiếp theo (Next Steps)
-- Nên đọc thêm paper nào (dựa trên các paper hiện có)?
-- Phương pháp nào nên tìm hiểu thêm?
-
-Lưu ý: Đề xuất phải khả thi, cụ thể và dựa trên nội dung thực tế từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] khi cần. Trả lời bằng tiếng Việt.
-
-Context từ tài liệu:\n{retrieval.context_text}"""
+Trích dẫn [Tên Paper] khi cần. Trả lời tiếng Việt."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -270,42 +222,16 @@ async def find_evolution_map(body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    evolution_prompt = f"""Dựa trên các đoạn văn sau từ nhiều paper khác nhau, hãy phân tích và vẽ bản đồ phát triển nghiên cứu.
-Lưu ý: Sắp xếp các paper/giai đoạn theo thứ tự thời gian (cũ nhất → mới nhất) dựa trên năm xuất bản hoặc nội dung.
+    evolution_prompt = """Phân tích và vẽ bản đồ phát triển nghiên cứu. Sắp xếp theo thời gian (cũ → mới).
 
-## 🧬 Evolution Map — Bản đồ phát triển nghiên cứu
+## 🧬 Evolution Map
+1. **Tổng quan xu hướng** — sự phát triển của lĩnh vực
+2. **Dòng phát triển ý tưởng** — từng giai đoạn: paper đại diện, ý tưởng chính, điểm mới
+3. **Bước ngoặt quan trọng** — phát hiện/phương pháp thay đổi hướng nghiên cứu
+4. **Sơ đồ quan hệ** — paper nào kế thừa/liên quan đến nhau
+5. **Dự đoán tương lai** — xu hướng tiếp theo, kỹ năng cần chuẩn bị
 
-### 1. Tổng quan xu hướng (Trend Overview)
-- Nhận xét tổng quan về sự phát triển của lĩnh vực nghiên cứu trong các paper.
-- Xu hướng chính theo thời gian là gì?
-
-### 2. Dòng phát triển ý tưởng (Idea Evolution Chain)
-Liệt kê theo thứ tự thời gian (cũ → mới):
-- **Giai đoạn 1** (Paper cũ nhất): Ý tưởng ban đầu, nền tảng
-- **Giai đoạn 2**: Phát triển tiếp, mở rộng hoặc cải tiến
-- **Giai đoạn 3**: Đóng góp mới, bước ngoặt
-- **Giai đoạn 4** (Paper mới nhất): Xu hướng hiện tại, tương lai
-
-Với mỗi giai đoạn, nêu rõ:
-- Paper nào đại diện (tên + năm nếu có)
-- Ý tưởng chính của giai đoạn
-- So với giai đoạn trước, có gì mới/khác?
-
-### 3. Các bước ngoặt quan trọng (Key Milestones)
-- Những phát hiện nào đã thay đổi hướng nghiên cứu?
-- Phương pháp nào đã tạo đột phá?
-
-### 4. Sơ đồ quan hệ (Relationship Map)
-- Paper nào kế thừa/yếu tố từ paper nào?
-- Có paper nào độc lập nhưng cùng chủ đề?
-
-### 5. Dự đoán xu hướng tương lai (Future Trends)
-- Dựa trên evolution map, xu hướng tiếp theo sẽ là gì?
-- Researchers nên chuẩn bị kỹ năng/phương pháp gì?
-
-Lưu ý: Phân tích dựa CHỈ trên thông tin từ các đoạn đã cung cấp. Trích dẫn nguồn [Tên Paper] cho mỗi giai đoạn. Trả lời bằng tiếng Việt.
-
-Context từ tài liệu:\n{retrieval.context_text}"""
+Trích dẫn [Tên Paper] cho mỗi giai đoạn. Trả lời tiếng Việt."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,

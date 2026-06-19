@@ -61,12 +61,14 @@ class Settings(BaseSettings):
 
     # LLM
     provider_timeout: float = 60.0
+    nvidia_timeout: float = 8.0
+    openai_stream_timeout: float = 12.0
     ollama_url: str = "http://localhost:11434"
     # Model tiers: yếu (3b), TB (7b), mạnh (14b)
     model_tier_weak: str = "qwen2.5:3b"
     model_tier_medium: str = "qwen2.5:7b"
     model_tier_strong: str = "qwen2.5:14b"
-    ollama_model: str = "qwen2.5:7b"
+    ollama_model: str = "qwen2.5:3b"
     
     # Claude Cloud
     claude_api_key: str = ""
@@ -89,7 +91,7 @@ class Settings(BaseSettings):
     
     # Groq Cloud
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-8b-instant"
+    groq_model: str = "llama-3.3-70b-versatile"
 
     # FreeModel.dev Cloud (OpenAI-compatible proxy)
     freemodel_api_key: str = ""

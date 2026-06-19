@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Brain,
   Search,
   Menu,
   X,
@@ -77,7 +76,16 @@ function wrapIcon(
 // ---------------------------------------------------------------------------
 // Exported icon components
 // ---------------------------------------------------------------------------
-export const IconBrain = wrapIcon(Brain, "icon-brain", true);
+export const IconBrain: React.FC<IconProps> = ({ size = 20, className = "", style }) => (
+  <img
+    src="/icon_chatbox.ico"
+    alt="brain"
+    width={size}
+    height={size}
+    className={`icon-brain-img ${className}`}
+    style={{ width: size, height: size, objectFit: "contain", ...style }}
+  />
+);
 export const IconSearch = wrapIcon(Search, "icon-search");
 export const IconMenu = wrapIcon(Menu, "icon-menu");
 export const IconClose = wrapIcon(X, "icon-close");

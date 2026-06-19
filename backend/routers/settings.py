@@ -220,7 +220,7 @@ async def validate_api_key(body: dict = Body(...)):
             elif provider == "groq":
                 url = "https://api.groq.com/openai/v1/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                model_name = model or "llama-3.1-8b-instant"
+                model_name = model or "llama-3.3-70b-versatile"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
                 res = await client.post(url, json=payload, headers=headers)
                 if res.status_code == 200:

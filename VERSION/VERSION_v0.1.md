@@ -58,7 +58,7 @@
 
 ```
 NVIDIA NIM (moonshotai/kimi-k2.6) → FreeModel.dev (gpt-4o-mini)
-  → Groq (llama-3.1-8b-instant) → Gemini (gemini-1.5-flash)
+  → Groq (llama-3.3-70b-versatile) → Gemini (gemini-1.5-flash)
   → Ollama (qwen2.5:7b - local fallback cuối cùng)
 ```
 
@@ -199,7 +199,7 @@ User gửi câu hỏi + chọn paper
       → cloud_free chain:
           1. NVIDIA NIM (moonshotai/kimi-k2.6)     # ✅ Hoạt động (~5-12s)
           2. FreeModel.dev (gpt-4o-mini)            # ✅ Hoạt động (~5-11s)
-          3. Groq (llama-3.1-8b-instant)            # ⚠️ 401 key
+          3. Groq (llama-3.3-70b-versatile)            # ⚠️ 401 key
           4. Gemini (gemini-1.5-flash)              # ⚠️ Key sai format
           5. Ollama (qwen2.5:7b)                    # ✅ Local fallback
     → Save ChatHistory to SQLite
@@ -406,7 +406,7 @@ Request → NVIDIA (1st) → nếu lỗi → FreeModel (2nd) → nếu lỗi →
 |---|---|---|---|---|
 | **NVIDIA NIM** | `moonshotai/kimi-k2.6` | ✅ Hoạt động | ~5-12s | Key valid, model tồn tại |
 | **FreeModel.dev** | `gpt-4o-mini` | ✅ Hoạt động | ~5-11s | Key valid, ổn định nhất |
-| **Groq** | `llama-3.1-8b-instant` | ❌ 401 | — | Key gsk_... bị invalid, cần key mới |
+| **Groq** | `llama-3.3-70b-versatile` | ❌ 401 | — | Groq key bị invalid, cần key mới |
 | **Gemini** | `gemini-1.5-flash` | ❌ Sai format | — | Key OAuth token (AQ.Ab8...), cần key AIza... |
 | **Ollama** | `qwen2.5:7b` | ✅ Local | ~2-5s | Cần GPU để nhanh hơn |
 | **DeepSeek** | `deepseek-chat` | ✅ Hoạt động | (cloud_custom) |
@@ -427,7 +427,7 @@ API keys được lưu trong `.env` và **không bao giờ** trả về qua API:
 
 | # | Vấn đề | Nguyên nhân | Giải pháp |
 |---|---|---|---|
-| 1 | **Groq key 401** | Key `gsk_TIWorg0...` bị invalid | Copy key mới từ https://console.groq.com/keys |
+| 1 | **Groq key 401** | Groq key bị invalid | Copy key mới từ https://console.groq.com/keys |
 | 2 | **Gemini key sai format** | Key là OAuth token, không phải Gemini API key | Lấy key AIza... từ https://aistudio.google.com/apikey |
 | 3 | **Chat response chậm** (8-15s) | NVIDIA API latency + cross-encoder CPU | Timing log đã thêm → cần phân tích bottleneck |
 | 4 | **Import folder không dùng được trên Tauri** | `webkitdirectory` không hoạt động trong Tauri webview | Cần dùng `invoke('select_folder')` Tauri command |

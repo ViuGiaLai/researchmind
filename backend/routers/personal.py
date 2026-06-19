@@ -267,35 +267,21 @@ async def get_daily_reader():
                 interests_context = f"Top interests: {', '.join(top_interests)}" if top_interests else "No tags yet"
                 recent_context = f"Recent chat topics: {query_text[:500]}" if query_text else "No recent chat"
 
-                daily_prompt = f"""Bạn là trợ lý nghiên cứu cá nhân. Dựa trên thư viện paper và sở thích của người dùng, hãy gợi ý paper nên đọc HÔM NAY.
+                daily_prompt = f"""Bạn là trợ lý nghiên cứu cá nhân. Gợi ý 2-3 paper nên đọc hôm nay.
 
-## Thư viện paper:
-{papers_context}
+Sở thích: {interests_context}
+Hoạt động gần đây: {recent_context}
 
-## Sở thích:
-{interests_context}
-
-## Hoạt động gần đây:
-{recent_context}
-
-## YÊU CẦU:
-Hãy chọn 2-3 paper phù hợp nhất để đọc hôm nay. Với mỗi paper, hãy:
-1. Giải thích TẠI SAO paper này phù hợp với sở thích của người dùng
-2. Đọc paper này sẽ giúp ích gì cho nghiên cứu của họ
-3. Gợi ý đọc paper nào TIẾP THEO sau khi đọc xong
-
-Trả lời bằng tiếng Việt, ngắn gọn, súc tích. Dùng markdown với headings.
-
-Nếu không có paper nào phù hợp, hãy gợi ý:
-- Nên import thêm paper về chủ đề nào
-- Hoặc nên bắt đầu đọc paper chưa đọc nào trước"""
+Với mỗi paper: giải thích tại sao phù hợp, giúp ích gì, nên đọc gì tiếp theo.
+Nếu không có paper phù hợp: gợi ý import thêm chủ đề gì.
+Dùng markdown headings. Trả lời tiếng Việt."""
 
                 try:
                     generation = state.generator.generate(
                         query=daily_prompt,
                         context_text=papers_context,
                     )
-                    if generation and generation.content:
+                    if generation and generation.content and generation.finish_reason != "error":
                         daily_suggestion = {
                             "suggestion": generation.content,
                             "model_used": generation.model_used,
