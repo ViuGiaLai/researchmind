@@ -1,13 +1,15 @@
 """
-GET /api/academic/doi   → tra DOI nhanh qua Crossref
-GET /api/academic/paper → tra paper nhanh qua OpenAlex
+GET  /api/academic/doi          → tra DOI nhanh qua Crossref
+GET  /api/academic/paper        → tra paper nhanh qua OpenAlex
+DELETE /api/academic/cache/{doi} → xoá cache cho DOI cụ thể
 Dùng cho LibraryView: hiển thị citation count bên cạnh paper.
 """
 from fastapi import APIRouter, Query
+from loguru import logger
 
 from academic.openalex import get_work_by_doi as oa_get
 from academic.crossref import get_work_by_doi as cr_get
-from academic.cache import cache_get, cache_set, TTL_OPENALEX, TTL_CROSSREF
+from academic.cache import cache_get, cache_set, cache_invalidate_doi, TTL_OPENALEX, TTL_CROSSREF
 
 router = APIRouter(prefix="/api/academic", tags=["academic"])
 
@@ -59,3 +61,11 @@ async def lookup_paper(doi: str = Query(...)):
         cache_set(f"oa:{doi}", "openalex", data)
         return {"source": "openalex", "data": data}
     return {"source": "not_found", "data": None}
+
+
+@router.delete("/cache/{doi:path}")
+async def invalidate_cache(doi: str):
+    """Xoá cache cho DOI cụ thể, lần truy vấn sau sẽ fetch lại từ API."""
+    cache_invalidate_doi(doi)
+    logger.info(f"VERIFY_CACHE invalidated doi={doi}")
+    return {"status": "ok", "doi": doi, "message": f"Đã xoá cache cho {doi}"}

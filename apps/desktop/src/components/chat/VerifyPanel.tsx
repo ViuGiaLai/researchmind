@@ -1,8 +1,10 @@
-import { ExternalSource } from "../../lib/api";
+import { useState } from "react";
+import { ExternalSource, api } from "../../lib/api";
 
 interface VerifyPanelProps {
   sources: ExternalSource[];
   status: "full" | "partial" | "local_only";
+  onRefresh?: (doi: string) => void;
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
@@ -11,7 +13,9 @@ const STATUS_MESSAGES: Record<string, string> = {
   local_only: "Không đủ bằng chứng học thuật bên ngoài để xác thực claim này.",
 };
 
-export function VerifyPanel({ sources, status }: VerifyPanelProps) {
+export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
+  const [refreshingDoi, setRefreshingDoi] = useState<string | null>(null);
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
   if (status === "local_only" || sources.length === 0) {
     return (
       <div
@@ -78,6 +82,9 @@ export function VerifyPanel({ sources, status }: VerifyPanelProps) {
               fontSize: "0.78rem",
               color: "var(--color-text-muted, #94a3b8)",
               marginBottom: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
             <a
@@ -88,7 +95,47 @@ export function VerifyPanel({ sources, status }: VerifyPanelProps) {
             >
               doi:{src.doi}
             </a>
+            <button
+              onClick={async () => {
+                setRefreshingDoi(src.doi);
+                setRefreshMsg(null);
+                try {
+                  await api.invalidateAcademicCache(src.doi);
+                  setRefreshMsg("Đã xoá cache, hãy gửi lại truy vấn để lấy dữ liệu mới");
+                  onRefresh?.(src.doi);
+                } catch {
+                  setRefreshMsg("Lỗi khi xoá cache");
+                } finally {
+                  setRefreshingDoi(null);
+                }
+              }}
+              disabled={refreshingDoi === src.doi}
+              title="Xoá cache và refresh metadata"
+              style={{
+                background: "transparent",
+                border: "1px solid rgba(148, 163, 184, 0.2)",
+                borderRadius: 4,
+                color: "var(--color-text-muted, #94a3b8)",
+                cursor: "pointer",
+                fontSize: "0.7rem",
+                padding: "1px 6px",
+                opacity: refreshingDoi === src.doi ? 0.5 : 1,
+              }}
+            >
+              {refreshingDoi === src.doi ? "⏳" : "🔄 Refresh"}
+            </button>
           </div>
+          {refreshMsg && refreshingDoi !== src.doi && (
+            <div
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--color-success, #10b981)",
+                marginBottom: 6,
+              }}
+            >
+              {refreshMsg}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {src.openalex && (

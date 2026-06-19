@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { api, ChatResponse, CitationEntry, VerifyResponse } from "../../lib/api";
+import { api, ChatResponse, CitationEntry, Collection, VerifyResponse } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
@@ -30,7 +30,7 @@ interface Message {
   model_used?: string;
 }
 
-type Scope = "current" | "library" | "external";
+type Scope = "current" | "library" | "collection" | "external";
 type CitationStyle = "apa" | "ieee" | "vancouver";
 
 const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
@@ -73,6 +73,8 @@ export const ChatView: React.FC<{
   const [exportingSynthesis, setExportingSynthesis] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const [scope, setScope] = useState<Scope>("current");
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [activeCollectionId, setActiveCollectionId] = useState("");
   const [showPaperPicker, setShowPaperPicker] = useState(false);
   const [paperSearch, setPaperSearch] = useState("");
   const [tempPaperIds, setTempPaperIds] = useState<string[]>([]);
@@ -81,6 +83,15 @@ export const ChatView: React.FC<{
 
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [pdfPaperUrl, setPdfPaperUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.listCollections().then((res) => {
+      setCollections(res.collections);
+      if (!activeCollectionId && res.collections.length > 0) {
+        setActiveCollectionId(res.collections[0].id);
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (paperIds.length === 1) {
@@ -215,9 +226,10 @@ export const ChatView: React.FC<{
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    // Phân biệt rõ 3 chế độ scope:
+    // Phân biệt rõ các chế độ scope:
     // - current: chỉ tìm trong paper(s) đã chọn (yêu cầu phải có paperIds)
     // - library: tìm trong tất cả papers
+    // - collection: tìm trong collection/project đã chọn
     // - external: không dùng tài liệu, AI tự trả lời
     let effectiveIds: string[] | undefined;
     if (scope === "current") {
@@ -233,6 +245,16 @@ export const ChatView: React.FC<{
       effectiveIds = paperIds;
     } else if (scope === "library") {
       effectiveIds = undefined; // search tất cả papers
+    } else if (scope === "collection") {
+      if (!activeCollectionId) {
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: "❌ **Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước khi chat theo phạm vi này.",
+        }]);
+        setLoading(false);
+        return;
+      }
+      effectiveIds = undefined;
     } else {
       effectiveIds = undefined; // external: không filter
     }
@@ -240,7 +262,7 @@ export const ChatView: React.FC<{
     try {
       if (stream && initialMode === "chat") {
         const ids = effectiveIds;
-        const streamCtrl = api.chatStream(text, ids, scope);
+        const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined);
         const assistantIdx = messages.length + 1;
 
         const loadingMsg = scope === "external" ? "🔍 Đang xử lý câu hỏi..." : "🔍 Đang tra cứu tài liệu...";
@@ -291,15 +313,15 @@ export const ChatView: React.FC<{
       } else {
         let res: ChatResponse;
         if (initialMode === "review") {
-          res = await api.review(text, effectiveIds);
+          res = await api.review(text, effectiveIds, scope === "collection" ? activeCollectionId : undefined);
         } else if (initialMode === "critique") {
-          res = await api.critique(text, effectiveIds);
+          res = await api.critique(text, effectiveIds, scope === "collection" ? activeCollectionId : undefined);
         } else if (initialMode === "debate") {
-          res = await api.debate(text, effectiveIds);
+          res = await api.debate(text, effectiveIds, scope === "collection" ? activeCollectionId : undefined);
         } else if (initialMode === "verify") {
           if (stream) {
             const ids = effectiveIds;
-            const streamCtrl = api.verifyStream(text, ids);
+            const streamCtrl = api.verifyStream(text, ids, "verify", scope === "collection" ? activeCollectionId : undefined);
             const assistantIdx = messages.length + 1;
 
             setMessages((prev) => [...prev, { role: "assistant", content: "🔍 Đang tra cứu tài liệu..." }]);
@@ -354,7 +376,7 @@ export const ChatView: React.FC<{
             // Early return — skip the non-streaming res assignment below
             return;
           } else {
-            const vres = await api.verify(text, effectiveIds);
+            const vres = await api.verify(text, effectiveIds, scope === "collection" ? activeCollectionId : undefined);
             setVerifyResult(vres);
             res = {
               answer: vres.answer,
@@ -365,7 +387,7 @@ export const ChatView: React.FC<{
             };
           }
         } else {
-          res = await api.chat(text, effectiveIds, scope);
+          res = await api.chat(text, effectiveIds, scope, scope === "collection" ? activeCollectionId : undefined);
         }
         const assistantMsg: Message = {
           role: "assistant",
@@ -436,7 +458,7 @@ export const ChatView: React.FC<{
       setMessages((prev) => [...prev, { role: "user", content: act.query }]);
       setLoading(true);
       try {
-        const vres = await api.verify(act.query, quickIds);
+        const vres = await api.verify(act.query, quickIds, scope === "collection" ? activeCollectionId : undefined);
         setVerifyResult(vres);
         setMessages((prev) => [...prev, {
           role: "assistant",
@@ -939,12 +961,37 @@ export const ChatView: React.FC<{
           </button>
           <button
             type="button"
+            className={`chat-view-scope-tab ${scope === "collection" ? "active" : ""}`}
+            onClick={() => setScope("collection")}
+          >
+            🗂 Collection
+          </button>
+          <button
+            type="button"
             className={`chat-view-scope-tab ${scope === "external" ? "active" : ""}`}
             onClick={() => setScope("external")}
           >
             🌐 Nghiên cứu bên ngoài
           </button>
         </div>
+
+        {scope === "collection" && (
+          <div className="chat-view-selected-papers-tray">
+            <select
+              className="chat-collection-select"
+              value={activeCollectionId}
+              onChange={(e) => setActiveCollectionId(e.target.value)}
+            >
+              {collections.length === 0 ? (
+                <option value="">Chưa có collection</option>
+              ) : collections.map((collection) => (
+                <option key={collection.id} value={collection.id}>
+                  {collection.name} ({collection.paper_count})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {scope === "current" && (
           <div className="chat-view-selected-papers-tray">
@@ -1168,6 +1215,9 @@ export const ChatView: React.FC<{
                 <VerifyPanel
                   sources={verifyResult.external_sources}
                   status={verifyResult.verify_status}
+                  onRefresh={(doi) => {
+                    toast.addToast("success", `Đã xoá cache cho ${doi}. Hãy gửi lại truy vấn để làm mới dữ liệu.`);
+                  }}
                 />
               )}
 

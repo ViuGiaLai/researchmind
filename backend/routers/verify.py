@@ -32,8 +32,26 @@ router = APIRouter(prefix="/api/verify", tags=["verify"])
 class VerifyRequest(BaseModel):
     message: str
     paper_ids: list[str] = []
+    collection_id: Optional[str] = None
     session_id: Optional[str] = None
     stream: bool = False
+
+
+def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
+    if not collection_id:
+        return []
+    from db.models import CollectionPaper
+
+    session = get_session(state.engine)
+    try:
+        return [
+            row.paper_id
+            for row in session.query(CollectionPaper.paper_id)
+            .filter(CollectionPaper.collection_id == collection_id)
+            .all()
+        ]
+    finally:
+        session.close()
 
 
 @router.post("")
@@ -46,6 +64,8 @@ async def verify_research(request: VerifyRequest = Body(...)):
 
     query = request.message
     paper_ids = request.paper_ids
+    if request.collection_id and not paper_ids:
+        paper_ids = _resolve_collection_paper_ids(request.collection_id)
     session_id = request.session_id or "verify"
     do_stream = request.stream
 
@@ -53,13 +73,16 @@ async def verify_research(request: VerifyRequest = Body(...)):
     if paper_error:
         return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0, "external_sources": [], "verify_status": "local_only"}
 
+    t_retrieve = time_mod.time()
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
         query=query,
         paper_ids=paper_ids,
         top_k=5,
     )
+    t_retrieve = time_mod.time() - t_retrieve
 
+    t_doi = time_mod.time()
     papers_meta = await asyncio.to_thread(_get_papers_metadata, paper_ids)
 
     # --- Extract DOIs ---
@@ -78,12 +101,23 @@ async def verify_research(request: VerifyRequest = Body(...)):
     for doi in extra_dois:
         if doi not in [d for d, _ in dois_to_lookup]:
             dois_to_lookup.append((doi, ""))
+    t_doi = time_mod.time() - t_doi
 
     # --- Lookup ALL sources ---
     external_data = []
     verify_status = "local_only"
 
+    t_lookup = 0.0
+    cache_status_by_doi: dict[str, dict[str, str]] = {}
+
     if dois_to_lookup:
+        for doi, _ in dois_to_lookup[:3]:
+            cache_status_by_doi[doi] = {
+                "oa": "hit" if cache_get(f"oa:{doi}", TTL_OPENALEX) else "miss",
+                "cr": "hit" if cache_get(f"cr:{doi}", TTL_CROSSREF) else "miss",
+            }
+
+        t_lookup = time_mod.time()
         tasks = [_full_lookup(doi, title) for doi, title in dois_to_lookup[:3]]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -101,6 +135,13 @@ async def verify_research(request: VerifyRequest = Body(...)):
                 for ep in external_data
             )
             verify_status = "full" if has_full_meta else ("partial" if has_any else "local_only")
+
+        t_lookup = time_mod.time() - t_lookup
+
+        # Log cache hit/miss for each DOI
+        for doi, _ in dois_to_lookup[:3]:
+            cache_status = cache_status_by_doi.get(doi, {"oa": "miss", "cr": "miss"})
+            logger.info(f"VERIFY_CACHE doi={doi} oa={cache_status['oa']} cr={cache_status['cr']}")
 
     external_sources_json = [_serialize_external(ep) for ep in external_data]
 
@@ -120,16 +161,24 @@ async def verify_research(request: VerifyRequest = Body(...)):
                 verify_status=verify_status,
                 papers_used=retrieval.papers_used,
                 session_id=session_id,
+                timing={
+                    "start": t0,
+                    "retrieve": t_retrieve,
+                    "doi_extract": t_doi,
+                    "lookup": t_lookup,
+                },
             ),
             media_type="text/event-stream",
         )
 
+    t_generate = time_mod.time()
     generation = await asyncio.to_thread(
         state.generator.generate_verify,
         query=query,
         context_text=combined_context,
         external_data_text="",
     )
+    t_generate = time_mod.time() - t_generate
 
     session = get_session(state.engine)
     try:
@@ -152,7 +201,8 @@ async def verify_research(request: VerifyRequest = Body(...)):
     finally:
         session.close()
 
-    logger.info(f"VERIFY: total={time_mod.time()-t0:.2f}s status={verify_status}")
+    t_total = time_mod.time() - t0
+    logger.info(f"VERIFY_TIMING retrieve={t_retrieve:.2f}s doi_extract={t_doi:.2f}s lookup={t_lookup:.2f}s generate={t_generate:.2f}s total={t_total:.2f}s status={verify_status}")
 
     return {
         "answer": generation.content,
@@ -425,7 +475,10 @@ def _serialize_external(ep: ExternalPaperData) -> dict:
     return result
 
 
-def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id):
+def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id, timing=None):
+    import time as time_mod
+    t_stream = time_mod.time()
+    timing = timing or {}
     full_response = ""
     model_used = ""
 
@@ -468,6 +521,18 @@ def _stream_verify_response(query, combined_context, external_sources_json, veri
         db.close()
 
     yield f"data: {json.dumps({'type': 'done', 'model_used': model_used, 'citations': citations, 'external_sources': external_sources_json, 'verify_status': verify_status})}\n\n"
+
+    stream_generate = time_mod.time() - t_stream
+    total = time_mod.time() - timing["start"] if timing.get("start") else stream_generate
+    logger.info(
+        "VERIFY_TIMING "
+        f"retrieve={timing.get('retrieve', 0.0):.2f}s "
+        f"doi_extract={timing.get('doi_extract', 0.0):.2f}s "
+        f"lookup={timing.get('lookup', 0.0):.2f}s "
+        f"stream_generate={stream_generate:.2f}s "
+        f"total={total:.2f}s "
+        f"status={verify_status}"
+    )
 
 
 def _get_papers_metadata(paper_ids: list[str]) -> list[dict]:
