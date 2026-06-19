@@ -190,7 +190,7 @@ export const api = {
   health: () => request<HealthResponse>("GET", "/api/health"),
 
   // Papers
-  listPapers: (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean, extra?: {
+  listPapers: async (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean, extra?: {
     collection_id?: string;
     author?: string;
     year_from?: number | null;
@@ -199,20 +199,49 @@ export const api = {
     sort_by?: string;
     order?: string;
   }) => {
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (status) params.set("status", status);
-    if (readStatus) params.set("read_status", readStatus);
-    if (starred !== undefined) params.set("starred", String(starred));
-    if (extra?.collection_id) params.set("collection_id", extra.collection_id);
-    if (extra?.author) params.set("author", extra.author);
-    if (extra?.year_from) params.set("year_from", String(extra.year_from));
-    if (extra?.year_to) params.set("year_to", String(extra.year_to));
-    if (extra?.tag) params.set("tag", extra.tag);
-    if (extra?.sort_by) params.set("sort_by", extra.sort_by);
-    if (extra?.order) params.set("order", extra.order);
-    return request<{ total: number; page: number; limit: number; papers: Paper[] }>(
-      "GET", `/api/papers?${params}`
-    );
+    const backendLimit = 100;
+    const buildParams = (requestPage: number, requestLimit: number) => {
+      const params = new URLSearchParams({ page: String(requestPage), limit: String(requestLimit) });
+      if (status) params.set("status", status);
+      if (readStatus) params.set("read_status", readStatus);
+      if (starred !== undefined) params.set("starred", String(starred));
+      if (extra?.collection_id) params.set("collection_id", extra.collection_id);
+      if (extra?.author) params.set("author", extra.author);
+      if (extra?.year_from) params.set("year_from", String(extra.year_from));
+      if (extra?.year_to) params.set("year_to", String(extra.year_to));
+      if (extra?.tag) params.set("tag", extra.tag);
+      if (extra?.sort_by) params.set("sort_by", extra.sort_by);
+      if (extra?.order) params.set("order", extra.order);
+      return params;
+    };
+
+    if (limit <= backendLimit) {
+      return request<{ total: number; page: number; limit: number; papers: Paper[] }>(
+        "GET", `/api/papers?${buildParams(page, limit)}`
+      );
+    }
+
+    const startIndex = (page - 1) * limit;
+    let backendPage = Math.floor(startIndex / backendLimit) + 1;
+    let skip = startIndex % backendLimit;
+    const papers: Paper[] = [];
+    let total = 0;
+
+    while (papers.length < limit) {
+      const res = await request<{ total: number; page: number; limit: number; papers: Paper[] }>(
+        "GET", `/api/papers?${buildParams(backendPage, backendLimit)}`
+      );
+      total = res.total;
+      const batch = skip > 0 ? res.papers.slice(skip) : res.papers;
+      papers.push(...batch);
+      if (res.papers.length < backendLimit || startIndex + papers.length >= total) {
+        break;
+      }
+      backendPage += 1;
+      skip = 0;
+    }
+
+    return { total, page, limit, papers: papers.slice(0, limit) };
   },
 
   getPaper: (id: string) => request<Paper & { chunk_count: number }>("GET", `/api/papers/${id}`),
