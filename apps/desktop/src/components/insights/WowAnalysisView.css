@@ -124,7 +124,7 @@
   background: rgba(var(--color-surface-rgb), 0.85);
   box-shadow: 0 8px 16px rgba(var(--color-primary-rgb), 0.15);
   transform: translateY(-2px);
-}}
+}
 
 .wow-dropzone-icon {
   margin-bottom: var(--space-md, 16px);

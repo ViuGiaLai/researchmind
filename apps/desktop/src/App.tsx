@@ -44,7 +44,7 @@ function App() {
       setCheckingSetup(false);
     } catch {
       retryCountRef.current += 1;
-      if (retryCountRef.current < 5) {
+      if (retryCountRef.current < 30) {
         setTimeout(checkFirstRun, 2000);
       } else {
         setCheckingSetup(false);

@@ -290,17 +290,34 @@ Nếu không có paper nào phù hợp, hãy gợi ý:
 - Nên import thêm paper về chủ đề nào
 - Hoặc nên bắt đầu đọc paper chưa đọc nào trước"""
 
-            generation = state.generator.generate(
-                query=daily_prompt,
-                context_text=papers_context,
-            )
+                try:
+                    generation = state.generator.generate(
+                        query=daily_prompt,
+                        context_text=papers_context,
+                    )
+                    if generation and generation.content:
+                        daily_suggestion = {
+                            "suggestion": generation.content,
+                            "model_used": generation.model_used,
+                        }
+                except Exception as e:
+                    logger.warning(f"Daily reader AI suggestion failed, using fallback: {e}")
 
-            daily_suggestion = {
-                "suggestion": generation.content,
-                "model_used": generation.model_used,
-            }
-            _daily_cache["data"] = daily_suggestion
-            _daily_cache["date"] = today
+                if daily_suggestion is None:
+                    fallback_titles = [
+                        p.title or p.filename
+                        for p in (unread_papers or reading_papers or all_papers)[:3]
+                    ]
+                    if fallback_titles:
+                        daily_suggestion = {
+                            "suggestion": "## Gợi ý đọc hôm nay\n\n" + "\n".join(
+                                f"- {title}" for title in fallback_titles
+                            ),
+                            "model_used": "local-fallback",
+                        }
+
+                _daily_cache["data"] = daily_suggestion
+                _daily_cache["date"] = today
 
         def paper_priority(p):
             score = 0

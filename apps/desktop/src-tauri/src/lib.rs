@@ -1,7 +1,9 @@
 use log::{error, info};
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -16,6 +18,11 @@ fn backend_binary_name() -> &'static str {
 /// Check if a file is valid (exists and non-empty).
 fn is_valid_executable(path: &std::path::Path) -> bool {
     path.exists() && path.metadata().map(|m| m.len() > 0).unwrap_or(false)
+}
+
+fn is_backend_port_open() -> bool {
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8765));
+    TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
 }
 
 /// Try to locate the backend executable.
@@ -58,7 +65,7 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
     // Find python: prefer venv, then PATH
     let cargo_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let python = {
-        let venv = cargo_dir.join("../../.venv/Scripts/python.exe");
+        let venv = cargo_dir.join("../../../.venv/Scripts/python.exe");
         if venv.exists() {
             info!("Using venv python at: {:?}", venv);
             venv.to_string_lossy().to_string()
@@ -70,7 +77,8 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
 
     // Try multiple candidate paths for main.py
     let candidates = [
-        cargo_dir.join("../../backend/main.py"),                    // manifest dir
+        cargo_dir.join("../../../backend/main.py"),                  // repo root from apps/desktop/src-tauri
+        cargo_dir.join("../../backend/main.py"),                     // legacy layout
         PathBuf::from("backend/main.py"),                           // current working dir
         PathBuf::from("../backend/main.py"),                        // one level up
     ];
@@ -102,6 +110,11 @@ struct BackendProcess(Mutex<Option<Child>>);
 
 /// Try to spawn the backend (bundled exe or python main.py).
 fn spawn_backend(app: &tauri::AppHandle) -> Option<Child> {
+    if is_backend_port_open() {
+        info!("Backend already running on http://127.0.0.1:8765; using existing process");
+        return None;
+    }
+
     let (program, args, cwd) = find_backend(Some(app))?;
 
     let mut command = Command::new(&program);
