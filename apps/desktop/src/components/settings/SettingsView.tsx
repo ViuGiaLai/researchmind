@@ -1197,7 +1197,7 @@ export const SettingsView: React.FC = () => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {testingEmbedding ? "⏳" : embeddingTestResult === "success" ? "✅ OK" : embeddingTestResult === "error" ? "❌ Lỗi" : "🔌 Kiểm tra"}
+                  {testingEmbedding ? "⏳" : embeddingTestResult === "success" ? "✅ OK" : embeddingTestResult === "error" ? "❌ Lỗi" : "Kết nối"}
                 </button>
               )}
               {embeddingTestMsg && (

@@ -286,10 +286,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     import uvicorn
+    reload_enabled = os.environ.get("RESEARCHMIND_BACKEND_RELOAD", "1").lower() in ("1", "true", "yes")
     uvicorn.run(
         "main:app",
         host=settings.host,
         port=settings.port,
-        reload=True,
+        reload=reload_enabled,
         log_level="info",
     )

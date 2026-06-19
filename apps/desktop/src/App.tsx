@@ -24,6 +24,7 @@ function App() {
   const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate" | "verify">("chat");
   const [showSetup, setShowSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
   const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
   const retryCountRef = React.useRef(0);
 
@@ -34,6 +35,7 @@ function App() {
   const checkFirstRun = async () => {
     try {
       const h = await api.health();
+      setBackendUnavailable(false);
       setInitMessage(h.init_message || "Đang khởi động...");
       const s = await api.getSettings();
       if (!s.setup_completed) {
@@ -46,9 +48,17 @@ function App() {
         setTimeout(checkFirstRun, 2000);
       } else {
         setCheckingSetup(false);
-        setShowSetup(true);
+        setBackendUnavailable(true);
       }
     }
+  };
+
+  const retryBackendConnection = () => {
+    retryCountRef.current = 0;
+    setBackendUnavailable(false);
+    setCheckingSetup(true);
+    setInitMessage("Đang khởi động backend...");
+    checkFirstRun();
   };
 
   const handleStartChat = (paperIds: string[]) => {
@@ -92,6 +102,37 @@ function App() {
   };
 
   // If showing setup wizard
+  if (backendUnavailable) {
+    return (
+      <div className="app">
+        <div className="app-loading">
+          <div className="app-loading-content">
+            <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
+            <p>Không thể kết nối đến backend tại http://127.0.0.1:8765.</p>
+            <p style={{ opacity: 0.72, fontSize: 14 }}>
+              Nếu đang chạy bản web/dev, hãy khởi động FastAPI hoặc chạy ứng dụng qua Tauri.
+            </p>
+            <button
+              onClick={retryBackendConnection}
+              style={{
+                marginTop: 12,
+                padding: "10px 16px",
+                borderRadius: 8,
+                border: "none",
+                background: "var(--color-primary)",
+                color: "white",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Thử kết nối lại
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showSetup || checkingSetup) {
     return (
       <div className="app">

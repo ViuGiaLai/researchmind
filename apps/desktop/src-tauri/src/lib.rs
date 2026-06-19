@@ -23,7 +23,7 @@ fn is_valid_executable(path: &std::path::Path) -> bool {
 ///   1. Backend binary next to Tauri binary (production bundle)
 ///   2. Backend binary in Tauri resource dir (bundled via `resources`)
 ///   3. python main.py via venv (development)
-fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>)> {
+fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, Option<PathBuf>)> {
     let name = backend_binary_name();
 
     // 1. Check next to the app binary
@@ -33,7 +33,7 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>)>
         let bundled = exe_dir.join(name);
         if is_valid_executable(&bundled) {
             info!("Found bundled {} at: {:?}", name, bundled);
-            return Some((bundled.to_string_lossy().to_string(), vec![]));
+            return Some((bundled.to_string_lossy().to_string(), vec![], Some(exe_dir)));
         }
     }
 
@@ -43,7 +43,7 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>)>
             let resource_path = res_dir.join(name);
             if is_valid_executable(&resource_path) {
                 info!("Found {} in resource dir: {:?}", name, resource_path);
-                return Some((resource_path.to_string_lossy().to_string(), vec![]));
+                return Some((resource_path.to_string_lossy().to_string(), vec![], Some(res_dir)));
             }
         }
     }
@@ -86,7 +86,8 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>)>
 
     if let Some(path) = main_py {
         info!("Using development mode: {} -u {}", python, path.display());
-        Some((python, vec!["-u".into(), path.to_string_lossy().to_string()]))
+        let cwd = path.parent().map(|p| p.to_path_buf());
+        Some((python, vec!["-u".into(), path.to_string_lossy().to_string()], cwd))
     } else {
         error!(
             "No backend found. Checked: {}",
@@ -101,9 +102,16 @@ struct BackendProcess(Mutex<Option<Child>>);
 
 /// Try to spawn the backend (bundled exe or python main.py).
 fn spawn_backend(app: &tauri::AppHandle) -> Option<Child> {
-    let (program, args) = find_backend(Some(app))?;
+    let (program, args, cwd) = find_backend(Some(app))?;
 
-    match Command::new(&program).args(&args).spawn() {
+    let mut command = Command::new(&program);
+    command.args(&args).env("RESEARCHMIND_BACKEND_RELOAD", "0");
+    if let Some(cwd) = cwd {
+        info!("Starting backend with working directory: {:?}", cwd);
+        command.current_dir(cwd);
+    }
+
+    match command.spawn() {
         Ok(child) => {
             info!("Backend started (PID: {})", child.id());
             Some(child)

@@ -877,7 +877,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
               <div className="info-summary-header">
                 <IconCheck size={16} />
                 <span>Chế độ AI đã chọn: {
-                  chosenMode === "cloud_free" ? "Cloud Free (Gemini API)" :
+                  chosenMode === "cloud_free" ? "Cloud Free" :
                   chosenMode === "cloud_custom" ? `Custom Key (${customProvider === "deepseek" ? "DeepSeek" : customProvider === "gemini" ? "Gemini" : "Claude"})` :
                   "Offline Cục Bộ (AI Offline)"
                 }</span>

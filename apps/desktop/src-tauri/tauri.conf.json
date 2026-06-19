@@ -29,8 +29,7 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "resources/backend.exe": "resources/",
-      "resources/backend": "resources/"
+      "resources/backend.exe": "resources/"
     },
     "windows": {
       "wix": null,
