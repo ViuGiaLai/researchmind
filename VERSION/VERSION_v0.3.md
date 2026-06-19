@@ -1,5 +1,16 @@
 # ResearchMind VN — v0.3 Technical Spec
 
+> **Cập nhật đối chiếu code — 19/06/2026:** v0.3 đã được code vượt spec ban đầu ở một số điểm và thiếu ở một số điểm khác:
+>
+> - Verify Mode hiện kết hợp **Local RAG + OpenAlex + Crossref + Semantic Scholar**, không chỉ OpenAlex/Crossref.
+> - Verify đã có cả non-stream và streaming qua `POST /api/verify` với `stream: true`.
+> - Academic cache dùng file SQLite riêng `settings.data_dir / "academic_cache.db"`, không phải SQLAlchemy model `AcademicCache`.
+> - Không có `CitationBadge.tsx`; badge external source được render trực tiếp trong `VerifyPanel.tsx`.
+> - `api.ts` không có hàm `callVerify()` đúng như spec; code hiện tại dùng `api.verify()` và `api.verifyStream()`.
+> - Background enrichment sau import đã có trong `routers/papers.py` cho import file/folder; Zotero SQLite sync có logic indexing riêng và chưa đồng bộ hoàn toàn cùng enrichment path.
+> - Semantic Scholar đã được thêm ở v0.3, nên các mục “không làm Semantic Scholar / làm v0.4” trong spec cũ đã lỗi thời.
+> - Cache invalidation endpoint `DELETE /api/academic/cache/{doi}` chưa được code.
+
 > **Triết lý:** v0.1 = feature · v0.2 = nhanh + mượt · v0.3 = AI trả lời ĐÚNG + có chứng cứ
 >
 > **Điều kiện bắt đầu:** v0.2 hoàn thành ✅ · main.py đã split thành routers/ ✅
@@ -39,7 +50,7 @@ Khi user hỏi về một paper, ResearchMind phải trả lời được:
 
 | Tính năng | Lý do bỏ |
 |---|---|
-| Semantic Scholar | OpenAlex đã cover, tránh phức tạp hóa |
+| Semantic Scholar | Đã được code trong v0.3 hiện tại để bổ sung citation/influential citation/recommendations |
 | Retraction Watch | Rate limit + phí, làm v0.4 |
 | arXiv API riêng | OpenAlex đã index arXiv papers |
 | Full Deep Research mode | Quá nặng, dễ timeout |
@@ -49,7 +60,7 @@ Khi user hỏi về một paper, ResearchMind phải trả lời được:
 
 ```
 v0.2:  User → Local RAG → LLM → Answer
-v0.3:  User → Local RAG + OpenAlex + Crossref → LLM → Answer có chứng cứ
+v0.3 hiện tại:  User → Local RAG + OpenAlex + Crossref + Semantic Scholar → LLM → Answer có chứng cứ
 ```
 
 ---
@@ -68,6 +79,8 @@ v0.3:  User → Local RAG + OpenAlex + Crossref → LLM → Answer có chứng c
 │                                                               │
 │  OpenAlex ──── citation count, related works, cited_by        │
 │  Crossref  ──── metadata chuẩn, DOI validation               │
+│  Semantic Scholar ─ citation count, influential citations,    │
+│                     citations, recommendations                │
 │                                                               │
 │  → Chạy parallel, timeout 5s, cache 24h                      │
 └───────────────────────────────────┬──────────────────────────┘
@@ -96,7 +109,8 @@ User gửi query + chọn Verify Mode
         ▼
 [3] Parallel external lookup (asyncio.gather, timeout=5s mỗi call)
     ├── OpenAlex: citation_count + related_works + cited_by_recent
-    └── Crossref: author + journal + year validation
+    ├── Crossref: author + journal + year validation
+    └── Semantic Scholar: citation_count + influential citations + recommendations
         │
         ▼
 [4] Build verify context (local chunks + external data)
@@ -126,6 +140,7 @@ backend/
 │   ├── __init__.py
 │   ├── openalex.py             ← OpenAlex API client
 │   ├── crossref.py             ← Crossref API client
+│   ├── semantic_scholar.py     ← Semantic Scholar API client
 │   ├── doi_extractor.py        ← DOI extraction pipeline
 │   ├── cache.py                ← SQLite-based cache 24h
 │   └── context_builder.py     ← Ghép local + external context
@@ -135,16 +150,15 @@ backend/
 │
 ├── main.py                     ← PATCH: include router mới
 └── db/
-    └── models.py               ← PATCH: thêm AcademicCache table
+    └── models.py               ← Không có AcademicCache ORM; cache academic dùng SQLite file riêng
 
 frontend/
 ├── components/
 │   └── chat/
 │       ├── ChatView.tsx        ← PATCH: thêm verify mode tab
-│       ├── VerifyPanel.tsx     ← MỚI: hiển thị external sources
-│       └── CitationBadge.tsx   ← MỚI: badge OpenAlex/Crossref
+│       └── VerifyPanel.tsx     ← MỚI: hiển thị external sources + badges trực tiếp
 └── lib/
-    └── api.ts                  ← PATCH: thêm callVerify()
+    └── api.ts                  ← PATCH: thêm api.verify() + api.verifyStream()
 ```
 
 ---
@@ -725,6 +739,8 @@ def cache_invalidate_doi(doi: str) -> None:
 
 ### 6.3 `backend/routers/verify.py`
 
+> Cap nhat 19/06/2026: snippet duoi day la thiet ke ban dau. Code hien tai da mo rong them Semantic Scholar, helper deserialize cache, `api.verifyStream()`, va tranh tao coroutine fetch khi cache hit. Khi sua code that, dung `backend/routers/verify.py` hien tai lam nguon chuan.
+
 ```python
 """
 POST /api/verify — Verify Mode endpoint.
@@ -996,6 +1012,11 @@ async def lookup_paper(doi: str = Query(...)):
 ### 7.1 Patch `api.ts` — thêm callVerify()
 
 ```typescript
+// Cap nhat 19/06/2026:
+// Code hien tai khong dung ham callVerify().
+// API client dang expose api.verify(query, paperIds) va
+// api.verifyStream(message, paperIds, sessionId). Snippet nay la mau thiet ke cu.
+
 // Thêm vào lib/api.ts
 
 export interface VerifyRequest {
@@ -1332,15 +1353,15 @@ async def invalidate_cache(doi: str):
 v0.3 hoàn thành khi tất cả các điều sau đều đúng:
 
 ```
-✅ POST /api/verify trả về response trong ≤ 8 giây
-   (parallel fetch OpenAlex + Crossref + LLM generate)
+✅/⏳ POST /api/verify đã có parallel fetch OpenAlex + Crossref + Semantic Scholar + LLM generate.
+   Chưa có benchmark cố định để khẳng định luôn ≤ 8 giây trên máy/network thật.
 
 ✅ DOI extraction thành công trên ≥ 80% paper có DOI trong PDF metadata
 
 ✅ Khi OpenAlex/Crossref không trả lời → app không crash,
    trả về local_only gracefully
 
-✅ VerifyPanel hiển thị citation count + recent citing papers
+✅ VerifyPanel hiển thị citation count, recent citing papers, Semantic Scholar citations/recommendations
    cho ít nhất 1 paper khi verify
 
 ✅ Verify Mode hiển thị đúng verify_status:
@@ -1349,14 +1370,14 @@ v0.3 hoàn thành khi tất cả các điều sau đều đúng:
 ✅ Background enrichment chạy sau import
    không làm chậm import pipeline
 
-✅ Cache hoạt động: request thứ 2 cùng DOI ≤ 0.1s
+✅/⏳ Cache academic hoạt động qua SQLite file riêng. Chưa có benchmark tự động chứng minh request thứ 2 ≤ 0.1s.
 ```
 
 ### Không yêu cầu ở v0.3
 
-- Streaming cho Verify Mode (làm v0.4)
+- Streaming cho Verify Mode đã có trong code hiện tại
 - Retraction Watch check (làm v0.4)
-- Semantic Scholar (làm v0.4)
+- Semantic Scholar đã có trong code hiện tại
 - "Deep Research" mode (làm v0.4)
 
 ---

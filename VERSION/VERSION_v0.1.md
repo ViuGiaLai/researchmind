@@ -1,5 +1,17 @@
 # ResearchMind VN — v0.1 (18/06/2026)
 
+> **Cập nhật đối chiếu code — 19/06/2026:** File này là changelog/lịch sử v0.1. Một số mô tả bên dưới đã lỗi thời so với code hiện tại. Trạng thái đúng hiện nay:
+>
+> - Frontend đang dùng **React 18.3.1**, không phải React 19.
+> - `backend/main.py` đã được rút gọn thành app bootstrap + router registry; endpoint đã tách sang `backend/routers/*`.
+> - Chat streaming và Verify streaming đã được code qua `api.chatStream()` / `api.verifyStream()` và `StreamingResponse`.
+> - Retry provider đã có trong `chat/generator.py` qua `_call_with_retry()`.
+> - Cache đã có: `LLMCache`, `EmbeddingCache`, LRU cache cho query embedding, cache academic external API.
+> - Cross-encoder reranker hiện **tắt mặc định** qua `settings.enable_reranker = False`, không phải luôn chạy.
+> - Wow Analysis **không có endpoint** `POST /api/insights/wow`; frontend `WowAnalysisView` tự điều phối các endpoint `review`, `critique`, `conflict`, `gap`, `debate`.
+> - Không có `GET/POST /api/setup/*`; first-run setup đi qua `GET/PUT /api/settings`, `/api/detect-specs`, `/api/data/*`, `/api/ollama/*`.
+> - OCR cơ bản bằng `rapidocr_onnxruntime` có trong parser PDF, nhưng chưa có hàng đợi OCR riêng hoặc UI retry OCR chuyên biệt.
+
 > **Commit:** `32dd8ed` — `feat: multi-format import, NVIDIA fix, async non-blocking + UI improvements`
 > **Plan cập nhật:** `0796276` — `docs: update plan with v0.1 status and changelog`
 >
@@ -31,7 +43,7 @@
 | Thành phần | Công nghệ | Phiên bản |
 |---|---|---|
 | Desktop Shell | Tauri v2 | 2.x |
-| Frontend | React + TypeScript | React 19 |
+| Frontend | React + TypeScript | React 18.3.1 |
 | Backend | Python + FastAPI | 3.12 |
 | PDF Parser | PyMuPDF (fitz) + rapidocr_onnxruntime | 1.25.x / 1.4.x |
 | Embedding Model | BAAI/bge-m3 (local, 1024 chiều) | sentence-transformers |
@@ -113,7 +125,7 @@ memoryOS/
 │               └── cite-panel.css
 │
 ├── backend/                            # Python FastAPI
-│   ├── main.py                         # FastAPI app: 30+ endpoints (3120 lines)
+│   ├── main.py                         # FastAPI app bootstrap + router registry
 │   ├── config/
 │   │   └── settings.py                 # Pydantic Settings (.env + persisted)
 │   ├── db/
@@ -122,8 +134,7 @@ memoryOS/
 │   ├── ingestion/
 │   │   ├── parser.py                   # extract_document() cho PDF/DOCX/TXT/MD/HTML/EPUB
 │   │   ├── chunker.py                  # Text chunking 512 tokens
-│   │   ├── embedder.py                 # bge-m3 embedding model
-│   │   └── ocr_cache.py               # Cache kết quả OCR
+│   │   └── embedder.py                 # bge-m3 embedding model + embedding cache
 │   ├── search/
 │   │   ├── bm25.py                     # SQLite FTS5 search
 │   │   ├── vector.py                   # ChromaDB vector search
@@ -195,9 +206,9 @@ User gửi câu hỏi + chọn paper
     → Return { answer, citations, model_used }
 ```
 
-### Luồng streaming (chưa hoàn thiện)
+### Luồng streaming
 
-Có endpoint `_stream_chat` và `stream_generate` trong generator.py nhưng chưa được frontend gọi. Frontend hiện dùng non-stream.
+Trạng thái hiện tại: Chat và Verify đã có streaming. Frontend gọi `api.chatStream()` khi `initialMode === "chat"` và gọi `api.verifyStream()` trong Verify Mode. Review/Critique/Debate vẫn dùng response non-stream.
 
 ---
 
@@ -223,7 +234,7 @@ Có endpoint `_stream_chat` và `stream_generate` trong generator.py nhưng chư
 | 14 | **Review tự động** | `POST /api/review` | Background, Methods, Findings, Gaps |
 | 15 | **Phê bình** | `POST /api/critique` | Assumptions, weaknesses, reproducibility |
 | 16 | **Tranh luận AI** | `POST /api/debate` | AI A vs AI B + kết luận + đề xuất |
-| 17 | **Wow Analysis** | `POST /api/insights/wow` | 5-step: summary, findings, debate, Q&A, research ideas |
+| 17 | **Wow Analysis** | Frontend orchestration | `WowAnalysisView` chạy pipeline 5 bước bằng các endpoint sẵn có: review, critique, conflict, gap, debate |
 | 18 | **Gap Analysis** | `POST /api/insights/gap` | Research gaps từ nhiều paper |
 | 19 | **Conflict Detection** | `POST /api/insights/conflict` | Mâu thuẫn giữa các paper |
 | 20 | **Topic Suggestion** | `POST /api/insights/topic` | Đề xuất chủ đề nghiên cứu |
@@ -236,7 +247,7 @@ Có endpoint `_stream_chat` và `stream_generate` trong generator.py nhưng chư
 | 27 | **Settings CRUD** | `GET/PUT /api/settings` | Persist settings to SQLite |
 | 28 | **Stats** | `GET /api/stats` | Paper count, chunk count, model info |
 | 29 | **Ollama management** | `GET/POST /api/ollama/*` | Pull model, health check, list models |
-| 30 | **Setup wizard** | `GET/POST /api/setup/*` | First-run onboarding |
+| 30 | **Setup wizard** | `GET/PUT /api/settings`, `/api/detect-specs`, `/api/data/*`, `/api/ollama/*` | First-run onboarding |
 
 ### Frontend
 
@@ -261,9 +272,9 @@ Có endpoint `_stream_chat` và `stream_generate` trong generator.py nhưng chư
 
 ## 5. Chi tiết Backend
 
-### `main.py` (3120 dòng)
+### `main.py`
 
-30+ endpoints, FastAPI app với CORS, lifespan events, background tasks.
+FastAPI app bootstrap với CORS, lifespan events, static mount và include router. Endpoint logic hiện nằm trong `backend/routers/*`, `export.py`, `zotero_import.py`.
 
 **Key patterns:**
 - `asyncio.to_thread()` cho blocking sync code (chat, search, review, critique, debate, highlights, import)
@@ -306,10 +317,10 @@ Có endpoint `_stream_chat` và `stream_generate` trong generator.py nhưng chư
 ### `search/hybrid.py`
 
 ```
-search() → BM25 (top-20) → RRF fuse → Cross-encoder rerank → top-k
+search() → BM25 (top-10) + Vector (top-10) → RRF fuse → optional Cross-encoder rerank → top-k
 ```
 
-Cross-encoder: `cross-encoder/ms-marco-MiniLM-L-6-v2`, lazy-loaded.
+Cross-encoder: `cross-encoder/ms-marco-MiniLM-L-6-v2`, lazy-loaded và chỉ chạy khi `settings.enable_reranker = true`.
 
 ### `config/settings.py`
 
@@ -428,9 +439,9 @@ API keys được lưu trong `.env` và **không bao giờ** trả về qua API:
 | 5 | **GPU chưa bật cho Ollama** | `OLLAMA_IGPU_ENABLE=1` chưa set → Intel Iris Xe không dùng |
 | 6 | **insight endpoints chưa async** | Gap, conflict, topic, evolution chưa wrap `asyncio.to_thread` |
 | 7 | **Cross-encoder chạy CPU** | ms-marco-MiniLM chạy CPU rất chậm (~1-2s cho 20 cặp) |
-| 8 | **Streaming chưa dùng** | Có endpoint streaming nhưng frontend chưa gọi → always chờ full response |
-| 9 | **Không có retry khi API fail** | NVIDIA fail → chain chuyển provider, nhưng không retry chính nó |
-| 10 | **Không có caching** | Mỗi request embedding/rerank đều tính lại từ đầu |
+| 8 | **Streaming một phần** | Chat/Verify đã streaming; Review/Critique/Debate chưa streaming |
+| 9 | **Retry provider đã có** | `_call_with_retry()` đã được code; vẫn cần cấu hình timeout chi tiết hơn |
+| 10 | **Caching đã có một phần** | LLM, embedding, query embedding và academic cache đã có; rerank result cache chưa có |
 
 ### 🟢 Thấp
 

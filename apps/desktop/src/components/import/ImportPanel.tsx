@@ -26,10 +26,11 @@ const SUPPORTED_ACCEPT = SUPPORTED_FORMATS.map(f => f.ext).join(",");
 const SUPPORTED_SUFFIXES = new Set(SUPPORTED_FORMATS.map(f => f.ext));
 
 type ImportTab = "pdf" | "bibtex" | "zotero";
+type ImportStatus = "importing" | "indexing" | "indexed" | "failed" | "success" | "imported" | "duplicate" | "error" | "pending";
 
 interface ImportResult {
   filename: string;
-  status: string;
+  status: ImportStatus | string;
   paper_id?: string;
   error?: string;
   pages?: number;
@@ -47,6 +48,58 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
   const folderInputRef = useRef<HTMLInputElement>(null);
   const bibtexInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearStatusPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearStatusPolling, [clearStatusPolling]);
+
+  const startStatusPolling = useCallback((paperIds: string[]) => {
+    const ids = [...new Set(paperIds.filter(Boolean))];
+    if (ids.length === 0) return;
+
+    clearStatusPolling();
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts += 1;
+      const papers = await Promise.all(
+        ids.map((id) => api.getPaper(id).then((paper) => ({ id, paper })).catch(() => null))
+      );
+
+      setResults((prev) => prev.map((result) => {
+        if (!result.paper_id) return result;
+        const latest = papers.find((item) => item?.id === result.paper_id)?.paper;
+        if (!latest) return result;
+        return {
+          ...result,
+          title: latest.title || result.title,
+          pages: latest.page_count || result.pages,
+          status: latest.status,
+          error: latest.status === "failed" ? "Không thể lập chỉ mục tài liệu này." : result.error,
+        };
+      }));
+
+      const stillProcessing = papers.some((item) => {
+        const status = item?.paper.status;
+        return status === "pending" || status === "indexing";
+      });
+
+      if (!stillProcessing || attempts >= 90) {
+        clearStatusPolling();
+        const firstReady = papers.find((item) => item?.paper.status === "indexed");
+        onImported(firstReady?.id || ids[0]);
+      }
+    };
+
+    poll();
+    pollIntervalRef.current = setInterval(poll, 2000);
+  }, [clearStatusPolling, onImported]);
 
   // ── PDF Import ────────────────────────────────────────────
 
@@ -105,9 +158,10 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
         const res = await api.importPaper(file);
         newResults.push({
           filename: file.name,
-          status: "importing",
+          status: res.status || "indexing",
           paper_id: res.paper_id,
           pages: res.page_count,
+          title: res.title,
         });
       } catch (e) {
         newResults.push({
@@ -120,8 +174,11 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
 
     setResults(newResults);
     setImporting(false);
-    const successful = newResults.find(r => r.status !== "error");
-    onImported(successful?.paper_id);
+    const indexingIds = newResults
+      .filter((r) => r.paper_id && r.status !== "error")
+      .map((r) => r.paper_id as string);
+    if (indexingIds.length > 0) startStatusPolling(indexingIds);
+    else onImported();
   };
 
   const importFolder = async (folderPath: string) => {
@@ -129,16 +186,22 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     setResults([]);
     try {
       const res = await api.importFolder(folderPath);
-      setResults(res.results as ImportResult[]);
+      const importResults = res.results as ImportResult[];
+      setResults(importResults);
+      const indexingIds = importResults
+        .filter((r) => r.paper_id && r.status !== "error" && r.status !== "failed")
+        .map((r) => r.paper_id as string);
+      if (indexingIds.length > 0) startStatusPolling(indexingIds);
+      else onImported();
     } catch (e) {
       setResults([{
         filename: folderPath,
         status: "error",
         error: e instanceof Error ? e.message : "Không thể import folder",
       }]);
+      onImported();
     } finally {
       setImporting(false);
-      onImported();
     }
   };
 
@@ -230,7 +293,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       if (findPdfs && zoteroDataDir.trim()) {
         // Import with PDF finding
         const res = await api.importZoteroCsvWithPdfs(file, zoteroDataDir.trim());
-        setResults(res.results.map(r => ({
+        const importResults = res.results.map(r => ({
           filename: r.filename,
           status: r.status === "imported" ? "success" : r.status,
           paper_id: r.paper_id,
@@ -239,7 +302,13 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           pages: r.page_count,
           pdfStatus: r.pdf_status,
           pdfError: r.pdf_error,
-        })));
+        }));
+        setResults(importResults);
+        const indexingIds = importResults
+          .filter((r) => r.paper_id && (r.pdfStatus === "indexing" || r.status === "success"))
+          .map((r) => r.paper_id as string);
+        if (indexingIds.length > 0) startStatusPolling(indexingIds);
+        else onImported();
       } else {
         // Metadata only
         const res = await api.importZoteroCsv(file);
@@ -250,6 +319,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           title: r.title,
           error: r.error,
         })));
+        onImported();
       }
     } catch (e) {
       setResults([{
@@ -257,14 +327,16 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
         status: "error",
         error: e instanceof Error ? e.message : "Lỗi import CSV",
       }]);
+      onImported();
     } finally {
       setImporting(false);
-      onImported();
     }
     e.target.value = "";
   };
 
-  const successCount = results.filter(r => r.status === "success" || r.status === "imported").length;
+  const successCount = results.filter(r => ["success", "imported", "indexed"].includes(r.status)).length;
+  const processingCount = results.filter(r => ["importing", "indexing", "pending"].includes(r.status)).length;
+  const failedCount = results.filter(r => r.status === "failed").length;
   const duplicateCount = results.filter(r => r.status === "duplicate").length;
   const errorCount = results.filter(r => r.status === "error").length;
   const pdfIndexingCount = results.filter(r => r.pdfStatus === "indexing").length;
@@ -532,7 +604,9 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             <span>
               {successCount > 0 && <IconCheck size={16} style={{ color: "var(--color-success)", marginRight: 4 }} />}
               {successCount} thành công
+              {processingCount > 0 && `, ${processingCount} đang xử lý`}
               {duplicateCount > 0 && `, ${duplicateCount} trùng`}
+              {failedCount > 0 && `, ${failedCount} thất bại`}
               {errorCount > 0 && `, ${errorCount} lỗi`}
               {pdfIndexingCount > 0 && `, ${pdfIndexingCount} PDF`}
               {pdfNotFoundCount > 0 && `, ${pdfNotFoundCount} không có PDF`}
@@ -542,12 +616,16 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             {results.map((r, i) => {
               let iconColor: string;
               let rowClass: string;
-              if (r.status === "error") {
+              const isProcessing = ["importing", "indexing", "pending"].includes(r.status);
+              if (r.status === "error" || r.status === "failed") {
                 iconColor = "var(--color-error, #ef4444)";
                 rowClass = "import-error";
               } else if (r.status === "duplicate") {
                 iconColor = "var(--color-text-muted, #94a3b8)";
                 rowClass = "import-duplicate";
+              } else if (isProcessing) {
+                iconColor = "var(--color-primary, #2dd4bf)";
+                rowClass = "import-processing";
               } else {
                 iconColor = "var(--color-success, #22c55e)";
                 rowClass = "import-success";
@@ -558,16 +636,20 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               return (
                 <div key={i} className={`import-result-item ${rowClass}`}>
                   <span className="import-result-icon">
-                    {r.status === "error" ? (
+                    {r.status === "error" || r.status === "failed" ? (
                       <IconError size={16} style={{ color: iconColor }} />
                     ) : r.status === "duplicate" ? (
                       <span style={{ color: iconColor, fontSize: 16 }}>⏺</span>
+                    ) : isProcessing ? (
+                      <IconSpinner size={16} style={{ color: iconColor }} />
                     ) : (
                       <IconCheck size={16} style={{ color: iconColor }} />
                     )}
                   </span>
                   <span className="import-result-name">{r.title || r.filename}</span>
                   {r.pages && <span className="import-result-pages">{r.pages} trang</span>}
+                  {isProcessing && <span className="import-result-pages">đang lập chỉ mục...</span>}
+                  {r.status === "indexed" && <span className="import-result-pages">sẵn sàng</span>}
                   {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted, #94a3b8)" }}>đã có</span>}
                   {r.error && <span className="import-result-error">{r.error}</span>}
                   {/* PDF status badge */}
