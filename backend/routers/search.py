@@ -1,5 +1,6 @@
 import asyncio
 from fastapi import APIRouter, Body, HTTPException, Query
+from loguru import logger
 from app_state import state
 from config.settings import settings
 from db.database import get_session
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/api/search", tags=["Search"])
 
 @router.post("")
 async def search(query: dict = Body(...)):
-    """Hybrid search across all indexed PDFs with support for tag: or thẻ: filters."""
+    """Hybrid search across all indexed PDFs with support for tag: or tháº»: filters."""
     import re
     import json
     
@@ -21,8 +22,8 @@ async def search(query: dict = Body(...)):
     if not text.strip():
         raise HTTPException(status_code=400, detail="Query text is required")
 
-    # Match tag:(word) or tag:"quoted string" (also thẻ: and the:)
-    tag_pattern = r'(?:tag|thẻ|the):(?:([^"\s]+)|"([^"]+)")'
+    # Match tag:(word) or tag:"quoted string" (also tháº»: and the:)
+    tag_pattern = r'(?:tag|tháº»|the):(?:([^"\s]+)|"([^"]+)")'
     matches = re.findall(tag_pattern, text, re.IGNORECASE)
     tags_to_filter = []
     for m in matches:
@@ -141,7 +142,7 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
         
         suggestions = []
         for tag in tags_res:
-            suggestions.append(f"Thẻ: {tag}")
+            suggestions.append(f"Tháº»: {tag}")
         for p in papers_res:
             suggestions.append(p["title"])
 
