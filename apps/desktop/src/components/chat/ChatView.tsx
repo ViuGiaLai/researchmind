@@ -79,6 +79,36 @@ export const ChatView: React.FC<{
   const paperSearchRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
 
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [pdfPaperUrl, setPdfPaperUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (paperIds.length === 1) {
+      setPdfPaperUrl(`http://127.0.0.1:8765/api/papers/${paperIds[0]}/file`);
+      setShowPdfViewer(true);
+    } else {
+      setPdfPaperUrl(null);
+      setShowPdfViewer(false);
+    }
+  }, [paperIds]);
+
+  const handlePasteHighlight = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) {
+        setInput((prev) => {
+          const quote = `> "${text.trim()}"\n\n`;
+          return prev ? prev + quote : quote;
+        });
+        toast.addToast("success", "📋 Đã trích dẫn văn bản từ PDF/clipboard!");
+      } else {
+        toast.addToast("error", "❌ Clipboard trống hoặc không chứa văn bản.");
+      }
+    } catch (err) {
+      toast.addToast("error", "❌ Không thể đọc clipboard. Vui lòng cấp quyền.");
+    }
+  };
+
   const openPaperPicker = () => {
     setTempPaperIds([...paperIds]);
     setPaperSearch("");
@@ -708,16 +738,82 @@ export const ChatView: React.FC<{
   };
 
   return (
-    <div className="chat-view">
-      <div className="chat-view-header">
-        <h2 className="chat-view-title">
-          <IconBrain
-            size={22}
-            className="icon-gradient"
-            style={{ verticalAlign: "middle", marginRight: 8 }}
+    <div className="chat-view-container" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
+      {showPdfViewer && pdfPaperUrl && (
+        <div className="chat-pdf-panel" style={{ width: "50%", height: "100%", borderRight: "1px solid var(--color-border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="pdf-panel-header" style={{ height: "48px", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", flexShrink: 0 }}>
+            <span style={{ fontWeight: 600, fontSize: "0.85rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "50%" }}>
+              📖 {paperIds.length === 1 ? (paperTitles.get(paperIds[0]) || "Tài liệu") : "Tài liệu"}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button
+                onClick={handlePasteHighlight}
+                style={{
+                  background: "rgba(99, 102, 241, 0.08)",
+                  color: "var(--color-primary, #6366f1)",
+                  border: "1px solid rgba(99, 102, 241, 0.2)",
+                  borderRadius: "var(--radius-sm, 4px)",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px"
+                }}
+                title="Trích dẫn văn bản đang chọn trong PDF"
+              >
+                📋 Trích dẫn
+              </button>
+              <button
+                onClick={() => setShowPdfViewer(false)}
+                style={{ background: "transparent", border: "none", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}
+                title="Đóng trình xem PDF"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <iframe
+            src={pdfPaperUrl}
+            style={{ width: "100%", height: "calc(100% - 48px)", border: "none" }}
+            title="PDF Viewer"
           />
-          Chat với Paper
-        </h2>
+        </div>
+      )}
+      <div className="chat-view" style={{ flex: 1, width: showPdfViewer ? "50%" : "100%", display: "flex", flexDirection: "column" }}>
+        <div className="chat-view-header">
+          <h2 className="chat-view-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <IconBrain
+              size={22}
+              className="icon-gradient"
+              style={{ verticalAlign: "middle", marginRight: 8 }}
+            />
+            Chat với Paper
+            {paperIds.length === 1 && pdfPaperUrl && !showPdfViewer && (
+              <button
+                onClick={() => setShowPdfViewer(true)}
+                style={{
+                  background: "rgba(99, 102, 241, 0.08)",
+                  color: "var(--color-primary, #6366f1)",
+                  border: "1px solid rgba(99, 102, 241, 0.2)",
+                  borderRadius: "var(--radius-sm, 4px)",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  marginLeft: "12px",
+                  whiteSpace: "nowrap"
+                }}
+                title="Mở trình xem PDF song song"
+              >
+                📖 Xem PDF
+              </button>
+            )}
+          </h2>
         <div className="chat-view-header-actions">
           {/* Auto-Cite button */}
           {paperIds.length > 0 && (
@@ -1150,6 +1246,22 @@ export const ChatView: React.FC<{
           >
             <IconBulb size={13} /> Insight
           </button>
+          {paperIds.length === 1 && (
+            <button
+              className="chat-view-action-btn"
+              onClick={handlePasteHighlight}
+              disabled={loading}
+              title="Trích dẫn văn bản đang chọn trong PDF"
+              style={{
+                color: "var(--color-primary, #6366f1)",
+                fontWeight: 600,
+                border: "1px dashed rgba(99, 102, 241, 0.3)",
+                background: "rgba(99, 102, 241, 0.04)"
+              }}
+            >
+              📋 Trích dẫn PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -1292,6 +1404,7 @@ export const ChatView: React.FC<{
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

@@ -17,6 +17,7 @@ import {
   IconBulb,
   IconSparkle,
   IconDownload,
+  IconRefresh,
 } from "../Icons";
 
 const PAGE_SIZE = 20;
@@ -46,6 +47,7 @@ export const LibraryView: React.FC<{
   const [filter, setFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showImport, setShowImport] = useState(false);
+  const [syncingZotero, setSyncingZotero] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const toast = useToast();
@@ -78,6 +80,23 @@ export const LibraryView: React.FC<{
     loadPapers();
   }, [page, filter]);
 
+  const handleZoteroSync = async () => {
+    setSyncingZotero(true);
+    try {
+      const res = await api.syncZoteroSqlite();
+      loadPapers();
+      toast.addToast(
+        "success",
+        `Đồng bộ Zotero thành công! Đã thêm ${res.imported} tài liệu mới, sao chép ${res.pdf_imported} tệp PDF. Bỏ qua ${res.duplicates} bản trùng lặp.`
+      );
+    } catch (e: any) {
+      console.error("Zotero sync failed:", e);
+      toast.addToast("error", `Lỗi đồng bộ Zotero: ${e.message || e}`);
+    } finally {
+      setSyncingZotero(false);
+    }
+  };
+
   useEffect(() => {
     const el = previewPanelRef.current;
     if (!el) return;
@@ -106,22 +125,27 @@ export const LibraryView: React.FC<{
   const loadPapers = async () => {
     setLoading(true);
     try {
-      const statusFilter = ["unread", "reading", "read"].includes(filter) ? "indexed" : filter === "all" ? undefined : filter;
-      const res = await api.listPapers(page, PAGE_SIZE, statusFilter);
+      let statusFilter: string | undefined = undefined;
+      let readStatusFilter: string | undefined = undefined;
+      let starredFilter: boolean | undefined = undefined;
 
-      // For read_status filters, do client-side filtering but keep real total from API
-      let filtered = res.papers;
-      if (filter === "unread") filtered = filtered.filter((p) => p.read_status === "unread");
-      else if (filter === "reading") filtered = filtered.filter((p) => p.read_status === "reading");
-      else if (filter === "read") filtered = filtered.filter((p) => p.read_status === "read");
+      if (filter === "indexed") {
+        statusFilter = "indexed";
+      } else if (["unread", "reading", "read"].includes(filter)) {
+        statusFilter = "indexed";
+        readStatusFilter = filter;
+      } else if (filter === "starred") {
+        starredFilter = true;
+      }
 
-      setPapers(filtered);
-      // Use real total from API for correct pagination
+      const res = await api.listPapers(page, PAGE_SIZE, statusFilter, readStatusFilter, starredFilter);
+
+      setPapers(res.papers);
       setTotal(res.total);
 
       // Default active paper to the first one in the list if none selected
-      if (filtered.length > 0 && !activePaper) {
-        setActivePaper(filtered[0]);
+      if (res.papers.length > 0 && !activePaper) {
+        setActivePaper(res.papers[0]);
       }
     } catch (e) {
       console.error("Failed to load papers:", e);
@@ -404,17 +428,26 @@ export const LibraryView: React.FC<{
             </div>
             <div className="library-actions">
               <div className="library-filters">
-                {["all", "indexed", "unread", "reading", "read"].map((f) => (
+                {["all", "indexed", "starred", "unread", "reading", "read"].map((f) => (
                   <button
                     key={f}
                     className={`library-filter-chip ${filter === f ? "active" : ""}`}
                     onClick={() => { setFilter(f); setPage(1); }}
                   >
-                    {f === "all" ? "Tất cả" : f === "indexed" ? "Đã index" : f === "unread" ? "Chưa đọc" : f === "reading" ? "Đang đọc" : "Đã đọc"}
+                    {f === "all" ? "Tất cả" : f === "indexed" ? "Đã index" : f === "starred" ? "Đánh dấu ⭐" : f === "unread" ? "Chưa đọc" : f === "reading" ? "Đang đọc" : "Đã đọc"}
                   </button>
                 ))}
               </div>
               <div className="library-action-buttons">
+                <button 
+                  className={`library-secondary-btn zotero-sync-btn ${syncingZotero ? "syncing" : ""}`}
+                  onClick={handleZoteroSync} 
+                  disabled={syncingZotero}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  {syncingZotero ? <IconSpinner size={16} /> : <IconRefresh size={16} />}
+                  <span>{syncingZotero ? "Đang đồng bộ..." : "Đồng bộ Zotero"}</span>
+                </button>
                 <button className="library-import-btn" onClick={() => setShowImport(true)}>
                   <IconUpload size={16} style={{ marginRight: 4 }} />
                   Tải lên
@@ -448,10 +481,21 @@ export const LibraryView: React.FC<{
           <div className="library-empty">
             <IconBrain size={48} className="icon-gradient" />
             <h3>Chưa có paper nào</h3>
-            <button className="library-import-btn library-empty-import" onClick={() => setShowImport(true)}>
-              <IconUpload size={16} style={{ marginRight: 4 }} />
-              Tải lên paper đầu tiên
-            </button>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "16px" }}>
+              <button className="library-import-btn library-empty-import" onClick={() => setShowImport(true)}>
+                <IconUpload size={16} style={{ marginRight: 4 }} />
+                Tải lên paper đầu tiên
+              </button>
+              <button 
+                className="library-secondary-btn" 
+                onClick={handleZoteroSync}
+                disabled={syncingZotero}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                {syncingZotero ? <IconSpinner size={16} /> : <IconRefresh size={16} />}
+                <span>{syncingZotero ? "Đang đồng bộ..." : "Đồng bộ Zotero"}</span>
+              </button>
+            </div>
           </div>
         ) : (
           <div className="library-list">

@@ -5,6 +5,8 @@ from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
 from config.settings import settings
+import time
+import threading
 
 
 @dataclass
@@ -41,6 +43,23 @@ class HybridSearch:
         self.top_k_final = top_k_final
         self._cross_encoder = None
         self._embed_query_cached = functools.lru_cache(maxsize=128)(self.embedder.embed_query)
+        self.last_used = time.time()
+        self._start_unload_thread()
+
+    def _start_unload_thread(self):
+        def check_idle():
+            while True:
+                time.sleep(60)
+                if self._cross_encoder is not None and time.time() - self.last_used > 300:
+                    logger.info("Power Saver Mode: Unloading Cross-Encoder model to free RAM")
+                    self._cross_encoder = None
+                    import gc
+                    import torch
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+        t = threading.Thread(target=check_idle, daemon=True)
+        t.start()
 
     def search(
         self,
@@ -195,6 +214,7 @@ class HybridSearch:
 
     def _get_cross_encoder(self):
         """Lazy-load cross-encoder model."""
+        self.last_used = time.time()
         if self._cross_encoder is None:
             try:
                 from sentence_transformers import CrossEncoder

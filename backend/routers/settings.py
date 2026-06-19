@@ -30,6 +30,8 @@ async def get_settings():
         "gemini_model": settings.gemini_model,
         "groq_api_key": "***" if settings.groq_api_key else "",
         "groq_model": settings.groq_model,
+        "nvidia_api_key": "***" if settings.nvidia_api_key else "",
+        "nvidia_model": settings.nvidia_model,
         "freemodel_api_key": "***" if settings.freemodel_api_key else "",
         "freemodel_model": settings.freemodel_model,
         "custom_cloud_provider": settings.custom_cloud_provider,
@@ -43,6 +45,7 @@ async def get_settings():
         "embedding_mode": settings.embedding_mode,
         "setup_completed": settings.setup_completed,
         "zotero_data_dir": getattr(settings, "zotero_data_dir", ""),
+        "enable_reranker": settings.enable_reranker,
     }
 
 
@@ -53,7 +56,7 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "freemodel_api_key"):
+                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "freemodel_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
                 setattr(settings, key, value)
@@ -158,6 +161,12 @@ async def validate_api_key(body: dict = Body(...)):
             api_key = settings.gemini_api_key
         elif provider == "claude":
             api_key = settings.claude_api_key
+        elif provider == "groq":
+            api_key = settings.groq_api_key
+        elif provider == "nvidia":
+            api_key = settings.nvidia_api_key
+        elif provider == "freemodel":
+            api_key = settings.freemodel_api_key
 
     if not api_key:
         return {"valid": False, "error": "Chưa có API Key."}
@@ -207,6 +216,51 @@ async def validate_api_key(body: dict = Body(...)):
                     except:
                         err_msg = res.text
                     return {"valid": False, "error": f"Lỗi Claude: {err_msg}"}
+
+            elif provider == "groq":
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "llama-3.1-8b-instant"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi Groq: {err_msg}"}
+
+            elif provider == "nvidia":
+                url = getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "moonshotai/kimi-k2.6"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi Nvidia: {err_msg}"}
+
+            elif provider == "freemodel":
+                url = getattr(settings, "freemodel_url", "https://api.freemodel.dev/v1").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "gpt-4o-mini"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi FreeModel: {err_msg}"}
 
             else:
                 return {"valid": False, "error": f"Nhà cung cấp '{provider}' không hợp lệ."}
@@ -275,3 +329,81 @@ async def pull_ollama_model(body: dict = Body(...)):
             yield f"data: {json.dumps({'status': 'error', 'message': f'Lỗi kết nối Ollama: {str(e)}'})}\n\n"
 
     return StreamingResponse(progress_generator(), media_type="text/event-stream")
+
+
+@router.get("/settings/cache-stats")
+async def get_cache_stats():
+    """Get number of cached LLM responses and embeddings."""
+    from db.models import LLMCache, EmbeddingCache
+    session = get_session(state.engine)
+    try:
+        llm_count = session.query(LLMCache).count()
+        emb_count = session.query(EmbeddingCache).count()
+        return {
+            "llm_cache_count": llm_count,
+            "embedding_cache_count": emb_count
+        }
+    except Exception as e:
+        logger.error(f"Failed to get cache stats: {e}")
+        return {"llm_cache_count": 0, "embedding_cache_count": 0}
+    finally:
+        session.close()
+
+
+@router.post("/settings/cache-clear")
+async def clear_cache():
+    """Clear all LLM and embedding caches."""
+    from db.models import LLMCache, EmbeddingCache
+    session = get_session(state.engine)
+    try:
+        session.query(LLMCache).delete()
+        session.query(EmbeddingCache).delete()
+        session.commit()
+        logger.info("Local LLM and Embedding cache cleared successfully")
+        return {"status": "success", "message": "Đã xoá bộ nhớ đệm thành công"}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to clear cache: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+@router.get("/settings/model-status")
+async def get_model_status():
+    """Get the current loaded/unloaded status of offline models (embedding and cross-encoder)."""
+    import time
+    
+    embedder_loaded = False
+    embedder_last_used = 0.0
+    embedder_idle_sec = 0.0
+    
+    reranker_loaded = False
+    reranker_last_used = 0.0
+    reranker_idle_sec = 0.0
+    
+    if hasattr(state, "embedder") and state.embedder is not None:
+        embedder_loaded = state.embedder._model is not None
+        embedder_last_used = getattr(state.embedder, "last_used", 0.0)
+        embedder_idle_sec = max(0.0, time.time() - embedder_last_used) if embedder_last_used > 0 else 0.0
+        
+    if hasattr(state, "hybrid") and state.hybrid is not None:
+        reranker_loaded = state.hybrid._cross_encoder is not None
+        reranker_last_used = getattr(state.hybrid, "last_used", 0.0)
+        reranker_idle_sec = max(0.0, time.time() - reranker_last_used) if reranker_last_used > 0 else 0.0
+        
+    return {
+        "embedder": {
+            "loaded": embedder_loaded,
+            "last_used": embedder_last_used,
+            "idle_seconds": int(embedder_idle_sec),
+            "model_name": getattr(state.embedder, "model_name", "unknown") if hasattr(state, "embedder") else ""
+        },
+        "reranker": {
+            "loaded": reranker_loaded,
+            "last_used": reranker_last_used,
+            "idle_seconds": int(reranker_idle_sec),
+            "model_name": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        }
+    }
+

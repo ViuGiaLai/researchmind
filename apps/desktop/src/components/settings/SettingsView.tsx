@@ -33,13 +33,20 @@ export const SettingsView: React.FC = () => {
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
   // ── Custom Cloud Providers ──────────────────────────────────
-  const [customCloudProvider, setCustomCloudProvider] = useState<"deepseek" | "gemini" | "claude">("deepseek");
+  type CustomProvider = "deepseek" | "gemini" | "claude" | "groq" | "nvidia" | "freemodel";
+  const [customCloudProvider, setCustomCloudProvider] = useState<CustomProvider>("deepseek");
   const [claudeApiKey, setClaudeApiKey] = useState("");
   const [claudeModel, setClaudeModel] = useState("claude-sonnet-4-20250514");
   const [deepseekApiKey, setDeepseekApiKey] = useState("");
   const [deepseekModel, setDeepseekModel] = useState("deepseek-chat");
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
+  const [groqApiKey, setGroqApiKey] = useState("");
+  const [groqModel, setGroqModel] = useState("llama-3.1-8b-instant");
+  const [nvidiaApiKey, setNvidiaApiKey] = useState("");
+  const [nvidiaModel, setNvidiaModel] = useState("moonshotai/kimi-k2.6");
+  const [freemodelApiKey, setFreemodelApiKey] = useState("");
+  const [freemodelModel, setFreemodelModel] = useState("gpt-4o-mini");
 
   // ── Local (Ollama) ──────────────────────────────────────────
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
@@ -64,6 +71,7 @@ export const SettingsView: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [embeddingModel, setEmbeddingModel] = useState("");
   const [embeddingMode, setEmbeddingMode] = useState("local");
+  const [enableReranker, setEnableReranker] = useState(false);
   const [testingEmbedding, setTestingEmbedding] = useState(false);
   const [embeddingTestResult, setEmbeddingTestResult] = useState<"success" | "error" | null>(null);
   const [embeddingTestMsg, setEmbeddingTestMsg] = useState<string>("");
@@ -85,12 +93,38 @@ export const SettingsView: React.FC = () => {
   // ── Data Management State ─────────────────────────────────────
   const [actionLoading, setActionLoading] = useState(false);
   const [storageMsg, setStorageMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [zoteroDataDir, setZoteroDataDir] = useState("");
+
+  // ── Cache State ───────────────────────────────────────────────
+  const [cacheStats, setCacheStats] = useState<{ llm_cache_count: number; embedding_cache_count: number } | null>(null);
+  const [clearingCache, setClearingCache] = useState(false);
+  const [cacheMsg, setCacheMsg] = useState<string | null>(null);
+
+  // ── Model Status State ─────────────────────────────────────────
+  const [modelStatus, setModelStatus] = useState<{
+    embedder: { loaded: boolean; last_used: number; idle_seconds: number; model_name: string };
+    reranker: { loaded: boolean; last_used: number; idle_seconds: number; model_name: string };
+  } | null>(null);
+
+  const loadModelStatus = async () => {
+    try {
+      const status = await api.getModelStatus();
+      setModelStatus(status);
+    } catch (e) {
+      console.error("Failed to load model status:", e);
+    }
+  };
 
   useEffect(() => {
     loadSettings();
     loadStats();
     loadSpecs();
     loadUsage();
+    loadCacheStats();
+    loadModelStatus();
+    
+    const interval = setInterval(loadModelStatus, 5000); // refresh every 5s
+    return () => clearInterval(interval);
   }, []);
 
   const loadSettings = async () => {
@@ -103,7 +137,13 @@ export const SettingsView: React.FC = () => {
       setDeepseekModel(s.deepseek_model);
       setGeminiApiKey(s.gemini_api_key === "***" ? "" : s.gemini_api_key);
       setGeminiModel(s.gemini_model || "gemini-1.5-flash");
-      setCustomCloudProvider((s.custom_cloud_provider as "deepseek" | "gemini" | "claude") || "deepseek");
+      setGroqApiKey((s as any).groq_api_key === "***" ? "" : (s as any).groq_api_key || "");
+      setGroqModel((s as any).groq_model || "llama-3.1-8b-instant");
+      setNvidiaApiKey((s as any).nvidia_api_key === "***" ? "" : (s as any).nvidia_api_key || "");
+      setNvidiaModel((s as any).nvidia_model || "moonshotai/kimi-k2.6");
+      setFreemodelApiKey((s as any).freemodel_api_key === "***" ? "" : (s as any).freemodel_api_key || "");
+      setFreemodelModel((s as any).freemodel_model || "gpt-4o-mini");
+      setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "deepseek");
       setOllamaUrl(s.ollama_url);
       setOllamaModel(s.ollama_model);
       setModelTierWeak(s.model_tier_weak);
@@ -111,6 +151,8 @@ export const SettingsView: React.FC = () => {
       setModelTierStrong(s.model_tier_strong);
       setEmbeddingModel(s.embedding_model);
       setEmbeddingMode(s.embedding_mode || "local");
+      setEnableReranker(!!s.enable_reranker);
+      setZoteroDataDir((s as any).zotero_data_dir || "");
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
@@ -220,6 +262,34 @@ export const SettingsView: React.FC = () => {
       setActionLoading(false);
     }
   };
+ 
+  const handleSelectZoteroPath = async () => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const selected = await invoke<string | null>("select_folder");
+      if (selected) {
+        setZoteroDataDir(selected);
+        setStorageMsg({ type: "success", text: `Đã chọn thư mục Zotero: ${selected}` });
+      }
+    } catch (e) {
+      console.error("Failed to select Zotero directory:", e);
+      setStorageMsg({ type: "error", text: "Không thể mở hộp thoại chọn thư mục. Hãy nhập thủ công." });
+    }
+  };
+
+  const handleDetectZotero = async () => {
+    try {
+      const res = await api.detectZoteroDataDir();
+      if (res.found && res.path) {
+        setZoteroDataDir(res.path);
+        setStorageMsg({ type: "success", text: res.message });
+      } else {
+        setStorageMsg({ type: "error", text: res.message });
+      }
+    } catch (e: any) {
+      setStorageMsg({ type: "error", text: `Lỗi phát hiện Zotero: ${e.message || e}` });
+    }
+  };
 
   const handleClearData = async () => {
     const confirmClear = window.confirm(
@@ -270,6 +340,32 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const loadCacheStats = async () => {
+    try {
+      const stats = await api.getCacheStats();
+      setCacheStats(stats);
+    } catch (e) {
+      console.error("Failed to load cache stats:", e);
+    }
+  };
+
+  const handleClearCache = async () => {
+    const confirmClear = window.confirm("Bạn có chắc chắn muốn xoá bộ nhớ đệm LLM và Embedding? Hành động này sẽ khiến hệ thống phải gọi lại mô hình AI/API từ đầu ở lần chạy kế tiếp.");
+    if (!confirmClear) return;
+
+    setClearingCache(true);
+    setCacheMsg(null);
+    try {
+      const res = await api.clearCache();
+      setCacheMsg(res.message || "Đã xoá bộ nhớ đệm.");
+      loadCacheStats();
+    } catch (e) {
+      alert("Xoá bộ nhớ đệm thất bại: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setClearingCache(false);
+    }
+  };
+
   const checkHealth = async () => {
     setChecking(true);
     setHealthStatus("Đang kiểm tra...");
@@ -312,13 +408,25 @@ export const SettingsView: React.FC = () => {
             ? deepseekApiKey
             : customCloudProvider === "gemini"
             ? geminiApiKey
-            : claudeApiKey;
+            : customCloudProvider === "claude"
+            ? claudeApiKey
+            : customCloudProvider === "groq"
+            ? groqApiKey
+            : customCloudProvider === "nvidia"
+            ? nvidiaApiKey
+            : freemodelApiKey;
         const activeModel =
           customCloudProvider === "deepseek"
             ? deepseekModel
             : customCloudProvider === "gemini"
             ? geminiModel
-            : claudeModel;
+            : customCloudProvider === "claude"
+            ? claudeModel
+            : customCloudProvider === "groq"
+            ? groqModel
+            : customCloudProvider === "nvidia"
+            ? nvidiaModel
+            : freemodelModel;
 
         if (activeKey.trim() !== "") {
           setSaveMsg({ type: "success", text: "Đang kiểm tra kết nối API Key..." });
@@ -340,10 +448,20 @@ export const SettingsView: React.FC = () => {
         deepseek_model: deepseekModel,
         gemini_api_key: geminiApiKey,
         gemini_model: geminiModel,
+        groq_api_key: groqApiKey,
+        groq_model: groqModel,
+        nvidia_api_key: nvidiaApiKey,
+        nvidia_model: nvidiaModel,
+        freemodel_api_key: freemodelApiKey,
+        freemodel_model: freemodelModel,
         ollama_url: ollamaUrl,
         ollama_model: ollamaModel,
         embedding_mode: embeddingMode,
+        enable_reranker: enableReranker,
       });
+      if (zoteroDataDir.trim()) {
+        await api.saveZoteroPath(zoteroDataDir.trim());
+      }
       setSaveMsg({ type: "success", text: "Đã lưu cấu hình!" });
       loadUsage();
     } catch (e) {
@@ -531,13 +649,16 @@ export const SettingsView: React.FC = () => {
         {/* Custom Cloud settings */}
         {llmMode === "cloud_custom" && (
           <div className="settings-mode-detail" style={{ marginTop: 16 }}>
-            <div className="provider-tabs" style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
-              {["deepseek", "gemini", "claude"].map((provider) => {
+            <div className="provider-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
+              {["deepseek", "gemini", "claude", "groq", "nvidia", "freemodel"].map((provider) => {
                 const isActive = customCloudProvider === provider;
                 const labels: Record<string, string> = {
-                  deepseek: "DeepSeek (Rẻ)",
-                  gemini: "Gemini (Nhanh)",
-                  claude: "Claude (Mạnh)"
+                  deepseek: "DeepSeek",
+                  gemini: "Gemini",
+                  claude: "Claude",
+                  groq: "Groq",
+                  nvidia: "Nvidia NIM",
+                  freemodel: "FreeModel"
                 };
                 return (
                   <button
@@ -545,11 +666,11 @@ export const SettingsView: React.FC = () => {
                     className="provider-tab-btn"
                     onClick={() => setCustomCloudProvider(provider as any)}
                     style={{
-                      flex: 1, padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
+                      flex: "1 1 30%", padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
                       background: isActive ? "rgba(99, 102, 241, 0.1)" : "transparent",
                       borderColor: isActive ? "var(--color-primary, #6366f1)" : "var(--border-color)",
                       color: isActive ? "var(--color-primary, #6366f1)" : "var(--color-text)",
-                      cursor: "pointer", fontWeight: "bold"
+                      cursor: "pointer", fontWeight: "bold", minWidth: "100px", fontSize: "0.85rem"
                     }}
                   >
                     {labels[provider]}
@@ -670,6 +791,120 @@ export const SettingsView: React.FC = () => {
                 </div>
               </>
             )}
+
+            {customCloudProvider === "groq" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">Groq API Key</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={groqApiKey}
+                      onChange={(e) => setGroqApiKey(e.target.value)}
+                      placeholder="gsk-..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 API key được lưu trên máy bạn.
+                    <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy key tại đây →
+                    </a>
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">Groq Model</label>
+                  <select className="settings-select" value={groqModel} onChange={(e) => setGroqModel(e.target.value)}>
+                    <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (cực nhanh, nhẹ)</option>
+                    <option value="llama-3.3-70b-versatile">llama-3.3-70b-specdec (mạnh mẽ, thông minh)</option>
+                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 (context lớn)</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {customCloudProvider === "nvidia" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">Nvidia NIM API Key</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={nvidiaApiKey}
+                      onChange={(e) => setNvidiaApiKey(e.target.value)}
+                      placeholder="nvapi-..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 API key được lưu trên máy bạn.
+                    <a href="https://build.nvidia.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy key tại đây →
+                    </a>
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">Nvidia NIM Model</label>
+                  <select className="settings-select" value={nvidiaModel} onChange={(e) => setNvidiaModel(e.target.value)}>
+                    <option value="moonshotai/kimi-k2.6">moonshotai/kimi-k2.6 (tốt cho tiếng Việt)</option>
+                    <option value="deepseek-ai/deepseek-v3">deepseek-ai/deepseek-v3 (thông minh, đa năng)</option>
+                    <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct (phân tích tốt)</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {customCloudProvider === "freemodel" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">FreeModel API Key</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={freemodelApiKey}
+                      onChange={(e) => setFreemodelApiKey(e.target.value)}
+                      placeholder="fm-..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 API key được lưu trên máy bạn.
+                    <a href="https://freemodel.dev/" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy key tại đây →
+                    </a>
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">FreeModel Model</label>
+                  <select className="settings-select" value={freemodelModel} onChange={(e) => setFreemodelModel(e.target.value)}>
+                    <option value="gpt-4o-mini">gpt-4o-mini (tiêu chuẩn, nhanh)</option>
+                    <option value="claude-3-5-haiku">claude-3-5-haiku (thông minh)</option>
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (linh hoạt)</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -766,6 +1001,116 @@ export const SettingsView: React.FC = () => {
               <span>{storageMsg.text}</span>
             </div>
           )}
+
+          {/* Zotero Sync settings */}
+          <div className="settings-storage-info" style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
+            <span className="settings-storage-label" style={{ fontWeight: 600 }}>Tích hợp thư viện Zotero (SQLite):</span>
+            <p className="settings-storage-hint" style={{ marginBottom: 12 }}>
+              Đồng bộ tự động các tài liệu và tệp PDF từ thư mục dữ liệu Zotero cục bộ của bạn.
+            </p>
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px", marginBottom: "8px" }}>
+              <input
+                type="text"
+                className="settings-input"
+                value={zoteroDataDir}
+                onChange={(e) => setZoteroDataDir(e.target.value)}
+                placeholder="Đường dẫn đến thư mục Zotero data (chứa zotero.sqlite)..."
+                style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem" }}
+              />
+              <button 
+                className="settings-btn-secondary" 
+                onClick={handleSelectZoteroPath}
+                style={{ padding: "6px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+              >
+                📁 Chọn thư mục
+              </button>
+              <button 
+                className="settings-btn-secondary" 
+                onClick={handleDetectZotero}
+                style={{ padding: "6px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+              >
+                ⚡ Tự động tìm
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-storage-info" style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
+            <span className="settings-storage-label" style={{ fontWeight: 600 }}>Bộ nhớ đệm offline (Cache):</span>
+            <p className="settings-storage-hint" style={{ marginBottom: 8 }}>
+              Lưu giữ các kết quả Embedding và câu trả lời LLM để tăng tốc độ truy xuất không độ trễ (&lt; 5ms).
+            </p>
+            <div style={{ display: "flex", gap: "16px", marginTop: "8px", marginBottom: "8px" }}>
+              <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: "var(--radius-md)" }}>
+                <span style={{ display: "block", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Câu trả lời AI</span>
+                <strong>{cacheStats?.llm_cache_count ?? 0} bản ghi</strong>
+              </div>
+              <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: "var(--radius-md)" }}>
+                <span style={{ display: "block", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Vector Embedding</span>
+                <strong>{cacheStats?.embedding_cache_count ?? 0} bản ghi</strong>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px" }}>
+              <button 
+                className="settings-btn-secondary" 
+                onClick={handleClearCache} 
+                disabled={actionLoading || clearingCache}
+                style={{ padding: "6px 12px", fontSize: "0.85rem" }}
+              >
+                {clearingCache ? <IconSpinner size={14} /> : <IconTrash size={14} />}
+                <span>{clearingCache ? "Đang xoá..." : "Xoá bộ nhớ đệm"}</span>
+              </button>
+              {cacheMsg && (
+                <span style={{ fontSize: "0.85rem", color: "var(--color-success)" }}>
+                  {cacheMsg}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="settings-storage-info" style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
+            <span className="settings-storage-label" style={{ fontWeight: 600 }}>Quản lý Tài nguyên & Tiết kiệm Điện (Power Saver):</span>
+            <p className="settings-storage-hint" style={{ marginBottom: 12 }}>
+              Tự động giải phóng bộ nhớ RAM/VRAM của các mô hình AI cục bộ sau 5 phút không hoạt động để tối ưu hiệu năng máy tính.
+            </p>
+            
+            {modelStatus && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Mô hình Embedding</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{modelStatus.embedder.model_name || "bge-m3"}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {modelStatus.embedder.loaded ? (
+                      <>
+                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>🟢 Hoạt động</span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>Chờ: {modelStatus.embedder.idle_seconds}s</span>
+                      </>
+                    ) : (
+                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>💤 Tạm dừng</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Mô hình Reranker</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{modelStatus.reranker.model_name}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {modelStatus.reranker.loaded ? (
+                      <>
+                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>🟢 Hoạt động</span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>Chờ: {modelStatus.reranker.idle_seconds}s</span>
+                      </>
+                    ) : (
+                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>💤 Tạm dừng</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -787,7 +1132,14 @@ export const SettingsView: React.FC = () => {
                 </>
               ) : llmMode === "cloud_custom" ? (
                 <>
-                  <IconKey size={14} /> Custom Cloud ({customCloudProvider === "deepseek" ? "DeepSeek" : customCloudProvider === "gemini" ? "Gemini" : "Claude"})
+                  <IconKey size={14} /> Custom Cloud ({
+                    customCloudProvider === "deepseek" ? "DeepSeek"
+                    : customCloudProvider === "gemini" ? "Gemini"
+                    : customCloudProvider === "claude" ? "Claude"
+                    : customCloudProvider === "groq" ? "Groq"
+                    : customCloudProvider === "nvidia" ? "Nvidia NIM"
+                    : "FreeModel"
+                  })
                 </>
               ) : (
                 <>
@@ -857,6 +1209,36 @@ export const SettingsView: React.FC = () => {
                   {embeddingTestMsg}
                 </span>
               )}
+            </span>
+          </p>
+          <p style={{ marginTop: 8 }}>
+            Reranker:{" "}
+            <strong>
+              {enableReranker ? "🔌 Bật (Chậm, chính xác hơn)" : "⚡ Tắt (Nhanh, nhẹ)"}
+            </strong>
+            <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <select
+                value={enableReranker ? "true" : "false"}
+                onChange={async (e) => {
+                  const val = e.target.value === "true";
+                  setEnableReranker(val);
+                  try {
+                    await api.updateSettings({ enable_reranker: val });
+                  } catch { /* silent */ }
+                }}
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "1px 4px",
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--color-text-secondary)",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="false">Tắt (Tốc độ cao)</option>
+                <option value="true">Bật (Chính xác cao)</option>
+              </select>
             </span>
           </p>
           {stats && (

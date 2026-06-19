@@ -138,9 +138,11 @@ export const api = {
   health: () => request<HealthResponse>("GET", "/api/health"),
 
   // Papers
-  listPapers: (page = 1, limit = 20, status?: string) => {
+  listPapers: (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) params.set("status", status);
+    if (readStatus) params.set("read_status", readStatus);
+    if (starred !== undefined) params.set("starred", String(starred));
     return request<{ total: number; page: number; limit: number; papers: Paper[] }>(
       "GET", `/api/papers?${params}`
     );
@@ -208,6 +210,16 @@ export const api = {
     }>;
   },
 
+  syncZoteroSqlite: () =>
+    request<{
+      total: number;
+      imported: number;
+      duplicates: number;
+      errors: number;
+      pdf_imported: number;
+      results: { title: string; paper_id?: string; status: string; pdf_status?: string }[];
+    }>("POST", "/api/papers/import/zotero-sqlite-sync"),
+
   // Search
   search: (text: string, paperIds?: string[], topK = 10) =>
     request<{ query: string; total: number; results: SearchResult[] }>("POST", "/api/search", {
@@ -217,7 +229,9 @@ export const api = {
     }),
 
   searchSuggest: (q: string) =>
-    request<{ suggestions: string[] }>("GET", `/api/search/suggest?q=${encodeURIComponent(q)}`),
+    request<{ suggestions: string[]; tags?: string[]; papers?: { id: string; title: string }[] }>(
+      "GET", `/api/search/suggest?q=${encodeURIComponent(q)}`
+    ),
 
   // Chat
   chat: (message: string, paperIds?: string[], scope?: string) =>
@@ -413,6 +427,7 @@ export const api = {
       embedding_model: string;
       embedding_mode: string;
       setup_completed: boolean;
+      enable_reranker: boolean;
     }>("GET", "/api/settings"),
 
   updateSettings: (settings: Record<string, unknown>) =>
@@ -438,6 +453,19 @@ export const api = {
       api_key: apiKey,
       model,
     }),
+
+  // Cache Management
+  getCacheStats: () =>
+    request<{ llm_cache_count: number; embedding_cache_count: number }>("GET", "/api/settings/cache-stats"),
+
+  clearCache: () =>
+    request<{ status: string; message: string }>("POST", "/api/settings/cache-clear"),
+
+  getModelStatus: () =>
+    request<{
+      embedder: { loaded: boolean; last_used: number; idle_seconds: number; model_name: string };
+      reranker: { loaded: boolean; last_used: number; idle_seconds: number; model_name: string };
+    }>("GET", "/api/settings/model-status"),
 
   // Ollama Status & Pulling
   getOllamaStatus: () =>
@@ -476,6 +504,16 @@ export const api = {
 
   findEvolutionMap: (paperIds?: string[]) =>
     request<ChatResponse>("POST", "/api/insights/evolution", { paper_ids: paperIds }),
+
+  comparePapers: (paperIds?: string[]) =>
+    request<{
+      answer: string;
+      citations: any[];
+      model_used: string;
+      papers_used: string[];
+      chunks_used: number;
+      matrix: { columns: string[]; rows: string[][] };
+    }>("POST", "/api/insights/compare", { paper_ids: paperIds }),
 
   // Highlights
   findHighlights: (paperId: string, limit = 10) =>

@@ -4,6 +4,11 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+_ocr_lock = threading.Lock()
+_global_ocr_engine = None
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".epub"}
 
@@ -48,22 +53,16 @@ def extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     return _extract_pdf(file_path)
 
 
-def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
-    path = Path(file_path)
-
+def _process_single_page(file_path: str, page_num: int) -> tuple[int, str]:
+    import fitz
+    import re
+    
+    text = ""
     try:
         doc = fitz.open(file_path)
-    except Exception:
-        return None
-
-    text_by_page: dict[int, str] = {}
-    full_text_parts: list[str] = []
-
-    ocr_engine = None
-
-    for page_num in range(len(doc)):
         page = doc[page_num]
         text = page.get_text("text")
+        
         bad_chars = sum(1 for c in text if ord(c) < 0x09 or 0x0E <= ord(c) < 0x20 or 0x80 <= ord(c) < 0xA0)
         is_garbled = bad_chars > max(3, len(text.strip()) * 0.05)
         if is_garbled and len(text.strip()) > 0:
@@ -74,51 +73,106 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
                 if html_bad < bad_chars:
                     text = html_text
                     is_garbled = False
+                    
         if is_garbled or len(text.strip()) < 40:
             try:
+                with _ocr_lock:
+                    global _global_ocr_engine
+                    if _global_ocr_engine is None:
+                        from rapidocr_onnxruntime import RapidOCR
+                        _global_ocr_engine = RapidOCR()
+                    ocr_engine = _global_ocr_engine
+                
                 logger.info(f"Page {page_num + 1} appears to be a scanned page (text length: {len(text.strip())}). Running OCR...")
-                if ocr_engine is None:
-                    from rapidocr_onnxruntime import RapidOCR
-                    ocr_engine = RapidOCR()
                 pix = page.get_pixmap(dpi=150)
                 img_bytes = pix.tobytes("png")
-                ocr_results, elapse = ocr_engine(img_bytes)
+                
+                with _ocr_lock:
+                    ocr_results, elapse = ocr_engine(img_bytes)
+                    
                 if ocr_results:
                     ocr_text_list = [res[1] for res in ocr_results if res and len(res) > 1]
                     ocr_text = "\n".join(ocr_text_list)
                     if ocr_text.strip():
                         text = ocr_text
-                        logger.info(f"Page {page_num + 1} OCR completed in {elapse:.2f}s")
+                        total_elapse = sum(elapse) if isinstance(elapse, (list, tuple)) else (elapse or 0.0)
+                        logger.info(f"Page {page_num + 1} OCR completed in {total_elapse:.2f}s")
             except Exception as e:
                 logger.warning(f"OCR failed for page {page_num + 1}: {e}")
+        doc.close()
+    except Exception as e:
+        logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
+        
+    return page_num, text
 
-        text_by_page[page_num + 1] = text
-        full_text_parts.append(text)
 
+def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
+    path = Path(file_path)
+
+    try:
+        doc = fitz.open(file_path)
+    except Exception:
+        return None
+
+    page_count = len(doc)
+    doc.close()
+
+    text_by_page: dict[int, str] = {}
+    max_workers = min(4, page_count) if page_count > 0 else 1
+    pages_to_process = list(range(page_count))
+    
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # We map processing onto the threads. Under python threads, this releases the GIL during fitz parsing and ONNX runtime
+            results = executor.map(lambda p: _process_single_page(file_path, p), pages_to_process)
+            for page_num, text in results:
+                text_by_page[page_num + 1] = text
+    except Exception as e:
+        logger.error(f"Error during parallel PDF parsing: {e}")
+        text_by_page = {}
+        try:
+            doc = fitz.open(file_path)
+            for page_num in range(len(doc)):
+                p_num, text = _process_single_page(file_path, page_num)
+                text_by_page[p_num + 1] = text
+            doc.close()
+        except Exception as fallback_err:
+            logger.error(f"Fallback parsing also failed: {fallback_err}")
+            return None
+
+    full_text_parts = [text_by_page[p] for p in sorted(text_by_page.keys())]
     full_text = "\n".join(full_text_parts)
 
-    meta = doc.metadata or {}
-    title = meta.get("title", "").strip() or path.stem
-    authors_raw = meta.get("author", "").strip()
-    authors_list = [a.strip() for a in authors_raw.split(";") if a.strip()] if authors_raw else []
-    authors_json = str(authors_list)
+    try:
+        doc = fitz.open(file_path)
+        meta = doc.metadata or {}
+        title = meta.get("title", "").strip() or path.stem
+        authors_raw = meta.get("author", "").strip()
+        authors_list = [a.strip() for a in authors_raw.split(";") if a.strip()] if authors_raw else []
+        authors_json = str(authors_list)
 
-    year = None
-    year_str = meta.get("creationDate", "")
-    if year_str and len(year_str) >= 4:
-        try:
-            year = int(year_str[:4])
-        except ValueError:
-            pass
-    if not year:
-        years_found = re.findall(r"\b(19|20)\d{2}\b", path.stem)
-        if years_found:
-            year = int(years_found[0])
+        year = None
+        year_str = meta.get("creationDate", "")
+        if year_str and len(year_str) >= 4:
+            try:
+                year = int(year_str[:4])
+            except ValueError:
+                pass
+        if not year:
+            years_found = re.findall(r"\b(19|20)\d{2}\b", path.stem)
+            if years_found:
+                year = int(years_found[0])
 
-    doi = meta.get("identifier", "").strip() or ""
+        doi = meta.get("identifier", "").strip() or ""
+        doc.close()
+    except Exception as meta_err:
+        logger.warning(f"Failed to extract metadata for {file_path}: {meta_err}")
+        title = path.stem
+        authors_json = "[]"
+        year = None
+        doi = ""
+
     language = _detect_language(full_text[:2000])
-
-    doc.close()
 
     return ExtractedDocument(
         path=str(path.absolute()),

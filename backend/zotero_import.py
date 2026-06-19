@@ -21,6 +21,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from config.settings import settings
+from app_state import state
 from db.database import get_session
 from db.models import Chunk, Paper
 from ingestion.chunker import chunk_text
@@ -986,3 +987,191 @@ async def import_zotero_csv_with_pdfs(
         "pdf_not_found": pdf_not_found,
         "results": results,
     }
+
+
+@router.post("/zotero-sqlite-sync")
+async def import_zotero_sqlite_sync(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(_get_db),
+):
+    """
+    Automatically scan the local zotero.sqlite file,
+    identify new papers, and import/index them with their PDFs.
+    """
+    import sqlite3
+    
+    zotero_dir_str = settings.zotero_data_dir
+    if not zotero_dir_str or not zotero_dir_str.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Bạn chưa cấu hình thư mục Zotero. Vui lòng vào Cài đặt để thiết lập đường dẫn Zotero data.",
+        )
+        
+    zotero_dir = Path(zotero_dir_str.strip())
+    sqlite_path = zotero_dir / "zotero.sqlite"
+    if not sqlite_path.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không tìm thấy file zotero.sqlite tại: {sqlite_path}",
+        )
+        
+    try:
+        conn = sqlite3.connect(str(sqlite_path))
+        cursor = conn.cursor()
+        
+        # Query main items
+        query = """
+        SELECT 
+            i.itemId,
+            i.key,
+            t.typeName,
+            (SELECT value FROM itemDataValues idv JOIN itemData id ON id.valueId = idv.valueId JOIN fields f ON id.fieldId = f.fieldId WHERE id.itemId = i.itemId AND f.fieldName = 'title') as title,
+            (SELECT value FROM itemDataValues idv JOIN itemData id ON id.valueId = idv.valueId JOIN fields f ON id.fieldId = f.fieldId WHERE id.itemId = i.itemId AND f.fieldName = 'abstractNote') as abstract,
+            (SELECT value FROM itemDataValues idv JOIN itemData id ON id.valueId = idv.valueId JOIN fields f ON id.fieldId = f.fieldId WHERE id.itemId = i.itemId AND f.fieldName = 'date') as date,
+            (SELECT value FROM itemDataValues idv JOIN itemData id ON id.valueId = idv.valueId JOIN fields f ON id.fieldId = f.fieldId WHERE id.itemId = i.itemId AND f.fieldName = 'DOI') as doi,
+            (SELECT value FROM itemDataValues idv JOIN itemData id ON id.valueId = idv.valueId JOIN fields f ON id.fieldId = f.fieldId WHERE id.itemId = i.itemId AND f.fieldName = 'publicationTitle') as journal,
+            (SELECT value FROM itemDataValues idv JOIN itemData id ON id.valueId = idv.valueId JOIN fields f ON id.fieldId = f.fieldId WHERE id.itemId = i.itemId AND f.fieldName = 'pages') as pages
+        FROM items i
+        JOIN itemTypes t ON i.itemTypeId = t.itemTypeId
+        WHERE t.typeName NOT IN ('attachment', 'note', 'annotation')
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        synced_count = 0
+        duplicate_count = 0
+        error_count = 0
+        pdf_imported = 0
+        results = []
+        
+        for row in rows:
+            item_id, key, type_name, title, abstract, date_str, doi, journal, pages = row
+            if not title:
+                continue
+                
+            title = _clean_title(title)
+            
+            # Get authors
+            creators_query = """
+            SELECT c.lastName, c.firstName
+            FROM itemCreators ic
+            JOIN creators c ON ic.creatorId = c.creatorId
+            WHERE ic.itemId = ?
+            ORDER BY ic.orderIndex
+            """
+            cursor.execute(creators_query, (item_id,))
+            authors_list = []
+            for c_row in cursor.fetchall():
+                last, first = c_row
+                name = f"{first} {last}".strip() if first else last
+                if name:
+                    authors_list.append(name)
+            authors_json = json.dumps(authors_list, ensure_ascii=False)
+            
+            # Get attachments
+            attachments_query = """
+            SELECT path
+            FROM itemAttachments
+            WHERE parentItemId = ? AND (path LIKE 'storage:%' OR path LIKE '%.pdf')
+            """
+            cursor.execute(attachments_query, (item_id,))
+            attachments = [r[0] for r in cursor.fetchall() if r[0]]
+            
+            year = _parse_year(date_str)
+            lang = _detect_language(f"{title} {abstract or ''}")
+            
+            tags_list = [type_name.lower()]
+            tags_json = json.dumps(tags_list, ensure_ascii=False)
+            
+            # Check if paper already exists
+            existing = _find_existing(db, title, doi or "")
+            if existing:
+                duplicate_count += 1
+                results.append({
+                    "title": title,
+                    "status": "duplicate",
+                    "paper_id": existing.id
+                })
+                continue
+                
+            # Create paper entry
+            paper, is_new = _create_paper(
+                session=db,
+                title=title,
+                authors=authors_json,
+                year=year,
+                doi=doi or "",
+                abstract=abstract or "",
+                tags=tags_json,
+                journal=journal or "",
+                pages=None,
+                language=lang,
+            )
+            
+            if not paper:
+                error_count += 1
+                results.append({
+                    "title": title,
+                    "status": "error",
+                    "error": "Lỗi khi lưu vào cơ sở dữ liệu"
+                })
+                continue
+                
+            result = {
+                "title": title,
+                "paper_id": paper.id,
+                "status": "imported",
+                "pdf_status": "none"
+            }
+            
+            # Try to copy PDF if exists
+            pdf_found = False
+            for att_path in attachments:
+                storage_match = re.match(r"^storage:([^\\/]+)[\\/](.+)$", att_path, re.IGNORECASE)
+                if storage_match:
+                    storage_hash = storage_match.group(1).strip()
+                    filename = storage_match.group(2).strip()
+                    if filename.lower().endswith(".pdf"):
+                        att = {
+                            "storage_hash": storage_hash,
+                            "filename": filename,
+                            "is_pdf": True
+                        }
+                        pdf_path = _locate_pdf_from_attachment(att, str(zotero_dir))
+                        if pdf_path:
+                            pdf_result = _copy_and_index_pdf(
+                                pdf_path=str(pdf_path),
+                                paper_id=paper.id,
+                                title=title,
+                                background_tasks=background_tasks
+                            )
+                            if pdf_result["status"] == "indexing":
+                                result["pdf_status"] = "indexing"
+                                pdf_imported += 1
+                            else:
+                                result["pdf_status"] = pdf_result["status"]
+                            pdf_found = True
+                            break
+                            
+            if not pdf_found and attachments:
+                result["pdf_status"] = "not_found"
+                
+            synced_count += 1
+            results.append(result)
+            
+        conn.close()
+        
+        return {
+            "total": len(rows),
+            "imported": synced_count,
+            "duplicates": duplicate_count,
+            "errors": error_count,
+            "pdf_imported": pdf_imported,
+            "results": results[:100]
+        }
+    except Exception as e:
+        logger.error(f"Zotero SQLite sync failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi khi đồng bộ cơ sở dữ liệu Zotero: {str(e)}"
+        )

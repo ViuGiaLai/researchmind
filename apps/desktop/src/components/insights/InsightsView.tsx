@@ -15,6 +15,7 @@ interface InsightResult {
   model_used: string;
   papers_used: string[];
   chunks_used: number;
+  matrix?: { columns: string[]; rows: string[][] };
 }
 
 const INSIGHT_CARDS = [
@@ -46,6 +47,13 @@ const INSIGHT_CARDS = [
     description: "Xem sự phát triển của các ý tưởng nghiên cứu qua thời gian",
     color: "#06b6d4",
   },
+  {
+    id: "compare",
+    icon: "📊",
+    title: "Literature Matrix",
+    description: "So sánh đối chiếu mục tiêu, phương pháp, kết quả, hạn chế giữa các bài báo",
+    color: "#6366f1",
+  },
 ];
 
 export const InsightsView: React.FC<{
@@ -58,6 +66,7 @@ export const InsightsView: React.FC<{
   const [result, setResult] = useState<InsightResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadPapers();
@@ -86,6 +95,28 @@ export const InsightsView: React.FC<{
     setSelectedPaperIds(papers.map((p) => p.id));
   };
 
+  const handleExport = async (format: "docx" | "html") => {
+    if (!result) return;
+    setExporting(true);
+    try {
+      const title = `Ma_tran_so_sanh_${selectedPaperIds.length}_tai_lieu`;
+      const blob = await api.exportSynthesis(title, result.answer, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      console.error("Export synthesis failed:", e);
+      alert("Xuất file thất bại: " + (e.message || String(e)));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const runInsight = async () => {
     if (!activeInsight) return;
     setLoading(true);
@@ -107,6 +138,14 @@ export const InsightsView: React.FC<{
         setResult(res);
       } else if (activeInsight === "evolution") {
         const res = await api.findEvolutionMap(paperIds);
+        setResult(res);
+      } else if (activeInsight === "compare") {
+        if (selectedPaperIds.length < 2) {
+          setError("Vui lòng chọn ít nhất 2 tài liệu để tiến hành so sánh.");
+          setLoading(false);
+          return;
+        }
+        const res = await api.comparePapers(selectedPaperIds);
         setResult(res);
       }
     } catch (e) {
@@ -218,6 +257,8 @@ export const InsightsView: React.FC<{
             <span className="insights-paper-count">
               {selectedPaperIds.length > 0
                 ? `Đã chọn ${selectedPaperIds.length} paper`
+                : activeInsight === "compare"
+                ? "Vui lòng chọn ít nhất 2 paper từ danh sách bên dưới để so sánh"
                 : `Chọn paper để phân tích (hoặc bỏ trống = tất cả ${papers.length} paper)`}
             </span>
             <button className="insights-select-all-btn" onClick={selectAll}>
@@ -259,7 +300,7 @@ export const InsightsView: React.FC<{
           <button
             className="insights-run-btn"
             onClick={runInsight}
-            disabled={loading || (papers.length === 0 && !loadingPapers)}
+            disabled={loading || (papers.length === 0 && !loadingPapers) || (activeInsight === "compare" && selectedPaperIds.length < 2)}
           >
             {loading ? (
               <>
@@ -276,7 +317,9 @@ export const InsightsView: React.FC<{
                     ? "Tìm Mâu Thuẫn"
                     : activeInsight === "topic"
                     ? "Đề xuất đề tài"
-                    : "Phân tích Evolution Map"}
+                    : activeInsight === "evolution"
+                    ? "Phân tích Evolution Map"
+                    : "Lập ma trận so sánh"}
                 </span>
               </>
             )}
@@ -294,7 +337,8 @@ export const InsightsView: React.FC<{
       )}
 
       {/* Error */}
-      {error && (          <div className="insights-error">
+      {error && (
+        <div className="insights-error">
           <IconError size={20} />
           <span>{error}</span>
           <button onClick={() => setError(null)}>✕</button>
@@ -325,7 +369,34 @@ export const InsightsView: React.FC<{
           </div>
 
           <div className="insights-result-content">
-            {renderMarkdown(result.answer)}
+            {result.matrix ? (
+              <div className="insights-comparison-table-wrapper" style={{ overflowX: "auto", margin: "20px 0", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+                <table className="insights-comparison-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ background: "rgba(99, 102, 241, 0.08)", borderBottom: "2px solid var(--color-border)" }}>
+                      {result.matrix.columns.map((col, idx) => (
+                        <th key={idx} style={{ padding: "12px 16px", fontWeight: "bold", borderRight: "1px solid var(--color-border)", minWidth: idx === 0 ? "160px" : "260px", verticalAlign: "top", color: "var(--color-text)" }}>
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.matrix.rows.map((row, rowIdx) => (
+                      <tr key={rowIdx} style={{ background: rowIdx % 2 === 1 ? "var(--color-bg-hover, #f8fafc)" : "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
+                        {row.map((cell, cellIdx) => (
+                          <td key={cellIdx} style={{ padding: "12px 16px", borderRight: "1px solid var(--color-border)", lineHeight: "1.5", color: cellIdx === 0 ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: cellIdx === 0 ? "bold" : "normal", verticalAlign: "top" }}>
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              renderMarkdown(result.answer)
+            )}
           </div>
 
           {result.citations.length > 0 && (
@@ -352,6 +423,28 @@ export const InsightsView: React.FC<{
             >
               Phân tích lại
             </button>
+            {result.matrix && (
+              <>
+                <button
+                  className="insights-action-btn primary"
+                  onClick={() => handleExport("docx")}
+                  disabled={exporting}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  {exporting ? <IconSpinner size={14} /> : "📄"}
+                  Xuất Word (DOCX)
+                </button>
+                <button
+                  className="insights-action-btn primary"
+                  onClick={() => handleExport("html")}
+                  disabled={exporting}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  {exporting ? <IconSpinner size={14} /> : "🌐"}
+                  Xuất HTML
+                </button>
+              </>
+            )}
             <button
               className="insights-action-btn primary"
               onClick={() => onStartChat(result.papers_used)}

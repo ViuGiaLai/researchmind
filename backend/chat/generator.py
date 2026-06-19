@@ -116,6 +116,90 @@ class Generator:
         context_text: str,
         citations_meta: Optional[list[dict]] = None,
     ) -> GenerationResult:
+        if not context_text.strip():
+            return GenerationResult(
+                content="Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác.",
+                citations=[],
+                model_used="none",
+                finish_reason="no_context",
+            )
+
+        if context_text == "__EXTERNAL_KNOWLEDGE__":
+            user_prompt = f"""Câu hỏi: {query}
+
+Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+        else:
+            user_prompt = f"""Context từ tài liệu:
+{context_text}
+
+Câu hỏi: {query}
+
+Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
+
+        import hashlib
+        import json
+        from app_state import state
+        from db.database import get_session
+        from db.models import LLMCache
+
+        system_prompt = self._get_system_prompt()
+        cache_key_raw = f"mode:{self.mode}|provider:{self.custom_cloud_provider}|sys:{system_prompt}|user:{user_prompt}"
+        key_hash = hashlib.md5(cache_key_raw.encode("utf-8")).hexdigest()
+
+        if state.engine:
+            session = get_session(state.engine)
+            try:
+                cached = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
+                if cached:
+                    logger.info("Retrieving LLM response from local cache...")
+                    cached_data = json.loads(cached.response)
+                    session.close()
+                    return GenerationResult(
+                        content=cached_data["content"],
+                        citations=cached_data["citations"],
+                        model_used=cached_data["model_used"] + " (cached)",
+                        finish_reason=cached_data.get("finish_reason", "stop")
+                    )
+            except Exception as cache_err:
+                logger.warning(f"Failed to query LLM cache: {cache_err}")
+            finally:
+                session.close()
+
+        # Call original generation logic
+        result = self._generate_uncached(query, context_text, citations_meta)
+
+        # Cache the result if successful
+        if result and result.finish_reason != "error" and state.engine:
+            session = get_session(state.engine)
+            try:
+                cached_res = {
+                    "content": result.content,
+                    "citations": result.citations,
+                    "model_used": result.model_used,
+                    "finish_reason": result.finish_reason
+                }
+                exists = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
+                if not exists:
+                    session.add(LLMCache(
+                        key_hash=key_hash,
+                        prompt=user_prompt,
+                        response=json.dumps(cached_res)
+                    ))
+                    session.commit()
+            except Exception as cache_err:
+                session.rollback()
+                logger.warning(f"Failed to save to LLM cache: {cache_err}")
+            finally:
+                session.close()
+
+        return result
+
+    def _generate_uncached(
+        self,
+        query: str,
+        context_text: str,
+        citations_meta: Optional[list[dict]] = None,
+    ) -> GenerationResult:
         """
         Generate a response using the configured LLM.
 
@@ -228,7 +312,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     logger.warning("Custom Gemini failed. Falling back to local Ollama...")
                     return self._generate_ollama(user_prompt)
                 return result
-            else:  # Claude provider
+            elif self.custom_cloud_provider == "claude":
                 if not self.claude_api_key:
                     return GenerationResult(
                         content="⚠️ Bạn chưa nhập Claude API Key. Hãy mở phần Cài đặt và cập nhật API Key để sử dụng.",
@@ -239,6 +323,45 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 result = self._generate_claude(user_prompt)
                 if result.finish_reason == "error":
                     logger.warning("Custom Claude failed. Falling back to local Ollama...")
+                    return self._generate_ollama(user_prompt)
+                return result
+            elif self.custom_cloud_provider == "groq":
+                if not self.groq_api_key:
+                    return GenerationResult(
+                        content="⚠️ Bạn chưa nhập Groq API Key. Hãy mở phần Cài đặt và cập nhật API Key để sử dụng.",
+                        citations=[],
+                        model_used="groq/no_key",
+                        finish_reason="no_key",
+                    )
+                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model)
+                if result.finish_reason == "error":
+                    logger.warning("Custom Groq failed. Falling back to local Ollama...")
+                    return self._generate_ollama(user_prompt)
+                return result
+            elif self.custom_cloud_provider == "nvidia":
+                if not self.nvidia_api_key:
+                    return GenerationResult(
+                        content="⚠️ Bạn chưa nhập Nvidia API Key. Hãy mở phần Cài đặt và cập nhật API Key để sử dụng.",
+                        citations=[],
+                        model_used="nvidia/no_key",
+                        finish_reason="no_key",
+                    )
+                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model)
+                if result.finish_reason == "error":
+                    logger.warning("Custom Nvidia failed. Falling back to local Ollama...")
+                    return self._generate_ollama(user_prompt)
+                return result
+            elif self.custom_cloud_provider == "freemodel":
+                if not self.freemodel_api_key:
+                    return GenerationResult(
+                        content="⚠️ Bạn chưa nhập FreeModel API Key. Hãy mở phần Cài đặt và cập nhật API Key để sử dụng.",
+                        citations=[],
+                        model_used="freemodel/no_key",
+                        finish_reason="no_key",
+                    )
+                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model)
+                if result.finish_reason == "error":
+                    logger.warning("Custom FreeModel failed. Falling back to local Ollama...")
                     return self._generate_ollama(user_prompt)
                 return result
 
@@ -912,6 +1035,54 @@ Câu hỏi: {query}"""
                 except Exception as e:
                     self.current_model = f"ollama/{self.ollama_model}"
                     yield f"\n⚠️ Claude stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
+                    for chunk in self._stream_ollama(user_prompt):
+                        yield chunk
+            elif self.custom_cloud_provider == "groq":
+                if not self.groq_api_key:
+                    self.current_model = "groq/no_key"
+                    yield "⚠️ Bạn chưa nhập Groq API Key. Vui lòng vào Cài đặt để cấu hình."
+                    return
+                self.current_model = f"groq/{self.groq_model}"
+                try:
+                    yield from self._stream_openai(
+                        user_prompt, self.groq_api_key, self.groq_model,
+                        "https://api.groq.com/openai/v1"
+                    )
+                except Exception as e:
+                    self.current_model = f"ollama/{self.ollama_model}"
+                    yield f"\n⚠️ Groq stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
+                    for chunk in self._stream_ollama(user_prompt):
+                        yield chunk
+            elif self.custom_cloud_provider == "nvidia":
+                if not self.nvidia_api_key:
+                    self.current_model = "nvidia/no_key"
+                    yield "⚠️ Bạn chưa nhập Nvidia API Key. Vui lòng vào Cài đặt để cấu hình."
+                    return
+                self.current_model = f"nvidia/{self.nvidia_model}"
+                try:
+                    yield from self._stream_openai(
+                        user_prompt, self.nvidia_api_key, self.nvidia_model,
+                        self.nvidia_url
+                    )
+                except Exception as e:
+                    self.current_model = f"ollama/{self.ollama_model}"
+                    yield f"\n⚠️ Nvidia stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
+                    for chunk in self._stream_ollama(user_prompt):
+                        yield chunk
+            elif self.custom_cloud_provider == "freemodel":
+                if not self.freemodel_api_key:
+                    self.current_model = "freemodel/no_key"
+                    yield "⚠️ Bạn chưa nhập FreeModel API Key. Vui lòng vào Cài đặt để cấu hình."
+                    return
+                self.current_model = f"freemodel/{self.freemodel_model}"
+                try:
+                    yield from self._stream_openai(
+                        user_prompt, self.freemodel_api_key, self.freemodel_model,
+                        self.freemodel_url
+                    )
+                except Exception as e:
+                    self.current_model = f"ollama/{self.ollama_model}"
+                    yield f"\n⚠️ FreeModel stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
                     for chunk in self._stream_ollama(user_prompt):
                         yield chunk
             else:

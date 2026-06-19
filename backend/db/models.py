@@ -72,3 +72,20 @@ class Setting(Base):
 
     key = Column(String, primary_key=True)
     value = Column(Text, nullable=False)
+
+
+class LLMCache(Base):
+    __tablename__ = "llm_cache"
+
+    key_hash = Column(String, primary_key=True)  # md5 hash of (model + prompt/query + context)
+    prompt = Column(Text, nullable=False)
+    response = Column(Text, nullable=False)  # JSON-serialized response details
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class EmbeddingCache(Base):
+    __tablename__ = "embedding_cache"
+
+    key_hash = Column(String, primary_key=True)  # md5 hash of chunk/query text
+    vector = Column(Text, nullable=False)  # JSON-serialized list of floats
+    created_at = Column(DateTime, server_default=func.now())

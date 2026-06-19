@@ -214,6 +214,70 @@ async def import_folder(
     }
 
 
+def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
+    """
+    Extract top N keywords from a text locally.
+    Uses clean word filtering, stopwords removal, and frequency analysis.
+    """
+    import re
+    from collections import Counter
+
+    # Define standard stopwords for Vietnamese and English
+    stopwords = {
+        "và", "hoặc", "của", "cho", "trong", "ngoài", "là", "bởi", "tại", "với", "các", "những", "cái", "được", "bị", "ra", "vào", "lên", "xuống", "đến", "đi", "này", "kia", "đó", "ấy", "sự", "cuộc", "việc", "như", "như_vậy", "thế_nào", "vì", "nên", "thì", "mà",
+        "the", "and", "of", "to", "in", "for", "with", "on", "at", "by", "an", "is", "this", "that", "from", "are", "was", "were", "be", "has", "have", "had", "with", "as", "it", "its", "we", "our", "you", "your", "they", "their", "he", "she", "him", "her", "who", "which", "what", "where", "when", "why", "how"
+    }
+
+    # Normalize text
+    text_lower = text.lower()
+    
+    # Extract words
+    words = re.findall(r"\b[a-z_àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]+\b", text_lower)
+    
+    # Filter unigrams
+    filtered_unigrams = [w for w in words if len(w) > 3 and w not in stopwords and not w.isdigit()]
+    
+    # Calculate frequencies of unigrams
+    unigram_counts = Counter(filtered_unigrams)
+    
+    # Extract bigrams
+    bigrams = []
+    for i in range(len(words) - 1):
+        w1, w2 = words[i], words[i+1]
+        if (len(w1) > 2 and len(w2) > 2 and 
+            w1 not in stopwords and w2 not in stopwords and 
+            not w1.isdigit() and not w2.isdigit()):
+            bigrams.append(f"{w1} {w2}")
+            
+    bigram_counts = Counter(bigrams)
+    
+    # Combine candidates
+    candidates = {}
+    
+    # Add bigrams with a small frequency boost
+    for k, v in bigram_counts.most_common(15):
+        candidates[k] = v * 1.5
+        
+    for k, v in unigram_counts.most_common(20):
+        is_sub = False
+        for cand in candidates:
+            if k in cand.split():
+                is_sub = True
+                break
+        if not is_sub:
+            candidates[k] = v
+            
+    sorted_candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
+    
+    # Format and capitalize first letter
+    extracted = []
+    for kw, _ in sorted_candidates[:top_n]:
+        capitalized = " ".join(word.capitalize() for word in kw.split())
+        extracted.append(capitalized)
+        
+    return extracted
+
+
 def _index_paper(file_id: str, doc):
     """
     Background indexing: chunk -> embed -> store in ChromaDB + FTS5.
@@ -270,6 +334,15 @@ def _index_paper(file_id: str, doc):
 
         session.query(Paper).filter(Paper.id == file_id).update({"status": "indexed"})
         session.commit()
+
+        # Extract keywords and save as tags automatically
+        try:
+            keywords = _extract_keywords_local(doc.full_text, top_n=5)
+            session.query(Paper).filter(Paper.id == file_id).update({"tags": json.dumps(keywords)})
+            session.commit()
+            logger.info(f"Extracted keywords for {doc.filename}: {keywords}")
+        except Exception as kw_err:
+            logger.warning(f"Keyword extraction failed for {doc.filename}: {kw_err}")
 
         try:
             intro_chunks = session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
@@ -374,6 +447,8 @@ async def list_papers(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     status: str = Query(None),
+    read_status: str = Query(None),
+    starred: bool = Query(None),
     sort_by: str = Query("created_at"),
     order: str = Query("desc"),
 ):
@@ -383,6 +458,10 @@ async def list_papers(
         query = session.query(Paper)
         if status:
             query = query.filter(Paper.status == status)
+        if read_status:
+            query = query.filter(Paper.read_status == read_status)
+        if starred is not None:
+            query = query.filter(Paper.starred == (1 if starred else 0))
 
         sort_col = getattr(Paper, sort_by, Paper.created_at)
         if order == "desc":

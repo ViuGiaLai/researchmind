@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar } from "./components/Icons";
+import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
+import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
 import { SearchView } from "./components/search/SearchView";
 import { ChatView } from "./components/chat/ChatView";
 import { SettingsView } from "./components/settings/SettingsView";
@@ -12,7 +13,7 @@ import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { ToastProvider } from "./components/shared/Toast";
 import { api } from "./lib/api";
 
-type Tab = "wow" | "library" | "search" | "chat" | "insights" | "brain" | "daily" | "settings";
+type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "brain" | "daily" | "settings";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("wow");
@@ -120,6 +121,7 @@ function App() {
           {[
             { tab: "wow" as Tab, icon: IconSparkle, label: "Phân tích tài liệu AI" },
             { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
+            { tab: "highlights" as Tab, icon: IconBookmark, label: "Đoạn trích" },
             { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
             { tab: "insights" as Tab, icon: IconBulb, label: "Insights" },
@@ -174,6 +176,9 @@ function App() {
             onStartVerify={handleStartVerify}
             onStartWow={handleStartWow}
           />
+        )}
+        {activeTab === "highlights" && (
+          <HighlightsLibraryView onStartChat={handleStartChat} />
         )}
         {activeTab === "chat" && (
           <ChatView

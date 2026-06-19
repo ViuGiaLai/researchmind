@@ -1,4 +1,5 @@
 import asyncio
+import json
 from fastapi import APIRouter, Body
 from loguru import logger
 
@@ -318,4 +319,153 @@ Context từ tài liệu:\n{retrieval.context_text}"""
         "model_used": generation.model_used,
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
+    }
+
+
+@router.post("/compare")
+async def compare_papers(body: dict = Body(...)):
+    """
+    Compare multiple selected papers side-by-side.
+    Uses concurrent LLM calls to extract Objective, Methodology, Dataset, Findings, and Limitations.
+    """
+    paper_ids = body.get("paper_ids")
+
+    if not paper_ids or len(paper_ids) < 2:
+        return {
+            "answer": "Vui lòng chọn ít nhất 2 tài liệu để tiến hành so sánh.",
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+            "matrix": {"columns": [], "rows": []}
+        }
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {
+            "answer": paper_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+            "matrix": {"columns": [], "rows": []}
+        }
+
+    # Fetch paper titles from DB
+    from db.database import get_session
+    from db.models import Paper
+    session = get_session(state.engine)
+    try:
+        papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
+        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+    finally:
+        session.close()
+
+    # Define extraction helper
+    async def extract_single_paper(paper_id: str, title: str):
+        retrieval = await asyncio.to_thread(
+            state.retriever.retrieve,
+            query="abstract introduction methodology experimental results dataset conclusion limitations weaknesses",
+            paper_ids=[paper_id],
+            top_k=8,
+        )
+        if not retrieval.context_text.strip():
+            return {
+                "id": paper_id,
+                "title": title,
+                "data": {
+                    "objective": "Không có dữ liệu văn bản.",
+                    "methodology": "Không có dữ liệu văn bản.",
+                    "dataset": "Không có dữ liệu văn bản.",
+                    "findings": "Không có dữ liệu văn bản.",
+                    "limitations": "Không có dữ liệu văn bản."
+                },
+                "model_used": "none"
+            }
+        
+        prompt = f"""Bạn là một chuyên gia nghiên cứu khoa học. Hãy đọc kỹ các đoạn trích từ bài nghiên cứu "{title}" sau và trích xuất thông tin tóm tắt cực kỳ ngắn gọn (mỗi phần từ 1 đến 3 câu) dưới dạng JSON object.
+Bạn phải trả về đúng cấu trúc JSON sau:
+{{
+  "objective": "Mục tiêu nghiên cứu chính của bài báo",
+  "methodology": "Phương pháp nghiên cứu, thuật toán hoặc mô hình áp dụng",
+  "dataset": "Dữ liệu sử dụng và cấu hình thực nghiệm",
+  "findings": "Các kết quả hoặc phát hiện cốt lõi đạt được",
+  "limitations": "Hạn chế hoặc điểm yếu chính của nghiên cứu"
+}}
+
+Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, không có bất kỳ văn bản giải thích nào khác ở ngoài. Tất cả các nội dung trích xuất viết bằng tiếng Việt.
+
+Đoạn trích từ bài báo:\n{retrieval.context_text}"""
+
+        generation = await asyncio.to_thread(
+            state.generator.generate,
+            query=prompt,
+            context_text=retrieval.context_text,
+        )
+        
+        content = generation.content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        
+        data = {}
+        try:
+            start = content.find('{')
+            end = content.rfind('}')
+            if start != -1 and end != -1:
+                data = json.loads(content[start:end+1])
+        except Exception as e:
+            logger.warning(f"Failed to parse LLM comparison JSON for {title}: {e}")
+            
+        for key in ["objective", "methodology", "dataset", "findings", "limitations"]:
+            if key not in data or not str(data[key]).strip():
+                data[key] = "Không thể trích xuất chi tiết."
+                
+        return {
+            "id": paper_id,
+            "title": title,
+            "data": data,
+            "model_used": generation.model_used
+        }
+
+    # Extract paper info concurrently
+    tasks = []
+    for pid in paper_ids:
+        title = paper_titles.get(pid, f"Paper {pid[:6]}")
+        tasks.append(extract_single_paper(pid, title))
+        
+    results = await asyncio.gather(*tasks)
+
+    # Format into columns & rows for frontend table
+    columns = ["Tiêu chí"]
+    for res in results:
+        columns.append(res["title"])
+        
+    rows = [
+        ["🎯 Mục tiêu nghiên cứu", *[res["data"]["objective"] for res in results]],
+        ["⚙️ Phương pháp", *[res["data"]["methodology"] for res in results]],
+        ["📊 Dữ liệu & Thực nghiệm", *[res["data"]["dataset"] for res in results]],
+        ["🔬 Kết quả chính", *[res["data"]["findings"] for res in results]],
+        ["⚠️ Hạn chế & Điểm yếu", *[res["data"]["limitations"] for res in results]]
+    ]
+
+    # Build markdown table for synthesis/exporting
+    md = f"## 📊 Ma trận so sánh tài liệu (Document Comparison Matrix)\n\n"
+    md += "| " + " | ".join(columns) + " |\n"
+    md += "| " + " | ".join(["---"] * len(columns)) + " |\n"
+    for r in rows:
+        cells = [c.replace("\n", " ") for c in r]
+        md += "| " + " | ".join(cells) + " |\n"
+
+    model_used = ", ".join(list(set([res["model_used"] for res in results if res["model_used"]])))
+
+    return {
+        "answer": md,
+        "citations": [],
+        "model_used": model_used or "hybrid",
+        "papers_used": paper_ids,
+        "chunks_used": len(paper_ids) * 8,
+        "matrix": {
+            "columns": columns,
+            "rows": rows
+        }
     }

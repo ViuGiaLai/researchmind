@@ -87,7 +87,7 @@ class Retriever:
                 "score": r.score,
             })
 
-        context_text = self._build_context(chunks)
+        context_text = self._build_context(chunks, query)
 
         papers_used = list(set(c["paper_id"] for c in chunks))
 
@@ -108,7 +108,7 @@ class Retriever:
         # Future: use LLM for query expansion
         return [query]
 
-    def _build_context(self, chunks: list[dict]) -> str:
+    def _build_context(self, chunks: list[dict], query: Optional[str] = None) -> str:
         """
         Build a context string from retrieved chunks.
 
@@ -125,6 +125,55 @@ class Retriever:
             if chunk.get("page_number"):
                 source += f" (trang {chunk['page_number']})"
 
-            parts.append(f"\n{source}\n{chunk['content'].strip()}\n")
+            content = chunk['content'].strip()
+            if query and len(content) > 350:
+                content = self._compress_chunk_text(content, query)
+
+            parts.append(f"\n{source}\n{content}\n")
 
         return "\n".join(parts)
+
+    def _compress_chunk_text(self, content: str, query: str) -> str:
+        """
+        Compress text chunk by keeping only query-relevant sentences (sentence-level lexical compression).
+        Saves tokens and accelerates local LLM prefill and inference speeds.
+        """
+        import re
+        stop_words = {
+            "và", "hoặc", "của", "cho", "trong", "ngoài", "là", "bởi", "tại", "với",
+            "the", "and", "of", "to", "in", "for", "with", "on", "at", "by", "an", "is", "this", "that"
+        }
+        keywords = {w.lower() for w in re.findall(r"\w+", query) if len(w) > 1 and w.lower() not in stop_words}
+        if not keywords:
+            return content
+
+        sentences = re.split(r'(?<=[.!?])\s+', content)
+        if len(sentences) <= 3:
+            return content
+
+        keep = [False] * len(sentences)
+        keep[0] = True
+        keep[-1] = True
+
+        for idx, sent in enumerate(sentences):
+            sent_lower = sent.lower()
+            if any(kw in sent_lower for kw in keywords):
+                keep[idx] = True
+                if idx > 0:
+                    keep[idx - 1] = True
+                if idx < len(sentences) - 1:
+                    keep[idx + 1] = True
+
+        compressed_parts = []
+        skipped_last = False
+
+        for idx, k in enumerate(keep):
+            if k:
+                compressed_parts.append(sentences[idx])
+                skipped_last = False
+            else:
+                if not skipped_last:
+                    compressed_parts.append("[...]")
+                    skipped_last = True
+
+        return " ".join(compressed_parts)

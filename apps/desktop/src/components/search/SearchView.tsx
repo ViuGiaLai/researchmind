@@ -23,6 +23,8 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const performSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) return;
@@ -38,12 +40,31 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
     }
   };
 
-  const handleSuggestionClick = (text: string) => {
-    setQuery(text);
-    performSearch(text);
+  const handleQueryChange = async (val: string) => {
+    setQuery(val);
+    if (!val.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    try {
+      const res = await api.searchSuggest(val);
+      setSuggestions(res.suggestions || []);
+    } catch {
+      // silent
+    }
   };
 
-  const handleSearch = () => performSearch(query);
+  const handleSuggestionClick = (text: string, isTag = false) => {
+    const queryVal = isTag ? `thẻ:"${text}"` : text;
+    setQuery(queryVal);
+    performSearch(queryVal);
+    setShowSuggestions(false);
+  };
+
+  const handleSearch = () => {
+    performSearch(query);
+    setShowSuggestions(false);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleSearch();
@@ -66,20 +87,72 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
         </p>
       </div>
 
-      <div className="search-bar-container">
+      <div className="search-bar-container" style={{ position: "relative" }}>
         <div className="search-bar">
           <input
             type="text"
             className="search-input"
             placeholder='Ví dụ: "phương pháp đánh giá độ trễ mạng 5G"'
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              handleQueryChange(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             onKeyDown={handleKeyDown}
           />
           <button className="search-btn" onClick={handleSearch} disabled={searching}>
             {searching ? <IconSpinner size={24} /> : <IconSearch size={24} />}
           </button>
         </div>
+
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="search-suggest-dropdown" style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            background: "var(--color-surface, #fff)",
+            border: "1px solid var(--color-border, #e2e8f0)",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            zIndex: 100,
+            marginTop: "4px",
+            maxHeight: "240px",
+            overflowY: "auto"
+          }}>
+            {suggestions.map((s, idx) => {
+              const isTag = s.startsWith("Thẻ: ");
+              const displayText = isTag ? s.substring(5) : s;
+              return (
+                <div
+                  key={idx}
+                  onClick={() => handleSuggestionClick(displayText, isTag)}
+                  style={{
+                    padding: "8px 16px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    borderBottom: idx < suggestions.length - 1 ? "1px solid var(--color-border)" : "none",
+                    background: "transparent",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-bg-hover, #f8fafc)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                >
+                  <span style={{ fontSize: "0.9rem" }}>{isTag ? "🏷️" : "📄"}</span>
+                  <span style={{
+                    fontSize: "0.88rem",
+                    fontWeight: isTag ? 600 : 400,
+                    color: isTag ? "var(--color-primary, #6366f1)" : "var(--color-text, #1a1a1a)"
+                  }}>{displayText}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="search-results">

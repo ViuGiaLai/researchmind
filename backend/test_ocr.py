@@ -24,7 +24,8 @@ def test_ocr_import():
         
         logger.info("Running OCR on mock image...")
         results, elapse = ocr(img_bytes)
-        logger.info(f"OCR execution finished in {elapse:.4f}s")
+        total_elapse = sum(elapse) if isinstance(elapse, (list, tuple)) else (elapse or 0.0)
+        logger.info(f"OCR execution finished in {total_elapse:.4f}s")
         logger.info(f"OCR results: {results}")
         
         return True
