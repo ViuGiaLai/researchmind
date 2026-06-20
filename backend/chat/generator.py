@@ -58,6 +58,7 @@ class Generator:
         freemodel_url: str = "https://freemodel.dev/v1",
         mode: str = "cloud_free",
         custom_cloud_provider: str = "deepseek",
+        local_max_tokens: int = 256,
     ):
         self.llama_server_url = llama_server_url.rstrip("/")
         self.local_model = local_model
@@ -79,6 +80,7 @@ class Generator:
         self.freemodel_url = freemodel_url.rstrip("/")
         self.mode = "cloud_custom" if mode == "cloud" else mode  # backward compatibility
         self.custom_cloud_provider = custom_cloud_provider  # "deepseek" or "claude" or "gemini"
+        self.local_max_tokens = max(64, min(int(local_max_tokens or 256), 1024))
         self.current_model: str = ""
         self._http_client = None
 
@@ -592,7 +594,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 f"{self.llama_server_url}/completion",
                 json={
                     "prompt": full_prompt,
-                    "n_predict": 512,
+                    "n_predict": self.local_max_tokens,
                     "temperature": 0.3,
                     "top_k": 40,
                     "top_p": 0.9,
@@ -1198,7 +1200,7 @@ Câu hỏi: {query}"""
                 f"{self.llama_server_url}/completion",
                 json={
                     "prompt": full_prompt,
-                    "n_predict": 512,
+                    "n_predict": self.local_max_tokens,
                     "temperature": 0.3,
                     "top_k": 40,
                     "top_p": 0.9,

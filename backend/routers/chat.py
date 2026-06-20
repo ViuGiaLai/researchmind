@@ -16,6 +16,36 @@ from db.models import ChatHistory, CollectionPaper
 
 router = APIRouter(prefix="/api", tags=["Chat"])
 
+_chat_response_cache: dict[str, dict] = {}
+_chat_response_cache_max = 128
+
+
+def _chat_cache_key(message: str, paper_ids, scope: str, collection_id: str | None) -> str:
+    normalized_papers = sorted(paper_ids or [])
+    return json.dumps(
+        {
+            "message": message.strip().lower(),
+            "paper_ids": normalized_papers,
+            "scope": scope or "current",
+            "collection_id": collection_id or "",
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def _put_chat_cache(key: str, value: dict) -> None:
+    if len(_chat_response_cache) >= _chat_response_cache_max:
+        oldest = next(iter(_chat_response_cache))
+        _chat_response_cache.pop(oldest, None)
+    _chat_response_cache[key] = value
+
+
+def _stream_cached_chat(cached: dict):
+    yield f"data: {json.dumps({'status': 'Trả lời từ cache...'})}\n\n"
+    yield f"data: {json.dumps({'chunk': cached.get('answer', '')})}\n\n"
+    yield f"data: {json.dumps({'done': True, 'model_used': cached.get('model_used', 'cache'), 'citations': cached.get('citations', [])})}\n\n"
+
 
 def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
     if not collection_id:
@@ -44,7 +74,7 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None):
+def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
@@ -100,6 +130,14 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
         db.close()
 
     yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'citations': citations})}\n\n"
+    if cache_key:
+        _put_chat_cache(cache_key, {
+            "answer": full_response,
+            "citations": citations,
+            "model_used": model_used,
+            "papers_used": paper_ids or [],
+            "chunks_used": timing.get("chunks_used", 0) if timing else 0,
+        })
     logger.info(
         "CHAT_STREAM_TIMING "
         f"stream_generate={time_mod.time() - stream_start:.2f}s "
@@ -173,6 +211,14 @@ async def chat(request: dict = Body(...)):
         if paper_error:
             return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
+    cache_key = _chat_cache_key(message, paper_ids, scope, collection_id)
+    cached = _chat_response_cache.get(cache_key)
+    if cached:
+        logger.info(f"CHAT_CACHE hit total={time_mod.time() - t0:.3f}s")
+        if stream:
+            return StreamingResponse(_stream_cached_chat(cached), media_type="text/event-stream")
+        return cached
+
     if scope == "external":
         from types import SimpleNamespace
         retrieval = SimpleNamespace(
@@ -196,7 +242,14 @@ async def chat(request: dict = Body(...)):
 
     if stream:
         return StreamingResponse(
-            _stream_chat(message, retrieval.context_text, session_id, paper_ids, {"start": t0, "retrieve": retrieve_time}),
+            _stream_chat(
+                message,
+                retrieval.context_text,
+                session_id,
+                paper_ids,
+                {"start": t0, "retrieve": retrieve_time, "chunks_used": retrieval.total_chunks},
+                cache_key,
+            ),
             media_type="text/event-stream",
         )
 
@@ -233,13 +286,15 @@ async def chat(request: dict = Body(...)):
     finally:
         session.close()
 
-    return {
+    response = {
         "answer": generation.content,
         "citations": generation.citations,
         "model_used": generation.model_used,
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
     }
+    _put_chat_cache(cache_key, response)
+    return response
 
 
 @router.get("/chat/history")

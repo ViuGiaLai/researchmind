@@ -270,6 +270,60 @@ export const api = {
   listImportJobs: (limit = 50) =>
     request<{ jobs: ImportJob[] }>("GET", `/api/jobs?limit=${limit}`),
 
+  streamImportJobs: (
+    jobIds: string[],
+    handlers: {
+      onJobs?: (jobs: ImportJob[]) => void;
+      onDone?: (jobs: ImportJob[]) => void;
+      onError?: (error: string) => void;
+    },
+  ) => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const ids = jobIds.map(encodeURIComponent).join(",");
+        const res = await fetch(`${BASE_URL}/api/jobs/stream?ids=${ids}`, { signal: controller.signal });
+        if (!res.ok) {
+          handlers.onError?.(await res.text());
+          return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) {
+          handlers.onError?.("No response body");
+          return;
+        }
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6).trim());
+              if (data.type === "jobs") handlers.onJobs?.(data.jobs || []);
+              else if (data.type === "done") {
+                handlers.onDone?.(data.jobs || []);
+                return;
+              } else if (data.type === "timeout") {
+                handlers.onError?.("Import status stream timed out");
+                return;
+              }
+            } catch {
+              // Ignore malformed SSE frames.
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") handlers.onError?.(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return { abort: () => controller.abort() };
+  },
+
   retryImportJob: (jobId: string) =>
     request<{ status: string; job_id: string }>("POST", `/api/jobs/${jobId}/retry`),
 
@@ -334,10 +388,27 @@ export const api = {
       filters,
     }),
 
+  searchWithSignal: async (text: string, paperIds?: string[], topK = 10, filters?: SearchFilters, signal?: AbortSignal) => {
+    const res = await fetch(`${BASE_URL}/api/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, paper_ids: paperIds, top_k: topK, filters }),
+      signal,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ query: string; total: number; results: SearchResult[] }>;
+  },
+
   searchSuggest: (q: string) =>
     request<{ suggestions: string[]; tags?: string[]; papers?: { id: string; title: string }[] }>(
       "GET", `/api/search/suggest?q=${encodeURIComponent(q)}`
     ),
+
+  searchSuggestWithSignal: async (q: string, signal?: AbortSignal) => {
+    const res = await fetch(`${BASE_URL}/api/search/suggest?q=${encodeURIComponent(q)}`, { signal });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ suggestions: string[]; tags?: string[]; papers?: { id: string; title: string }[] }>;
+  },
 
   // Chat
   chat: (message: string, paperIds?: string[], scope?: string, collectionId?: string) =>
@@ -726,6 +797,63 @@ export const api = {
       title,
       sections,
     }),
+
+  generateReviewDraftStream: (
+    paperIds: string[],
+    title: string | undefined,
+    sections: string[] | undefined,
+    handlers: {
+      onStart?: (payload: { title: string; paper_titles: string[]; sections: string[] }) => void;
+      onSection?: (section: ReviewSection) => void;
+      onDone?: (fullText: string) => void;
+      onError?: (error: string) => void;
+    },
+  ) => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/review/builder/draft/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paper_ids: paperIds, title, sections }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          handlers.onError?.(await res.text());
+          return;
+        }
+        const reader = res.body?.getReader();
+        if (!reader) {
+          handlers.onError?.("No response body");
+          return;
+        }
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6).trim());
+              if (data.type === "start") handlers.onStart?.(data);
+              else if (data.type === "section") handlers.onSection?.(data.section);
+              else if (data.type === "done") handlers.onDone?.(data.full_text || "");
+              else if (data.type === "error") handlers.onError?.(data.error || "Review stream failed");
+            } catch {
+              // Ignore malformed SSE frames.
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") handlers.onError?.(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return { abort: () => controller.abort() };
+  },
 
   generateReviewSection: (paperIds: string[], section: string) =>
     request<ReviewSectionResponse>("POST", "/api/review/builder/section", {

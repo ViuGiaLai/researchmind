@@ -1,4 +1,5 @@
 import asyncio
+import time
 from fastapi import APIRouter, Body, HTTPException, Query
 from loguru import logger
 from app_state import state
@@ -8,12 +9,16 @@ from db.models import CollectionPaper, Paper
 
 router = APIRouter(prefix="/api/search", tags=["Search"])
 
+_suggest_cache: dict[tuple[str, int], tuple[float, dict]] = {}
+_suggest_cache_ttl = 30.0
+
 
 @router.post("")
 async def search(query: dict = Body(...)):
     """Hybrid search across all indexed PDFs with support for tag: or tháº»: filters."""
     import re
     import json
+    t0 = time.time()
     
     text = query.get("text", "")
     paper_ids = query.get("paper_ids") or []
@@ -119,6 +124,7 @@ async def search(query: dict = Body(...)):
     if not clean_text.strip():
         raise HTTPException(status_code=400, detail="Query text (or tag search target) is empty")
 
+    t_retrieve = time.time()
     results = await asyncio.to_thread(
         state.hybrid.search,
         query=clean_text,
@@ -126,6 +132,7 @@ async def search(query: dict = Body(...)):
         top_k=top_k,
         use_reranker=True,
     )
+    t_retrieve = time.time() - t_retrieve
 
     if sort_by in {"year", "title", "created_at"} and results:
         session = get_session(state.engine)
@@ -140,6 +147,15 @@ async def search(query: dict = Body(...)):
                 results.sort(key=lambda r: paper_map.get(r.paper_id).created_at if paper_map.get(r.paper_id) else None, reverse=reverse)
         finally:
             session.close()
+
+    logger.info(
+        "SEARCH_TIMING "
+        f"query_len={len(clean_text)} "
+        f"filters={bool(filters or collection_id or paper_ids)} "
+        f"results={len(results)} "
+        f"retrieve={t_retrieve:.3f}s "
+        f"total={time.time() - t0:.3f}s"
+    )
 
     return {
         "query": text,
@@ -161,29 +177,47 @@ async def search(query: dict = Body(...)):
 @router.get("/suggest")
 async def search_suggest(q: str = Query(...), limit: int = Query(5)):
     """Get search suggestions including tags and matching papers."""
+    t0 = time.time()
+    q_lower = q.strip().lower()
+    if not q_lower:
+        return {"suggestions": [], "tags": [], "papers": []}
+
+    cache_key = (q_lower, limit)
+    cached = _suggest_cache.get(cache_key)
+    now = time.time()
+    if cached and now - cached[0] <= _suggest_cache_ttl:
+        logger.info(f"SUGGEST_TIMING cache=hit q_len={len(q_lower)} total={now - t0:.3f}s")
+        return cached[1]
+
     session = get_session(state.engine)
     try:
-        q_lower = q.strip().lower()
-        if not q_lower:
-            return {"suggestions": [], "tags": [], "papers": []}
+        title_matches = (
+            session.query(Paper.id, Paper.title, Paper.filename)
+            .filter(Paper.status == "indexed")
+            .filter((Paper.title.ilike(f"%{q_lower}%")) | (Paper.filename.ilike(f"%{q_lower}%")))
+            .limit(limit)
+            .all()
+        )
 
-        # Query all indexed papers
-        papers = session.query(Paper).filter(Paper.status == "indexed").all()
+        tag_candidates = (
+            session.query(Paper.tags)
+            .filter(Paper.status == "indexed")
+            .filter(Paper.tags.ilike(f"%{q_lower}%"))
+            .limit(max(limit * 5, 20))
+            .all()
+        )
         
         matched_tags = set()
-        matched_papers = []
+        matched_papers = [
+            {"id": row.id, "title": row.title or row.filename}
+            for row in title_matches
+        ]
         
         import json
-        for p in papers:
-            title = p.title or p.filename
-            if q_lower in title.lower():
-                matched_papers.append({
-                    "id": p.id,
-                    "title": title
-                })
-            if p.tags:
+        for (tags_json,) in tag_candidates:
+            if tags_json:
                 try:
-                    tags_list = json.loads(p.tags)
+                    tags_list = json.loads(tags_json)
                     for t in tags_list:
                         if q_lower in t.lower():
                             matched_tags.add(t)
@@ -199,10 +233,16 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
         for p in papers_res:
             suggestions.append(p["title"])
 
-        return {
+        result = {
             "tags": tags_res,
             "papers": papers_res,
             "suggestions": suggestions[:limit * 2]
         }
+        _suggest_cache[cache_key] = (time.time(), result)
+        logger.info(
+            "SUGGEST_TIMING "
+            f"cache=miss q_len={len(q_lower)} tags={len(tags_res)} papers={len(papers_res)} total={time.time() - t0:.3f}s"
+        )
+        return result
     finally:
         session.close()

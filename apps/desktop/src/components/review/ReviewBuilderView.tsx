@@ -75,27 +75,42 @@ export function ReviewBuilderView() {
     setStep("review");
     setSections({});
     setFullText("");
+    setGeneratingSections(new Set(REVIEW_SECTIONS.map((s) => s.key)));
 
     try {
-      const res = await api.generateReviewDraft(selectedIds, title);
-      if (res.error) {
-        toast.addToast("error", res.error);
-        setStep("select");
-        return;
-      }
-
-      const sectionMap: Record<string, ReviewSection> = {};
-      for (const s of res.sections) {
-        sectionMap[s.section] = s;
-      }
-      setSections(sectionMap);
-      setFullText(res.full_text);
-      setPaperTitles(res.paper_titles);
+      api.generateReviewDraftStream(selectedIds, title, undefined, {
+        onStart: (payload) => {
+          setPaperTitles(payload.paper_titles || []);
+        },
+        onSection: (section) => {
+          setSections((prev) => {
+            const next = { ...prev, [section.section]: section };
+            setFullText(rebuildFullText(title, next));
+            return next;
+          });
+          setGeneratingSections((prev) => {
+            const next = new Set(prev);
+            next.delete(section.section);
+            return next;
+          });
+        },
+        onDone: (streamFullText) => {
+          setFullText(streamFullText);
+          setGeneratingAll(false);
+          setGeneratingSections(new Set());
+        },
+        onError: (error) => {
+          toast.addToast("error", error);
+          setGeneratingAll(false);
+          setGeneratingSections(new Set());
+          setStep("select");
+        },
+      });
     } catch (e) {
       toast.addToast("error", "Lỗi khi tạo draft: " + (e instanceof Error ? e.message : String(e)));
       setStep("select");
-    } finally {
       setGeneratingAll(false);
+      setGeneratingSections(new Set());
     }
   };
 

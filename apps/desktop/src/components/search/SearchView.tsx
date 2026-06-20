@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api, Collection, SavedSearch, SearchFilters, SearchResult } from "../../lib/api";
 import {
   IconSearch,
@@ -18,6 +18,10 @@ const SUGGESTED_QUERIES = [
   { icon: "⚖️", text: "Điểm mạnh và yếu điểm của các phương pháp" },
 ];
 
+const searchSessionCache = new Map<string, SearchResult[]>();
+const makeSearchCacheKey = (query: string, filters: SearchFilters) =>
+  JSON.stringify({ query: query.trim().toLowerCase(), filters });
+
 export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }> = ({ onStartChat }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -27,6 +31,10 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [visibleResultCount, setVisibleResultCount] = useState(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const suggestAbortRef = useRef<AbortController | null>(null);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [filters, setFilters] = useState<SearchFilters>({
     sort_by: "relevance",
     sort_order: "desc",
@@ -40,31 +48,67 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
 
   const performSearch = async (searchQuery: string, filterOverride?: SearchFilters) => {
     if (!searchQuery.trim()) return;
+    const activeFilters = filterOverride || filters;
+    const cacheKey = makeSearchCacheKey(searchQuery, activeFilters);
+    const cached = searchSessionCache.get(cacheKey);
     setSearching(true);
     setSearched(true);
-    try {
-      const res = await api.search(searchQuery, undefined, 10, filterOverride || filters);
-      setResults(res.results);
-    } catch (e) {
-      console.error("Search failed:", e);
-    } finally {
+    setVisibleResultCount(5);
+    if (cached) {
+      setResults(cached);
       setSearching(false);
+      window.setTimeout(() => setVisibleResultCount(cached.length), 120);
+      return;
+    }
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    try {
+      const started = performance.now();
+      const res = await api.searchWithSignal(searchQuery, undefined, 20, activeFilters, controller.signal);
+      console.info(`SEARCH_FRONTEND_TIMING total=${(performance.now() - started).toFixed(1)}ms results=${res.results.length}`);
+      searchSessionCache.set(cacheKey, res.results);
+      setResults(res.results);
+      window.setTimeout(() => setVisibleResultCount(res.results.length), 120);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") console.error("Search failed:", e);
+    } finally {
+      if (searchAbortRef.current === controller) {
+        searchAbortRef.current = null;
+        setSearching(false);
+      }
     }
   };
 
-  const handleQueryChange = async (val: string) => {
+  const handleQueryChange = (val: string) => {
     setQuery(val);
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    suggestAbortRef.current?.abort();
     if (!val.trim()) {
       setSuggestions([]);
       return;
     }
-    try {
-      const res = await api.searchSuggest(val);
-      setSuggestions(res.suggestions || []);
-    } catch {
-      // silent
-    }
+    suggestTimerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      suggestAbortRef.current = controller;
+      try {
+        const res = await api.searchSuggestWithSignal(val, controller.signal);
+        setSuggestions(res.suggestions || []);
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") {
+          // silent
+        }
+      } finally {
+        if (suggestAbortRef.current === controller) suggestAbortRef.current = null;
+      }
+    }, 180);
   };
+
+  useEffect(() => () => {
+    searchAbortRef.current?.abort();
+    suggestAbortRef.current?.abort();
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+  }, []);
 
   const handleSuggestionClick = (text: string, isTag = false) => {
     const queryVal = isTag ? `thẻ:"${text}"` : text;
@@ -262,7 +306,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
       )}
 
       <div className="search-results">
-        {searching && (
+        {searching && results.length === 0 && (
           <div className="search-loading">
             <IconSpinner size={24} />
             <span>Đang tìm kiếm...</span>
@@ -290,7 +334,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             </div>
 
             <div className="search-results-list">
-              {results.map((r, i) => (
+              {results.slice(0, visibleResultCount || results.length).map((r, i) => (
                 <div key={r.chunk_id} className="search-result-card">
                   <div className="search-result-num">{i + 1}</div>
                   <div className="search-result-content">

@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     openai_stream_timeout: float = 12.0
     llama_server_url: str = "http://127.0.0.1:8080"
     local_model: str = "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+    local_max_tokens: int = 256
     
     # Claude Cloud
     claude_api_key: str = ""

@@ -22,6 +22,7 @@ os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 import sys
 import threading
+import time
 from pathlib import Path
 
 # Add backend directory to path for imports
@@ -127,6 +128,7 @@ def _migrate_auto_summary(engine):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize app state on startup, cleanup on shutdown."""
+    startup_t0 = time.time()
     logger.info("Starting ResearchMind VN backend...")
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -146,12 +148,13 @@ async def lifespan(app: FastAPI):
     state.init_message = "Đang tải mô hình AI..."
 
     def _warmup_embedder():
+        warmup_t0 = time.time()
         try:
             logger.info(f"Warming up embedding model: {settings.embedding_model}")
             state.embedder._load_model()
             state.embedder_ready = True
             state.init_message = "Sẵn sàng"
-            logger.info("Embedding model ready")
+            logger.info(f"Embedding model ready in {time.time() - warmup_t0:.2f}s")
         except Exception as e:
             logger.error(f"Failed to load embedding model: {e}")
             state.embedder_ready = True
@@ -173,14 +176,17 @@ async def lifespan(app: FastAPI):
     logger.info("Search engines initialized")
 
     def _warmup_cross_encoder():
+        time.sleep(float(os.environ.get("RESEARCHMIND_RERANKER_WARMUP_DELAY", "10")))
+        warmup_t0 = time.time()
         try:
             logger.info("Warming up cross-encoder model...")
             state.hybrid._get_cross_encoder()
-            logger.info("Cross-encoder model ready")
+            logger.info(f"Cross-encoder model ready in {time.time() - warmup_t0:.2f}s")
         except Exception as e:
             logger.error(f"Failed to load cross-encoder: {e}")
 
-    threading.Thread(target=_warmup_cross_encoder, daemon=True).start()
+    if os.environ.get("RESEARCHMIND_DISABLE_RERANKER_IDLE_WARMUP", "0").lower() not in ("1", "true", "yes"):
+        threading.Thread(target=_warmup_cross_encoder, daemon=True).start()
 
     app.state.engine = state.engine
 
@@ -206,8 +212,10 @@ async def lifespan(app: FastAPI):
         freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
         mode=settings.llm_mode,
         custom_cloud_provider=settings.custom_cloud_provider,
+        local_max_tokens=settings.local_max_tokens,
     )
     logger.info("RAG pipeline initialized")
+    logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
 
     import httpx
     try:

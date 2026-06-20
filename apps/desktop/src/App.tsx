@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen } from "./components/Icons";
+import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen, IconSpinner } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
 import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
 import { SearchView } from "./components/search/SearchView";
@@ -18,7 +18,13 @@ import { api } from "./lib/api";
 type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "settings";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("wow");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    try {
+      return (localStorage.getItem("researchmind:last-tab") as Tab) || "library";
+    } catch {
+      return "library";
+    }
+  });
   const [wowPaperId, setWowPaperId] = useState<string | null>(null);
   const [chatPaperIds, setChatPaperIds] = useState<string[]>([]);
   const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
@@ -33,6 +39,14 @@ function App() {
   useEffect(() => {
     checkFirstRun();
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("researchmind:last-tab", activeTab);
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -159,11 +173,29 @@ function App() {
       <div className="app">
         {showSetup && <AISetupWizard onComplete={() => setShowSetup(false)} />}
         {checkingSetup && !showSetup && (
-          <div className="app-loading">
-            <div className="app-loading-content">
-              <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
-              <p>{initMessage}</p>
-            </div>
+          <div className="app-container">
+            <aside className="app-sidebar">
+              <div className="sidebar-brand">
+                <IconBrain size={26} className="icon-gradient" style={{ marginRight: 8 }} />
+                <span className="brand-text">ResearchMind</span>
+              </div>
+              <nav className="sidebar-menu">
+                {["Thư viện", "Tìm kiếm", "Chat AI", "Review Builder", "Cài đặt"].map((label) => (
+                  <button key={label} className="sidebar-menu-btn" disabled>
+                    <IconSpinner size={16} style={{ marginRight: 12 }} />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </nav>
+            </aside>
+            <main className="main">
+              <div className="app-loading" style={{ minHeight: "100%" }}>
+                <div className="app-loading-content">
+                  <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
+                  <p>{initMessage}</p>
+                </div>
+              </div>
+            </main>
           </div>
         )}
       </div>

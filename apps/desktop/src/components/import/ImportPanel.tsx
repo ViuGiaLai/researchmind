@@ -54,12 +54,12 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
   const folderInputRef = useRef<HTMLInputElement>(null);
   const bibtexInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusStreamRef = useRef<{ abort: () => void } | null>(null);
 
   const clearStatusPolling = useCallback(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+    if (statusStreamRef.current) {
+      statusStreamRef.current.abort();
+      statusStreamRef.current = null;
     }
   }, []);
 
@@ -89,25 +89,24 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     if (ids.length === 0) return;
 
     clearStatusPolling();
-    let attempts = 0;
-
-    const poll = async () => {
-      attempts += 1;
-      const res = await api.listImportJobs(100);
-      const tracked = res.jobs.filter((job) => ids.includes(job.id));
-      mergeJobsIntoResults(tracked);
-
-      const stillProcessing = tracked.some((job) => ["queued", "saved", "parsing", "indexing", "summarizing", "enriching"].includes(job.status));
-
-      if (!stillProcessing || attempts >= 90) {
+    const started = performance.now();
+    statusStreamRef.current = api.streamImportJobs(ids, {
+      onJobs: (tracked) => {
+        mergeJobsIntoResults(tracked);
+      },
+      onDone: (tracked) => {
         clearStatusPolling();
         const firstReady = tracked.find((job) => job.status === "ready" && job.paper_id);
+        console.info(`IMPORT_FRONTEND_TIMING jobs=${tracked.length} total_ms=${(performance.now() - started).toFixed(1)}`);
         onImported(firstReady?.paper_id || tracked.find((job) => job.paper_id)?.paper_id || undefined);
-      }
-    };
-
-    poll();
-    pollIntervalRef.current = setInterval(poll, 2000);
+      },
+      onError: async () => {
+        const res = await api.listImportJobs(100);
+        const tracked = res.jobs.filter((job) => ids.includes(job.id));
+        mergeJobsIntoResults(tracked);
+        onImported(tracked.find((job) => job.paper_id)?.paper_id || undefined);
+      },
+    });
   }, [clearStatusPolling, mergeJobsIntoResults, onImported]);
 
   const retryJob = async (jobId: string) => {

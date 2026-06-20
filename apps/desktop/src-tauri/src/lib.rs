@@ -3,7 +3,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
@@ -127,6 +127,7 @@ fn spawn_backend(app: &tauri::AppHandle) -> Option<Child> {
     }
 
     let (program, args, cwd) = find_backend(Some(app))?;
+    let spawn_started = Instant::now();
 
     let mut command = Command::new(&program);
     command.args(&args).env("RESEARCHMIND_BACKEND_RELOAD", "0");
@@ -137,7 +138,11 @@ fn spawn_backend(app: &tauri::AppHandle) -> Option<Child> {
 
     match command.spawn() {
         Ok(child) => {
-            info!("Backend started (PID: {})", child.id());
+            info!(
+                "Backend started (PID: {}) spawn_time_ms={}",
+                child.id(),
+                spawn_started.elapsed().as_millis()
+            );
             Some(child)
         }
         Err(e) => {

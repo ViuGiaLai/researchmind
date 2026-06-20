@@ -900,7 +900,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
             <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
-              Khởi chạy: <code>llama-server.exe -m path/to/{localModel} -c 2048 --port 8080</code>
+              Khởi chạy CPU: <code>llama-server.exe -m path/to/{localModel} --port 8080 -c 4096 -np 1 -t 6 --cache-ram 1024</code>
             </p>
             <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
               Tải tại 

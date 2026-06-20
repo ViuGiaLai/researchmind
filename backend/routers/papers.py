@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from app_state import state
@@ -105,6 +106,14 @@ def _update_import_job(job_id: str | None, **fields) -> None:
         job.updated_at = datetime.utcnow()
         if fields.get("status") in {"ready", "failed", "needs_ocr"}:
             job.finished_at = datetime.utcnow()
+            if job.created_at:
+                elapsed = max((job.finished_at - job.created_at).total_seconds(), 0.001)
+                logger.info(
+                    "IMPORT_TIMING "
+                    f"job_id={job.id} status={fields.get('status')} "
+                    f"filename={job.filename} elapsed={elapsed:.2f}s "
+                    f"files_per_min={60.0 / elapsed:.2f}"
+                )
         session.commit()
     except Exception as e:
         session.rollback()
@@ -660,6 +669,40 @@ async def list_import_jobs(limit: int = Query(50, ge=1, le=200)):
         return {"jobs": [_job_to_dict(job) for job in jobs]}
     finally:
         session.close()
+
+
+@jobs_router.get("/stream")
+async def stream_import_jobs(ids: str = Query(...)):
+    job_ids = [job_id.strip() for job_id in ids.split(",") if job_id.strip()]
+
+    async def event_stream():
+        if not job_ids:
+            yield f"data: {json.dumps({'type': 'done', 'jobs': []})}\n\n"
+            return
+
+        last_payload = ""
+        for _ in range(180):
+            session = get_session(state.engine)
+            try:
+                jobs = session.query(ImportJob).filter(ImportJob.id.in_(job_ids)).all()
+                payload_jobs = [_job_to_dict(job) for job in jobs]
+            finally:
+                session.close()
+
+            payload = json.dumps({"type": "jobs", "jobs": payload_jobs}, ensure_ascii=False)
+            if payload != last_payload:
+                last_payload = payload
+                yield f"data: {payload}\n\n"
+
+            if payload_jobs and all(job["status"] not in {"queued", "saved", "parsing", "indexing", "summarizing", "enriching"} for job in payload_jobs):
+                yield f"data: {json.dumps({'type': 'done', 'jobs': payload_jobs}, ensure_ascii=False)}\n\n"
+                return
+
+            await asyncio.sleep(1.0)
+
+        yield f"data: {json.dumps({'type': 'timeout'}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @jobs_router.post("/{job_id}/retry")

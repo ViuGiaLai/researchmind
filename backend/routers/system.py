@@ -119,13 +119,13 @@ async def detect_specs():
 
     if total_ram_gb < 8:
         suggested_tier = "weak"
-        suggested_model = settings.model_tier_weak
+        suggested_model = "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
     elif total_ram_gb < 16:
         suggested_tier = "medium"
-        suggested_model = settings.model_tier_medium
+        suggested_model = settings.local_model
     else:
         suggested_tier = "strong"
-        suggested_model = settings.model_tier_strong
+        suggested_model = "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
 
     return {
         "total_ram_gb": total_ram_gb,

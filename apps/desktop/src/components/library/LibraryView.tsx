@@ -20,7 +20,9 @@ import {
   IconRefresh,
 } from "../Icons";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 500;
+const VIRTUAL_ROW_HEIGHT = 88;
+const VIRTUAL_OVERSCAN = 6;
 
 const renderStatusIcon = (status: string, size = 16) => {
   if (status === "read") {
@@ -51,16 +53,22 @@ export const LibraryView: React.FC<{
 }> = ({ onStartChat, onStartReview, onStartCritique, onStartDebate, onStartVerify, onStartWow }) => {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    try { return Number(localStorage.getItem("researchmind:library-page") || "1"); } catch { return 1; }
+  });
   const [total, setTotal] = useState(0);
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>(() => {
+    try { return localStorage.getItem("researchmind:library-filter") || "all"; } catch { return "all"; }
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showImport, setShowImport] = useState(false);
   const [syncingZotero, setSyncingZotero] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [activeCollectionId, setActiveCollectionId] = useState<string>("");
+  const [activeCollectionId, setActiveCollectionId] = useState<string>(() => {
+    try { return localStorage.getItem("researchmind:library-collection") || ""; } catch { return ""; }
+  });
   const [targetCollectionId, setTargetCollectionId] = useState<string>("");
   const toast = useToast();
 
@@ -87,9 +95,28 @@ export const LibraryView: React.FC<{
   // Highlights state
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [loadingHighlights, setLoadingHighlights] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [listScrollTop, setListScrollTop] = useState(0);
 
   useEffect(() => {
     loadPapers();
+  }, [page, filter, activeCollectionId]);
+
+  useEffect(() => {
+    const started = performance.now();
+    requestAnimationFrame(() => {
+      console.info(`LIBRARY_MOUNT_TIMING papers=${papers.length} render=${(performance.now() - started).toFixed(1)}ms`);
+    });
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("researchmind:library-page", String(page));
+      localStorage.setItem("researchmind:library-filter", filter);
+      localStorage.setItem("researchmind:library-collection", activeCollectionId);
+    } catch {
+      // ignore storage errors
+    }
   }, [page, filter, activeCollectionId]);
 
   useEffect(() => {
@@ -148,6 +175,7 @@ export const LibraryView: React.FC<{
   }, [activePaper?.id]);
 
   const loadPapers = async () => {
+    const started = performance.now();
     setLoading(true);
     try {
       let statusFilter: string | undefined = undefined;
@@ -169,6 +197,7 @@ export const LibraryView: React.FC<{
 
       setPapers(res.papers);
       setTotal(res.total);
+      console.info(`LIBRARY_LOAD_TIMING papers=${res.papers.length} total=${res.total} total_ms=${(performance.now() - started).toFixed(1)}`);
 
       // Default active paper to the first one in the list if none selected
       if (res.papers.length > 0 && !activePaper) {
@@ -359,6 +388,15 @@ export const LibraryView: React.FC<{
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+  const viewportHeight = listRef.current?.clientHeight || 520;
+  const virtualStart = Math.max(0, Math.floor(listScrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN);
+  const virtualEnd = Math.min(
+    papers.length,
+    Math.ceil((listScrollTop + viewportHeight) / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN
+  );
+  const virtualPapers = papers.slice(virtualStart, virtualEnd);
+  const virtualTop = virtualStart * VIRTUAL_ROW_HEIGHT;
+  const virtualHeight = papers.length * VIRTUAL_ROW_HEIGHT;
 
   // Export menu helpers
   const menuItemStyle: React.CSSProperties = {
@@ -599,8 +637,15 @@ export const LibraryView: React.FC<{
             </div>
           </div>
         ) : (
-          <div className="library-list">
-            {papers.map((p) => (
+          <div
+            className="library-list"
+            ref={listRef}
+            onScroll={(e) => setListScrollTop(e.currentTarget.scrollTop)}
+            style={{ position: "relative", overflowY: "auto" }}
+          >
+            <div style={{ height: virtualHeight, position: "relative" }}>
+            <div style={{ position: "absolute", left: 0, right: 0, top: 0, transform: `translateY(${virtualTop}px)` }}>
+            {virtualPapers.map((p) => (
               <div
                 key={p.id}
                 className={`library-card ${activePaper?.id === p.id ? "active-row" : ""} ${selected.has(p.id) ? "selected" : ""}`}
@@ -654,6 +699,8 @@ export const LibraryView: React.FC<{
                 </div>
               </div>
             ))}
+            </div>
+            </div>
           </div>
         )}
 

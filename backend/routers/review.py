@@ -10,6 +10,7 @@ import asyncio
 import json
 from datetime import datetime
 from fastapi import APIRouter, Body, HTTPException
+from fastapi.responses import StreamingResponse
 from loguru import logger
 
 from app_state import state
@@ -278,6 +279,81 @@ async def generate_draft(body: dict = Body(...)):
         "sections": results,
         "full_text": full_text,
     }
+
+
+@router.post("/draft/stream")
+async def generate_draft_stream(body: dict = Body(...)):
+    """Stream a literature review draft section-by-section as SSE."""
+    paper_ids = body.get("paper_ids", [])
+    title = body.get("title", "Literature Review")
+    include_sections = body.get("sections", REVIEW_SECTIONS)
+
+    async def event_stream():
+        if not paper_ids:
+            yield f"data: {json.dumps({'type': 'error', 'error': 'Vui lòng chọn ít nhất 1 tài liệu.'}, ensure_ascii=False)}\n\n"
+            return
+
+        paper_error = check_papers_ready(paper_ids)
+        if paper_error:
+            yield f"data: {json.dumps({'type': 'error', 'error': paper_error}, ensure_ascii=False)}\n\n"
+            return
+
+        session = get_session(state.engine)
+        try:
+            papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
+            paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        finally:
+            session.close()
+
+        if not paper_titles:
+            yield f"data: {json.dumps({'type': 'error', 'error': 'Không tìm thấy tài liệu nào.'}, ensure_ascii=False)}\n\n"
+            return
+
+        valid_sections = [
+            section for section in include_sections
+            if section in SECTION_CONFIG or section == "bibliography"
+        ]
+        yield f"data: {json.dumps({'type': 'start', 'title': title, 'paper_titles': list(paper_titles.values()), 'sections': valid_sections}, ensure_ascii=False)}\n\n"
+
+        started_at = datetime.utcnow()
+        async def run_section(section: str):
+            try:
+                return section, await _generate_section(paper_ids, section, paper_titles)
+            except Exception as e:
+                logger.exception(f"Review section generation failed for {section}: {e}")
+                return section, {
+                    "section": section,
+                    "title": SECTION_TITLES.get(section, section),
+                    "content": "",
+                    "papers_used": [],
+                    "chunks_used": 0,
+                    "error": str(e),
+                }
+
+        tasks = [asyncio.create_task(run_section(section)) for section in valid_sections]
+        completed: list[dict] = []
+
+        for task in asyncio.as_completed(tasks):
+            section, result = await task
+            completed.append(result)
+            yield f"data: {json.dumps({'type': 'section', 'section': result}, ensure_ascii=False)}\n\n"
+
+        ordered = {res["section"]: res for res in completed}
+        full_parts = [f"# {title}\n"]
+        for section in valid_sections:
+            res = ordered.get(section)
+            if res:
+                full_parts.append(f"\n## {res['title']}\n\n{res['content']}\n")
+        full_parts.append("\n---\n*Bài Literature Review được tạo tự động bởi ResearchMind AI.*")
+        full_text = "\n".join(full_parts)
+
+        logger.info(
+            "REVIEW_STREAM_TIMING "
+            f"sections={len(completed)} total={(datetime.utcnow() - started_at).total_seconds():.2f}s"
+        )
+        yield f"data: {json.dumps({'type': 'done', 'full_text': full_text}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/section")

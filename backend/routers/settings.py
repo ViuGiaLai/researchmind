@@ -21,6 +21,7 @@ async def get_settings():
     return {
         "llama_server_url": settings.llama_server_url,
         "local_model": settings.local_model,
+        "local_max_tokens": settings.local_max_tokens,
         "llm_mode": settings.llm_mode,
         "claude_api_key": "***" if settings.claude_api_key else "",
         "claude_model": settings.claude_model,
@@ -92,6 +93,7 @@ async def update_settings(new_settings: dict = Body(...)):
             freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
             mode=settings.llm_mode,
             custom_cloud_provider=settings.custom_cloud_provider,
+            local_max_tokens=settings.local_max_tokens,
         )
 
         return {"status": "updated"}
