@@ -140,6 +140,35 @@ Trước khi code Sprint 1, cần đo 5 baseline:
 - Cache search/rerank, LLM, embedding, academic verification.
 - Clear đúng lúc khi corpus thay đổi.
 
+## 3.4 Ưu Tiên Bổ Sung Từ Audit Code Hiện Tại
+
+Các điểm dưới đây không thay đổi mục tiêu chính của v0.5, nhưng nên đưa vào backlog ưu tiên vì có khả năng tạo khác biệt rõ với code hiện tại:
+
+### A. Search Suggest SQL/cache
+
+- `/api/search/suggest` không nên quét toàn bộ indexed papers rồi lọc trong Python khi thư viện lớn.
+- Chuyển suggest sang SQL query có `LIMIT`, lọc title/tags ở database nếu có thể.
+- Cache tags/title suggestions trong memory theo session hoặc theo corpus version.
+- Clear cache suggest khi import/delete/update tags/title.
+
+### B. Lazy warmup cross-encoder
+
+- Không warmup cross-encoder ngay trong startup nếu làm tăng cold start hoặc chiếm RAM sớm.
+- Lazy load cross-encoder ở lần search/rerank đầu tiên, hoặc warmup sau khi app đã vào UI và máy idle.
+- Log riêng thời gian load cross-encoder để biết có phải bottleneck startup không.
+
+### C. Lazy mount tab nặng
+
+- Các tab nặng như Wow Analysis, Insights, Review Builder, Settings không nên mount hoặc chạy API phụ trước khi user mở tab.
+- Chỉ mount tab khi active lần đầu, sau đó giữ state nếu cần.
+- Tách loading theo panel/tab, tránh khóa toàn app vì dữ liệu của tab chưa dùng.
+
+### D. Stream Review section
+
+- Review builder hiện có thể generate nhiều section song song, nhưng UI nên nhận section nào xong thì hiển thị ngay.
+- Dùng SSE/stream endpoint cho draft generation để emit từng section hoàn tất.
+- Frontend cập nhật section editor theo event, không đợi toàn bộ draft xong mới render.
+
 ---
 
 ## 4. Thứ Tự Nên Làm
@@ -152,9 +181,10 @@ Trước khi code Sprint 1, cần đo 5 baseline:
 ### Sprint 1: Search và Library nhanh hơn
 
 1. Debounce + cancel cho search suggestions.
-2. Cache query/filter/result set theo session.
-3. **Virtualize danh sách search và library (React Window)** — P2→P1.
-4. Lazy load preview/related/highlights.
+2. Tối ưu `/api/search/suggest` bằng SQL `LIMIT` + cache tags/title.
+3. Cache query/filter/result set theo session.
+4. **Virtualize danh sách search và library (React Window)** — P2→P1.
+5. Lazy load preview/related/highlights.
 
 ### Sprint 2: Import không chặn + Tauri cold start
 
@@ -170,14 +200,15 @@ Trước khi code Sprint 1, cần đo 5 baseline:
 2. Cache theo paper_ids set / collection / query.
 3. Giảm retrieval latency trước generate.
 4. Reuse context thay vì dựng lại mỗi lần.
-5. Review: section nào xong hiện ngay.
+5. Review: stream từng section xong qua SSE/event, section nào xong hiện ngay.
 
 ### Sprint 4: Giảm thời gian vào app
 
 1. Tách startup thành các mảnh nhẹ.
 2. Không khóa app vì model status/stats.
-3. Tải panel nặng sau khi vào tab.
-4. Log Python startup time.
+3. Lazy mount tab nặng sau khi user mở tab.
+4. Lazy warmup cross-encoder hoặc warmup sau khi app idle.
+5. Log Python startup time và cross-encoder warmup time.
 
 ### Sprint 5: Quan sát tốc độ bằng số đo
 
