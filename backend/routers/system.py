@@ -32,7 +32,7 @@ async def health():
         "version": "0.2.0",
         "embedding_model": settings.embedding_model,
         "llm_mode": settings.llm_mode,
-        "ollama_model": settings.ollama_model,
+        "local_model": settings.local_model,
         "total_papers": _count_papers(),
         "total_chunks": _count_chunks(),
         "embedder_ready": state.embedder_ready,

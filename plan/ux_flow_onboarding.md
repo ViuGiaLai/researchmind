@@ -14,13 +14,13 @@ graph TD
     WelcomeScreen -->|Click Bắt đầu| ChooseModeScreen[4. Màn hình Chọn AI Mode]
     
     ChooseModeScreen -->|⚡ Cloud Free / Gemini| SaveFree[Lưu cấu hình: cloud_free]
-    ChooseModeScreen -->|🔒 Local Offline| CheckOllama{Ollama đã chạy?}
+    ChooseModeScreen -->|🔒 Local Offline| CheckLlama{llama-server đã chạy?}
     ChooseModeScreen -->|🔑 Custom API Key| SetupCustom[Màn hình Nhập API Key]
     
     %% Case: Local Offline
-    CheckOllama -->|CÓ| SetupLocalDone[Lưu cấu hình: local]
-    CheckOllama -->|KHÔNG| OllamaDownload[Màn hình Hướng dẫn / Tải Model]
-    OllamaDownload -->|Đã tải xong| SetupLocalDone
+    CheckLlama -->|CÓ| SetupLocalDone[Lưu cấu hình: local]
+    CheckLlama -->|KHÔNG| LlamaDownload[Màn hình Hướng dẫn / Tải Model]
+    LlamaDownload -->|Đã tải xong| SetupLocalDone
     
     %% Case: Custom API Key
     SetupCustom -->|Chọn DeepSeek / Gemini / Claude| InputKey[Nhập Key & Test Connection]
@@ -108,13 +108,13 @@ graph TD
 ---
 
 ### 🟣 Màn hình 3b: Cài đặt Local (Nếu chọn Offline Cục Bộ)
-* **Mục tiêu:** Giúp người dùng cài đặt Ollama mà không cần hiểu biết sâu về kỹ thuật.
+* **Mục tiêu:** Giúp người dùng cài đặt llama-server mà không cần hiểu biết sâu về kỹ thuật.
 * **Quy trình giảm ma sát:**
-  1. Backend check cổng `11434` của Ollama.
-  2. **Nếu đã chạy Ollama:** Hiện danh sách model tương thích dựa trên RAM (ví dụ: `qwen2.5:3b` cho máy 8GB RAM, `qwen2.5:7b` cho máy 16GB RAM). User chỉ cần chọn và bấm `Xác nhận`.
-  3. **Nếu chưa chạy Ollama:** 
-     * Hiện hướng dẫn 1-click tải/mở Ollama: `Tải Ollama tại ollama.com và chạy lệnh: ollama run qwen2.5:7b`.
-     * Cung cấp nút `Kiểm tra lại kết nối` sau khi user đã bật Ollama.
+  1. Backend check cổng `8080` của llama-server.
+  2. **Nếu đã chạy llama-server:** Hiện thông báo kết nối thành công với model đã cấu hình.
+  3. **Nếu chưa chạy llama-server:** 
+     * Hiện hướng dẫn 1-click tải/mở llama-server: `Tải GGUF model tại HuggingFace và chạy: llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`.
+     * Cung cấp nút `Kiểm tra lại kết nối` sau khi user đã bật llama-server.
 
 ---
 

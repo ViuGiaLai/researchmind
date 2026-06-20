@@ -9,7 +9,7 @@
 > - Cache đã có: `LLMCache`, `EmbeddingCache`, LRU cache cho query embedding, cache academic external API.
 > - Cross-encoder reranker hiện **tắt mặc định** qua `settings.enable_reranker = False`, không phải luôn chạy.
 > - Wow Analysis **không có endpoint** `POST /api/insights/wow`; frontend `WowAnalysisView` tự điều phối các endpoint `review`, `critique`, `conflict`, `gap`, `debate`.
-> - Không có `GET/POST /api/setup/*`; first-run setup đi qua `GET/PUT /api/settings`, `/api/detect-specs`, `/api/data/*`, `/api/ollama/*`.
+> - Không có `GET/POST /api/setup/*`; first-run setup đi qua `GET/PUT /api/settings`, `/api/detect-specs`, `/api/data/*`, `/api/local/status`.
 > - OCR cơ bản bằng `rapidocr_onnxruntime` có trong parser PDF, nhưng chưa có hàng đợi OCR riêng hoặc UI retry OCR chuyên biệt.
 
 > **Commit:** `32dd8ed` — `feat: multi-format import, NVIDIA fix, async non-blocking + UI improvements`
@@ -50,7 +50,7 @@
 | Vector DB | ChromaDB (local) | 0.6.x |
 | Full-text Search | SQLite FTS5 | Built-in |
 | Re-ranker | cross-encoder/ms-marco-MiniLM-L-6-v2 | sentence-transformers |
-| Local LLM | Ollama + qwen2.5:7b | Ollama |
+| Local LLM | llama-server + Qwen2.5 3B GGUF | llama.cpp |
 | Cloud LLMs | NVIDIA, FreeModel.dev, Groq, Gemini, DeepSeek, Claude | API |
 | Metadata DB | SQLite + SQLAlchemy | 2.0.x |
 
@@ -59,7 +59,7 @@
 ```
 NVIDIA NIM (moonshotai/kimi-k2.6) → FreeModel.dev (gpt-4o-mini)
   → Groq (llama-3.3-70b-versatile) → Gemini (gemini-1.5-flash)
-  → Ollama (qwen2.5:7b - local fallback cuối cùng)
+  → llama-server (Qwen2.5 3B GGUF - local fallback cuối cùng)
 ```
 
 Mỗi provider thử lần lượt, nếu lỗi (finish_reason="error") thì chuyển sang provider tiếp theo.
@@ -113,7 +113,7 @@ memoryOS/
 │           ├── hooks/
 │           │   ├── useChat.ts
 │           │   ├── useFolders.ts
-│           │   ├── useOllamaConfig.ts
+│           │   ├── useLocalConfig.ts
 │           │   ├── useScan.ts
 │           │   ├── useSearchFilters.ts
 │           │   └── useTimeline.ts
@@ -140,7 +140,7 @@ memoryOS/
 │   │   ├── vector.py                   # ChromaDB vector search
 │   │   └── hybrid.py                   # RRF fusion + Cross-encoder reranker
 │   ├── chat/
-│   │   ├── generator.py                # LLM: NVIDIA, FreeModel, Groq, Gemini, Ollama...
+│   │   ├── generator.py                # LLM: NVIDIA, FreeModel, Groq, Gemini, llama-server...
 │   │   └── retriever.py                # RAG context builder
 │   ├── export.py                       # Export DOCX/HTML/Markdown
 │   ├── zotero_import.py                # Zotero CSV + BibTeX import
@@ -201,7 +201,7 @@ User gửi câu hỏi + chọn paper
           2. FreeModel.dev (gpt-4o-mini)            # ✅ Hoạt động (~5-11s)
           3. Groq (llama-3.3-70b-versatile)            # ⚠️ 401 key
           4. Gemini (gemini-1.5-flash)              # ⚠️ Key sai format
-          5. Ollama (qwen2.5:7b)                    # ✅ Local fallback
+           5. llama-server (Qwen2.5 3B GGUF)              # ✅ Local fallback
     → Save ChatHistory to SQLite
     → Return { answer, citations, model_used }
 ```
@@ -246,8 +246,8 @@ Trạng thái hiện tại: Chat và Verify đã có streaming. Frontend gọi `
 | 26 | **Chat history** | `GET /api/chat/history` | Theo session |
 | 27 | **Settings CRUD** | `GET/PUT /api/settings` | Persist settings to SQLite |
 | 28 | **Stats** | `GET /api/stats` | Paper count, chunk count, model info |
-| 29 | **Ollama management** | `GET/POST /api/ollama/*` | Pull model, health check, list models |
-| 30 | **Setup wizard** | `GET/PUT /api/settings`, `/api/detect-specs`, `/api/data/*`, `/api/ollama/*` | First-run onboarding |
+| 29 | **Local LLM management** | `GET /api/local/status` | Health check local model |
+| 30 | **Setup wizard** | `GET/PUT /api/settings`, `/api/detect-specs`, `/api/data/*`, `/api/local/status` | First-run onboarding |
 
 ### Frontend
 
@@ -294,7 +294,7 @@ FastAPI app bootstrap với CORS, lifespan events, static mount và include rout
 | FreeModel | `{freemodel_url}/chat/completions` | `_generate_freemodel` | `freemodel_api_key` |
 | Groq | `https://api.groq.com/openai/v1/chat/completions` | `_generate_groq` | `groq_api_key` |
 | Gemini | `https://generativelanguage.googleapis.com/...` | `_generate_gemini` | `gemini_api_key` |
-| Ollama | `{ollama_url}/api/chat` | `_generate_ollama` | (local, không cần key) |
+| llama-server | `{llama_server_url}/completion` | `_generate_local` | (local, không cần key) |
 
 **Finish reasons:**
 - `"stop"` — thành công
@@ -329,7 +329,7 @@ Pydantic BaseSettings, load từ `.env` + persisted SQLite `Setting` table.
 **Key settings:**
 - `llm_mode`: `"cloud_free"` | `"cloud_custom"` | `"local"`
 - `custom_cloud_provider`: `"deepseek"` | `"claude"` | `"gemini"`
-- `model_tier_weak/medium/strong`: Ollama model names
+- `model_tier_weak/medium/strong`: (đã xoá, dùng fixed GGUF model)
 - `free_cloud_daily_limit`: 10 (for cloud_free mode)
 - API keys: claude, deepseek, gemini, groq, nvidia, freemodel
 
@@ -397,7 +397,7 @@ Custom renderer, không dùng thư viện ngoài:
 
 ```
 Request → NVIDIA (1st) → nếu lỗi → FreeModel (2nd) → nếu lỗi → Groq (3rd)
-  → nếu lỗi → Gemini (4th) → nếu lỗi → Ollama (fallback cuối)
+  → nếu lỗi → Gemini (4th) → nếu lỗi → llama-server (fallback cuối)
 ```
 
 ### Trạng thái từng provider
@@ -408,7 +408,7 @@ Request → NVIDIA (1st) → nếu lỗi → FreeModel (2nd) → nếu lỗi →
 | **FreeModel.dev** | `gpt-4o-mini` | ✅ Hoạt động | ~5-11s | Key valid, ổn định nhất |
 | **Groq** | `llama-3.3-70b-versatile` | ❌ 401 | — | Groq key bị invalid, cần key mới |
 | **Gemini** | `gemini-1.5-flash` | ❌ Sai format | — | Key OAuth token (AQ.Ab8...), cần key AIza... |
-| **Ollama** | `qwen2.5:7b` | ✅ Local | ~2-5s | Cần GPU để nhanh hơn |
+| **llama-server** | `Qwen2.5-3B-Instruct-Q4_K_M.gguf` | ✅ Local | ~3-8s | Chạy qua llama.cpp |
 | **DeepSeek** | `deepseek-chat` | ✅ Hoạt động | (cloud_custom) |
 | **Claude** | `claude-sonnet-4-20250514` | ✅ Hoạt động | (cloud_custom) |
 
@@ -436,7 +436,7 @@ API keys được lưu trong `.env` và **không bao giờ** trả về qua API:
 
 | # | Vấn đề | Mô tả |
 |---|---|---|
-| 5 | **GPU chưa bật cho Ollama** | `OLLAMA_IGPU_ENABLE=1` chưa set → Intel Iris Xe không dùng |
+| 5 | **GPU layers cho llama-server** | Chưa set `-ngl` flag → chạy CPU |
 | 6 | **insight endpoints chưa async** | Gap, conflict, topic, evolution chưa wrap `asyncio.to_thread` |
 | 7 | **Cross-encoder chạy CPU** | ms-marco-MiniLM chạy CPU rất chậm (~1-2s cho 20 cặp) |
 | 8 | **Streaming một phần** | Chat/Verify đã streaming; Review/Critique/Debate chưa streaming |
@@ -506,7 +506,7 @@ python test_freemodel.py          # Test FreeModel provider
 | Streaming chat (SSE) | 🔴 Cao | UX tốt hơn, đỡ sốt ruột |
 | Retry + timeout config | 🔴 Cao | Ổn định hơn khi API lỗi |
 | Cache embedding/rerank | 🟡 TB | Giảm latency 50% |
-| GPU acceleration (Ollama + cross-encoder) | 🟡 TB | Giảm latency 70% |
+| GPU acceleration (llama-server + cross-encoder) | 🟡 TB | Giảm latency 70% |
 | Export citation (APA/MLA) | 🟢 Thấp | Phase 3 roadmap |
 | Dark mode | 🟢 Thấp | UX |
 

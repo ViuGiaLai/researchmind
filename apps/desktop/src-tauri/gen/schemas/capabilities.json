@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Default capabilities for all windows","local":true,"windows":["*"],"permissions":["core:default","dialog:default","shell:allow-open"]}}

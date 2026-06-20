@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { open } from "@tauri-apps/plugin-shell";
 import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
 import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
@@ -31,6 +32,20 @@ function App() {
 
   useEffect(() => {
     checkFirstRun();
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest<HTMLAnchorElement>("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("/") || href.startsWith("http://localhost") || href.startsWith("http://127.0.0.1")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      open(href).catch((err) => console.error("Failed to open link:", err));
+    };
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
   }, []);
 
   const checkFirstRun = async () => {

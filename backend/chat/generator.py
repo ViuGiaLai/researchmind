@@ -1,8 +1,8 @@
 """LLM response generation with citation verification.
 
 Supports:
-- Local: Ollama (Llama 3.1 8B)
-- Cloud: Claude Sonnet API
+- Local: llama-server (GGUF models via llama.cpp)
+- Cloud: Claude, DeepSeek, Gemini, Groq, NVIDIA, FreeModel
 - Citation verification: every claim must cite a source
 """
 
@@ -38,8 +38,8 @@ class Generator:
 
     def __init__(
         self,
-        ollama_url: str = "http://localhost:11434",
-        ollama_model: str = "qwen2.5:7b",
+        llama_server_url: str = "http://127.0.0.1:8080",
+        local_model: str = "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
         claude_api_key: str = "",
         claude_model: str = "claude-sonnet-4-20250514",
         deepseek_api_key: str = "",
@@ -59,8 +59,8 @@ class Generator:
         mode: str = "cloud_free",
         custom_cloud_provider: str = "deepseek",
     ):
-        self.ollama_url = ollama_url.rstrip("/")
-        self.ollama_model = ollama_model
+        self.llama_server_url = llama_server_url.rstrip("/")
+        self.local_model = local_model
         self.claude_api_key = claude_api_key
         self.claude_model = claude_model
         self.deepseek_api_key = deepseek_api_key
@@ -238,7 +238,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         import time
         # LLM Routing
         if self.mode == "cloud_free":
-            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → Ollama
+            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → local
             # 1. Try Groq
             if self.groq_api_key:
                 logger.info("cloud_free: trying Groq...")
@@ -274,9 +274,9 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                 if result.finish_reason != "error":
                     return result
                 logger.warning(f"Gemini failed ({result.finish_reason}).")
-            # 4. Fallback to local Ollama
-            logger.warning("All cloud_free providers failed. Falling back to local Ollama...")
-            return self._generate_ollama(user_prompt)
+            # 4. Fallback to local llama-server
+            logger.warning("All cloud_free providers failed. Falling back to local model...")
+            return self._generate_local(user_prompt)
 
         elif self.mode == "cloud_custom":
             if self.custom_cloud_provider == "deepseek":
@@ -289,8 +289,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     )
                 result = self._generate_deepseek(user_prompt, self.deepseek_api_key, is_free=False)
                 if result.finish_reason == "error":
-                    logger.warning("Custom DeepSeek failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt)
+                    logger.warning("Custom DeepSeek failed. Falling back to local model...")
+                    return self._generate_local(user_prompt)
                 return result
             elif self.custom_cloud_provider == "gemini":
                 if not self.gemini_api_key:
@@ -302,8 +302,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     )
                 result = self._generate_gemini(user_prompt, self.gemini_api_key, is_free=False)
                 if result.finish_reason == "error":
-                    logger.warning("Custom Gemini failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt)
+                    logger.warning("Custom Gemini failed. Falling back to local model...")
+                    return self._generate_local(user_prompt)
                 return result
             elif self.custom_cloud_provider == "claude":
                 if not self.claude_api_key:
@@ -315,8 +315,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     )
                 result = self._generate_claude(user_prompt)
                 if result.finish_reason == "error":
-                    logger.warning("Custom Claude failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt)
+                    logger.warning("Custom Claude failed. Falling back to local model...")
+                    return self._generate_local(user_prompt)
                 return result
             elif self.custom_cloud_provider == "groq":
                 if not self.groq_api_key:
@@ -328,8 +328,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     )
                 result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model)
                 if result.finish_reason == "error":
-                    logger.warning("Custom Groq failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt)
+                    logger.warning("Custom Groq failed. Falling back to local model...")
+                    return self._generate_local(user_prompt)
                 return result
             elif self.custom_cloud_provider == "nvidia":
                 if not self.nvidia_api_key:
@@ -341,8 +341,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     )
                 result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model)
                 if result.finish_reason == "error":
-                    logger.warning("Custom Nvidia failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt)
+                    logger.warning("Custom Nvidia failed. Falling back to local model...")
+                    return self._generate_local(user_prompt)
                 return result
             elif self.custom_cloud_provider == "freemodel":
                 if not self.freemodel_api_key:
@@ -354,12 +354,12 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
                     )
                 result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model)
                 if result.finish_reason == "error":
-                    logger.warning("Custom FreeModel failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt)
+                    logger.warning("Custom FreeModel failed. Falling back to local model...")
+                    return self._generate_local(user_prompt)
                 return result
 
         # Local mode
-        return self._generate_ollama(user_prompt)
+        return self._generate_local(user_prompt)
 
     def _get_verify_system_prompt(self) -> str:
         return """Bạn là chuyên gia xác thực nghiên cứu học thuật. Kiểm chứng tuyên bố từ LOCAL PDF và nguồn NGOÀI (OpenAlex, Crossref).
@@ -413,7 +413,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         mode = self.mode
 
         if mode == "cloud_free":
-            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → Ollama
+            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → local
             if self.groq_api_key:
                 result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
@@ -430,32 +430,32 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 result = self._generate_gemini(user_prompt, is_free=True, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
                     return result
-            return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+            return self._generate_local(user_prompt, system_prompt_override=system_prompt)
 
         elif mode == "cloud_custom":
             provider = self.custom_cloud_provider
             if provider == "deepseek" and self.deepseek_api_key:
                 result = self._generate_deepseek(user_prompt, self.deepseek_api_key, system_prompt_override=system_prompt)
                 if result.finish_reason == "error":
-                    logger.warning("Custom DeepSeek failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+                    logger.warning("Custom DeepSeek failed. Falling back to local model...")
+                    return self._generate_local(user_prompt, system_prompt_override=system_prompt)
                 return result
             if provider == "claude" and self.claude_api_key:
                 result = self._generate_claude(user_prompt, system_prompt_override=system_prompt)
                 if result.finish_reason == "error":
-                    logger.warning("Custom Claude failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+                    logger.warning("Custom Claude failed. Falling back to local model...")
+                    return self._generate_local(user_prompt, system_prompt_override=system_prompt)
                 return result
             if provider == "gemini" and self.gemini_api_key:
                 result = self._generate_gemini(user_prompt, is_free=False, system_prompt_override=system_prompt)
                 if result.finish_reason == "error":
-                    logger.warning("Custom Gemini failed. Falling back to local Ollama...")
-                    return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+                    logger.warning("Custom Gemini failed. Falling back to local model...")
+                    return self._generate_local(user_prompt, system_prompt_override=system_prompt)
                 return result
-            return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+            return self._generate_local(user_prompt, system_prompt_override=system_prompt)
 
         # Local mode
-        return self._generate_ollama(user_prompt, system_prompt_override=system_prompt)
+        return self._generate_local(user_prompt, system_prompt_override=system_prompt)
 
     def _generate_deepseek(self, prompt: str, api_key: str, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using DeepSeek API (OpenAI-compatible)."""
@@ -579,57 +579,56 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 finish_reason="error",
             )
 
-    def _generate_ollama(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
-        """Generate response using Ollama (local LLM)."""
+    @staticmethod
+    def _apply_chat_template(system: str, user: str) -> str:
+        return f"<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
+
+    def _generate_local(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
+        """Generate response using llama-server (local GGUF model)."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
-            user_msg = f"(QUAN TRỌNG: CHỈ trả lời bằng tiếng Việt, KHÔNG dùng tiếng Trung Quốc) {prompt}" if "qwen" in self.ollama_model.lower() else prompt
+            full_prompt = self._apply_chat_template(sp, prompt)
             response = self.http_client.post(
-                f"{self.ollama_url}/api/chat",
+                f"{self.llama_server_url}/completion",
                 json={
-                    "model": self.ollama_model,
-                    "messages": [
-                        {"role": "system", "content": sp},
-                        {"role": "user", "content": user_msg},
-                    ],
+                    "prompt": full_prompt,
+                    "n_predict": 512,
+                    "temperature": 0.3,
+                    "top_k": 40,
+                    "top_p": 0.9,
+                    "stop": ["<|im_end|>", "<|im_start|>"],
                     "stream": False,
-                    "options": {
-                        "temperature": 0.3,
-                        "num_predict": 512,
-                        "num_ctx": 2048,
-                    },
                 },
                 timeout=180.0,
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("message", {}).get("content", "")
+            content = data.get("content", "").strip()
 
-            # Verify and extract citations
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
 
             return GenerationResult(
                 content=content,
                 citations=citations,
-                model_used=f"ollama/{self.ollama_model}",
-                finish_reason=data.get("done_reason", "stop"),
+                model_used=f"local/{self.local_model}",
+                finish_reason="stop",
             )
 
         except httpx.ConnectError:
-            logger.error("Cannot connect to Ollama. Is it running?")
+            logger.error("Cannot connect to llama-server. Is it running?")
             return GenerationResult(
-                content="⚠️ Không thể kết nối đến Ollama. Vui lòng đảm bảo Ollama đang chạy (`ollama serve`).",
+                content="⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy.",
                 citations=[],
-                model_used="ollama/error",
+                model_used="local/error",
                 finish_reason="error",
             )
         except Exception as e:
-            logger.error(f"Ollama generation failed: {e}")
+            logger.error(f"Local generation failed: {e}")
             return GenerationResult(
-                content=f"⚠️ Lỗi khi gọi Ollama: {str(e)}",
+                content=f"⚠️ Lỗi khi gọi llama-server: {str(e)}",
                 citations=[],
-                model_used="ollama/error",
+                model_used="local/error",
                 finish_reason="error",
             )
 
@@ -913,7 +912,7 @@ Câu hỏi: {query}"""
     def _stream_chain(self, user_prompt: str):
 
         if self.mode == "cloud_free":
-            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → Ollama
+            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → local
             if self.groq_api_key:
                 self.current_model = f"groq/{self.groq_model}"
                 yielded = False
@@ -955,9 +954,9 @@ Câu hỏi: {query}"""
                     yield chunk
                 if yielded:
                     return
-            self.current_model = f"ollama/{self.ollama_model}"
+            self.current_model = f"local/{self.local_model}"
             yield "⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
-            for chunk in self._stream_ollama(user_prompt):
+            for chunk in self._stream_local(user_prompt):
                 yield chunk
 
         elif self.mode == "cloud_custom":
@@ -997,9 +996,9 @@ Câu hỏi: {query}"""
                         for text in stream.text_stream:
                             yield text
                 except Exception as e:
-                    self.current_model = f"ollama/{self.ollama_model}"
+                    self.current_model = f"local/{self.local_model}"
                     yield f"\n⚠️ Claude stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
-                    for chunk in self._stream_ollama(user_prompt):
+                    for chunk in self._stream_local(user_prompt):
                         yield chunk
             elif self.custom_cloud_provider == "groq":
                 if not self.groq_api_key:
@@ -1013,9 +1012,9 @@ Câu hỏi: {query}"""
                         "https://api.groq.com/openai/v1"
                     )
                 except Exception as e:
-                    self.current_model = f"ollama/{self.ollama_model}"
+                    self.current_model = f"local/{self.local_model}"
                     yield f"\n⚠️ Groq stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
-                    for chunk in self._stream_ollama(user_prompt):
+                    for chunk in self._stream_local(user_prompt):
                         yield chunk
             elif self.custom_cloud_provider == "nvidia":
                 if not self.nvidia_api_key:
@@ -1029,9 +1028,9 @@ Câu hỏi: {query}"""
                         self.nvidia_url
                     )
                 except Exception as e:
-                    self.current_model = f"ollama/{self.ollama_model}"
+                    self.current_model = f"local/{self.local_model}"
                     yield f"\n⚠️ Nvidia stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
-                    for chunk in self._stream_ollama(user_prompt):
+                    for chunk in self._stream_local(user_prompt):
                         yield chunk
             elif self.custom_cloud_provider == "freemodel":
                 if not self.freemodel_api_key:
@@ -1045,18 +1044,18 @@ Câu hỏi: {query}"""
                         self.freemodel_url
                     )
                 except Exception as e:
-                    self.current_model = f"ollama/{self.ollama_model}"
+                    self.current_model = f"local/{self.local_model}"
                     yield f"\n⚠️ FreeModel stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
-                    for chunk in self._stream_ollama(user_prompt):
+                    for chunk in self._stream_local(user_prompt):
                         yield chunk
             else:
                 self.current_model = "unknown/invalid"
                 yield "⚠️ Cloud provider không hợp lệ."
 
         else:
-            # Local mode (Ollama)
-            self.current_model = f"ollama/{self.ollama_model}"
-            for chunk in self._stream_ollama(user_prompt):
+            # Local mode
+            self.current_model = f"local/{self.local_model}"
+            for chunk in self._stream_local(user_prompt):
                 yield chunk
 
     def _stream_deepseek(self, prompt: str, api_key: str, is_free: bool = False):
@@ -1100,7 +1099,7 @@ Câu hỏi: {query}"""
         except Exception as e:
             logger.error(f"DeepSeek stream failed: {e}")
             yield f"\n⚠️ DeepSeek Cloud gặp sự cố ({str(e)}). Đang chuyển sang Local model...\n"
-            for chunk in self._stream_ollama(prompt):
+            for chunk in self._stream_local(prompt):
                 yield chunk
 
     def _stream_openai(self, prompt: str, api_key: str, model: str, base_url: str):
@@ -1187,36 +1186,41 @@ Câu hỏi: {query}"""
         except Exception as e:
             logger.error(f"Gemini stream failed: {e}")
             yield f"\n⚠️ Gemini Cloud gặp sự cố ({str(e)}). Đang chuyển sang Local model...\n"
-            for chunk in self._stream_ollama(prompt):
+            for chunk in self._stream_local(prompt):
                 yield chunk
 
-    def _stream_ollama(self, prompt: str):
-        """Stream response from Ollama."""
+    def _stream_local(self, prompt: str):
+        """Stream response from llama-server (local GGUF model via llama.cpp)."""
         try:
+            full_prompt = self._apply_chat_template(self._get_system_prompt(), prompt)
             with self.http_client.stream(
                 "POST",
-                f"{self.ollama_url}/api/chat",
+                f"{self.llama_server_url}/completion",
                 json={
-                    "model": self.ollama_model,
-                    "messages": [
-                        {"role": "system", "content": self._get_system_prompt()},
-                        {"role": "user", "content": prompt},
-                    ],
+                    "prompt": full_prompt,
+                    "n_predict": 512,
+                    "temperature": 0.3,
+                    "top_k": 40,
+                    "top_p": 0.9,
+                    "stop": ["<|im_end|>", "<|im_start|>"],
                     "stream": True,
-                    "options": {"temperature": 0.3, "num_predict": 512, "num_ctx": 2048},
                 },
                 timeout=180.0,
             ) as response:
                 response.raise_for_status()
                 for line in response.iter_lines():
-                    if line:
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
                         try:
-                            data = json.loads(line)
-                            if "message" in data and "content" in data["message"]:
-                                yield data["message"]["content"]
+                            data = json.loads(data_str)
+                            chunk = data.get("content", "")
+                            if chunk:
+                                yield chunk
                         except json.JSONDecodeError:
                             continue
         except httpx.ConnectError:
-            yield "\n⚠️ Không thể kết nối đến Ollama. Vui lòng đảm bảo Ollama đang chạy (`ollama serve`)."
+            yield "\n⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy."
         except Exception as e:
-            yield f"\n⚠️ Lỗi kết nối Ollama: {str(e)}"
+            yield f"\n⚠️ Lỗi kết nối llama-server: {str(e)}"

@@ -14,7 +14,7 @@ Mình sẽ trả lời thẳng, không vòng vo:
 👉 Nếu bạn bắt họ:
 
 ```
-tải 5–10GB model + setup ollama
+tải 2–5GB GGUF model + setup llama-server
 ```
 
 📉 => **80–90% bỏ app ngay**
@@ -61,7 +61,7 @@ Chọn chế độ AI:
     → chạy ngay
 
 [ ] 🔒 Riêng tư tuyệt đối
-    → Tải ~5GB
+    → Tải ~2GB
     → chạy offline
 ```
 
@@ -196,7 +196,7 @@ Local mode
 
 ❌ Bắt user:
 
-* cài ollama
+* cài llama-server
 * gõ command
 * hiểu model
 

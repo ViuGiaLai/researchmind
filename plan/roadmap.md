@@ -128,7 +128,7 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 | Task | Thời gian | Output |
 |---|---|---|
 | RAG Retriever | 2 ngày | Retrieve chunks from selected papers |
-| RAG Generator (Ollama) | 2 ngày | Chat với local LLM + citations |
+| RAG Generator (llama-server) | 2 ngày | Chat với local LLM + citations |
 | Chat UI | 2 ngày | ChatPanel, streaming |
 | Citation verification | 1 ngày | Kiểm tra mọi claim có source |
 | Bug fixes + Polish | 2 ngày | Error handling, UX |
@@ -249,7 +249,7 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 | **Embedding** | bge-m3 (sentence-transformers) | Đa ngôn ngữ, CPU-friendly, context 8192 |
 | **Vector DB** | ChromaDB | Dễ setup, persist local |
 | **Full-text Search** | SQLite FTS5 | Zero dependency, đủ nhanh |
-| **Local LLM** | Ollama + Llama 3.1 8B | Miễn phí, offline, đủ mạnh |
+| **Local LLM** | llama-server + Qwen2.5 3B GGUF | Miễn phí, offline, đủ mạnh |
 | **Cloud LLM** | Claude Sonnet API | Option khi user muốn chất lượng cao |
 | **Re-ranking** | cross-encoder/ms-marco | Tăng accuracy 15-20% |
 | **Metadata DB** | SQLite | Local first, zero config |
@@ -301,7 +301,7 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 | 3 | Embedding & Semantic Search | 1-2 tuần | sentence-transformers docs, bge-m3 paper |
 | 4 | SQLite FTS5 & BM25 | 1 tuần | SQLite FTS5 docs |
 | 5 | React + TypeScript + Tauri | 3-4 tuần | React docs, Tauri v2 docs |
-| 6 | Ollama + Local LLM | 1 tuần | Ollama GitHub |
+| 6 | llama-server + Local LLM | 1 tuần | llama.cpp docs |
 | 7 | PDF parsing | 1 tuần | PyMuPDF docs |
 | 8 | Re-ranking & Cross-encoder | 1 tuần | SBERT.net |
 | 9 (sau MVP) | Rust cơ bản | 4-6 tuần | The Rust Book — chỉ học nếu cần rewrite |
@@ -314,8 +314,8 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 - [ ] Đã cài Python 3.11+ (`python --version`)?
 - [ ] Đã cài Node.js 20+ (`node --version`)?
 - [ ] Đã cài pnpm (`pnpm --version`)?
-- [ ] Đã cài Ollama (`ollama --version`)?
-- [ ] Đã pull model: `ollama pull llama3.1:8b`?
+- [ ] Đã tải GGUF model (`Qwen2.5-3B-Instruct-Q4_K_M.gguf`)?
+- [ ] Đã chạy llama-server: `llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`?
 - [ ] Đã cài Rust (cho Tauri): `rustc --version`?
 - [ ] Đã build thử app: `cd apps/desktop && pnpm tauri dev`?
 

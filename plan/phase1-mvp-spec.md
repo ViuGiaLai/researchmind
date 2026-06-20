@@ -26,7 +26,7 @@ ResearchMind VN v0.1
 ├── 3️⃣ Chat với Paper
 │   ├── Chọn 1-5 paper để hỏi
 │   ├── RAG pipeline: retrieve → generate
-│   ├── Local LLM (Ollama / Llama 3.1 8B)
+│   ├── Local LLM (llama-server / Qwen2.5 3B GGUF)
 │   └── Cloud option (Claude Sonnet)
 │
 └── 4️⃣ Library quản lý
@@ -155,7 +155,7 @@ User ở màn hình Chat
 │  │    pháp và đề xuất hybrid...     ││
 │  │                                  ││
 │  │ 📚 Nguồn: 3 paper · 5 chunks     ││
-│  │ 🤖 Model: Ollama (Llama 3.1 8B)  ││
+│  │ 🤖 Model: llama-server (Qwen2.5 3B GGUF)  ││
 │  └──────────────────────────────────┘│
 │                                      │
 │  ┌──────────────────────────────────┐│
@@ -310,7 +310,7 @@ async def clear_chat_history() -> DeleteResponse:
 ```python
 @router.get("/health")
 async def health() -> HealthResponse:
-    """Check: Ollama running? ChromaDB connected? SQLite OK?"""
+    """Check: llama-server running? ChromaDB connected? SQLite OK?"""
     pass
 
 @router.get("/stats")
@@ -328,11 +328,11 @@ async def update_settings(settings: SettingsUpdate) -> SettingsResponse:
     """Update settings"""
     pass
 
-@router.post("/ollama/pull")
-async def pull_ollama_model(
-    model_name: str = Body("llama3.1:8b")
+@router.post("/local/pull")
+async def pull_local_model(
+    model_name: str = Body("Qwen2.5-3B-Instruct-Q4_K_M.gguf")
 ) -> PullResponse:
-    """Pull Ollama model (stream progress)"""
+    """Download GGUF model (stream progress)"""
     pass
 ```
 
@@ -366,7 +366,7 @@ backend/
 │
 ├── config/
 │   └── settings.py                # Pydantic Settings
-│       ├── OLLAMA_URL
+│       ├── LLAMA_SERVER_URL
 │       ├── CHROMA_PERSIST_DIR
 │       ├── SQLITE_PATH
 │       ├── CHUNK_SIZE=512
@@ -389,7 +389,7 @@ backend/
 │
 ├── chat/
 │   ├── retriever.py               # RAG retrieval pipeline
-│   └── generator.py               # Ollama / Claude generation
+│   └── generator.py               # llama-server / Claude generation
 │
 ├── library/
 │   └── crud.py                    # Paper CRUD operations
@@ -421,7 +421,7 @@ sentence-transformers==3.3.*      # For bge-m3
 chromadb==0.6.*                    # Vector store
 
 # LLM
-httpx==0.28.*                      # Ollama API client
+httpx==0.28.*                      # llama-server API client
 anthropic==0.49.*                  # Claude API (optional)
 
 # Utils
@@ -472,10 +472,10 @@ loguru==0.7.*
 | Task | File | Chi tiết |
 |---|---|---|
 | RAG Retriever | `chat/retriever.py` | Query → retrieval → context building |
-| RAG Generator | `chat/generator.py` | Ollama / Claude API integration |
+| RAG Generator | `chat/generator.py` | llama-server / Claude API integration |
 | Chat UI | `src/components/chat/` | ChatPanel, ChatMessage, ChatInput |
 | Citation verification | `chat/generator.py` | Check mọi claim có source |
-| Ollama integration test | Backend | Test với Ollama thật |
+| llama-server integration test | Backend | Test với llama-server thật |
 | Bug fixes + Polish | App | UX improvements, error handling |
 | Testing | App | Test full flow: import → search → chat |
 
@@ -517,9 +517,9 @@ loguru==0.7.*
 | PDF đang import | 📄 Đang index... (progress bar) | Spinner + estimated time |
 | PDF import thành công | ✅ Đã index | Chuyển sang Library |
 | PDF lỗi (corrupted) | ⚠️ Không thể đọc file này | Skip, log chi tiết |
-| Ollama không chạy | ⚠️ Ollama chưa được cài đặt | Hướng dẫn cài + nút retry |
+| llama-server không chạy | ⚠️ llama-server chưa được khởi động | Hướng dẫn chạy + nút retry |
 | Search không có kết quả | 😕 Không tìm thấy kết quả. Thử từ khóa khác? | Suggest keywords |
-| Chat lỗi | ⚠️ Lỗi kết nối Ollama. Kiểm tra Ollama có đang chạy? | Retry + hướng dẫn |
+| Chat lỗi | ⚠️ Lỗi kết nối llama-server. Kiểm tra llama-server có đang chạy? | Retry + hướng dẫn |
 | API key Claude không hợp lệ | ⚠️ API key không đúng. Vào Settings để cập nhật. | Redirect to Settings |
 | ChromaDB lỗi | ⚠️ Lỗi vector database | Rebuild + thông báo |
 
@@ -531,7 +531,7 @@ loguru==0.7.*
 |---|---|---|
 | Import + Index 1 PDF (50 trang) | < 30 giây | Phụ thuộc CPU |
 | Hybrid Search | < 500ms | 1000 papers |
-| Chat response (Ollama) | < 5s | Llama 3.1 8B |
+| Chat response (llama-server) | < 5s | Qwen2.5 3B GGUF |
 | Chat response (Claude) | < 3s | Phụ thuộc internet |
 | Library load | < 200ms | 1000 papers |
 | RAM idle | < 200MB | |
@@ -554,8 +554,8 @@ ResearchMind VN Installer:
 
 **Lưu ý:** Bản MVP đầu tiên có thể yêu cầu user:
 1. Cài Python 3.11+
-2. Cài Ollama (`winget install Ollama` hoặc ollama.com)
-3. Pull model: `ollama pull llama3.1:8b`
+2. Tải GGUF model từ HuggingFace (`Qwen2.5-3B-Instruct-Q4_K_M.gguf`)
+3. Chạy llama-server: `llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`
 4. Run app
 
 **Mục tiêu Year 1:** PyInstaller bundle → single .exe installer (không cần cài gì thêm).

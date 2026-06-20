@@ -7,7 +7,7 @@ Routes are organized into routers/:
 - routers/search.py   Hybrid search + suggestions
 - routers/chat.py     Chat + Review + Critique + Debate + History
 - routers/insights.py Gap + Conflict + Topic + Evolution analysis
-- routers/settings.py Settings + Validate Key + Ollama management
+- routers/settings.py Settings + Validate Key + Local model management
 - routers/system.py   Health + Stats + Specs + Data management + Zotero
 - routers/personal.py Personalized Knowledge Brain + Daily Reader
 - routers/review.py   Literature Review Builder (draft, section, matrix, export)
@@ -70,11 +70,10 @@ def load_persisted_settings():
     which should always come from .env file.
     """
     env_only_keys = {
-        "ollama_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
+        "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
         "groq_api_key", "freemodel_api_key",
-        "ollama_model", "claude_model", "deepseek_model", "gemini_model",
+        "local_model", "claude_model", "deepseek_model", "gemini_model",
         "groq_model", "freemodel_model",
-        "model_tier_weak", "model_tier_medium", "model_tier_strong",
     }
 
     session = get_session(state.engine)
@@ -187,8 +186,8 @@ async def lifespan(app: FastAPI):
 
     state.retriever = Retriever(state.hybrid)
     state.generator = Generator(
-        ollama_url=settings.ollama_url,
-        ollama_model=settings.ollama_model,
+        llama_server_url=settings.llama_server_url,
+        local_model=settings.local_model,
         claude_api_key=settings.claude_api_key,
         claude_model=settings.claude_model,
         deepseek_api_key=settings.deepseek_api_key,
@@ -210,16 +209,13 @@ async def lifespan(app: FastAPI):
     )
     logger.info("RAG pipeline initialized")
 
-    import subprocess
+    import httpx
     try:
-        result = subprocess.run(
-            ["ollama", "show", settings.ollama_model],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            logger.info(f"Ollama model '{settings.ollama_model}' ready")
+        resp = httpx.get(f"{settings.llama_server_url}/health", timeout=3.0)
+        if resp.status_code == 200:
+            logger.info(f"llama-server ready at {settings.llama_server_url}")
     except Exception:
-        pass
+        logger.warning(f"llama-server not detected at {settings.llama_server_url}")
 
     yield
 

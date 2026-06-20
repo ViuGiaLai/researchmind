@@ -93,7 +93,7 @@ export interface HealthResponse {
   version: string;
   embedding_model: string;
   llm_mode: string;
-  ollama_model: string;
+  local_model: string;
   total_papers: number;
   total_chunks: number;
   embedder_ready?: boolean;
@@ -550,8 +550,8 @@ export const api = {
   // Settings
   getSettings: () =>
     request<{
-      ollama_url: string;
-      ollama_model: string;
+      llama_server_url: string;
+      local_model: string;
       llm_mode: string;
       claude_api_key: string;
       claude_model: string;
@@ -565,9 +565,6 @@ export const api = {
       nvidia_model: string;
       nvidia_url: string;
       custom_cloud_provider: string;
-      model_tier_weak: string;
-      model_tier_medium: string;
-      model_tier_strong: string;
       chunk_size: number;
       chunk_overlap: number;
       top_k_retrieval: number;
@@ -614,11 +611,9 @@ export const api = {
       reranker: { loaded: boolean; last_used: number; idle_seconds: number; model_name: string };
     }>("GET", "/api/settings/model-status"),
 
-  // Ollama Status & Pulling
-  getOllamaStatus: () =>
-    request<{ connected: boolean; models?: string[]; error?: string; ollama_url: string }>("GET", "/api/ollama/status"),
-
-  pullOllamaModelUrl: "http://127.0.0.1:8765/api/ollama/pull",
+  // Local model (llama-server) status
+  getLocalStatus: () =>
+    request<{ connected: boolean; error?: string; llama_server_url: string; model?: string }>("GET", "/api/local/status"),
 
   // Data Management
   openDataFolder: (path?: string) =>

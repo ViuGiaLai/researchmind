@@ -8,7 +8,7 @@
 > - **Cache embedding:** đã có `EmbeddingCache` trong DB, cache trong `ingestion/embedder.py`, và LRU cache query embedding trong `search/hybrid.py`.
 > - **Cache LLM:** đã có `LLMCache` và Settings UI/API để xem/xóa cache.
 > - **Cross-encoder:** lazy-load + tự unload sau idle, nhưng `enable_reranker` đang mặc định `False`; chưa có cache rerank result theo `(query, chunk_ids)`.
-> - **Provider chain:** cloud_free hiện thử NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → Ollama fallback.
+> - **Provider chain:** cloud_free hiện thử NVIDIA Kimi → NVIDIA DeepSeek → FreeModel → Groq → Gemini → llama-server fallback.
 > - **Còn chưa đủ:** đo time-to-first-token chưa rõ, timeout provider chưa cấu hình từ Settings, Review/Critique/Debate chưa streaming, rerank cache chưa có.
 
 > **Triết lý:** v0.1 = có feature · v0.2 = làm cho nó MƯỢT + NHANH + GIỐNG ChatGPT
@@ -25,7 +25,7 @@
 4. [Priority 3 — Retry logic + Fallback ổn định](#4-priority-3--retry-logic--fallback-ổn-định)
 5. [Priority 4 — Fix lỗi provider (Groq + Gemini)](#5-priority-4--fix-lỗi-provider-groq--gemini)
 6. [Priority 5 — Cache (tăng tốc ngay)](#6-priority-5--cache-tăng-tốc-ngay)
-7. [Bonus — GPU cho Ollama + Insight async](#7-bonus--gpu-cho-ollama--insight-async)
+7. [Bonus — GPU cho llama-server + Insight async](#7-bonus--gpu-cho-llama-server--insight-async)
 8. [Roadmap v0.2](#8-roadmap-v02)
 9. [Những gì KHÔNG làm ở v0.2](#9-những-gì-không-làm-ở-v02)
 
@@ -246,20 +246,18 @@ def _call_with_retry(self, fn, *args, max_retries=1, **kwargs):
 
 ---
 
-## 7. Bonus — GPU cho Ollama + Insight async
+## 7. Bonus — GPU cho llama-server + Insight async
 
 > **Mức độ:** 🟢 NẾU CÒN TIME
 
-### GPU cho Ollama
+### GPU cho llama-server
 
 ```powershell
-# Set env var trước khi chạy Ollama
-$env:OLLAMA_IGPU_ENABLE=1
-ollama serve
+# Set số GPU layers khi chạy llama-server
+llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080 -ngl 20
 
 # Kiểm tra
-ollama run qwen2.5:7b --verbose
-# → nếu thấy "GPU" trong log là thành công
+# → nếu thấy "llm_load_tensors: offloaded 20/24 layers to GPU" trong log là thành công
 ```
 
 ### Insight async
@@ -294,7 +292,7 @@ Tuần 3: Retry + Fix providers
   └── ⏳ Cần validation/onboarding tốt hơn
 
 Tuần 4: Bonus + Polish
-  ├── GPU cho Ollama
+  ├── GPU cho llama-server
   ├── Insight async
   └── Test + bug fixes
 ```
@@ -309,7 +307,7 @@ Tuần 4: Bonus + Polish
 | Retry logic | 1 ngày | 🟡 Ổn định hơn | ✅ |
 | Fix Groq key | 5 phút | 🟡 Thêm 1 provider | Phụ thuộc key |
 | Fix Gemini key | 5 phút | 🟡 Thêm 1 provider | Phụ thuộc key |
-| GPU Ollama | 15 phút | 🟢 Speed x2-3 cho local | Còn time |
+| GPU llama-server | 15 phút | 🟢 Speed x2-3 cho local | Còn time |
 | Insight async | 1 ngày | 🟢 Không block | Còn time |
 
 ---

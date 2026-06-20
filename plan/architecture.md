@@ -101,7 +101,7 @@ fn main() {
 | **search/vector.py** | ChromaDB | Vector search |
 | **search/hybrid.py** | Custom fusion | Kết hợp BM25 + Vector + Re-rank |
 | **chat/retriever.py** | Custom | RAG retrieval pipeline |
-| **chat/generator.py** | Ollama / Claude API | LLM response generation |
+| **chat/generator.py** | llama-server (GGUF) / Claude API | LLM response generation |
 | **db/models.py** | SQLAlchemy + SQLite | Database models |
 | **library/crud.py** | Custom | Library management CRUD |
 | **config/settings.py** | Pydantic Settings | App configuration |
@@ -163,7 +163,7 @@ researchmind/
 │   │   └── hybrid.py           # Score fusion + reranker
 │   ├── chat/
 │   │   ├── retriever.py        # RAG retrieval
-│   │   └── generator.py        # LLM (Ollama / Claude)
+│   │   └── generator.py        # LLM (llama-server GGUF / Claude)
 │   ├── db/
 │   │   ├── models.py           # SQLAlchemy models
 │   │   └── database.py         # Connection + session
@@ -292,7 +292,7 @@ backend/chat/generator.py:
   │
   │   Câu hỏi: phương pháp đánh giá độ trễ mạng 5G?
   │   """
-  ├── Gửi đến Ollama (Llama 3.1 8B) hoặc Claude API
+  ├── Gửi đến llama-server (Qwen2.5 3B GGUF) hoặc Claude API
   └── Yêu cầu: trả lời CÓ TRÍCH DẪN [tên paper, trang]
        │
        ▼
@@ -307,7 +307,7 @@ Trả về: {
     { paper: "5G-Net-2024.pdf", page: 5, text: "..." },
     ...
   ],
-  model_used: "ollama/llama3.1:8b"
+  model_used: "local/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
 }
 ```
 
@@ -412,8 +412,8 @@ CREATE TABLE settings (
 INSERT OR IGNORE INTO settings (key, value) VALUES
     ('papers_folder', ''),
     ('llm_mode', 'local'),             -- local / cloud
-    ('ollama_model', 'llama3.1:8b'),
-    ('ollama_url', 'http://localhost:11434'),
+    ('llama_server_url', 'http://127.0.0.1:8080'),
+    ('local_model', 'Qwen2.5-3B-Instruct-Q4_K_M.gguf'),
     ('claude_api_key', ''),
     ('embedding_model', 'bge-m3'),
     ('chunk_size', '512'),
@@ -478,7 +478,7 @@ Collection: "paper_chunks"
 | `GET` | `/api/stats` | Thống kê (papers count, chunks, storage) |
 | `GET` | `/api/settings` | Get settings |
 | `PUT` | `/api/settings` | Update settings |
-| `POST` | `/api/ollama/pull` | Pull Ollama model |
+| `POST` | `/api/local/pull` | Pull GGUF model |
 
 ---
 
@@ -524,7 +524,7 @@ User Question
                │
 ┌──────────────▼──────────────────────┐
 │ 6. LLM Generation                  │
-│ ├── Local: Ollama (Llama 3.1 8B)  │
+│ ├── Local: llama-server (Qwen2.5 3B GGUF)  │
 │ ├── Cloud: Claude Sonnet API       │
 │ └── Streaming response             │
 └──────────────┬──────────────────────┘
@@ -553,7 +553,7 @@ User Question
 | **bge-m3 over e5** | Đa ngôn ngữ (VNm English), CPU-friendly, context 8192 tokens |
 | **SQLite FTS5 over Tantivy** | Zero dependency, đủ nhanh cho MVP |
 | **Hybrid Search over pure vector** | BM25 bắt từ khóa chính xác, Vector hiểu ngữ nghĩa |
-| **Local LLM (Ollama) first** | Privacy, offline, không tốn API phí |
+| **Local LLM (llama-server) first** | Privacy, offline, không tốn API phí |
 | **Cloud LLM (Claude) option** | Khi user muốn chất lượng cao hơn, user tự trả tiền |
 | **Cross-encoder re-rank** | Tăng accuracy 15-20% |
 | **Citation verification** | Chống hallucination — yếu tố quan trọng với academic users |
@@ -581,7 +581,7 @@ User Question
 | Error | Handling |
 |---|---|
 | PDF corrupted / password | Skip, log error, thông báo user |
-| Ollama not running | Fallback: search vẫn chạy, chat disabled |
+| llama-server not running | Fallback: search vẫn chạy, chat disabled |
 | ChromaDB corrupted | Delete and rebuild from chunks |
 | SQLite busy | Retry 3 lần, timeout 5s |
 | Disk full | Warning, pause indexing |

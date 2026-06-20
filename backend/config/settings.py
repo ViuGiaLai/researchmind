@@ -60,15 +60,11 @@ class Settings(BaseSettings):
     top_k_retrieval: int = 5
 
     # LLM
-    provider_timeout: float = 60.0
+    provider_timeout: float = 180.0
     nvidia_timeout: float = 8.0
     openai_stream_timeout: float = 12.0
-    ollama_url: str = "http://localhost:11434"
-    # Model tiers: yếu (3b), TB (7b), mạnh (14b)
-    model_tier_weak: str = "qwen2.5:3b"
-    model_tier_medium: str = "qwen2.5:7b"
-    model_tier_strong: str = "qwen2.5:14b"
-    ollama_model: str = "qwen2.5:3b"
+    llama_server_url: str = "http://127.0.0.1:8080"
+    local_model: str = "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
     
     # Claude Cloud
     claude_api_key: str = ""
@@ -101,10 +97,10 @@ class Settings(BaseSettings):
     # Reranking settings (disabled by default for CPU performance)
     enable_reranker: bool = False
     
-    # Free Cloud settings (tries Groq → Gemini → FreeModel → Ollama)
+    # Free Cloud settings (tries Groq → Gemini → FreeModel → local)
     free_cloud_daily_limit: int = 10
     
-    # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (Ollama)
+    # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (llama-server)
     llm_mode: str = "cloud_free"
     
     # Custom provider: "deepseek", "claude", or "gemini"

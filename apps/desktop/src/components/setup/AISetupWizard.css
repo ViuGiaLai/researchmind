@@ -777,42 +777,6 @@
    LOCAL OFFLINE SETUP STEP
    ───────────────────────────────────────────────────────────────────────── */
 
-.aiwizard-ollama-unreachable-premium,
-.aiwizard-model-missing-premium,
-.aiwizard-model-pulling-premium {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  gap: 20px;
-  animation: step-fade-in 0.3s ease;
-}
-
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  border-radius: 12px;
-  padding: 16px 20px;
-  color: #fca5a5;
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
-.info-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 12px;
-  padding: 16px 20px;
-  color: #34d399;
-  font-weight: 700;
-  font-size: 1.05rem;
-}
-
 .local-setup-desc {
   font-size: 0.92rem;
   color: #94a3b8;
@@ -820,9 +784,6 @@
   text-align: left;
   margin: 0;
 }
-
-.stepper-guide {
-  display: flex;
   flex-direction: column;
   gap: 10px;
 }

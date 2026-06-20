@@ -165,11 +165,15 @@ async def suggest_topics(body: dict = Body(...)):
 
     topic_prompt = """Phân tích và đề xuất đề tài nghiên cứu dựa trên thư viện paper.
 
-## 💡 Research Topic Suggestions
-1. **Tổng quan lĩnh vực** — xu hướng chính, lĩnh vực con
-2. **Đề xuất 3-5 đề tài** — mỗi đề tài: tên, mô tả, tầm quan trọng, phương pháp
-3. **Top Pick** — chọn 1 đề tài tốt nhất, giải thích chi tiết
-4. **Bước tiếp theo** — nên đọc thêm paper/phương pháp nào
+KHÔNG dùng **bold** hay markdown. Chỉ dùng plain text.
+Trả lời theo cấu trúc sau, dùng dấu xuống dòng để phân cách:
+
+Research Topic Suggestions
+
+1. Tổng quan lĩnh vực — xu hướng chính, lĩnh vực con
+2. Đề xuất 3-5 đề tài — mỗi đề tài: tên, mô tả, tầm quan trọng, phương pháp
+3. Top Pick — chọn 1 đề tài tốt nhất, giải thích chi tiết
+4. Bước tiếp theo — nên đọc thêm paper/phương pháp nào
 
 Trích dẫn [Tên Paper] khi cần. Trả lời tiếng Việt."""
 

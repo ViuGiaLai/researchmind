@@ -23,8 +23,8 @@
 | Zotero Import (CSV + BibTeX) | ✅ Hoàn thành | Cả metadata lẫn tìm PDF tự động |
 | Semantic Search (Hybrid BM25 + Vector) | ✅ Hoàn thành | RRF fusion + Cross-encoder reranker |
 | Chat với Paper (RAG) | ✅ Hoàn thành | Retrieve top-5 chunks → LLM generate + citations |
-| Cloud LLM chain (NVIDIA → FreeModel → Groq → Gemini → Ollama) | ✅ Hoàn thành (v0.1) | `cloud_free` mode, fallback tự động |
-| Local LLM (Ollama) với 3 tier (weak/medium/strong) | ✅ Hoàn thành | qwen2.5:7b mặc định |
+| Cloud LLM chain (NVIDIA → FreeModel → Groq → Gemini → llama-server) | ✅ Hoàn thành (v0.1) | `cloud_free` mode, fallback tự động |
+| Local LLM (llama-server GGUF) | ✅ Hoàn thành | Qwen2.5-3B-Instruct-Q4_K_M.gguf mặc định |
 | Daily Reader (gợi ý paper mỗi ngày) | ✅ Hoàn thành | LLM chọn paper theo lịch sử |
 | Insight features (gap analysis, conflict, topic, evolution) | ✅ Hoàn thành | LLM phân tích đa paper |
 | Highlights tự động | ✅ Hoàn thành | LLM chọn đoạn quan trọng + phân loại |
@@ -52,7 +52,7 @@
 | **FreeModel.dev** (gpt-4o-mini) | ✅ Hoàn thành | Hoạt động tốt, latency 5-11s |
 | **Groq** (llama-3.3-70b-versatile) | ⚠️ Có vấn đề | Key 401 — cần key mới |
 | **Gemini** (gemini-1.5-flash) | ⚠️ Có vấn đề | Key sai format (OAuth token, cần AIza...) |
-| **Ollama** (qwen2.5:7b) | ✅ Hoàn thành | Local fallback cuối cùng |
+| **llama-server** (Qwen2.5 3B GGUF) | ✅ Hoàn thành | Local fallback cuối cùng |
 | **DeepSeek** | ✅ Hoàn thành | cloud_custom mode |
 | **Claude** | ✅ Hoàn thành | cloud_custom mode |
 
@@ -63,7 +63,7 @@
 | Groq key 401 | 🔴 Cao | Copy key mới từ https://console.groq.com/keys |
 | Gemini key sai format | 🔴 Cao | Lấy key dạng AIza... từ https://aistudio.google.com/apikey |
 | Chat response chậm (NVIDIA ~8-15s) | 🟡 TB | Timing log đã thêm, cần theo dõi. Có thể giảm top_k_retrieval |
-| Intel Iris Xe GPU chưa bật cho Ollama | 🟢 Thấp | Set OLLAMA_IGPU_ENABLE=1 |
+| Intel Iris Xe GPU — chưa test với llama-server | 🟢 Thấp | Có thể pass `-ngl` flag |
 | insight endpoints chưa wrap asyncio.to_thread | 🟢 Thấp | Gap, conflict, topic, evolution |
 
 ### 📋 So với MVP gốc (Phase 1)
@@ -169,7 +169,7 @@ Nghiên cứu sinh Việt Nam đọc hàng trăm paper mỗi năm nhưng không 
 | Embedding Model | bge-m3 (local) | e5-mistral-7b | Đa ngôn ngữ, hỗ trợ tiếng Việt tốt, chạy CPU được |
 | Vector Database | ChromaDB (local) | Qdrant local | Dễ nhất để bắt đầu, không cần server, persist local |
 | Full-text Search | SQLite FTS5 | Whoosh | Kết hợp với vector search để tăng độ chính xác |
-| LLM (Chat) | Ollama + Llama 3.1 8B | Gemma 2 9B | Chạy local hoàn toàn, không cần internet, 8B đủ mạnh |
+| LLM (Chat) | llama-server + Qwen2.5 3B GGUF | Qwen2.5 7B GGUF | Chạy local hoàn toàn, không cần internet |
 | LLM (Cloud option) | Claude Sonnet API | GPT-4o mini | Dùng khi user muốn kết quả tốt hơn, user tự trả tiền API key |
 | Re-ranking | cross-encoder/ms-marco | Cohere Rerank | Tăng độ chính xác kết quả search lên 15–20% |
 | Metadata Storage | SQLite | DuckDB | Lưu tên paper, tác giả, năm, tag, ghi chú người dùng |
@@ -213,7 +213,7 @@ Cách chia nhỏ văn bản quyết định trực tiếp chất lượng retrie
 | 2 | Hybrid Retrieval | Chạy song song BM25 và Vector Search → lấy top-20 kết quả từ mỗi loại |
 | 3 | Re-ranking | Dùng Cross-Encoder model chấm điểm lại 40 kết quả → chọn top-5 tốt nhất |
 | 4 | Context Building | Ghép 5 chunk tốt nhất vào prompt, kèm metadata (tên paper, trang) |
-| 5 | LLM Generation | Local LLM (Ollama) hoặc Claude API tạo câu trả lời có trích dẫn |
+| 5 | LLM Generation | Local LLM (llama-server GGUF) hoặc Claude API tạo câu trả lời có trích dẫn |
 | 6 | Citation Check | Kiểm tra mọi claim trong câu trả lời đều có nguồn → tránh hallucination |
 
 ### 5.4 Embedding Model — Tại sao chọn bge-m3
@@ -260,7 +260,7 @@ researchmind/
 │   │   └── hybrid.py   # Score fusion + reranker
 │   ├── chat/           # RAG pipeline
 │   │   ├── retriever.py
-│   │   └── generator.py # Ollama / Claude API
+│   │   └── generator.py # llama-server GGUF / Claude API
 │   └── db/             # SQLite models
 ├── data/               # Local user data (gitignored)
 │   ├── papers/         # PDF copies
@@ -328,7 +328,7 @@ researchmind/
 | 3 ⭐ | Embedding & Semantic Search | 1–2 tuần | Sentence-transformers docs, BEIR benchmark paper, bge-m3 paper |
 | 4 ⭐ | SQLite FTS5 & BM25 | 1 tuần | SQLite FTS5 docs, Robertson BM25 paper (đọc phần chính) |
 | 5 | React + TypeScript + Tauri | 3–4 tuần | React docs beta, Total TypeScript, Tauri v2 docs |
-| 6 | Ollama + Local LLM | 1 tuần | Ollama GitHub, Llama 3 model card, LM Studio để test |
+| 6 | llama-server + Local LLM | 1 tuần | llama.cpp docs, GGUF model từ HuggingFace |
 | 7 | PDF parsing & OCR | 1 tuần | PyMuPDF docs, PaddleOCR GitHub |
 | 8 | Re-ranking & Cross-Encoder | 1 tuần | Sentence-transformers cross-encoder docs, SBERT.net |
 | 9 (sau MVP) | Rust cơ bản | 4–6 tuần | The Rust Book, Rustlings exercises — chỉ học khi cần rewrite |

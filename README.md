@@ -56,7 +56,7 @@ ResearchMind VN là hệ thống quản lý tri thức học thuật cá nhân, 
 | Full-text | SQLite FTS5 |
 | Rerank | Cross-Encoder (tắt mặc định) |
 | OCR | RapidOCR (ONNX) |
-| LLM Providers | NVIDIA NIM, FreeModel, Groq, Gemini, Ollama (local), Claude API |
+| LLM Providers | NVIDIA NIM, FreeModel, Groq, Gemini, llama-server (local GGUF), Claude API |
 
 ---
 
@@ -117,7 +117,7 @@ Xem chi tiết từng version tại [`VERSION/`](VERSION/).
 
 - Local-First: toàn bộ dữ liệu trên máy người dùng
 - Không gửi PDF ra ngoài
-- Có thể chạy hoàn toàn offline (dùng Ollama local)
+- Có thể chạy hoàn toàn offline (dùng llama-server với GGUF model)
 - LLM cloud providers là optional, user chọn
 
 ---

@@ -19,8 +19,8 @@ router = APIRouter(prefix="/api", tags=["Settings"])
 async def get_settings():
     """Get all settings."""
     return {
-        "ollama_url": settings.ollama_url,
-        "ollama_model": settings.ollama_model,
+        "llama_server_url": settings.llama_server_url,
+        "local_model": settings.local_model,
         "llm_mode": settings.llm_mode,
         "claude_api_key": "***" if settings.claude_api_key else "",
         "claude_model": settings.claude_model,
@@ -35,9 +35,6 @@ async def get_settings():
         "freemodel_api_key": "***" if settings.freemodel_api_key else "",
         "freemodel_model": settings.freemodel_model,
         "custom_cloud_provider": settings.custom_cloud_provider,
-        "model_tier_weak": settings.model_tier_weak,
-        "model_tier_medium": settings.model_tier_medium,
-        "model_tier_strong": settings.model_tier_strong,
         "chunk_size": settings.chunk_size,
         "chunk_overlap": settings.chunk_overlap,
         "top_k_retrieval": settings.top_k_retrieval,
@@ -75,8 +72,8 @@ async def update_settings(new_settings: dict = Body(...)):
                 logger.info("Embedder reset: mode={}", settings.embedding_mode)
 
         state.generator = Generator(
-            ollama_url=settings.ollama_url,
-            ollama_model=settings.ollama_model,
+            llama_server_url=settings.llama_server_url,
+            local_model=settings.local_model,
             claude_api_key=settings.claude_api_key,
             claude_model=settings.claude_model,
             deepseek_api_key=settings.deepseek_api_key,
@@ -270,65 +267,33 @@ async def validate_api_key(body: dict = Body(...)):
         return {"valid": False, "error": f"Lỗi kết nối mạng: {str(e)}"}
 
 
-# ─── Ollama ──────────────────────────────────────────────────────
+# ─── Local Model (llama-server) ────────────────────────────────
 
-@router.get("/ollama/status")
-async def get_ollama_status():
-    """Check if Ollama is running and list available models."""
+@router.get("/local/status")
+async def get_local_status():
+    """Check if llama-server is running."""
     import httpx
-    url = f"{settings.ollama_url}/api/tags"
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            res = await client.get(url)
+            res = await client.get(f"{settings.llama_server_url}/health")
             if res.status_code == 200:
-                models_data = res.json().get("models", [])
-                pulled_models = [m.get("name") for m in models_data]
                 return {
                     "connected": True,
-                    "models": pulled_models,
-                    "ollama_url": settings.ollama_url
+                    "llama_server_url": settings.llama_server_url,
+                    "model": settings.local_model,
                 }
             else:
                 return {
                     "connected": False,
-                    "error": f"Ollama HTTP {res.status_code}",
-                    "ollama_url": settings.ollama_url
+                    "error": f"llama-server HTTP {res.status_code}",
+                    "llama_server_url": settings.llama_server_url,
                 }
     except Exception as e:
         return {
             "connected": False,
-            "error": f"Không thể kết nối đến Ollama: {str(e)}",
-            "ollama_url": settings.ollama_url
+            "error": f"Không thể kết nối đến llama-server: {str(e)}",
+            "llama_server_url": settings.llama_server_url,
         }
-
-
-@router.post("/ollama/pull")
-async def pull_ollama_model(body: dict = Body(...)):
-    """Pull an Ollama model and stream the progress back to the frontend."""
-    model = body.get("model")
-    if not model:
-        raise HTTPException(status_code=400, detail="Missing model parameter")
-
-    import httpx
-
-    async def progress_generator():
-        url = f"{settings.ollama_url}/api/pull"
-        try:
-            async with httpx.AsyncClient(timeout=None) as client:
-                async with client.stream("POST", url, json={"name": model, "stream": True}) as response:
-                    if response.status_code != 200:
-                        yield f"data: {json.dumps({'status': 'error', 'message': f'Ollama error {response.status_code}'})}\n\n"
-                        return
-
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
-                        yield f"data: {line}\n\n"
-        except Exception as e:
-            logger.error(f"Error pulling Ollama model: {e}")
-            yield f"data: {json.dumps({'status': 'error', 'message': f'Lỗi kết nối Ollama: {str(e)}'})}\n\n"
-
-    return StreamingResponse(progress_generator(), media_type="text/event-stream")
 
 
 @router.get("/settings/cache-stats")

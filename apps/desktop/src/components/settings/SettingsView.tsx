@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
   IconSettings,
@@ -17,7 +18,7 @@ import {
   IconRefresh,
   IconTrash,
 } from "../Icons";
-import { OllamaErrorBanner } from "../shared/OllamaErrorBanner";
+
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
 
@@ -48,13 +49,9 @@ export const SettingsView: React.FC = () => {
   const [freemodelApiKey, setFreemodelApiKey] = useState("");
   const [freemodelModel, setFreemodelModel] = useState("gpt-4o-mini");
 
-  // ── Local (Ollama) ──────────────────────────────────────────
-  const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
-  const [ollamaModel, setOllamaModel] = useState("qwen2.5:7b");
-  const [modelTierWeak, setModelTierWeak] = useState("qwen2.5:3b");
-  const [modelTierMedium, setModelTierMedium] = useState("qwen2.5:7b");
-  const [modelTierStrong, setModelTierStrong] = useState("qwen2.5:14b");
-  const [activeTier, setActiveTier] = useState<string>("medium");
+  // ── Local (llama-server) ──────────────────────────────────
+  const [llamaServerUrl, setLlamaServerUrl] = useState("http://127.0.0.1:8080");
+  const [localModel, setLocalModel] = useState("Qwen2.5-3B-Instruct-Q4_K_M.gguf");
 
   // ── Machine Specs ───────────────────────────────────────────
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
@@ -144,11 +141,8 @@ export const SettingsView: React.FC = () => {
       setFreemodelApiKey((s as any).freemodel_api_key === "***" ? "" : (s as any).freemodel_api_key || "");
       setFreemodelModel((s as any).freemodel_model || "gpt-4o-mini");
       setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "deepseek");
-      setOllamaUrl(s.ollama_url);
-      setOllamaModel(s.ollama_model);
-      setModelTierWeak(s.model_tier_weak);
-      setModelTierMedium(s.model_tier_medium);
-      setModelTierStrong(s.model_tier_strong);
+      setLlamaServerUrl((s as any).llama_server_url || "http://127.0.0.1:8080");
+      setLocalModel((s as any).local_model || "Qwen2.5-3B-Instruct-Q4_K_M.gguf");
       setEmbeddingModel(s.embedding_model);
       setEmbeddingMode(s.embedding_mode || "local");
       setEnableReranker(!!s.enable_reranker);
@@ -200,7 +194,6 @@ export const SettingsView: React.FC = () => {
     try {
       const s = await api.detectSpecs();
       setSpecs(s);
-      setActiveTier(s.suggested_tier);
     } catch (e) {
       console.error("Failed to detect specs:", e);
     } finally {
@@ -387,16 +380,6 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleTierChange = (tier: string) => {
-    setActiveTier(tier);
-    const modelMap: Record<string, string> = {
-      weak: modelTierWeak,
-      medium: modelTierMedium,
-      strong: modelTierStrong,
-    };
-    setOllamaModel(modelMap[tier] || modelTierMedium);
-  };
-
   const saveSettings = async () => {
     setSaving(true);
     setSaveMsg(null);
@@ -454,8 +437,8 @@ export const SettingsView: React.FC = () => {
         nvidia_model: nvidiaModel,
         freemodel_api_key: freemodelApiKey,
         freemodel_model: freemodelModel,
-        ollama_url: ollamaUrl,
-        ollama_model: ollamaModel,
+        llama_server_url: llamaServerUrl,
+        local_model: localModel,
         embedding_mode: embeddingMode,
         enable_reranker: enableReranker,
       });
@@ -476,7 +459,7 @@ export const SettingsView: React.FC = () => {
     ? [
         { mode: "cloud_free" as LlmMode, label: "Cloud Free ", desc: "Miễn phí, chạy ngay", highlight: true },
         { mode: "cloud_custom" as LlmMode, label: "Custom API Key", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
-        { mode: "local" as LlmMode, label: "Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "4.5" : "8"}GB, chạy offline`, highlight: false },
+        { mode: "local" as LlmMode, label: "Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "2" : "8"}GB, chạy offline`, highlight: false },
       ]
     : [];
 
@@ -562,25 +545,9 @@ export const SettingsView: React.FC = () => {
               <span className="settings-spec-label">CPU</span>
               <span className="settings-spec-value">{specs.cpu_cores} cores</span>
             </div>
-            <div className="settings-spec-tiers">
-              {["weak", "medium", "strong"].map((tier) => {
-                const tierModel =
-                  tier === "weak" ? modelTierWeak : tier === "medium" ? modelTierMedium : modelTierStrong;
-                const tierLabel =
-                  tier === "weak" ? "Nhẹ (4-8GB)" : tier === "medium" ? "Trung bình" : "Mạnh (16GB+)";
-                return (
-                  <button
-                    key={tier}
-                    className={`settings-tier-chip ${activeTier === tier ? "active" : ""} ${specs?.suggested_tier === tier ? "recommended" : ""}`}
-                    onClick={() => handleTierChange(tier)}
-                    title={specs?.suggested_tier === tier ? "✅ Phù hợp với máy bạn" : ""}
-                  >
-                    <span className="settings-tier-name">{tierLabel}</span>
-                    <span className="settings-tier-model">{tierModel}</span>
-                    {specs?.suggested_tier === tier && <span className="settings-tier-badge">Gợi ý</span>}
-                  </button>
-                );
-              })}
+            <div className="settings-spec-row">
+              <span className="settings-spec-label">Local model</span>
+              <span className="settings-spec-value">{localModel}</span>
             </div>
           </div>
         ) : (
@@ -913,35 +880,34 @@ export const SettingsView: React.FC = () => {
         {llmMode === "local" && (
           <div className="settings-mode-detail">
             <div className="settings-field" style={{ marginTop: 16 }}>
-              <label className="settings-label">Ollama URL</label>
+              <label className="settings-label">llama-server URL</label>
               <input
                 type="text"
                 className="settings-input"
-                value={ollamaUrl}
-                onChange={(e) => setOllamaUrl(e.target.value)}
+                value={llamaServerUrl}
+                onChange={(e) => setLlamaServerUrl(e.target.value)}
+                placeholder="http://127.0.0.1:8080"
               />
             </div>
             <div className="settings-field">
-              <label className="settings-label">Model</label>
+              <label className="settings-label">Tên model (GGUF)</label>
               <input
                 type="text"
                 className="settings-input"
-                value={ollamaModel}
-                onChange={(e) => setOllamaModel(e.target.value)}
-                placeholder="qwen2.5:7b"
+                value={localModel}
+                onChange={(e) => setLocalModel(e.target.value)}
+                placeholder="Qwen2.5-3B-Instruct-Q4_K_M.gguf"
               />
             </div>
-            <div className="settings-quick">
-              <span className="settings-quick-label">Lệnh:</span>
-              <code className="settings-quick-code">ollama pull {ollamaModel}</code>
-              <code className="settings-quick-code">ollama serve</code>
-            </div>
-            <OllamaErrorBanner
-              compact
-              showDocLink
-              title="Cần hỗ trợ kết nối Ollama?"
-              message="Đảm bảo Ollama đang chạy ngầm trước khi sử dụng."
-            />
+            <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
+              Khởi chạy: <code>llama-server.exe -m path/to/{localModel} -c 2048 --port 8080</code>
+            </p>
+            <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
+              Tải tại 
+              <a href="#" onClick={(e) => { e.preventDefault(); open("https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main"); }} style={{ marginLeft: 4 }}>
+                https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main
+              </a>
+            </p>
           </div>
         )}
 
@@ -1144,7 +1110,7 @@ export const SettingsView: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <IconLock size={14} /> Local (Ollama)
+                  <IconLock size={14} /> Local (llama-server)
                 </>
               )}
             </strong>

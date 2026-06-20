@@ -157,23 +157,27 @@ export const InsightsView: React.FC<{
     }
   };
 
+  const stripMarkdown = (s: string) =>
+    s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/`(.+?)`/g, '$1');
+
   const renderMarkdown = (text: string) => {
     return text.split("\n").map((line, i) => {
       if (line.startsWith("###"))
         return (
           <h4 key={i} className="insight-heading">
-            {line.replace(/^#+\s*/, "")}
+            {stripMarkdown(line.replace(/^#+\s*/, ""))}
           </h4>
         );
       if (line.startsWith("##"))
         return (
           <h3 key={i} className="insight-heading-2">
-            {line.replace(/^#+\s*/, "")}
+            {stripMarkdown(line.replace(/^#+\s*/, ""))}
           </h3>
         );
-      if (line.startsWith("* **")) {
-        const parts = line.replace(/^\*\s*/, "").split(":");
-        const label = parts[0]?.replace(/\*\*/g, "") || "";
+      if (line.startsWith("* **") || line.startsWith("**")) {
+        const clean = line.replace(/^\*\s*/, "").replace(/\*\*/g, "");
+        const parts = clean.split(":");
+        const label = parts[0] || "";
         const value = parts.slice(1).join(":").trim();
         return (
           <div key={i} className="insight-item">
@@ -185,10 +189,16 @@ export const InsightsView: React.FC<{
       if (line.startsWith("- ") || line.startsWith("• "))
         return (
           <li key={i} className="insight-list-item">
-            {line.replace(/^[-•]\s*/, "")}
+            {stripMarkdown(line.replace(/^[-•]\s*/, ""))}
           </li>
         );
-      if (line.trim()) return <p key={i} className="insight-text">{line}</p>;
+      if (/^\d+[.)]\s/.test(line))
+        return (
+          <li key={i} className="insight-list-item">
+            {stripMarkdown(line.replace(/^\d+[.)]\s*/, ""))}
+          </li>
+        );
+      if (line.trim()) return <p key={i} className="insight-text">{stripMarkdown(line)}</p>;
       return null;
     });
   };

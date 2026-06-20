@@ -420,6 +420,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     }
   };
 
+  const stripMarkdown = (s: string) =>
+    s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/`(.+?)`/g, '$1');
+
   const renderMarkdown = (text: string) => {
     if (!text) return null;
     return text.split("\n").map((line, i) => {
@@ -427,20 +430,21 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       if (trimmed.startsWith("###")) {
         return (
           <h4 key={i} className="wow-card-h4">
-            {trimmed.replace(/^#+\s*/, "")}
+            {stripMarkdown(trimmed.replace(/^#+\s*/, ""))}
           </h4>
         );
       }
       if (trimmed.startsWith("##")) {
         return (
           <h3 key={i} className="wow-card-h3">
-            {trimmed.replace(/^#+\s*/, "")}
+            {stripMarkdown(trimmed.replace(/^#+\s*/, ""))}
           </h3>
         );
       }
-      if (trimmed.startsWith("* **") || trimmed.startsWith("- **")) {
-        const parts = trimmed.replace(/^[*+-]\s*/, "").split(":");
-        const label = parts[0]?.replace(/\*\*/g, "") || "";
+      if (trimmed.startsWith("* **") || trimmed.startsWith("- **") || trimmed.startsWith("**")) {
+        const clean = trimmed.replace(/^[*+-]\s*/, "").replace(/\*\*/g, "");
+        const parts = clean.split(":");
+        const label = parts[0] || "";
         const value = parts.slice(1).join(":").trim();
         return (
           <div key={i} className="wow-card-item">
@@ -452,19 +456,19 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       if (trimmed.startsWith("- ") || trimmed.startsWith("• ") || trimmed.startsWith("* ")) {
         return (
           <li key={i} className="wow-card-bullet">
-            {trimmed.replace(/^[-•*]\s*/, "")}
+            {stripMarkdown(trimmed.replace(/^[-•*]\s*/, ""))}
           </li>
         );
       }
       if (/^\d+\.\s/.test(trimmed)) {
         return (
           <li key={i} className="wow-card-number">
-            {trimmed.replace(/^\d+\.\s*/, "")}
+            {stripMarkdown(trimmed.replace(/^\d+\.\s*/, ""))}
           </li>
         );
       }
       if (trimmed) {
-        return <p key={i} className="wow-card-text">{trimmed}</p>;
+        return <p key={i} className="wow-card-text">{stripMarkdown(trimmed)}</p>;
       }
       return null;
     });

@@ -70,7 +70,7 @@ v0.3 hiện tại:  User → Local RAG + OpenAlex + Crossref + Semantic Scholar 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Tầng 3: LLM Reasoning                                        │
-│  NVIDIA · FreeModel · Groq · Gemini · Ollama · Claude         │
+│  NVIDIA · FreeModel · Groq · Gemini · llama-server · Claude         │
 │  → AI chỉ viết báo cáo, KHÔNG phải nguồn sự thật             │
 └───────────────────────────────────┬──────────────────────────┘
                                     │ context đã verified
