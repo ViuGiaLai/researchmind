@@ -68,11 +68,12 @@ async def update_settings(new_settings: dict = Body(...)):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
                 setattr(settings, key, value)
+                db_value = "None" if value is None else str(value)
                 setting = session.query(Setting).filter(Setting.key == key).first()
                 if setting:
-                    setting.value = str(value)
+                    setting.value = db_value
                 else:
-                    session.add(Setting(key=key, value=str(value)))
+                    session.add(Setting(key=key, value=db_value))
         session.commit()
 
         if "embedding_mode" in new_settings:

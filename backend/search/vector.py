@@ -198,6 +198,11 @@ class VectorSearch:
         selected = []
         remaining = list(range(n))
 
+        # Guard against non-numeric mmr_lambda (e.g. string "None" from bad deserialization)
+        if not isinstance(mmr_lambda, (int, float)):
+            logger.warning(f"MMR skipped: invalid mmr_lambda={mmr_lambda!r}")
+            return candidates
+
         for _ in range(min(n, len(candidates))):
             best_score = -1e9
             best_idx = -1

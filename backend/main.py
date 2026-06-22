@@ -87,7 +87,9 @@ def load_persisted_settings():
                 continue
             if hasattr(settings, s.key):
                 default_val = getattr(settings, s.key)
-                if isinstance(default_val, bool):
+                if s.value is None or s.value == "None":
+                    setattr(settings, s.key, None)
+                elif isinstance(default_val, bool):
                     setattr(settings, s.key, s.value.lower() in ("true", "1", "yes"))
                 elif isinstance(default_val, int):
                     setattr(settings, s.key, int(s.value))

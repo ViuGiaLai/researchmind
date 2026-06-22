@@ -124,9 +124,16 @@ class Generator:
         if getattr(self, '_system_prompt_override', None):
             return self._system_prompt_override
         return (
-            "Bạn là trợ lý nghiên cứu. Trả lời ngắn gọn, rõ ràng. "
-            "Nếu có context, chỉ dùng context và trích dẫn [Tên Paper]. "
-            "Nếu không đủ thông tin, nói rõ là không tìm thấy trong tài liệu."
+            "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.\n\n"
+            "## QUY TẮC NGÔN NGỮ:\n"
+            "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+            "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n\n"
+            "## QUY TẮC NỘI DUNG:\n"
+            "1. CHỈ trả lời dựa trên thông tin trong context được cung cấp.\n"
+            "2. Mọi câu trả lời PHẢI có trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].\n"
+            "3. Nếu context không đủ, nói \"Tôi không tìm thấy thông tin này trong tài liệu đã import.\"\n"
+            "4. KHÔNG thêm thông tin ngoài context.\n"
+            "5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."
         )
 
     def generate(
@@ -135,16 +142,15 @@ class Generator:
         context_text: str,
         citations_meta: Optional[list[dict]] = None,
     ) -> GenerationResult:
-        if not context_text.strip():
+        if context_text == "__EXTERNAL_KNOWLEDGE__":
+            user_prompt = query
+        elif not context_text.strip() or len(context_text.strip()) < 50:
             return GenerationResult(
                 content="Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác.",
                 citations=[],
                 model_used="none",
                 finish_reason="no_context",
             )
-
-        if context_text == "__EXTERNAL_KNOWLEDGE__":
-            user_prompt = query
         else:
             user_prompt = f"""Context từ tài liệu:
 {context_text}
@@ -976,14 +982,13 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
 
         Yields content chunks as they arrive from the LLM.
         """
-        if not context_text.strip():
-            yield "Không tìm thấy tài liệu liên quan."
-            return
-
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             user_prompt = f"""Câu hỏi: {query}
 
 Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+        elif not context_text.strip() or len(context_text.strip()) < 50:
+            yield "Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác."
+            return
         else:
             user_prompt = f"""Context từ tài liệu:
 {context_text}
@@ -1001,8 +1006,8 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         query: str,
         context_text: str,
     ):
-        if not context_text.strip():
-            yield "Không tìm thấy tài liệu liên quan."
+        if not context_text.strip() or len(context_text.strip()) < 50:
+            yield "Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác."
             return
 
         self._system_prompt_override = self._get_verify_system_prompt()
