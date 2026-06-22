@@ -58,7 +58,7 @@
 
 ```
 NVIDIA NIM (moonshotai/kimi-k2.6) → FreeModel.dev (gpt-4o-mini)
-  → Groq (llama-3.3-70b-versatile) → Gemini (gemini-1.5-flash)
+  → Groq (llama-3.3-70b-versatile) → Gemini (gemini-2.5-flash)
   → llama-server (Qwen2.5 3B GGUF - local fallback cuối cùng)
 ```
 
@@ -200,7 +200,7 @@ User gửi câu hỏi + chọn paper
           1. NVIDIA NIM (moonshotai/kimi-k2.6)     # ✅ Hoạt động (~5-12s)
           2. FreeModel.dev (gpt-4o-mini)            # ✅ Hoạt động (~5-11s)
           3. Groq (llama-3.3-70b-versatile)            # ⚠️ 401 key
-          4. Gemini (gemini-1.5-flash)              # ⚠️ Key sai format
+          4. Gemini (gemini-2.5-flash)              # ⚠️ Key sai format
            5. llama-server (Qwen2.5 3B GGUF)              # ✅ Local fallback
     → Save ChatHistory to SQLite
     → Return { answer, citations, model_used }
@@ -407,7 +407,7 @@ Request → NVIDIA (1st) → nếu lỗi → FreeModel (2nd) → nếu lỗi →
 | **NVIDIA NIM** | `moonshotai/kimi-k2.6` | ✅ Hoạt động | ~5-12s | Key valid, model tồn tại |
 | **FreeModel.dev** | `gpt-4o-mini` | ✅ Hoạt động | ~5-11s | Key valid, ổn định nhất |
 | **Groq** | `llama-3.3-70b-versatile` | ❌ 401 | — | Groq key bị invalid, cần key mới |
-| **Gemini** | `gemini-1.5-flash` | ❌ Sai format | — | Key OAuth token (AQ.Ab8...), cần key AIza... |
+| **Gemini** | `gemini-2.5-flash` | ❌ Sai format | — | Key OAuth token (AQ.Ab8...), cần key AIza... |
 | **llama-server** | `Qwen2.5-3B-Instruct-Q4_K_M.gguf` | ✅ Local | ~3-8s | Chạy qua llama.cpp |
 | **DeepSeek** | `deepseek-chat` | ✅ Hoạt động | (cloud_custom) |
 | **Claude** | `claude-sonnet-4-20250514` | ✅ Hoạt động | (cloud_custom) |

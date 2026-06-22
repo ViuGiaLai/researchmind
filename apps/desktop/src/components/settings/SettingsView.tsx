@@ -41,7 +41,7 @@ export const SettingsView: React.FC = () => {
   const [deepseekApiKey, setDeepseekApiKey] = useState("");
   const [deepseekModel, setDeepseekModel] = useState("deepseek-chat");
   const [geminiApiKey, setGeminiApiKey] = useState("");
-  const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
+  const [geminiModel, setGeminiModel] = useState("gemini-2.5-flash");
   const [groqApiKey, setGroqApiKey] = useState("");
   const [groqModel, setGroqModel] = useState("llama-3.3-70b-versatile");
   const [nvidiaApiKey, setNvidiaApiKey] = useState("");
@@ -133,7 +133,7 @@ export const SettingsView: React.FC = () => {
       setDeepseekApiKey(s.deepseek_api_key === "***" ? "" : s.deepseek_api_key);
       setDeepseekModel(s.deepseek_model);
       setGeminiApiKey(s.gemini_api_key === "***" ? "" : s.gemini_api_key);
-      setGeminiModel(s.gemini_model || "gemini-1.5-flash");
+      setGeminiModel(s.gemini_model || "gemini-2.5-flash");
       setGroqApiKey((s as any).groq_api_key === "***" ? "" : (s as any).groq_api_key || "");
       setGroqModel((s as any).groq_model || "llama-3.3-70b-versatile");
       setNvidiaApiKey((s as any).nvidia_api_key === "***" ? "" : (s as any).nvidia_api_key || "");
@@ -714,7 +714,7 @@ export const SettingsView: React.FC = () => {
                 <div className="settings-field">
                   <label className="settings-label">Gemini Model</label>
                   <select className="settings-select" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)}>
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (nhanh, nhẹ, context cực lớn)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (nhanh, nhẹ, context cực lớn)</option>
                     <option value="gemini-2.0-flash">gemini-2.0-flash (thế hệ mới, rất thông minh)</option>
                     <option value="gemini-1.5-pro">gemini-1.5-pro (mạnh mẽ, phân tích tốt)</option>
                   </select>
@@ -868,7 +868,7 @@ export const SettingsView: React.FC = () => {
                   <select className="settings-select" value={freemodelModel} onChange={(e) => setFreemodelModel(e.target.value)}>
                     <option value="gpt-4o-mini">gpt-4o-mini (tiêu chuẩn, nhanh)</option>
                     <option value="claude-3-5-haiku">claude-3-5-haiku (thông minh)</option>
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (linh hoạt)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash (linh hoạt)</option>
                   </select>
                 </div>
               </>

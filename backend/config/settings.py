@@ -62,10 +62,10 @@ class Settings(BaseSettings):
     # LLM
     provider_timeout: float = 180.0
     nvidia_timeout: float = 8.0
-    openai_stream_timeout: float = 12.0
+    openai_stream_timeout: float = 3.0
     llama_server_url: str = "http://127.0.0.1:8080"
     local_model: str = "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
-    local_max_tokens: int = 256
+    local_max_tokens: int = 160
     
     # Claude Cloud
     claude_api_key: str = ""
@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     
     # Gemini Cloud
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-2.5-flash"
     
     # NVIDIA NIM (OpenAI-compatible)
     nvidia_api_key: str = ""

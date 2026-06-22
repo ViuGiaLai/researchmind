@@ -51,7 +51,7 @@
 | **NVIDIA NIM** (moonshotai/kimi-k2.6) | ✅ Hoàn thành (v0.1) | Chạy đầu tiên trong cloud_free chain |
 | **FreeModel.dev** (gpt-4o-mini) | ✅ Hoàn thành | Hoạt động tốt, latency 5-11s |
 | **Groq** (llama-3.3-70b-versatile) | ⚠️ Có vấn đề | Key 401 — cần key mới |
-| **Gemini** (gemini-1.5-flash) | ⚠️ Có vấn đề | Key sai format (OAuth token, cần AIza...) |
+| **Gemini** (gemini-2.5-flash) | ⚠️ Có vấn đề | Key sai format (OAuth token, cần AIza...) |
 | **llama-server** (Qwen2.5 3B GGUF) | ✅ Hoàn thành | Local fallback cuối cùng |
 | **DeepSeek** | ✅ Hoàn thành | cloud_custom mode |
 | **Claude** | ✅ Hoàn thành | cloud_custom mode |

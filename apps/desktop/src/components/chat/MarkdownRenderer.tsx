@@ -51,7 +51,11 @@ function parseInline(text: string): (string | Segment)[] {
 
     // plain text until next marker
     const nextMarker = remaining.search(/[\[*`]/);
-    if (nextMarker === 0) continue;
+    if (nextMarker === 0) {
+      parts.push({ type: "text", text: remaining[0] });
+      remaining = remaining.slice(1);
+      continue;
+    }
     if (nextMarker === -1) {
       parts.push({ type: "text", text: remaining });
       break;

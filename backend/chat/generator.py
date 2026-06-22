@@ -45,7 +45,7 @@ class Generator:
         deepseek_api_key: str = "",
         deepseek_model: str = "deepseek-chat",
         gemini_api_key: str = "",
-        gemini_model: str = "gemini-1.5-flash",
+        gemini_model: str = "gemini-2.5-flash",
         groq_api_key: str = "",
         groq_model: str = "llama-3.3-70b-instant",
         nvidia_api_key: str = "",
@@ -58,7 +58,7 @@ class Generator:
         freemodel_url: str = "https://freemodel.dev/v1",
         mode: str = "cloud_free",
         custom_cloud_provider: str = "deepseek",
-        local_max_tokens: int = 256,
+        local_max_tokens: int = 160,
     ):
         self.llama_server_url = llama_server_url.rstrip("/")
         self.local_model = local_model
@@ -80,7 +80,7 @@ class Generator:
         self.freemodel_url = freemodel_url.rstrip("/")
         self.mode = "cloud_custom" if mode == "cloud" else mode  # backward compatibility
         self.custom_cloud_provider = custom_cloud_provider  # "deepseek" or "claude" or "gemini"
-        self.local_max_tokens = max(64, min(int(local_max_tokens or 256), 1024))
+        self.local_max_tokens = max(64, min(int(local_max_tokens or 160), 1024))
         self.current_model: str = ""
         self._http_client = None
 
@@ -115,6 +115,15 @@ class Generator:
 3. Nếu context không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
 4. KHÔNG thêm thông tin ngoài context.
 5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
+
+    def _get_local_system_prompt(self) -> str:
+        if getattr(self, '_system_prompt_override', None):
+            return self._system_prompt_override
+        return (
+            "Bạn là trợ lý nghiên cứu. Trả lời ngắn gọn, rõ ràng. "
+            "Nếu có context, chỉ dùng context và trích dẫn [Tên Paper]. "
+            "Nếu không đủ thông tin, nói rõ là không tìm thấy trong tài liệu."
+        )
 
     def generate(
         self,
@@ -462,7 +471,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
     def _generate_deepseek(self, prompt: str, api_key: str, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using DeepSeek API (OpenAI-compatible)."""
         try:
-            sp = system_prompt_override or self._get_system_prompt()
+            sp = system_prompt_override or self._get_local_system_prompt()
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -914,7 +923,15 @@ Câu hỏi: {query}"""
     def _stream_chain(self, user_prompt: str):
 
         if self.mode == "cloud_free":
-            # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → local
+            # Chain: Gemini → Groq → NVIDIA NIM (Kimi) → NVIDIA NIM (DeepSeek) → local
+            if self.gemini_api_key:
+                self.current_model = f"gemini/{self.gemini_model}"
+                yielded = False
+                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
+                    yielded = True
+                    yield chunk
+                if yielded:
+                    return
             if self.groq_api_key:
                 self.current_model = f"groq/{self.groq_model}"
                 yielded = False
@@ -937,21 +954,13 @@ Câu hỏi: {query}"""
                     yield chunk
                 if yielded:
                     return
-                if self.nvidia_deepseek_api_key:
-                    self.current_model = f"nvidia/{self.nvidia_deepseek_model}"
-                    yielded = False
-                    for chunk in self._stream_openai(
-                        user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
-                        self.nvidia_url
-                    ):
-                        yielded = True
-                        yield chunk
-                    if yielded:
-                        return
-            if self.gemini_api_key:
-                self.current_model = f"gemini/{self.gemini_model}"
+            if self.nvidia_deepseek_api_key:
+                self.current_model = f"nvidia/{self.nvidia_deepseek_model}"
                 yielded = False
-                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
+                for chunk in self._stream_openai(
+                    user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
+                    self.nvidia_url
+                ):
                     yielded = True
                     yield chunk
                 if yielded:
@@ -1194,7 +1203,7 @@ Câu hỏi: {query}"""
     def _stream_local(self, prompt: str):
         """Stream response from llama-server (local GGUF model via llama.cpp)."""
         try:
-            full_prompt = self._apply_chat_template(self._get_system_prompt(), prompt)
+            full_prompt = self._apply_chat_template(self._get_local_system_prompt(), prompt)
             with self.http_client.stream(
                 "POST",
                 f"{self.llama_server_url}/completion",

@@ -173,7 +173,7 @@ async def validate_api_key(body: dict = Body(...)):
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             if provider == "gemini":
-                model_name = model or "gemini-1.5-flash"
+                model_name = model or "gemini-2.5-flash"
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
                 payload = {"contents": [{"parts": [{"text": "Say ok"}]}]}
                 res = await client.post(url, json=payload)
