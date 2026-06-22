@@ -28,6 +28,8 @@ interface Message {
   content: string;
   citations?: { source: string; page: number | null; text: string }[];
   model_used?: string;
+  router_reason?: string;
+  token_count?: number;
 }
 
 type Scope = "current" | "library" | "collection" | "external";
@@ -317,13 +319,13 @@ export const ChatView: React.FC<{
           }));
         };
 
-        streamCtrl.onDone = (model, citations) => {
+        streamCtrl.onDone = (model, citations, router_reason, token_count) => {
           if (resolved) return;
           resolved = true;
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, model_used: model, citations } : m
+            i === assistantIdx ? { ...m, model_used: model, citations, router_reason, token_count } : m
           ));
           loadUsage();
         };
@@ -437,6 +439,33 @@ export const ChatView: React.FC<{
   };
 
   const handleQuickAction = async (action: string) => {
+    if (action === "deep_research") {
+      const q = input.trim();
+      if (!q) {
+        toast.addToast("error", "❌ Nhập câu hỏi trước khi dùng Deep Research.");
+        return;
+      }
+      setMessages((prev) => [...prev, { role: "user", content: q }]);
+      setLoading(true);
+      try {
+        const res = await api.deepResearch(q, scope === "current" ? paperIds : undefined);
+        const personaInfo = res.personas?.length
+          ? "\n\n---\n*🔬 **Deep Research** — " + res.personas.map(p => `*${p.name}* (${p.focus_areas.join(", ")})`).join(" · ") + "*"
+          : "";
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: res.content + personaInfo,
+          model_used: `🔬 Deep Research`,
+        }]);
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
+        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Deep Research thất bại: ${errMsg}` }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const actions: Record<string, { query: string; mode: string }> = {
       summary: { query: "Tóm tắt các ý chính của paper này", mode: "chat" },
       verify: { query: "Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài", mode: "verify" },
@@ -688,7 +717,7 @@ export const ChatView: React.FC<{
     ? [
       "Transformer là gì?",
       "Sự khác nhau giữa CNN và RNN?",
-      "Các xu hướng AI năm 2025?",
+      "Các xu hướng AI năm 2026?",
     ]
     : [
       "Tóm tắt các paper trong thư viện",
@@ -1233,7 +1262,40 @@ export const ChatView: React.FC<{
 
               {msg.role === "assistant" && (
                 <div className="chat-view-model-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "8px", fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)" }}>
-                  <div>{msg.model_used ? `🤖 ${msg.model_used}` : "🤖 Assistant"}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    {msg.model_used ? (() => {
+                      const slashIdx = msg.model_used.indexOf("/");
+                      const provider = slashIdx > 0 ? msg.model_used.slice(0, slashIdx) : "";
+                      const modelName = slashIdx > 0 ? msg.model_used.slice(slashIdx + 1) : msg.model_used;
+                      const providerColors: Record<string, { bg: string; color: string }> = {
+                        local: { bg: "rgba(99, 102, 241, 0.12)", color: "#818cf8" },
+                        deepseek: { bg: "rgba(16, 185, 129, 0.12)", color: "#34d399" },
+                        gemini: { bg: "rgba(251, 191, 36, 0.12)", color: "#fbbf24" },
+                        claude: { bg: "rgba(168, 85, 247, 0.12)", color: "#c084fc" },
+                        groq: { bg: "rgba(248, 113, 113, 0.12)", color: "#f87171" },
+                        nvidia: { bg: "rgba(52, 211, 153, 0.12)", color: "#34d399" },
+                        freemodel: { bg: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" },
+                      };
+                      const pc = providerColors[provider] || { bg: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" };
+                      return (
+                        <>
+                          <span style={{ background: pc.bg, color: pc.color, padding: "1px 6px", borderRadius: "4px", fontWeight: 600, fontSize: "0.7rem" }}>
+                            {provider || "?"}
+                          </span>
+                          <span style={{ fontSize: "0.78rem" }} title={`${msg.model_used}${msg.router_reason ? `\n${msg.router_reason}` : ""}${msg.token_count ? `\n${msg.token_count} tokens` : ""}`}>
+                            {modelName}
+                            {msg.router_reason && (
+                              <span style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginLeft: 4, opacity: 0.6 }}>
+                                · {msg.router_reason}
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      );
+                    })() : (
+                      <span>🤖 Assistant</span>
+                    )}
+                  </div>
                   <div style={{ display: "flex", gap: "10px" }}>
                     <button
                       onClick={() => copyToClipboard(msg.content)}
@@ -1305,6 +1367,20 @@ export const ChatView: React.FC<{
             title="Phân tích chuyên sâu"
           >
             <IconBulb size={13} /> Insight
+          </button>
+          <button
+            className="chat-view-action-btn"
+            onClick={() => handleQuickAction("deep_research")}
+            disabled={loading || !input.trim()}
+            title="Deep Research: phân tích câu hỏi thành nhiều hướng và tổng hợp"
+            style={{
+              color: "var(--color-primary, #6366f1)",
+              fontWeight: 600,
+              border: "1px solid rgba(99, 102, 241, 0.25)",
+              background: "rgba(99, 102, 241, 0.05)"
+            }}
+          >
+            <IconZap size={13} /> Deep Research
           </button>
           {paperIds.length === 1 && (
             <button

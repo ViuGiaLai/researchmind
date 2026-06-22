@@ -24,7 +24,7 @@
 | Semantic Search (Hybrid BM25 + Vector) | ✅ Hoàn thành | RRF fusion + Cross-encoder reranker |
 | Chat với Paper (RAG) | ✅ Hoàn thành | Retrieve top-5 chunks → LLM generate + citations |
 | Cloud LLM chain (NVIDIA → FreeModel → Groq → Gemini → llama-server) | ✅ Hoàn thành (v0.1) | `cloud_free` mode, fallback tự động |
-| Local LLM (llama-server GGUF) | ✅ Hoàn thành | Qwen2.5-3B-Instruct-Q4_K_M.gguf mặc định |
+| Local LLM (llama-server GGUF) | ✅ Hoàn thành | Qwen3-4B-Q4_K_M.gguf mặc định |
 | Daily Reader (gợi ý paper mỗi ngày) | ✅ Hoàn thành | LLM chọn paper theo lịch sử |
 | Insight features (gap analysis, conflict, topic, evolution) | ✅ Hoàn thành | LLM phân tích đa paper |
 | Highlights tự động | ✅ Hoàn thành | LLM chọn đoạn quan trọng + phân loại |

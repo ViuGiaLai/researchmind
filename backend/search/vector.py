@@ -1,4 +1,11 @@
-"""Vector search using ChromaDB."""
+"""Vector search using ChromaDB — with MMR diversity (paper-qa inspired).
+
+MMR (Maximal Marginal Relevance) balances relevance against diversity:
+    MMR = argmax [ λ * sim(q, d_i) - (1-λ) * max_{j in selected} sim(d_i, d_j) ]
+
+MIT License — adapted from paper-qa:
+https://github.com/Future-House/paper-qa/blob/main/src/paperqa/llms.py
+"""
 
 import os
 
@@ -9,6 +16,7 @@ from typing import Optional
 from dataclasses import dataclass
 from pathlib import Path
 from loguru import logger
+import numpy as np
 
 
 def _patch_chromadb_telemetry():
@@ -89,25 +97,35 @@ class VectorSearch:
         query_embedding: list[float],
         paper_ids: Optional[list[str]] = None,
         top_k: int = 20,
+        mmr_lambda: Optional[float] = None,
     ) -> list[VectorResult]:
         """
         Search for similar chunks using vector similarity.
+
+        When mmr_lambda is set (0.0–1.0), applies MMR diversity re-ranking
+        over a larger candidate pool (fetch_k = top_k × 3).
+            λ = 1.0  → pure relevance (no diversity)
+            λ = 0.7  → balanced (paper-qa default)
+            λ = 0.0  → pure diversity
 
         Args:
             query_embedding: The query embedding vector.
             paper_ids: Optional filter to specific papers.
             top_k: Number of results to return.
+            mmr_lambda: MMR diversity parameter. None = standard search.
 
         Returns:
-            List of VectorResult sorted by cosine similarity (descending).
+            List of VectorResult sorted by score (descending), or MMR-ordered.
         """
         where_filter = None
         if paper_ids:
             where_filter = {"paper_id": {"$in": paper_ids}}
 
+        fetch_k = top_k * 3 if mmr_lambda is not None else top_k
+
         results = self.collection.query(
             query_embeddings=[query_embedding],
-            n_results=top_k,
+            n_results=fetch_k,
             where=where_filter,
             include=["metadatas", "documents", "distances"],
         )
@@ -121,8 +139,6 @@ class VectorSearch:
             metadata = results["metadatas"][0][i]
             document = results["documents"][0][i]
             distance = results["distances"][0][i]
-
-            # ChromaDB returns cosine distance, convert to similarity score
             similarity = 1.0 - distance
 
             vector_results.append(VectorResult(
@@ -135,7 +151,83 @@ class VectorSearch:
                 score=similarity,
             ))
 
+        if mmr_lambda is not None and len(vector_results) > 0:
+            vector_results = self._mmr_rerank(vector_results, query_embedding, mmr_lambda)
+
         return vector_results
+
+    def _mmr_rerank(
+        self,
+        candidates: list[VectorResult],
+        query_embedding: list[float],
+        mmr_lambda: float,
+    ) -> list[VectorResult]:
+        """
+        Re-rank candidates using Maximal Marginal Relevance.
+
+        Iteratively selects items that maximise:
+            λ × relevance(q, d_i) - (1 - λ) × max_{j ∈ S} similarity(d_i, d_j)
+        """
+        if not candidates:
+            return candidates
+
+        query_emb = np.array(query_embedding, dtype=np.float32)
+
+        # Build embedding matrix for all candidates
+        emb_list = []
+        for c in candidates:
+            emb_list.append(self._get_embedding(c.chunk_id, query_emb.shape[0]))
+        emb_matrix = np.array(emb_list, dtype=np.float32)  # (N, D)
+
+        # Normalise rows — already normalised in embedder, but be safe
+        norms = np.linalg.norm(emb_matrix, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        emb_matrix = emb_matrix / norms
+
+        # Relevance scores = cosine similarity to query
+        query_norm = np.linalg.norm(query_emb)
+        if query_norm > 0:
+            query_emb = query_emb / query_norm
+        relevance = emb_matrix @ query_emb  # (N,)
+
+        # Pairwise cosine similarity matrix (N, N)
+        sim_matrix = emb_matrix @ emb_matrix.T  # (N, N)
+        np.fill_diagonal(sim_matrix, -1.0)  # ignore self-similarity
+
+        n = len(candidates)
+        selected = []
+        remaining = list(range(n))
+
+        for _ in range(min(n, len(candidates))):
+            best_score = -1e9
+            best_idx = -1
+
+            for i in remaining:
+                # marginal relevance score
+                div_penalty = sim_matrix[i, selected].max() if selected else 0.0
+                mmr_score = mmr_lambda * relevance[i] - (1.0 - mmr_lambda) * div_penalty
+
+                if mmr_score > best_score:
+                    best_score = mmr_score
+                    best_idx = i
+
+            selected.append(best_idx)
+            remaining.remove(best_idx)
+
+        return [candidates[i] for i in selected]
+
+    def _get_embedding(self, chunk_id: str, dim: int) -> np.ndarray:
+        """Retrieve a stored embedding from ChromaDB for MMR computation."""
+        try:
+            result = self.collection.get(
+                ids=[chunk_id],
+                include=["embeddings"],
+            )
+            if result["embeddings"] and result["embeddings"][0]:
+                return np.array(result["embeddings"][0], dtype=np.float32)
+        except Exception:
+            pass
+        return np.zeros(dim, dtype=np.float32)
 
     def delete_paper_chunks(self, paper_id: str):
         """Delete all chunks for a given paper."""

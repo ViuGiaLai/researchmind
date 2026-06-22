@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_dim: int = 1024
     embedding_mode: str = "local"  # "local" (sentence-transformers) or "cloud" (Gemini API)
+    embedding_query_instruction: str = ""
+    embedding_passage_instruction: str = ""
 
     # Search
     top_k_bm25: int = 20
@@ -64,7 +66,7 @@ class Settings(BaseSettings):
     nvidia_timeout: float = 8.0
     openai_stream_timeout: float = 3.0
     llama_server_url: str = "http://127.0.0.1:8080"
-    local_model: str = "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+    local_model: str = "Qwen3-4B-Q4_K_M.gguf"
     local_max_tokens: int = 160
     
     # Claude Cloud
@@ -97,6 +99,40 @@ class Settings(BaseSettings):
     
     # Reranking settings (disabled by default for CPU performance)
     enable_reranker: bool = False
+
+    # MMR (Maximal Marginal Relevance): balances relevance vs diversity
+    # 0.0–1.0; 1.0 = pure relevance, 0.7 = balanced, None = disabled
+    mmr_lambda: float | None = None
+
+    # GraphRAG — knowledge graph entity extraction, community detection, structured search
+    graph_enabled: bool = True
+    graph_max_gleanings: int = 2
+    graph_entity_types: str = "CONCEPT,METHOD,DATASET,METRIC,MODEL,ALGORITHM,ARCHITECTURE,TASK,DOMAIN"
+    graph_max_cluster_size: int = 10
+    graph_top_k_entities: int = 10
+    graph_top_k_relationships: int = 10
+    graph_max_drift_steps: int = 3
+
+    # Embedding pooling (FlagEmbedding-inspired): "cls", "mean", "last_token"
+    embedding_pooling: str = "cls"
+
+    # Retrieval postprocessing
+    similarity_cutoff: float = 0.0
+
+    # Response synthesis mode: "compact", "refine", "tree_summarize", "simple"
+    response_mode: str = "compact"
+
+    # Normalize embeddings before indexing/search
+    normalize_embeddings: bool = True
+
+    # Embedding instruction format (for RAG quality)
+    query_instruction: str = ""
+    passage_instruction: str = ""
+
+    # Model Router settings (open-notebook inspired)
+    large_context_threshold: int = 105000
+    large_context_model: str = ""
+    large_context_provider: str = ""
     
     # Free Cloud settings (tries Groq → Gemini → FreeModel → local)
     free_cloud_daily_limit: int = 10

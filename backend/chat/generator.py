@@ -26,6 +26,8 @@ class GenerationResult:
     content: str
     citations: list[dict]
     model_used: str
+    router_reason: str = ""
+    router_token_count: int = 0
     finish_reason: str = "stop"
 
 
@@ -39,7 +41,7 @@ class Generator:
     def __init__(
         self,
         llama_server_url: str = "http://127.0.0.1:8080",
-        local_model: str = "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+        local_model: str = "Qwen3-4B-Q4_K_M.gguf",
         claude_api_key: str = "",
         claude_model: str = "claude-sonnet-4-20250514",
         deepseek_api_key: str = "",
@@ -82,6 +84,8 @@ class Generator:
         self.custom_cloud_provider = custom_cloud_provider  # "deepseek" or "claude" or "gemini"
         self.local_max_tokens = max(64, min(int(local_max_tokens or 160), 1024))
         self.current_model: str = ""
+        self.current_router_reason: str = ""
+        self.current_token_count: int = 0
         self._http_client = None
 
     @property
@@ -140,9 +144,7 @@ class Generator:
             )
 
         if context_text == "__EXTERNAL_KNOWLEDGE__":
-            user_prompt = f"""Câu hỏi: {query}
-
-Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+            user_prompt = query
         else:
             user_prompt = f"""Context từ tài liệu:
 {context_text}
@@ -235,9 +237,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             )
 
         if context_text == "__EXTERNAL_KNOWLEDGE__":
-            user_prompt = f"""Câu hỏi: {query}
-
-Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+            user_prompt = query
         else:
             user_prompt = f"""Context từ tài liệu:
 {context_text}
@@ -371,6 +371,57 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
 
         # Local mode
         return self._generate_local(user_prompt)
+
+    def generate_direct(
+        self,
+        user_prompt: str,
+        system_prompt: str = "",
+    ) -> str:
+        """
+        Direct LLM call without RAG context — for research planning, compression, synthesis.
+
+        Routes through the same provider chain, uses __EXTERNAL_KNOWLEDGE__
+        path with user_prompt as the query content.
+
+        Args:
+            user_prompt: The user message content.
+            system_prompt: Optional system prompt override.
+
+        Returns:
+            Generated text content, or empty string on failure.
+        """
+        saved_override = getattr(self, '_system_prompt_override', None)
+        self._system_prompt_override = system_prompt or saved_override or self._get_system_prompt()
+        try:
+            result = self._generate_uncached(
+                query=user_prompt,
+                context_text="__EXTERNAL_KNOWLEDGE__",
+            )
+            return result.content if result else ""
+        finally:
+            self._system_prompt_override = saved_override
+
+    async def generate_direct_async(
+        self,
+        user_prompt: str,
+        system_prompt: str = "",
+    ) -> str:
+        """
+        Async wrapper for generate_direct — runs in thread pool to avoid blocking the event loop.
+
+        Args:
+            user_prompt: The user message content.
+            system_prompt: Optional system prompt override.
+
+        Returns:
+            Generated text content, or empty string on failure.
+        """
+        import asyncio
+        return await asyncio.to_thread(
+            self.generate_direct,
+            user_prompt,
+            system_prompt,
+        )
 
     def _get_verify_system_prompt(self) -> str:
         return """Bạn là chuyên gia xác thực nghiên cứu học thuật. Kiểm chứng tuyên bố từ LOCAL PDF và nguồn NGOÀI (OpenAlex, Crossref).
@@ -595,53 +646,96 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         return f"<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
 
     def _generate_local(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
-        """Generate response using llama-server (local GGUF model)."""
+        """Generate response using llama-server (local GGUF model).
+
+        Uses OpenAI-compatible API first to get reasoning_content if available,
+        falls back to native /completion with raw <think> tag parsing.
+        """
+        sp = system_prompt_override or self._get_system_prompt()
+        messages = [
+            {"role": "system", "content": sp},
+            {"role": "user", "content": prompt},
+        ]
+
+        # Try OpenAI-compatible API first
+        content = None
+        model_used = f"local/{self.local_model}"
         try:
-            sp = system_prompt_override or self._get_system_prompt()
-            full_prompt = self._apply_chat_template(sp, prompt)
-            response = self.http_client.post(
-                f"{self.llama_server_url}/completion",
-                json={
-                    "prompt": full_prompt,
-                    "n_predict": self.local_max_tokens,
-                    "temperature": 0.3,
-                    "top_k": 40,
-                    "top_p": 0.9,
-                    "stop": ["<|im_end|>", "<|im_start|>"],
-                    "stream": False,
-                },
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "model": "local",
+                "messages": messages,
+                "temperature": 0.3,
+                "max_tokens": self.local_max_tokens,
+                "stream": False,
+            }
+            resp = self.http_client.post(
+                f"{self.llama_server_url}/v1/chat/completions",
+                headers=headers,
+                json=payload,
                 timeout=180.0,
             )
-            response.raise_for_status()
-            data = response.json()
-            content = data.get("content", "").strip()
+            resp.raise_for_status()
+            data = resp.json()
+            choice = data["choices"][0]
+            msg = choice.get("message", {})
 
-            citations = self._extract_citations(content)
-            content = self._verify_citations(content, citations)
+            raw_reasoning = msg.get("reasoning_content", "")
+            raw_content = msg.get("content", "")
 
-            return GenerationResult(
-                content=content,
-                citations=citations,
-                model_used=f"local/{self.local_model}",
-                finish_reason="stop",
-            )
-
-        except httpx.ConnectError:
-            logger.error("Cannot connect to llama-server. Is it running?")
-            return GenerationResult(
-                content="⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy.",
-                citations=[],
-                model_used="local/error",
-                finish_reason="error",
-            )
+            if raw_reasoning:
+                content = f"<think>\n{raw_reasoning.strip()}\n</think>\n\n{raw_content}"
+            else:
+                content = raw_content
         except Exception as e:
-            logger.error(f"Local generation failed: {e}")
-            return GenerationResult(
-                content=f"⚠️ Lỗi khi gọi llama-server: {str(e)}",
-                citations=[],
-                model_used="local/error",
-                finish_reason="error",
-            )
+            logger.warning(f"OpenAI API on local gen failed ({e}), falling back to /completion...")
+
+        # Fallback: native /completion endpoint
+        if content is None:
+            try:
+                full_prompt = self._apply_chat_template(sp, prompt)
+                response = self.http_client.post(
+                    f"{self.llama_server_url}/completion",
+                    json={
+                        "prompt": full_prompt,
+                        "n_predict": self.local_max_tokens,
+                        "temperature": 0.3,
+                        "top_k": 40,
+                        "top_p": 0.9,
+                        "stop": ["<|im_end|>", "<|im_start|>"],
+                        "stream": False,
+                    },
+                    timeout=180.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+                content = data.get("content", "").strip()
+            except httpx.ConnectError:
+                logger.error("Cannot connect to llama-server. Is it running?")
+                return GenerationResult(
+                    content="⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy.",
+                    citations=[],
+                    model_used="local/error",
+                    finish_reason="error",
+                )
+            except Exception as e:
+                logger.error(f"Local generation failed: {e}")
+                return GenerationResult(
+                    content=f"⚠️ Lỗi khi gọi llama-server: {str(e)}",
+                    citations=[],
+                    model_used="local/error",
+                    finish_reason="error",
+                )
+
+        citations = self._extract_citations(content)
+        content = self._verify_citations(content, citations)
+
+        return GenerationResult(
+            content=content,
+            citations=citations,
+            model_used=model_used,
+            finish_reason="stop",
+        )
 
     def _generate_groq(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Groq API (OpenAI-compatible)."""
@@ -920,12 +1014,25 @@ Câu hỏi: {query}"""
 
         yield from self._stream_chain(user_prompt)
 
+    def _set_model(self, model_str: str, token_count: int = 0) -> None:
+        self.current_model = model_str
+        self.current_token_count = token_count
+        try:
+            from ai.model_router import ModelRouter
+            sel = ModelRouter(default_model=model_str)
+            sel_result = sel.select_for_content("", task_type="chat")
+            self.current_router_reason = sel_result.reason
+        except Exception:
+            self.current_router_reason = ""
+
     def _stream_chain(self, user_prompt: str):
+        self.current_router_reason = ""
+        self.current_token_count = 0
 
         if self.mode == "cloud_free":
             # Chain: Gemini → Groq → NVIDIA NIM (Kimi) → NVIDIA NIM (DeepSeek) → local
             if self.gemini_api_key:
-                self.current_model = f"gemini/{self.gemini_model}"
+                self._set_model(f"gemini/{self.gemini_model}")
                 yielded = False
                 for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
                     yielded = True
@@ -933,7 +1040,7 @@ Câu hỏi: {query}"""
                 if yielded:
                     return
             if self.groq_api_key:
-                self.current_model = f"groq/{self.groq_model}"
+                self._set_model(f"groq/{self.groq_model}")
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.groq_api_key, self.groq_model,
@@ -944,7 +1051,7 @@ Câu hỏi: {query}"""
                 if yielded:
                     return
             if self.nvidia_api_key:
-                self.current_model = f"nvidia/{self.nvidia_model}"
+                self._set_model(f"nvidia/{self.nvidia_model}")
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.nvidia_api_key, self.nvidia_model,
@@ -955,7 +1062,7 @@ Câu hỏi: {query}"""
                 if yielded:
                     return
             if self.nvidia_deepseek_api_key:
-                self.current_model = f"nvidia/{self.nvidia_deepseek_model}"
+                self._set_model(f"nvidia/{self.nvidia_deepseek_model}")
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
@@ -965,7 +1072,7 @@ Câu hỏi: {query}"""
                     yield chunk
                 if yielded:
                     return
-            self.current_model = f"local/{self.local_model}"
+            self._set_model(f"local/{self.local_model}")
             yield "⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
             for chunk in self._stream_local(user_prompt):
                 yield chunk
@@ -973,26 +1080,26 @@ Câu hỏi: {query}"""
         elif self.mode == "cloud_custom":
             if self.custom_cloud_provider == "deepseek":
                 if not self.deepseek_api_key:
-                    self.current_model = "deepseek/no_key"
+                    self._set_model("deepseek/no_key")
                     yield "⚠️ Bạn chưa nhập DeepSeek API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
-                self.current_model = f"deepseek/{self.deepseek_model}"
+                self._set_model(f"deepseek/{self.deepseek_model}")
                 for chunk in self._stream_deepseek(user_prompt, self.deepseek_api_key, is_free=False):
                     yield chunk
             elif self.custom_cloud_provider == "gemini":
                 if not self.gemini_api_key:
-                    self.current_model = "gemini/no_key"
+                    self._set_model("gemini/no_key")
                     yield "⚠️ Bạn chưa nhập Gemini API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
-                self.current_model = f"gemini/{self.gemini_model}"
+                self._set_model(f"gemini/{self.gemini_model}")
                 for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=False):
                     yield chunk
             elif self.custom_cloud_provider == "claude":
                 if not self.claude_api_key:
-                    self.current_model = "claude/no_key"
+                    self._set_model("claude/no_key")
                     yield "⚠️ Bạn chưa nhập Claude API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
-                self.current_model = f"claude/{self.claude_model}"
+                self._set_model(f"claude/{self.claude_model}")
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=self.claude_api_key)
@@ -1007,65 +1114,65 @@ Câu hỏi: {query}"""
                         for text in stream.text_stream:
                             yield text
                 except Exception as e:
-                    self.current_model = f"local/{self.local_model}"
+                    self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Claude stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
             elif self.custom_cloud_provider == "groq":
                 if not self.groq_api_key:
-                    self.current_model = "groq/no_key"
+                    self._set_model("groq/no_key")
                     yield "⚠️ Bạn chưa nhập Groq API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
-                self.current_model = f"groq/{self.groq_model}"
+                self._set_model(f"groq/{self.groq_model}")
                 try:
                     yield from self._stream_openai(
                         user_prompt, self.groq_api_key, self.groq_model,
                         "https://api.groq.com/openai/v1"
                     )
                 except Exception as e:
-                    self.current_model = f"local/{self.local_model}"
+                    self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Groq stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
             elif self.custom_cloud_provider == "nvidia":
                 if not self.nvidia_api_key:
-                    self.current_model = "nvidia/no_key"
+                    self._set_model("nvidia/no_key")
                     yield "⚠️ Bạn chưa nhập Nvidia API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
-                self.current_model = f"nvidia/{self.nvidia_model}"
+                self._set_model(f"nvidia/{self.nvidia_model}")
                 try:
                     yield from self._stream_openai(
                         user_prompt, self.nvidia_api_key, self.nvidia_model,
                         self.nvidia_url
                     )
                 except Exception as e:
-                    self.current_model = f"local/{self.local_model}"
+                    self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Nvidia stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
             elif self.custom_cloud_provider == "freemodel":
                 if not self.freemodel_api_key:
-                    self.current_model = "freemodel/no_key"
+                    self._set_model("freemodel/no_key")
                     yield "⚠️ Bạn chưa nhập FreeModel API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
-                self.current_model = f"freemodel/{self.freemodel_model}"
+                self._set_model(f"freemodel/{self.freemodel_model}")
                 try:
                     yield from self._stream_openai(
                         user_prompt, self.freemodel_api_key, self.freemodel_model,
                         self.freemodel_url
                     )
                 except Exception as e:
-                    self.current_model = f"local/{self.local_model}"
+                    self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ FreeModel stream gặp sự cố: {str(e)}. Đang chuyển sang Local model..."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
             else:
-                self.current_model = "unknown/invalid"
+                self._set_model("unknown/invalid")
                 yield "⚠️ Cloud provider không hợp lệ."
 
         else:
             # Local mode
-            self.current_model = f"local/{self.local_model}"
+            self._set_model(f"local/{self.local_model}")
             for chunk in self._stream_local(user_prompt):
                 yield chunk
 
@@ -1087,6 +1194,7 @@ Câu hỏi: {query}"""
                 "stream": True,
             }
 
+            in_thinking = False
             with self.http_client.stream(
                 "POST",
                 "https://api.deepseek.com/chat/completions",
@@ -1102,11 +1210,26 @@ Câu hỏi: {query}"""
                             break
                         try:
                             data = json.loads(data_str)
-                            chunk = data["choices"][0]["delta"].get("content", "")
-                            if chunk:
-                                yield chunk
+                            delta = data["choices"][0]["delta"]
+                            
+                            reasoning_chunk = delta.get("reasoning_content", "")
+                            content_chunk = delta.get("content", "")
+                            
+                            if reasoning_chunk:
+                                if not in_thinking:
+                                    yield "<think>\n"
+                                    in_thinking = True
+                                yield reasoning_chunk
+                                
+                            if content_chunk:
+                                if in_thinking:
+                                    yield "\n</think>\n"
+                                    in_thinking = False
+                                yield content_chunk
                         except Exception:
                             continue
+                if in_thinking:
+                    yield "\n</think>\n"
         except Exception as e:
             logger.error(f"DeepSeek stream failed: {e}")
             yield f"\n⚠️ DeepSeek Cloud gặp sự cố ({str(e)}). Đang chuyển sang Local model...\n"
@@ -1130,6 +1253,7 @@ Câu hỏi: {query}"""
                 "max_tokens": 2048,
                 "stream": True,
             }
+            in_thinking = False
             with self.http_client.stream(
                 "POST",
                 f"{base_url.rstrip('/')}/chat/completions",
@@ -1145,11 +1269,26 @@ Câu hỏi: {query}"""
                             break
                         try:
                             data = json.loads(data_str)
-                            chunk = data["choices"][0]["delta"].get("content", "")
-                            if chunk:
-                                yield chunk
+                            delta = data["choices"][0]["delta"]
+                            
+                            reasoning_chunk = delta.get("reasoning_content", "")
+                            content_chunk = delta.get("content", "")
+                            
+                            if reasoning_chunk:
+                                if not in_thinking:
+                                    yield "<think>\n"
+                                    in_thinking = True
+                                yield reasoning_chunk
+                                
+                            if content_chunk:
+                                if in_thinking:
+                                    yield "\n</think>\n"
+                                    in_thinking = False
+                                yield content_chunk
                         except Exception:
                             continue
+                if in_thinking:
+                    yield "\n</think>\n"
         except Exception as e:
             logger.error(f"OpenAI-compatible stream failed: {e}")
 
@@ -1201,9 +1340,69 @@ Câu hỏi: {query}"""
                 yield chunk
 
     def _stream_local(self, prompt: str):
-        """Stream response from llama-server (local GGUF model via llama.cpp)."""
+        """Stream response from llama-server (local GGUF model via llama.cpp).
+
+        Priority:
+        1. OpenAI-compatible API (/v1/chat/completions) — gets reasoning_content field
+        2. Fallback: native /completion — parse <think> tags from raw text
+        """
+        sp = self._get_local_system_prompt()
+        messages = [
+            {"role": "system", "content": sp},
+            {"role": "user", "content": prompt},
+        ]
+
+        in_thinking = False
+
+        # Try OpenAI-compatible API first (supports reasoning_content)
         try:
-            full_prompt = self._apply_chat_template(self._get_local_system_prompt(), prompt)
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "model": "local",
+                "messages": messages,
+                "temperature": 0.3,
+                "max_tokens": self.local_max_tokens,
+                "stream": True,
+            }
+            with self.http_client.stream(
+                "POST",
+                f"{self.llama_server_url}/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=180.0,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            data = json.loads(data_str)
+                            delta = data["choices"][0]["delta"]
+                            reasoning_chunk = delta.get("reasoning_content", "")
+                            content_chunk = delta.get("content", "")
+                            if reasoning_chunk:
+                                if not in_thinking:
+                                    yield "<think>\n"
+                                    in_thinking = True
+                                yield reasoning_chunk
+                            if content_chunk:
+                                if in_thinking:
+                                    yield "\n</think>\n"
+                                    in_thinking = False
+                                yield content_chunk
+                        except Exception:
+                            continue
+                if in_thinking:
+                    yield "\n</think>\n"
+                return
+        except Exception as e:
+            logger.warning(f"OpenAI API on local failed ({e}), falling back to /completion...")
+
+        # Fallback: native /completion endpoint — raw text with <think> tags
+        try:
+            full_prompt = self._apply_chat_template(sp, prompt)
             with self.http_client.stream(
                 "POST",
                 f"{self.llama_server_url}/completion",
@@ -1219,6 +1418,7 @@ Câu hỏi: {query}"""
                 timeout=180.0,
             ) as response:
                 response.raise_for_status()
+                in_thinking = False
                 for line in response.iter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
@@ -1227,10 +1427,44 @@ Câu hỏi: {query}"""
                         try:
                             data = json.loads(data_str)
                             chunk = data.get("content", "")
-                            if chunk:
-                                yield chunk
+                            if not chunk:
+                                continue
+                            # Parse inline <think> tags from raw text
+                            while chunk:
+                                if not in_thinking:
+                                    idx = chunk.find("<think>")
+                                    if idx == -1:
+                                        # No more think tags — yield entire remaining chunk
+                                        before, rest = chunk, ""
+                                    else:
+                                        before = chunk[:idx]
+                                        rest = chunk[idx + 7:]
+                                    if before:
+                                        yield before
+                                    if idx != -1 and not in_thinking:
+                                        yield "<think>\n"
+                                        in_thinking = True
+                                        chunk = rest
+                                        continue
+                                    chunk = rest
+                                else:  # in_thinking
+                                    idx = chunk.find("</think>")
+                                    if idx == -1:
+                                        yield chunk
+                                        chunk = ""
+                                    else:
+                                        before = chunk[:idx]
+                                        rest = chunk[idx + 8:]
+                                        if before:
+                                            yield before
+                                        yield "\n</think>\n"
+                                        in_thinking = False
+                                        chunk = rest
+                                        continue
                         except json.JSONDecodeError:
                             continue
+                if in_thinking:
+                    yield "\n</think>\n"
         except httpx.ConnectError:
             yield "\n⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy."
         except Exception as e:

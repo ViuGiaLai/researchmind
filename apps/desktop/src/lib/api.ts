@@ -56,6 +56,7 @@ export interface Paper {
   auto_summary: string;
   read_status: string;
   starred: boolean;
+  layout_stats?: Record<string, { columns: number; multicolumn: boolean }> | null;
   created_at: string | null;
   indexed_at: string | null;
 }
@@ -181,6 +182,22 @@ export interface SearchFilters {
   starred?: boolean | null;
   sort_by?: string;
   sort_order?: string;
+}
+
+// ─── Deep Research types ───────────────────────────────────────
+
+export interface DecomposeResponse {
+  sub_questions: string[];
+  brief: string;
+}
+
+export interface DeepResearchResponse {
+  content: string;
+  sub_questions: string[];
+  brief: string;
+  personas: { name: string; description: string; focus_areas: string[] }[];
+  model_used: string;
+  finish_reason: string;
 }
 
 // ─── API functions ─────────────────────────────────────────────
@@ -430,7 +447,7 @@ export const api = {
     const stream: {
       onChunk: ((text: string) => void) | null;
       onStatus: ((text: string) => void) | null;
-      onDone: ((model: string, citations: any[]) => void) | null;
+      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
     } = { onChunk: null, onStatus: null, onDone: null, onError: null, abort: () => controller.abort() };
@@ -467,7 +484,7 @@ export const api = {
               try {
                 const data = JSON.parse(dataStr);
                 if (data.done) {
-                  stream.onDone?.(data.model_used || "", data.citations || []);
+                  stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0);
                 } else if (data.status !== undefined) {
                   stream.onStatus?.(data.status);
                 } else if (data.chunk !== undefined) {
@@ -495,6 +512,13 @@ export const api = {
     request<ChatResponse>("POST", "/api/critique", { query, paper_ids: paperIds, collection_id: collectionId }),
   debate: (query: string, paperIds?: string[], collectionId?: string) =>
     request<ChatResponse>("POST", "/api/debate", { query, paper_ids: paperIds, collection_id: collectionId }),
+
+  // Deep Research
+  deepResearch: (query: string, paperIds?: string[], topK: number = 3) =>
+    request<DeepResearchResponse>("POST", "/api/research/deep", { query, paper_ids: paperIds, top_k: topK }),
+
+  decomposeQuery: (query: string) =>
+    request<DecomposeResponse>("POST", "/api/research/decompose", { query }),
   verify: (query: string, paperIds?: string[], collectionId?: string) =>
     request<VerifyResponse>("POST", "/api/verify", { query, paper_ids: paperIds, collection_id: collectionId }),
 
@@ -875,6 +899,46 @@ export const api = {
       if (!res.ok) throw new Error(`Export Review failed: ${res.status}`);
       return res.blob();
     }),
+
+  // ─── GraphRAG ───────────────────────────────────────────
+
+  buildGraph: (paperIds?: string[], entityTypes?: string[], maxGleanings?: number) =>
+    request<{ status: string; stats: Record<string, number> }>("POST", "/api/graph/build", {
+      paper_ids: paperIds,
+      entity_types: entityTypes,
+      max_gleanings: maxGleanings ?? 2,
+    }),
+
+  queryGraph: (query: string, strategy: string = "local", opts?: {
+    topKEntities?: number;
+    topKRelationships?: number;
+    maxDriftSteps?: number;
+  }) =>
+    request<{ answer: string; strategy: string; stats: Record<string, number> }>("POST", "/api/graph/query", {
+      query,
+      strategy,
+      top_k_entities: opts?.topKEntities ?? 10,
+      top_k_relationships: opts?.topKRelationships ?? 10,
+      max_drift_steps: opts?.maxDriftSteps ?? 3,
+    }),
+
+  getGraphStats: () =>
+    request<GraphStats>("GET", "/api/graph/stats"),
+
+  listGraphEntities: (limit = 50, offset = 0) =>
+    request<GraphEntity[]>("GET", `/api/graph/entities?limit=${limit}&offset=${offset}`),
+
+  getGraphEntity: (title: string) =>
+    request<GraphEntity>("GET", `/api/graph/entities/${encodeURIComponent(title)}`),
+
+  listGraphCommunities: () =>
+    request<GraphCommunity[]>("GET", "/api/graph/communities"),
+
+  getGraphVisualizationData: () =>
+    request<GraphVisualizationData>("GET", "/api/graph/graph-data"),
+
+  clearGraph: () =>
+    request<{ status: string; message: string }>("POST", "/api/graph/clear"),
 };
 
 // ─── Review Builder Types ────────────────────────────────
@@ -1016,4 +1080,52 @@ export interface PersonalBrainResponse {
   timeline: { month: string; count: number }[];
   recent_activity: { type: string; content: string; date: string | null }[];
   insights: { type: string; title: string; description: string; action?: string }[];
+}
+
+// ─── GraphRAG Types ────────────────────────────────────────
+
+export interface GraphStats {
+  entities: number;
+  relationships: number;
+  communities: number;
+  community_reports: number;
+  text_units: number;
+}
+
+export interface GraphEntity {
+  id: string;
+  title: string;
+  type: string | null;
+  description: string | null;
+  rank: number;
+  community_ids: string[];
+  relationships: { source: string; target: string; weight: number; description?: string }[];
+}
+
+export interface GraphCommunity {
+  id: string;
+  title: string;
+  level: number;
+  size: number;
+  report: string | null;
+}
+
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  rank: number;
+  community_id: string | null;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  weight: number;
+  description?: string;
+}
+
+export interface GraphVisualizationData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
 }

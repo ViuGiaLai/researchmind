@@ -307,7 +307,7 @@ Trả về: {
     { paper: "5G-Net-2024.pdf", page: 5, text: "..." },
     ...
   ],
-  model_used: "local/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+  model_used: "local/Qwen3-4B-Q4_K_M.gguf"
 }
 ```
 
@@ -413,7 +413,7 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
     ('papers_folder', ''),
     ('llm_mode', 'local'),             -- local / cloud
     ('llama_server_url', 'http://127.0.0.1:8080'),
-    ('local_model', 'Qwen2.5-3B-Instruct-Q4_K_M.gguf'),
+    ('local_model', 'Qwen3-4B-Q4_K_M.gguf'),
     ('claude_api_key', ''),
     ('embedding_model', 'bge-m3'),
     ('chunk_size', '512'),

@@ -94,6 +94,8 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
 
     model_used = state.generator.current_model
+    router_reason = state.generator.current_router_reason
+    token_count = state.generator.current_token_count
     db = get_session(state.engine)
     try:
         db.add(ChatHistory(
@@ -129,7 +131,7 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
     finally:
         db.close()
 
-    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'citations': citations})}\n\n"
+    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': citations})}\n\n"
     if cache_key:
         _put_chat_cache(cache_key, {
             "answer": full_response,
@@ -290,6 +292,8 @@ async def chat(request: dict = Body(...)):
         "answer": generation.content,
         "citations": generation.citations,
         "model_used": generation.model_used,
+        "router_reason": generation.router_reason,
+        "router_token_count": generation.router_token_count,
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
     }

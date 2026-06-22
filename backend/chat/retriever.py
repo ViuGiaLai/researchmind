@@ -1,11 +1,25 @@
 """RAG retrieval pipeline.
 
-Takes a user query, runs hybrid search, builds context for LLM.
+Takes a user query, runs hybrid search, postprocesses results,
+builds context for LLM.
+
+Postprocessors (llama_index-inspired):
+- SimilarityPostprocessor: filter low-score chunks
+- LongContextReorder: mitigate "lost in the middle"
+
+MIT License — adapted from llama_index:
+https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/postprocessor/node.py
 """
 
 from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
+
+from search.postprocessor import (
+    BaseNodePostprocessor,
+    SimilarityPostprocessor,
+    LongContextReorder,
+)
 
 
 @dataclass
@@ -22,11 +36,22 @@ class Retriever:
     RAG retrieval pipeline:
     1. Query processing (language detection, expansion)
     2. Hybrid search (BM25 + Vector + RRF + Cross-encoder)
-    3. Context building
+    3. Postprocess results (similarity cutoff, lost-in-the-middle reorder)
+    4. Context building
     """
 
-    def __init__(self, hybrid_search):
+    def __init__(
+        self,
+        hybrid_search,
+        postprocessors: Optional[list[BaseNodePostprocessor]] = None,
+    ):
         self.hybrid = hybrid_search
+        from config.settings import settings
+        cutoff = getattr(settings, "similarity_cutoff", 0.0)
+        self.postprocessors = postprocessors or [
+            SimilarityPostprocessor(similarity_cutoff=cutoff),
+            LongContextReorder(),
+        ]
 
     def retrieve(
         self,
@@ -75,7 +100,7 @@ class Retriever:
                 if len(search_results) >= top_k:
                     break
 
-        # Step 4: Build context
+        # Step 4: Postprocess results (similarity cutoff, lost-in-the-middle reorder)
         chunks = []
         for r in search_results:
             chunks.append({
@@ -86,6 +111,12 @@ class Retriever:
                 "page_number": r.page_number,
                 "score": r.score,
             })
+
+        for pp in self.postprocessors:
+            before = len(chunks)
+            chunks = pp(chunks)
+            if len(chunks) < before:
+                logger.debug(f"Postprocessor {pp.__class__.__name__}: {before} → {len(chunks)} chunks")
 
         context_text = self._build_context(chunks, query)
 

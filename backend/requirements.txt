@@ -30,6 +30,16 @@ ebooklib==0.20.*
 # PDF Export
 fpdf2==2.8.*
 
+# Knowledge Graph (GraphRAG)
+networkx==3.*
+python-louvain==0.16.*   # community detection (always available fallback)
+# graspologic==3.*        # optional: Hierarchical Leiden (pip install on Linux/Mac)
+# leiden on Windows: use python-louvain fallback in cluster.py
+
+# Tests
+pytest==8.*
+pytest-asyncio==0.24.*
+
 # Utils
 pydantic==2.*
 pydantic-settings==2.*

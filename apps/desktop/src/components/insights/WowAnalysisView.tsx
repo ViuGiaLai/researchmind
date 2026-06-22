@@ -227,136 +227,156 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     if (activeAnalysisRunId.current !== runId) return;
 
     // 1. SUMMARY STEP
-    setSteps((prev) => ({
-      ...prev,
-      summary: { ...prev.summary, status: "running" },
-    }));
-    startLoadingMessages("summary");
-
-    let summaryCompleted = false;
-    try {
-      const paper = await api.getPaper(paperId);
+    const runSummary = async () => {
       if (activeAnalysisRunId.current !== runId) return;
-      if (paper.auto_summary) {
-        setSteps((prev) => ({
-          ...prev,
-          summary: { status: "completed", content: paper.auto_summary, modelUsed: "Auto-ingested" },
-        }));
-        summaryCompleted = true;
-      }
-    } catch (e) {
-      // ignore getPaper error, fall back to review
-    }
+      setSteps((prev) => ({
+        ...prev,
+        summary: { ...prev.summary, status: "running" },
+      }));
+      startLoadingMessages("summary");
 
-    if (!summaryCompleted) {
+      let summaryCompleted = false;
       try {
-        const res = await api.review("", [paperId]);
+        const paper = await api.getPaper(paperId);
+        if (activeAnalysisRunId.current !== runId) return;
+        if (paper.auto_summary) {
+          setSteps((prev) => ({
+            ...prev,
+            summary: { status: "completed", content: paper.auto_summary, modelUsed: "Auto-ingested" },
+          }));
+          summaryCompleted = true;
+        }
+      } catch (e) {
+        // ignore getPaper error, fall back to review
+      }
+
+      if (!summaryCompleted) {
+        try {
+          const res = await api.review("", [paperId]);
+          if (activeAnalysisRunId.current !== runId) return;
+          setSteps((prev) => ({
+            ...prev,
+            summary: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+          }));
+        } catch (e: any) {
+          if (activeAnalysisRunId.current !== runId) return;
+          setSteps((prev) => ({
+            ...prev,
+            summary: { status: "error", content: "", error: e.message || "Không thể tạo tóm tắt" },
+          }));
+        }
+      }
+      stopLoadingMessages("summary");
+    };
+
+    // 2. CRITIQUE STEP
+    const runCritique = async () => {
+      if (activeAnalysisRunId.current !== runId) return;
+      setSteps((prev) => ({
+        ...prev,
+        critique: { ...prev.critique, status: "running" },
+      }));
+      startLoadingMessages("critique");
+      try {
+        const res = await api.critique("", [paperId]);
         if (activeAnalysisRunId.current !== runId) return;
         setSteps((prev) => ({
           ...prev,
-          summary: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+          critique: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
         }));
       } catch (e: any) {
         if (activeAnalysisRunId.current !== runId) return;
         setSteps((prev) => ({
           ...prev,
-          summary: { status: "error", content: "", error: e.message || "Không thể tạo tóm tắt" },
+          critique: { status: "error", content: "", error: e.message || "Không thể phân tích phản biện" },
         }));
       }
-    }
-    stopLoadingMessages("summary");
-
-    // 2. CRITIQUE STEP
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({
-      ...prev,
-      critique: { ...prev.critique, status: "running" },
-    }));
-    startLoadingMessages("critique");
-    try {
-      const res = await api.critique("", [paperId]);
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        critique: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-      }));
-    } catch (e: any) {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        critique: { status: "error", content: "", error: e.message || "Không thể phân tích phản biện" },
-      }));
-    }
-    stopLoadingMessages("critique");
+      stopLoadingMessages("critique");
+    };
 
     // 3. CONFLICT STEP
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({
-      ...prev,
-      conflict: { ...prev.conflict, status: "running" },
-    }));
-    startLoadingMessages("conflict");
-    try {
-      const res = await api.findConflicts([paperId]);
+    const runConflict = async () => {
       if (activeAnalysisRunId.current !== runId) return;
       setSteps((prev) => ({
         ...prev,
-        conflict: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+        conflict: { ...prev.conflict, status: "running" },
       }));
-    } catch (e: any) {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        conflict: { status: "error", content: "", error: e.message || "Không thể phân tích mâu thuẫn" },
-      }));
-    }
-    stopLoadingMessages("conflict");
+      startLoadingMessages("conflict");
+      try {
+        const res = await api.findConflicts([paperId]);
+        if (activeAnalysisRunId.current !== runId) return;
+        setSteps((prev) => ({
+          ...prev,
+          conflict: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+        }));
+      } catch (e: any) {
+        if (activeAnalysisRunId.current !== runId) return;
+        setSteps((prev) => ({
+          ...prev,
+          conflict: { status: "error", content: "", error: e.message || "Không thể phân tích mâu thuẫn" },
+        }));
+      }
+      stopLoadingMessages("conflict");
+    };
 
     // 4. GAP STEP
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({
-      ...prev,
-      gap: { ...prev.gap, status: "running" },
-    }));
-    startLoadingMessages("gap");
-    try {
-      const res = await api.findResearchGap([paperId]);
+    const runGap = async () => {
       if (activeAnalysisRunId.current !== runId) return;
       setSteps((prev) => ({
         ...prev,
-        gap: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+        gap: { ...prev.gap, status: "running" },
       }));
-    } catch (e: any) {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        gap: { status: "error", content: "", error: e.message || "Không thể tìm khoảng trống nghiên cứu" },
-      }));
-    }
-    stopLoadingMessages("gap");
+      startLoadingMessages("gap");
+      try {
+        const res = await api.findResearchGap([paperId]);
+        if (activeAnalysisRunId.current !== runId) return;
+        setSteps((prev) => ({
+          ...prev,
+          gap: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+        }));
+      } catch (e: any) {
+        if (activeAnalysisRunId.current !== runId) return;
+        setSteps((prev) => ({
+          ...prev,
+          gap: { status: "error", content: "", error: e.message || "Không thể tìm khoảng trống nghiên cứu" },
+        }));
+      }
+      stopLoadingMessages("gap");
+    };
 
     // 5. DEBATE STEP
-    if (activeAnalysisRunId.current !== runId) return;
-    setSteps((prev) => ({
-      ...prev,
-      debate: { ...prev.debate, status: "running" },
-    }));
-    startLoadingMessages("debate");
-    try {
-      const res = await api.debate("", [paperId]);
+    const runDebate = async () => {
       if (activeAnalysisRunId.current !== runId) return;
       setSteps((prev) => ({
         ...prev,
-        debate: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+        debate: { ...prev.debate, status: "running" },
       }));
-    } catch (e: any) {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        debate: { status: "error", content: "", error: e.message || "Không thể tạo cuộc tranh luận AI" },
-      }));
-    }
-    stopLoadingMessages("debate");
+      startLoadingMessages("debate");
+      try {
+        const res = await api.debate("", [paperId]);
+        if (activeAnalysisRunId.current !== runId) return;
+        setSteps((prev) => ({
+          ...prev,
+          debate: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+        }));
+      } catch (e: any) {
+        if (activeAnalysisRunId.current !== runId) return;
+        setSteps((prev) => ({
+          ...prev,
+          debate: { status: "error", content: "", error: e.message || "Không thể tạo cuộc tranh luận AI" },
+        }));
+      }
+      stopLoadingMessages("debate");
+    };
+
+    // Run all steps concurrently
+    await Promise.all([
+      runSummary(),
+      runCritique(),
+      runConflict(),
+      runGap(),
+      runDebate(),
+    ]);
   };
 
   // Drag & Drop Ingestion

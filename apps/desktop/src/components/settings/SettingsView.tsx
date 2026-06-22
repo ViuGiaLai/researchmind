@@ -51,7 +51,7 @@ export const SettingsView: React.FC = () => {
 
   // ── Local (llama-server) ──────────────────────────────────
   const [llamaServerUrl, setLlamaServerUrl] = useState("http://127.0.0.1:8080");
-  const [localModel, setLocalModel] = useState("Qwen2.5-3B-Instruct-Q4_K_M.gguf");
+  const [localModel, setLocalModel] = useState("Qwen3-4B-Q4_K_M.gguf");
 
   // ── Machine Specs ───────────────────────────────────────────
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
@@ -68,7 +68,17 @@ export const SettingsView: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [embeddingModel, setEmbeddingModel] = useState("");
   const [embeddingMode, setEmbeddingMode] = useState("local");
+  const [embeddingQueryInstruction, setEmbeddingQueryInstruction] = useState("");
+  const [embeddingPassageInstruction, setEmbeddingPassageInstruction] = useState("");
+  const [embeddingPooling, setEmbeddingPooling] = useState("cls");
+  const [normalizeEmbeddings, setNormalizeEmbeddings] = useState(true);
   const [enableReranker, setEnableReranker] = useState(false);
+  const [mmrLambda, setMmrLambda] = useState("");
+
+  // ── Model Router (open-notebook inspired) ─────────
+  const [largeContextThreshold, setLargeContextThreshold] = useState(105000);
+  const [largeContextModel, setLargeContextModel] = useState("");
+  const [largeContextProvider, setLargeContextProvider] = useState("");
   const [testingEmbedding, setTestingEmbedding] = useState(false);
   const [embeddingTestResult, setEmbeddingTestResult] = useState<"success" | "error" | null>(null);
   const [embeddingTestMsg, setEmbeddingTestMsg] = useState<string>("");
@@ -142,10 +152,18 @@ export const SettingsView: React.FC = () => {
       setFreemodelModel((s as any).freemodel_model || "gpt-4o-mini");
       setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "deepseek");
       setLlamaServerUrl((s as any).llama_server_url || "http://127.0.0.1:8080");
-      setLocalModel((s as any).local_model || "Qwen2.5-3B-Instruct-Q4_K_M.gguf");
+      setLocalModel((s as any).local_model || "Qwen3-4B-Q4_K_M.gguf");
       setEmbeddingModel(s.embedding_model);
       setEmbeddingMode(s.embedding_mode || "local");
+      setEmbeddingQueryInstruction((s as any).embedding_query_instruction || "");
+      setEmbeddingPassageInstruction((s as any).embedding_passage_instruction || "");
       setEnableReranker(!!s.enable_reranker);
+      setMmrLambda((s as any).mmr_lambda != null ? String((s as any).mmr_lambda) : "");
+      setEmbeddingPooling((s as any).embedding_pooling || "cls");
+      setNormalizeEmbeddings((s as any).normalize_embeddings !== false);
+      setLargeContextThreshold((s as any).large_context_threshold || 105000);
+      setLargeContextModel((s as any).large_context_model || "");
+      setLargeContextProvider((s as any).large_context_provider || "");
       setZoteroDataDir((s as any).zotero_data_dir || "");
     } catch (e) {
       console.error("Failed to load settings:", e);
@@ -440,7 +458,15 @@ export const SettingsView: React.FC = () => {
         llama_server_url: llamaServerUrl,
         local_model: localModel,
         embedding_mode: embeddingMode,
+        embedding_query_instruction: embeddingQueryInstruction,
+        embedding_passage_instruction: embeddingPassageInstruction,
+        embedding_pooling: embeddingPooling,
+        normalize_embeddings: normalizeEmbeddings,
+        large_context_threshold: largeContextThreshold,
+        large_context_model: largeContextModel,
+        large_context_provider: largeContextProvider,
         enable_reranker: enableReranker,
+        mmr_lambda: mmrLambda === "" ? null : parseFloat(mmrLambda),
       });
       if (zoteroDataDir.trim()) {
         await api.saveZoteroPath(zoteroDataDir.trim());
@@ -896,7 +922,7 @@ export const SettingsView: React.FC = () => {
                 className="settings-input"
                 value={localModel}
                 onChange={(e) => setLocalModel(e.target.value)}
-                placeholder="Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+                placeholder="Qwen3-4B-Q4_K_M.gguf"
               />
             </div>
             <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
@@ -1178,7 +1204,13 @@ export const SettingsView: React.FC = () => {
               )}
             </span>
           </p>
-          <p style={{ marginTop: 8 }}>
+          <p>
+            MMR:{" "}
+            <strong>
+              {mmrLambda !== "" ? `🔄 λ=${mmrLambda}` : "⏭️ Tắt"}
+            </strong>
+          </p>
+          <p style={{ marginTop: 4 }}>
             Reranker:{" "}
             <strong>
               {enableReranker ? "🔌 Bật (Chậm, chính xác hơn)" : "⚡ Tắt (Nhanh, nhẹ)"}
@@ -1208,6 +1240,131 @@ export const SettingsView: React.FC = () => {
               </select>
             </span>
           </p>
+          {embeddingMode === "local" && (
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+                Hướng dẫn Embedding (query instruction)
+              </label>
+              <input
+                type="text"
+                value={embeddingQueryInstruction}
+                onChange={e => setEmbeddingQueryInstruction(e.target.value)}
+                placeholder="VD: Hãy biểu diễn câu hỏi này để tìm kiếm tài liệu: "
+                style={{
+                  fontSize: "0.75rem", padding: "4px 8px",
+                  background: "var(--color-surface)", border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)", color: "var(--color-text)",
+                  width: "100%", maxWidth: 500,
+                }}
+              />
+              <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: 4 }}>
+                Hướng dẫn Passage (passage instruction)
+              </label>
+              <input
+                type="text"
+                value={embeddingPassageInstruction}
+                onChange={e => setEmbeddingPassageInstruction(e.target.value)}
+                placeholder="VD: Hãy biểu diễn đoạn văn này: "
+                style={{
+                  fontSize: "0.75rem", padding: "4px 8px",
+                  background: "var(--color-surface)", border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-sm)", color: "var(--color-text)",
+                  width: "100%", maxWidth: 500,
+                }}
+              />
+              <span style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
+                {embeddingQueryInstruction || embeddingPassageInstruction
+                  ? `Dùng ${embeddingQueryInstruction ? "query + " : ""}${embeddingPassageInstruction ? "passage" : ""} instruction cho RAG`
+                  : "Để trống = không dùng instruction (mặc định)"}
+              </span>
+              <div style={{ display: "flex", gap: 16, marginTop: 8, alignItems: "center" }}>
+                <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                  Pooling:
+                  <select
+                    value={embeddingPooling}
+                    onChange={e => setEmbeddingPooling(e.target.value)}
+                    style={{ fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer" }}
+                  >
+                    <option value="cls">CLS</option>
+                    <option value="mean">Mean</option>
+                    <option value="last_token">Last Token</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={normalizeEmbeddings}
+                    onChange={e => setNormalizeEmbeddings(e.target.checked)}
+                    style={{ cursor: "pointer" }}
+                  />
+                  Normalize embeddings
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 8, alignItems: "center" }}>
+                <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                  MMR diversity:
+                  <input
+                    type="number"
+                    value={mmrLambda}
+                    onChange={e => setMmrLambda(e.target.value)}
+                    placeholder="Tắt"
+                    min={0} max={1} step={0.05}
+                    style={{ width: 70, fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
+                  />
+                  <span style={{ color: "var(--color-text-muted)", fontSize: "0.7rem" }}>
+                    (0=đa dạng, 1=liên quan, để trống=tắt)
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
+          <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+            <span style={{ fontWeight: 600, fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              Model Router
+            </span>
+            <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: 8 }}>
+              Tự động chuyển sang model context lớn khi vượt ngưỡng token (open-notebook inspired)
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                Ngưỡng context:
+                <input
+                  type="number"
+                  value={largeContextThreshold}
+                  onChange={e => setLargeContextThreshold(Number(e.target.value))}
+                  style={{ width: 80, fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
+                  min={1000} max={500000} step={1000}
+                />
+                tokens
+              </label>
+              <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                Fallback model:
+                <input
+                  type="text"
+                  value={largeContextModel}
+                  onChange={e => setLargeContextModel(e.target.value)}
+                  placeholder="claude-sonnet-4-20250514"
+                  style={{ width: 160, fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
+                />
+              </label>
+              <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+                Provider:
+                <select
+                  value={largeContextProvider}
+                  onChange={e => setLargeContextProvider(e.target.value)}
+                  style={{ fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer" }}
+                >
+                  <option value="">Mặc định</option>
+                  <option value="claude">Claude</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="gemini">Gemini</option>
+                  <option value="groq">Groq</option>
+                  <option value="nvidia">Nvidia NIM</option>
+                  <option value="local">Local</option>
+                </select>
+              </label>
+            </div>
+          </div>
           {stats && (
             <>
               <p>Papers: <strong>{stats.total_papers}</strong></p>

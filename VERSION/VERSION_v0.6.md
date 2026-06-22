@@ -136,7 +136,7 @@ Lưu ý định hướng: v0.6 không dùng Ollama. Runtime local chuẩn là ll
 | :-: | :-: | :-: |
 |Bundle Python runtime|PyInstaller bundle backend thành .exe — không cần cài Python|User không cần biết Python tồn tại|
 |Bundle llama-server CPU|Tauri sidecar: bundle `llama-server.exe` từ llama.cpp, tự start với GGUF model khi app mở|Local CPU inference tự chạy trong nền, user không thấy terminal|
-|GGUF model download wizard|First-run: chọn/tải `Qwen2.5-3B-Instruct-Q4_K_M.gguf` hoặc model GGUF phù hợp CPU, có progress/ETA|User biết app đang làm gì, không nghĩ bị đơ|
+|GGUF model download wizard|First-run: chọn/tải `Qwen3-4B-Q4_K_M.gguf` hoặc model GGUF phù hợp CPU, có progress/ETA|User biết app đang làm gì, không nghĩ bị đơ|
 |Windows installer (.msi)|Tauri bundler + Wix toolset → .msi với icon, uninstall clean|Cài như bất kỳ phần mềm Windows nào khác|
 
 🎯  **5.2  First-Run Experience**

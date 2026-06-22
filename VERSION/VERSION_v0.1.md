@@ -408,7 +408,7 @@ Request → NVIDIA (1st) → nếu lỗi → FreeModel (2nd) → nếu lỗi →
 | **FreeModel.dev** | `gpt-4o-mini` | ✅ Hoạt động | ~5-11s | Key valid, ổn định nhất |
 | **Groq** | `llama-3.3-70b-versatile` | ❌ 401 | — | Groq key bị invalid, cần key mới |
 | **Gemini** | `gemini-2.5-flash` | ❌ Sai format | — | Key OAuth token (AQ.Ab8...), cần key AIza... |
-| **llama-server** | `Qwen2.5-3B-Instruct-Q4_K_M.gguf` | ✅ Local | ~3-8s | Chạy qua llama.cpp |
+| **llama-server** | `Qwen3-4B-Q4_K_M.gguf` | ✅ Local | ~3-8s | Chạy qua llama.cpp |
 | **DeepSeek** | `deepseek-chat` | ✅ Hoạt động | (cloud_custom) |
 | **Claude** | `claude-sonnet-4-20250514` | ✅ Hoạt động | (cloud_custom) |
 

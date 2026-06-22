@@ -31,6 +31,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [embeddingInfo, setEmbeddingInfo] = useState<{ mode: string; pooling: string; normalize: boolean } | null>(null);
   const [visibleResultCount, setVisibleResultCount] = useState(0);
   const searchAbortRef = useRef<AbortController | null>(null);
   const suggestAbortRef = useRef<AbortController | null>(null);
@@ -44,6 +45,13 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   useEffect(() => {
     api.listCollections().then((res) => setCollections(res.collections)).catch(() => {});
     api.listSavedSearches().then((res) => setSavedSearches(res.saved_searches)).catch(() => {});
+    api.getSettings().then((s) => {
+      setEmbeddingInfo({
+        mode: (s as any).embedding_mode || "local",
+        pooling: (s as any).embedding_pooling || "cls",
+        normalize: (s as any).normalize_embeddings !== false,
+      });
+    }).catch(() => {});
   }, []);
 
   const performSearch = async (searchQuery: string, filterOverride?: SearchFilters) => {
@@ -327,6 +335,11 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
               <span className="search-results-count">
                 🎯 {results.length} kết quả
               </span>
+              {embeddingInfo && (
+                <span style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginLeft: 8, opacity: 0.7 }} title={`Pooling: ${embeddingInfo.pooling.toUpperCase()}, Normalize: ${embeddingInfo.normalize}`}>
+                  {embeddingInfo.mode === "cloud" ? "☁️" : "💻"} {embeddingInfo.pooling.toUpperCase()}
+                </span>
+              )}
               <button className="search-chat-btn" onClick={chatWithResults}>
                 <IconChat size={16} style={{ marginRight: 4 }} />
                 Chat với kết quả này

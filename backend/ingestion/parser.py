@@ -7,6 +7,8 @@ from loguru import logger
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
+from .layout_parser import reorder_page_text, detect_layout_stats
+
 _ocr_lock = threading.Lock()
 _global_ocr_engine = None
 
@@ -29,6 +31,7 @@ class ExtractedDocument:
     ocr_pages_count: int = 0
     ocr_pages_failed: int = 0
     is_scanned: bool = False
+    layout_stats: Optional[dict] = None
 
 
 def extract_document(file_path: str) -> Optional[ExtractedDocument]:
@@ -56,17 +59,27 @@ def extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     return _extract_pdf(file_path)
 
 
-def _process_single_page(file_path: str, page_num: int) -> tuple[int, str, bool, bool]:
+def _process_single_page(file_path: str, page_num: int, collect_layout: bool = False) -> tuple[int, str, bool, bool, Optional[dict]]:
     import fitz
     import re
     
     text = ""
     ocr_attempted = False
     ocr_succeeded = False
+    layout = None
     try:
         doc = fitz.open(file_path)
         page = doc[page_num]
         text = page.get_text("text")
+
+        # Multi-column layout reordering (safe fallback to get_text if single-column)
+        if len(text.strip()) > 100:
+            reordered = reorder_page_text(page)
+            if reordered != text:
+                if collect_layout:
+                    layout = detect_layout_stats(page)
+                    logger.info(f"Page {page_num+1}: detected {layout.get('columns', '?')}-column layout, reordered text")
+                text = reordered
         
         bad_chars = sum(1 for c in text if ord(c) < 0x09 or 0x0E <= ord(c) < 0x20 or 0x80 <= ord(c) < 0xA0)
         is_garbled = bad_chars > max(3, len(text.strip()) * 0.05)
@@ -110,7 +123,8 @@ def _process_single_page(file_path: str, page_num: int) -> tuple[int, str, bool,
     except Exception as e:
         logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
         
-    return page_num, text, ocr_attempted, ocr_attempted and not ocr_succeeded
+    ocr_failed = ocr_attempted and not ocr_succeeded
+    return page_num, text, ocr_attempted, ocr_failed, layout
 
 
 def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
@@ -127,31 +141,35 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     text_by_page: dict[int, str] = {}
     ocr_pages_count = 0
     ocr_pages_failed = 0
+    layout_stats: dict = {}
     max_workers = min(4, page_count) if page_count > 0 else 1
     pages_to_process = list(range(page_count))
     
     try:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # We map processing onto the threads. Under python threads, this releases the GIL during fitz parsing and ONNX runtime
-            results = executor.map(lambda p: _process_single_page(file_path, p), pages_to_process)
-            for page_num, text, ocr_attempted, ocr_failed in results:
+            results = executor.map(lambda p: _process_single_page(file_path, p, collect_layout=True), pages_to_process)
+            for page_num, text, ocr_attempted, ocr_failed, layout in results:
                 text_by_page[page_num + 1] = text
                 if ocr_attempted:
                     ocr_pages_count += 1
                 if ocr_failed:
                     ocr_pages_failed += 1
+                if layout:
+                    layout_stats[page_num + 1] = layout
     except Exception as e:
         logger.error(f"Error during parallel PDF parsing: {e}")
         text_by_page = {}
         try:
             doc = fitz.open(file_path)
             for page_num in range(len(doc)):
-                p_num, text, ocr_attempted, ocr_failed = _process_single_page(file_path, page_num)
+                p_num, text, ocr_attempted, ocr_failed, layout = _process_single_page(file_path, page_num, collect_layout=True)
                 text_by_page[p_num + 1] = text
                 if ocr_attempted:
                     ocr_pages_count += 1
                 if ocr_failed:
                     ocr_pages_failed += 1
+                if layout:
+                    layout_stats[page_num + 1] = layout
             doc.close()
         except Exception as fallback_err:
             logger.error(f"Fallback parsing also failed: {fallback_err}")
@@ -206,6 +224,7 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=ocr_pages_count,
         ocr_pages_failed=ocr_pages_failed,
         is_scanned=ocr_pages_count > 0,
+        layout_stats=layout_stats if layout_stats else None,
     )
 
 

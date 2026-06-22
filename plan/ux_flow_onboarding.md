@@ -113,7 +113,7 @@ graph TD
   1. Backend check cổng `8080` của llama-server.
   2. **Nếu đã chạy llama-server:** Hiện thông báo kết nối thành công với model đã cấu hình.
   3. **Nếu chưa chạy llama-server:** 
-     * Hiện hướng dẫn 1-click tải/mở llama-server: `Tải GGUF model tại HuggingFace và chạy: llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`.
+     * Hiện hướng dẫn 1-click tải/mở llama-server: `Tải GGUF model tại HuggingFace và chạy: llama-server.exe -m Qwen3-4B-Q4_K_M.gguf -c 2048 --port 8080`.
      * Cung cấp nút `Kiểm tra lại kết nối` sau khi user đã bật llama-server.
 
 ---

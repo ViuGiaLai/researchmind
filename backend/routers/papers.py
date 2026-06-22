@@ -40,6 +40,7 @@ def _paper_to_dict(paper) -> dict:
         "ocr_pages_count": getattr(paper, "ocr_pages_count", 0) or 0,
         "ocr_pages_failed": getattr(paper, "ocr_pages_failed", 0) or 0,
         "is_scanned": bool(getattr(paper, "is_scanned", 0)),
+        "layout_stats": _parse_layout_stats(getattr(paper, "layout_stats", "")),
         "tags": paper.tags,
         "notes": paper.notes,
         "auto_summary": getattr(paper, "auto_summary", ""),
@@ -48,6 +49,16 @@ def _paper_to_dict(paper) -> dict:
         "created_at": str(paper.created_at) if paper.created_at else None,
         "indexed_at": str(paper.indexed_at) if paper.indexed_at else None,
     }
+
+
+def _parse_layout_stats(raw: str) -> dict | None:
+    """Parse layout_stats JSON string, return None if empty or invalid."""
+    if not raw or raw == "{}":
+        return None
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 def _escape_html(text: str) -> str:
@@ -621,6 +632,7 @@ def _retry_import_job(job_id: str):
                 ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
                 ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
                 is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
+                layout_stats=json.dumps(getattr(doc, "layout_stats", None) or {}),
             )
             session.add(paper)
             job.paper_id = paper_id
@@ -641,6 +653,7 @@ def _retry_import_job(job_id: str):
             paper.ocr_pages_count = getattr(doc, "ocr_pages_count", 0)
             paper.ocr_pages_failed = getattr(doc, "ocr_pages_failed", 0)
             paper.is_scanned = 1 if getattr(doc, "is_scanned", False) else 0
+            paper.layout_stats = json.dumps(getattr(doc, "layout_stats", None) or {})
 
         job.file_path = file_path
         job.status = "indexing"

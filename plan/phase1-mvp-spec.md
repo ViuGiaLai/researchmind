@@ -330,7 +330,7 @@ async def update_settings(settings: SettingsUpdate) -> SettingsResponse:
 
 @router.post("/local/pull")
 async def pull_local_model(
-    model_name: str = Body("Qwen2.5-3B-Instruct-Q4_K_M.gguf")
+    model_name: str = Body("Qwen3-4B-Q4_K_M.gguf")
 ) -> PullResponse:
     """Download GGUF model (stream progress)"""
     pass
@@ -554,8 +554,8 @@ ResearchMind VN Installer:
 
 **Lưu ý:** Bản MVP đầu tiên có thể yêu cầu user:
 1. Cài Python 3.11+
-2. Tải GGUF model từ HuggingFace (`Qwen2.5-3B-Instruct-Q4_K_M.gguf`)
-3. Chạy llama-server: `llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`
+2. Tải GGUF model từ HuggingFace (`Qwen3-4B-Q4_K_M.gguf`)
+3. Chạy llama-server: `llama-server.exe -m Qwen3-4B-Q4_K_M.gguf -c 2048 --port 8080`
 4. Run app
 
 **Mục tiêu Year 1:** PyInstaller bundle → single .exe installer (không cần cài gì thêm).

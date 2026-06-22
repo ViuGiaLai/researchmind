@@ -37,6 +37,7 @@ class Paper(Base):
     is_scanned = Column(Integer, default=0)
     read_status = Column(String, default="unread")  # unread / reading / read
     starred = Column(Integer, default=0)
+    layout_stats = Column(Text, default="")  # JSON: per-page column detection stats
     created_at = Column(DateTime, server_default=func.now())
     indexed_at = Column(DateTime, nullable=True)
 

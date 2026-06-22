@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen, IconSpinner } from "./components/Icons";
+import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen, IconGraph, IconSpinner } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
 import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
 import { SearchView } from "./components/search/SearchView";
@@ -12,10 +12,11 @@ import { DailyReaderView } from "./components/personal/DailyReaderView";
 import { WowAnalysisView } from "./components/insights/WowAnalysisView";
 import { ReviewBuilderView } from "./components/review/ReviewBuilderView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
+import { GraphView } from "./components/graph/GraphView";
 import { ToastProvider } from "./components/shared/Toast";
 import { api } from "./lib/api";
 
-type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "settings";
+type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "graph" | "settings";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -35,6 +36,16 @@ function App() {
   const [backendUnavailable, setBackendUnavailable] = useState(false);
   const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
   const retryCountRef = React.useRef(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem("researchmind:sidebar-collapsed") === "true"; } catch { return false; }
+  });
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem("researchmind:sidebar-collapsed", String(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     checkFirstRun();
@@ -206,23 +217,33 @@ function App() {
     <ToastProvider>
     <div className="app-container">
       {/* Sidebar */}
-      <aside className="app-sidebar">
+      <aside className={`app-sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
         <div className="sidebar-brand">
           <IconBrain size={26} className="icon-gradient" style={{ marginRight: 8 }} />
-          <span className="brand-text">ResearchMind</span>
+          <span className="brand-text">{sidebarCollapsed ? "RM" : "ResearchMind"}</span>
+          <button
+            className={`sidebar-collapse-btn${sidebarCollapsed ? " collapsed" : ""}`}
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points={sidebarCollapsed ? "9 18 15 12 9 6" : "15 18 9 12 15 6"} />
+            </svg>
+          </button>
         </div>
         
         <nav className="sidebar-menu">
           {[
-            { tab: "wow" as Tab, icon: IconSparkle, label: "Phân tích tài liệu AI" },
+            { tab: "wow" as Tab, icon: IconSparkle, label: "Phân tích" },
             { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
             { tab: "highlights" as Tab, icon: IconBookmark, label: "Đoạn trích" },
             { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
             { tab: "insights" as Tab, icon: IconBulb, label: "Insights" },
-            { tab: "review" as Tab, icon: IconBookOpen, label: "Review Builder" },
+            { tab: "review" as Tab, icon: IconBookOpen, label: "Review" },
             { tab: "brain" as Tab, icon: IconBrain, label: "Bộ não" },
             { tab: "daily" as Tab, icon: IconCalendar, label: "Đọc hôm nay" },
+            { tab: "graph" as Tab, icon: IconGraph, label: "Graph" },
             { tab: "settings" as Tab, icon: IconSettings, label: "Cài đặt" },
           ].map(({ tab, icon: Icon, label }) => (
             <button
@@ -241,22 +262,25 @@ function App() {
                 }
                 setActiveTab(tab);
               }}
+              title={sidebarCollapsed ? label : undefined}
             >
-              <Icon size={18} style={{ marginRight: 12 }} />
-              <span>{label}</span>
+              <Icon size={20} />
+              <span className="sidebar-label">{label}</span>
             </button>
           ))}
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="sidebar-local-info">
-            <IconLock size={12} style={{ marginRight: 6 }} />
-            <span>Dữ liệu cục bộ</span>
+        {!sidebarCollapsed && (
+          <div className="sidebar-footer">
+            <div className="sidebar-local-info">
+              <IconLock size={12} style={{ marginRight: 6 }} />
+              <span>Dữ liệu cục bộ</span>
+            </div>
+            <div className="sidebar-version">
+              v0.2.0
+            </div>
           </div>
-          <div className="sidebar-version">
-            v0.2.0
-          </div>
-        </div>
+        )}
       </aside>
 
       {/* Main content area */}
@@ -298,6 +322,7 @@ function App() {
         {activeTab === "review" && <ReviewBuilderView />}
         {activeTab === "brain" && <PersonalBrainView />}
         {activeTab === "daily" && <DailyReaderView />}
+        {activeTab === "graph" && <GraphView />}
         {activeTab === "settings" && <SettingsView />}
       </main>
     </div>

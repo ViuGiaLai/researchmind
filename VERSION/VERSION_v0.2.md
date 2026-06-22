@@ -254,7 +254,7 @@ def _call_with_retry(self, fn, *args, max_retries=1, **kwargs):
 
 ```powershell
 # Set số GPU layers khi chạy llama-server
-llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080 -ngl 20
+llama-server.exe -m Qwen3-4B-Q4_K_M.gguf -c 2048 --port 8080 -ngl 20
 
 # Kiểm tra
 # → nếu thấy "llm_load_tensors: offloaded 20/24 layers to GPU" trong log là thành công

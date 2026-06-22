@@ -1,4 +1,78 @@
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { IconBrain } from "../Icons";
+
+interface ThinkingBlockProps {
+  text: string;
+  isThinking: boolean;
+}
+
+const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  return (
+    <div
+      className="thinking-block"
+      style={{
+        borderLeft: "3px solid var(--color-primary, #2dd4bf)",
+        background: "var(--color-surface, #141414)",
+        border: "1px solid var(--color-border, #282828)",
+        borderLeftColor: "var(--color-primary, #2dd4bf)",
+        padding: "10px 14px",
+        borderRadius: "var(--radius-sm, 6px)",
+        margin: "8px 0",
+        fontSize: "0.88em",
+        color: "var(--color-text-secondary, #a3a3a3)",
+      }}
+    >
+      <div
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+          userSelect: "none",
+          fontWeight: 500,
+          color: "var(--color-primary, #2dd4bf)",
+        }}
+      >
+        {isCollapsed ? <ChevronRight size={14} style={{ display: "inline" }} /> : <ChevronDown size={14} style={{ display: "inline" }} />}
+        <IconBrain size={16} style={{ filter: "grayscale(30%)", display: "inline" }} />
+        <span>
+          {isThinking ? "AI đang suy nghĩ..." : "Chuỗi suy luận (Thinking Process)"}
+        </span>
+        {isThinking && (
+          <span
+            style={{
+              fontSize: "0.85em",
+              color: "var(--color-text-muted, #737373)",
+              fontStyle: "italic",
+            }}
+          >
+            (đang tạo...)
+          </span>
+        )}
+      </div>
+      {!isCollapsed && (
+        <div
+          style={{
+            marginTop: 8,
+            paddingTop: 8,
+            borderTop: "1px solid var(--color-border, #282828)",
+            whiteSpace: "pre-wrap",
+            fontFamily: "var(--font-mono, monospace)",
+            fontSize: "0.9em",
+            color: "var(--color-text-secondary, #a3a3a3)",
+            lineHeight: 1.6,
+          }}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface Segment {
   type: "text" | "bold" | "italic" | "code" | "citation";
@@ -195,7 +269,24 @@ interface MarkdownRendererProps {
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
-  const lines = text.split("\n");
+  let thinkingContent = "";
+  let mainContent = text;
+  let isThinkingActive = false;
+
+  const thinkStartIndex = text.indexOf("<think>");
+  if (thinkStartIndex !== -1) {
+    const thinkEndIndex = text.indexOf("</think>", thinkStartIndex + 7);
+    if (thinkEndIndex !== -1) {
+      thinkingContent = text.slice(thinkStartIndex + 7, thinkEndIndex).trim();
+      mainContent = text.slice(0, thinkStartIndex) + text.slice(thinkEndIndex + 8);
+    } else {
+      thinkingContent = text.slice(thinkStartIndex + 7).trim();
+      mainContent = text.slice(0, thinkStartIndex);
+      isThinkingActive = true;
+    }
+  }
+
+  const lines = mainContent.split("\n");
   const elements: React.ReactNode[] = [];
 
   let inCodeBlock = false;
@@ -379,5 +470,14 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
   }
   flushList();
 
-  return React.createElement(React.Fragment, null, ...wrapped);
+  const renderedMain = React.createElement(React.Fragment, null, ...wrapped);
+  if (thinkingContent) {
+    return React.createElement(
+      React.Fragment,
+      null,
+      React.createElement(ThinkingBlock, { text: thinkingContent, isThinking: isThinkingActive }),
+      renderedMain
+    );
+  }
+  return renderedMain;
 };

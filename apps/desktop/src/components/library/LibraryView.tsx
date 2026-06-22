@@ -1070,6 +1070,23 @@ export const LibraryView: React.FC<{
                       </span>
                     </div>
                   )}
+
+                  {activePaper.layout_stats && (
+                    <div className="metadata-item">
+                      <span className="metadata-label">Bố cục</span>
+                      <span className="metadata-value">
+                        {(() => {
+                          const stats = activePaper.layout_stats;
+                          const pages = Object.keys(stats);
+                          const colCounts = pages.map(p => stats[p].columns);
+                          const avgCols = colCounts.reduce((a, b) => a + b, 0) / colCounts.length;
+                          const multiPageCount = pages.filter(p => stats[p].multicolumn).length;
+                          if (avgCols <= 1) return "1 cột";
+                          return `${Math.round(avgCols * 10) / 10} cột (TB) · ${multiPageCount}/${pages.length} trang đa cột`;
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : previewTab === "related" ? (

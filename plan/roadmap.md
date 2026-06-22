@@ -314,8 +314,8 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 - [ ] Đã cài Python 3.11+ (`python --version`)?
 - [ ] Đã cài Node.js 20+ (`node --version`)?
 - [ ] Đã cài pnpm (`pnpm --version`)?
-- [ ] Đã tải GGUF model (`Qwen2.5-3B-Instruct-Q4_K_M.gguf`)?
-- [ ] Đã chạy llama-server: `llama-server.exe -m Qwen2.5-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`?
+- [ ] Đã tải GGUF model (`Qwen3-4B-Q4_K_M.gguf`)?
+- [ ] Đã chạy llama-server: `llama-server.exe -m Qwen3-4B-Q4_K_M.gguf -c 2048 --port 8080`?
 - [ ] Đã cài Rust (cho Tauri): `rustc --version`?
 - [ ] Đã build thử app: `cd apps/desktop && pnpm tauri dev`?
 

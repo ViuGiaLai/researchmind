@@ -60,6 +60,8 @@ from routers.verify import router as verify_router
 from routers.academic import router as academic_router
 from routers.collections import router as collections_router
 from routers.review import router as review_router
+from routers.research import router as research_router
+from graph.router import router as graph_router
 
 
 # ─── Lifespan ────────────────────────────────────────────────────
@@ -120,6 +122,9 @@ def _migrate_auto_summary(engine):
             if "is_scanned" not in columns:
                 conn.execute(text("ALTER TABLE papers ADD COLUMN is_scanned INTEGER DEFAULT 0"))
                 logger.info("Migration: Added is_scanned column to papers table")
+            if "layout_stats" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN layout_stats TEXT DEFAULT '{}'"))
+                logger.info("Migration: Added layout_stats column to papers table")
             conn.commit()
     except Exception as e:
         logger.warning(f"Paper schema migration skipped (may already exist): {e}")
@@ -214,6 +219,13 @@ async def lifespan(app: FastAPI):
         custom_cloud_provider=settings.custom_cloud_provider,
         local_max_tokens=settings.local_max_tokens,
     )
+    # Initialize knowledge graph store
+    from graph.storage import GraphStore
+    graph_path = settings.data_dir / "graph" / "knowledge_graph.json"
+    state._graph_store = GraphStore(path=graph_path)
+    state._graph_store.load()
+    logger.info(f"Knowledge graph store initialized: {state._graph_store.graph.stats()}")
+
     logger.info("RAG pipeline initialized")
     logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
 
@@ -267,6 +279,8 @@ app.include_router(verify_router)
 app.include_router(academic_router)
 app.include_router(collections_router)
 app.include_router(review_router)
+app.include_router(research_router)
+app.include_router(graph_router)
 
 
 # ─── Global Exception Handler ────────────────────────────────────

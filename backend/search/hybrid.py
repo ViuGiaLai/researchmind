@@ -94,10 +94,11 @@ class HybridSearch:
         t1 = time.time()
         logger.debug(f"BM25 search: {len(bm25_results)} results in {t1-t0:.2f}s")
 
-        # Step 2: Vector search
+        # Step 2: Vector search (with optional MMR diversity)
         logger.debug(f"Vector search: '{query}'")
         query_embedding = self._embed_query_cached(query)
-        vector_results = self.vector.search(query_embedding, paper_ids, top_k=10)
+        mmr_lambda = getattr(settings, "mmr_lambda", None)
+        vector_results = self.vector.search(query_embedding, paper_ids, top_k=10, mmr_lambda=mmr_lambda)
         t2 = time.time()
         logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
 

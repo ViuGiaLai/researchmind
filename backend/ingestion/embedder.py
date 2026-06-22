@@ -60,11 +60,22 @@ class Embedder:
             torch.set_num_threads(max(1, min(4, num_cores // 2)))
             logger.info(f"PyTorch CPU threads set to {torch.get_num_threads()}")
 
-        self._model = SentenceTransformer(
-            self.model_name,
-            model_kwargs={"low_cpu_mem_usage": False, "trust_remote_code": True},
-            device="cpu" if not torch.cuda.is_available() else "cuda",
-        )
+        try:
+            self._model = SentenceTransformer(
+                self.model_name,
+                model_kwargs={"low_cpu_mem_usage": False, "trust_remote_code": True},
+                device="cpu" if not torch.cuda.is_available() else "cuda",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to load model from Hugging Face: {e}")
+            logger.info("Retrying via hf-mirror.com (Asia mirror)...")
+            os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+            self._model = SentenceTransformer(
+                self.model_name,
+                model_kwargs={"low_cpu_mem_usage": False, "trust_remote_code": True},
+                device="cpu" if not torch.cuda.is_available() else "cuda",
+            )
+            logger.info("Model loaded via hf-mirror.com mirror")
         logger.info(f"Local model loaded. Dimension: {self._model.get_sentence_embedding_dimension()}")
 
     def embed(self, texts: list[str]) -> list[list[float]]:
@@ -141,8 +152,14 @@ class Embedder:
         self._load_model()
         if self._mode == "cloud":
             return self._embed_gemini(texts)
-        prefixed = [f"Represent this sentence for searching relevant passages: {t}" for t in texts]
-        embeddings = self._model.encode(prefixed, normalize_embeddings=True, show_progress_bar=False)
+        # Use configurable instruction format (FlagEmbedding-inspired)
+        query_inst = getattr(settings, "query_instruction", "").strip()
+        if query_inst:
+            prefixed = [query_inst.replace("{}", t) for t in texts]
+        else:
+            prefixed = texts
+        normalize = getattr(settings, "normalize_embeddings", True)
+        embeddings = self._model.encode(prefixed, normalize_embeddings=normalize, show_progress_bar=False)
         return embeddings.tolist()
 
     def embed_query(self, query: str) -> list[float]:

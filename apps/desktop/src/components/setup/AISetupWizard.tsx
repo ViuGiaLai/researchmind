@@ -33,7 +33,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
   const [specsLoading, setSpecsLoading] = useState(true);
   const [llamaServerUrl, setLlamaServerUrl] = useState("http://127.0.0.1:8080");
-  const [localModel, setLocalModel] = useState("Qwen2.5-3B-Instruct-Q4_K_M.gguf");
+  const [localModel, setLocalModel] = useState("Qwen3-4B-Q4_K_M.gguf");
   const [localConnected, setLocalConnected] = useState<boolean | null>(null);
   const [deepseekApiKey, setDeepseekApiKey] = useState("");
   const [geminiApiKey, setGeminiApiKey] = useState("");
@@ -55,7 +55,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
       const s = await api.detectSpecs();
       setSpecs(s);
     } catch {
-      setSpecs({ total_ram_gb: 8, cpu_cores: 4, suggested_tier: "medium", suggested_model: "Qwen2.5-3B-Instruct-Q4_K_M.gguf" });
+      setSpecs({ total_ram_gb: 8, cpu_cores: 4, suggested_tier: "medium", suggested_model: "Qwen3-4B-Q4_K_M.gguf" });
     } finally {
       setSpecsLoading(false);
     }
