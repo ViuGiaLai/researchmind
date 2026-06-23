@@ -75,9 +75,10 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
 };
 
 interface Segment {
-  type: "text" | "bold" | "italic" | "code" | "citation";
+  type: "text" | "bold" | "italic" | "code" | "citation" | "ref_citation";
   text: string;
   page?: string | null;
+  refId?: number;
 }
 
 function parseInline(text: string): (string | Segment)[] {
@@ -85,7 +86,19 @@ function parseInline(text: string): (string | Segment)[] {
   let remaining = text;
 
   while (remaining.length > 0) {
-    // citations first: [Source] or [Source, trang X]
+    // ref citations first: [N] format (e.g., [1], [2], [3])
+    const refCiteMatch = remaining.match(/^\[(\d+)\]/);
+    if (refCiteMatch) {
+      parts.push({
+        type: "ref_citation",
+        text: refCiteMatch[1],
+        refId: parseInt(refCiteMatch[1], 10),
+      });
+      remaining = remaining.slice(refCiteMatch[0].length);
+      continue;
+    }
+
+    // legacy citations: [Source] or [Source, trang X]
     const citeMatch = remaining.match(/^\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]/);
     if (citeMatch) {
       parts.push({
@@ -141,7 +154,7 @@ function parseInline(text: string): (string | Segment)[] {
   return parts;
 }
 
-function renderSegment(seg: string | Segment, i: number): React.ReactNode {
+function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refId: number) => void, allCitations?: CitationTooltip[]): React.ReactNode {
   if (typeof seg === "string") {
     return seg;
   }
@@ -165,6 +178,32 @@ function renderSegment(seg: string | Segment, i: number): React.ReactNode {
         },
         seg.text
       );
+    case "ref_citation":
+      const citeData = allCitations?.find(c => c.ref_id === seg.refId);
+      const tooltipLines = [
+        citeData?.paper_title || `Nguồn ${seg.refId}`,
+        citeData?.page ? `Trang ${citeData.page}` : null,
+        citeData?.text_snippet ? `"${citeData.text_snippet}"` : null,
+        citeData ? "Nhấp để mở PDF" : null,
+      ].filter(Boolean).join(" | ");
+      return React.createElement(
+        "span",
+        {
+          key: i,
+          className: "citation-ref",
+          onClick: () => onCitationClick?.(seg.refId!),
+          title: tooltipLines || `Nguồn ${seg.refId}`,
+          style: {
+            color: "var(--color-primary, #6366f1)",
+            fontWeight: 600,
+            fontSize: "0.78em",
+            cursor: "pointer",
+            padding: "0 2px",
+            position: "relative",
+          },
+        },
+        `[${seg.refId}]`
+      );
     case "citation":
       return React.createElement(
         "span",
@@ -184,7 +223,7 @@ function renderSegment(seg: string | Segment, i: number): React.ReactNode {
   }
 }
 
-function renderLine(line: string, i: number): React.ReactNode {
+function renderLine(line: string, i: number, onCitationClick?: (refId: number) => void, allCitations?: CitationTooltip[]): React.ReactNode {
   // code block fences
   if (line.startsWith("```")) {
     return null; // handled by code block renderer
@@ -195,7 +234,7 @@ function renderLine(line: string, i: number): React.ReactNode {
   if (headingMatch) {
     const level = headingMatch[1].length;
     const inner = parseInline(headingMatch[2]).map((s, j) =>
-      renderSegment(s, j)
+      renderSegment(s, j, onCitationClick, allCitations)
     );
     const Tag = `h${level}` as keyof JSX.IntrinsicElements;
     return React.createElement(
@@ -216,7 +255,7 @@ function renderLine(line: string, i: number): React.ReactNode {
   const ulMatch = line.match(/^[-*]\s+(.+)/);
   if (ulMatch) {
     const inner = parseInline(ulMatch[1]).map((s, j) =>
-      renderSegment(s, j)
+      renderSegment(s, j, onCitationClick, allCitations)
     );
     return React.createElement("li", { key: i }, ...inner);
   }
@@ -225,7 +264,7 @@ function renderLine(line: string, i: number): React.ReactNode {
   const olMatch = line.match(/^(\d+)\.\s+(.+)/);
   if (olMatch) {
     const inner = parseInline(olMatch[2]).map((s, j) =>
-      renderSegment(s, j)
+      renderSegment(s, j, onCitationClick, allCitations)
     );
     return React.createElement("li", { key: i, value: parseInt(olMatch[1]) }, ...inner);
   }
@@ -257,18 +296,27 @@ function renderLine(line: string, i: number): React.ReactNode {
 
   // normal paragraph
   if (line.trim()) {
-    const inner = parseInline(line).map((s, j) => renderSegment(s, j));
+    const inner = parseInline(line).map((s, j) => renderSegment(s, j, onCitationClick, allCitations));
     return React.createElement("p", { key: i, style: { margin: "4px 0" } }, ...inner);
   }
 
   return null;
 }
 
-interface MarkdownRendererProps {
-  text: string;
+interface CitationTooltip {
+  ref_id: number;
+  paper_title?: string;
+  page?: number | null;
+  text_snippet?: string;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
+interface MarkdownRendererProps {
+  text: string;
+  onCitationClick?: (refId: number) => void;
+  citations?: CitationTooltip[];
+}
+
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCitationClick, citations }) => {
   let thinkingContent = "";
   let mainContent = text;
   let isThinkingActive = false;
@@ -333,7 +381,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
       continue;
     }
 
-    const rendered = renderLine(line, i);
+    const rendered = renderLine(line, i, onCitationClick, citations);
     if (rendered !== null) {
       elements.push(rendered);
     }
@@ -356,7 +404,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text }) => {
 
     const styleCell = (label: string, ci: number, isHeader: boolean) => {
       const parsed = parseInline(label).map((s, j) =>
-        renderSegment(s, j)
+        renderSegment(s, j, onCitationClick, citations)
       );
       return React.createElement(isHeader ? "th" : "td", {
         key: ci,

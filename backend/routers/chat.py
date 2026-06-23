@@ -12,7 +12,7 @@ from academic.paper_check import check_papers_ready
 from app_state import state
 from config.settings import settings
 from db.database import get_session
-from db.models import ChatHistory, CollectionPaper
+from db.models import ChatHistory, CollectionPaper, Paper
 
 router = APIRouter(prefix="/api", tags=["Chat"])
 
@@ -44,7 +44,12 @@ def _put_chat_cache(key: str, value: dict) -> None:
 def _stream_cached_chat(cached: dict):
     yield f"data: {json.dumps({'status': 'Trả lời từ cache...'})}\n\n"
     yield f"data: {json.dumps({'chunk': cached.get('answer', '')})}\n\n"
-    yield f"data: {json.dumps({'done': True, 'model_used': cached.get('model_used', 'cache'), 'citations': cached.get('citations', [])})}\n\n"
+    yield f"data: {json.dumps({
+        'done': True,
+        'model_used': cached.get('model_used', 'cache'),
+        'citations': cached.get('citations', []),
+        'modified_content': cached.get('modified_content', cached.get('answer', '')),
+    })}\n\n"
 
 
 def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
@@ -60,6 +65,184 @@ def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
         ]
     finally:
         session.close()
+
+
+def _build_paper_title_map(paper_ids: list[str] | None) -> dict[str, str]:
+    """Build a mapping from paper title/filename → paper_id for lookups."""
+    if not paper_ids:
+        return {}
+    session = get_session(state.engine)
+    try:
+        papers = session.query(Paper.id, Paper.title, Paper.filename).filter(
+            Paper.id.in_(paper_ids)
+        ).all()
+        mapping = {}
+        for pid, title, filename in papers:
+            if title:
+                mapping[title.strip().lower()] = pid
+            if filename:
+                mapping[filename.strip().lower()] = pid
+            mapping[pid] = pid  # also map id→id for direct use
+        return mapping
+    finally:
+        session.close()
+
+
+def _build_chunk_map(context_text: str) -> dict[tuple[str, int | None], dict]:
+    """Parse context_text to build (source, page) → {text_snippet, paper_title}."""
+    chunk_map: dict[tuple[str, int | None], dict] = {}
+    lines = context_text.split("\n")
+
+    current_source = None
+    current_page: int | None = None
+    current_title = None
+    current_lines: list[str] = []
+
+    def flush():
+        if current_source is not None:
+            text = "\n".join(current_lines).strip()
+            key = (current_source, current_page)
+            if text and key not in chunk_map:
+                entry = {
+                    "text_snippet": text[:500],
+                    "paper_title": current_title or current_source,
+                }
+                chunk_map[key] = entry
+                # Also index by UUID part if source starts with UUID
+                uuid_m = re.match(r'^([0-9a-f-]{36})', current_source)
+                if uuid_m:
+                    uuid_key = (uuid_m.group(1), current_page)
+                    if uuid_key not in chunk_map:
+                        chunk_map[uuid_key] = entry
+
+    for line in lines:
+        # Section header: ### 📄 Paper Title
+        title_match = re.match(r'^###\s+.*?\b(.+)$', line)
+        if title_match:
+            current_title = title_match.group(1).strip()
+            # Strip leading icon if any
+            current_title = re.sub(r'^[^\w]+', '', current_title).strip()
+            continue
+
+        # Citation entry: [Source] or [Source] (trang N)
+        cite_match = re.match(r'^\[([^\]]+?)\](?:\s*\(trang\s*(\d+)\))?$', line.strip())
+        if cite_match:
+            flush()
+            current_source = cite_match.group(1).strip()
+            current_page = int(cite_match.group(2)) if cite_match.group(2) else None
+            current_lines = []
+            continue
+
+        # Skip separators and empty lines
+        if line.startswith("---") or line.startswith("Dưới đây"):
+            continue
+
+        if current_source is not None and line.strip():
+            current_lines.append(line)
+
+    flush()
+    return chunk_map
+
+
+def _is_likely_citation(
+    source: str, page: int | None,
+    chunk_map: dict, paper_title_map: dict,
+) -> bool:
+    """Heuristic filter: is this [source] actually a paper citation, not a false positive?"""
+    if page is not None:
+        return True
+    if (source, page) in chunk_map:
+        return True
+    if source.lower() in paper_title_map or source in paper_title_map:
+        return True
+    if re.match(r'^[0-9a-f-]{36}', source):
+        return True
+    # Exclude obvious non-citations
+    if source.upper() in ("REDACTED", "DONE", "OBJECT", "ARRAY"):
+        return False
+    return False
+
+
+def _process_citations(
+    full_response: str,
+    citations: list[dict],
+    paper_title_map: dict[str, str] | None = None,
+    chunk_map: dict[tuple[str, int | None], dict] | None = None,
+) -> tuple[str, list[dict]]:
+    """Number citations, deduplicate, replace inline [Source, trang X] with [N].
+
+    Returns:
+        Tuple of (modified_response, deduplicated_citations_with_ref_id).
+    """
+    paper_title_map = paper_title_map or {}
+    chunk_map = chunk_map or {}
+
+    # Filter out false-positive citations (error messages, etc.)
+    citations = [
+        c for c in citations
+        if _is_likely_citation(c.get("source", "").strip(), c.get("page"), chunk_map, paper_title_map)
+    ]
+
+    # First pass: deduplicate, assign ref_id, resolve paper_id
+    seen: dict[tuple[str, int | None], int] = {}
+    unique_citations: list[dict] = []
+
+    for c in citations:
+        source = c.get("source", "").strip()
+        page = c.get("page")
+        key = (source, page)
+
+        if key not in seen:
+            ref_id = len(unique_citations) + 1
+            seen[key] = ref_id
+
+            # Resolve paper_id: try full source → UUID prefix → direct match
+            paper_id = paper_title_map.get(source.lower()) or paper_title_map.get(source, "")
+            uuid_m = re.match(r'^([0-9a-f-]{36})', source)
+            if uuid_m:
+                extracted_uuid = uuid_m.group(1)
+                if not paper_id:
+                    paper_id = paper_title_map.get(extracted_uuid, "")
+                # Also look up chunk data by UUID-prefixed key
+                uuid_key = (extracted_uuid, page)
+                if uuid_key in chunk_map and key not in chunk_map:
+                    key = uuid_key
+
+            chunk_data = chunk_map.get(key, {})
+            text_snippet = chunk_data.get("text_snippet", "")
+            paper_title = chunk_data.get("paper_title", "")
+
+            # If paper_title still empty, derive clean display name from source
+            if not paper_title:
+                # Try filename part after UUID
+                if uuid_m:
+                    paper_title = source[len(uuid_m.group(1)):].lstrip("_- ")
+                else:
+                    paper_title = source
+
+            unique_citations.append({
+                "source": source,
+                "page": page,
+                "text": c.get("text", ""),
+                "ref_id": ref_id,
+                "paper_id": paper_id,
+                "paper_title": paper_title,
+                "text_snippet": text_snippet,
+            })
+        else:
+            ref_id = seen[key]
+
+        c["ref_id"] = ref_id
+
+    # Second pass: replace [Source, trang X] with [N] (longest first)
+    sorted_cites = sorted(citations, key=lambda x: len(x.get("text", "")), reverse=True)
+    modified_response = full_response
+    for c in sorted_cites:
+        old_text = c.get("text", "")
+        if old_text:
+            modified_response = modified_response.replace(old_text, f"[{c['ref_id']}]", 1)
+
+    return modified_response, unique_citations
 
 
 _SIMPLE_QUESTION_MAX_LEN = 100
@@ -90,7 +273,7 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast"):
+def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
@@ -132,12 +315,17 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
                 "text": match.group(0),
             })
 
+        # Process citations: number them, replace inline text, resolve paper_ids
+        modified_content, processed_citations = _process_citations(
+            full_response, citations, paper_title_map, chunk_map
+        )
+
         db.add(ChatHistory(
             session_id=session_id,
             role="assistant",
             content=full_response,
             context_papers="[]",
-            citations=json.dumps(citations),
+            citations=json.dumps(processed_citations),
             model_used=model_used,
         ))
         db.commit()
@@ -147,11 +335,12 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
     finally:
         db.close()
 
-    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': citations})}\n\n"
+    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content})}\n\n"
     if cache_key:
         _put_chat_cache(cache_key, {
             "answer": full_response,
-            "citations": citations,
+            "modified_content": modified_content,
+            "citations": processed_citations,
             "model_used": model_used,
             "papers_used": paper_ids or [],
             "chunks_used": timing.get("chunks_used", 0) if timing else 0,
@@ -272,6 +461,9 @@ async def chat(request: dict = Body(...)):
         retrieve_time = t2 - t1
         logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
 
+    paper_title_map = _build_paper_title_map(paper_ids)
+    chunk_map = _build_chunk_map(retrieval.context_text)
+
     if stream:
         return StreamingResponse(
             _stream_chat(
@@ -282,6 +474,8 @@ async def chat(request: dict = Body(...)):
                 {"start": t0, "retrieve": retrieve_time, "chunks_used": retrieval.total_chunks},
                 cache_key,
                 reasoning_mode,
+                paper_title_map,
+                chunk_map,
             ),
             media_type="text/event-stream",
         )
@@ -294,6 +488,13 @@ async def chat(request: dict = Body(...)):
     )
     t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")
+
+    # Process citations for non-streaming path too
+    citations = generation.citations or []
+    chunk_map = _build_chunk_map(retrieval.context_text)
+    modified_content, processed_citations = _process_citations(
+        generation.content, citations, paper_title_map, chunk_map
+    )
 
     session = get_session(state.engine)
     try:
@@ -310,7 +511,7 @@ async def chat(request: dict = Body(...)):
             role="assistant",
             content=generation.content,
             context_papers=json.dumps(retrieval.papers_used),
-            citations=json.dumps(generation.citations),
+            citations=json.dumps(processed_citations),
             model_used=generation.model_used,
         ))
         session.commit()
@@ -321,8 +522,9 @@ async def chat(request: dict = Body(...)):
         session.close()
 
     response = {
-        "answer": generation.content,
-        "citations": generation.citations,
+        "answer": modified_content,
+        "modified_content": modified_content,
+        "citations": processed_citations,
         "model_used": generation.model_used,
         "router_reason": generation.router_reason,
         "router_token_count": generation.router_token_count,

@@ -4,6 +4,7 @@ Adapted from open_deep_research (MIT):
 https://github.com/langchain-ai/open_deep_research
 """
 
+import asyncio
 from fastapi import APIRouter, Body, HTTPException
 from loguru import logger
 
@@ -49,7 +50,8 @@ async def api_deep_research(body: dict = Body(...)):
     retriever = Retriever(state.hybrid)
 
     try:
-        result: DeepResearchResult = deep_research(
+        result: DeepResearchResult = await asyncio.to_thread(
+            deep_research,
             query=query,
             retriever=retriever,
             generator=state.generator,

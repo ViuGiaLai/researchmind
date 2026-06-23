@@ -2744,6 +2744,15 @@ body {
   font-size: 0.75rem;
 }
 
+.citation-ref:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.chat-view-footnote-entry:hover {
+  border-color: var(--color-primary, #6366f1) !important;
+}
+
 .chat-view-model {
   font-size: 0.7rem;
   color: var(--color-text-muted);

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { api, ChatResponse, CitationEntry, Collection, VerifyResponse } from "../../lib/api";
+import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
@@ -23,10 +23,20 @@ import {
 import { useToast } from "../shared/Toast";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 
+interface CitationInfo {
+  source: string;
+  page: number | null;
+  text: string;
+  ref_id?: number;
+  paper_id?: string;
+  paper_title?: string;
+  text_snippet?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
-  citations?: { source: string; page: number | null; text: string }[];
+  citations?: CitationInfo[];
   model_used?: string;
   router_reason?: string;
   token_count?: number;
@@ -100,7 +110,7 @@ export const ChatView: React.FC<{
 
   useEffect(() => {
     if (paperIds.length === 1) {
-      setPdfPaperUrl(`http://127.0.0.1:8765/api/papers/${paperIds[0]}/file`);
+      setPdfPaperUrl(`${BASE_URL}/api/papers/${paperIds[0]}/file`);
       setShowPdfViewer(true);
     } else {
       setPdfPaperUrl(null);
@@ -318,13 +328,22 @@ export const ChatView: React.FC<{
           }));
         };
 
-        streamCtrl.onDone = (model, citations, router_reason, token_count) => {
+        streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content) => {
           if (resolved) return;
           resolved = true;
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, model_used: model, citations, router_reason, token_count } : m
+            i === assistantIdx
+              ? {
+                  ...m,
+                  model_used: model,
+                  citations,
+                  router_reason,
+                  token_count,
+                  content: modified_content || m.content,
+                }
+              : m
           ));
           loadUsage();
         };
@@ -724,8 +743,44 @@ export const ChatView: React.FC<{
       "Những xu hướng nghiên cứu chính trong các paper này?",
     ];
 
-  const formatContent = (text: string) => {
-    return <MarkdownRenderer text={text} />;
+  const formatContent = (text: string, msgCitations?: CitationInfo[]) => {
+    return (
+      <MarkdownRenderer
+        text={text}
+        citations={msgCitations?.map(c => ({
+          ref_id: c.ref_id || 0,
+          paper_title: c.paper_title,
+          page: c.page,
+          text_snippet: c.text_snippet,
+        }))}
+        onCitationClick={(refId) => {
+          if (!msgCitations) {
+            console.warn("[Citation] No citations for this message");
+            return;
+          }
+          const citation = msgCitations.find(c => c.ref_id === refId);
+          if (!citation) {
+            console.warn(`[Citation] ref_id=${refId} not found in citations`, msgCitations);
+            toast.addToast("error", `❌ Không tìm thấy nguồn [${refId}]`);
+            return;
+          }
+          console.log("[Citation] Clicked:", citation);
+          const paperId = citation.paper_id;
+          if (!paperId) {
+            console.warn("[Citation] paper_id is empty:", citation);
+            toast.addToast("error", `❌ Không tìm thấy paper_id cho nguồn [${refId}]`);
+            return;
+          }
+          const page = citation.page || 1;
+          const cacheBuster = Date.now();
+          const pdfUrl = `${BASE_URL}/api/papers/${paperId}/file#page=${page}&_=${cacheBuster}`;
+          console.log("[Citation] Opening PDF:", pdfUrl);
+          setPdfPaperUrl(pdfUrl);
+          setShowPdfViewer(true);
+          toast.addToast("success", `📄 Đã mở PDF trang ${page}`);
+        }}
+      />
+    );
   };
 
   const renderDebate = (text: string) => {
@@ -843,6 +898,7 @@ export const ChatView: React.FC<{
             </div>
           </div>
           <iframe
+            key={pdfPaperUrl}
             src={pdfPaperUrl}
             style={{ width: "100%", height: "calc(100% - 48px)", border: "none" }}
             title="PDF Viewer"
@@ -1234,20 +1290,110 @@ export const ChatView: React.FC<{
               ) : (
                   <>
                     <div className="chat-view-text">
-                      {formatContent(msg.content)}
+                      {formatContent(msg.content, msg.citations)}
                       {isStreaming && i === messages.length - 1 && (
                         <span className="streaming-cursor">|</span>
                       )}
                     </div>
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="chat-view-citations">
-                        <strong>📚 Nguồn:</strong>
-                        {msg.citations.map((c, j) => (
-                          <span key={j} className="chat-view-citation">
-                            [{c.source}]
-                            {c.page ? ` (trang ${c.page})` : ""}
-                          </span>
-                        ))}
+                      <div className="chat-view-footnotes" style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--color-text-muted, #94a3b8)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          Nguồn tham khảo
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          {msg.citations.map((c, j) => (
+                            <div
+                              key={j}
+                              className="chat-view-footnote-entry"
+                              onClick={() => {
+                                console.log("[Citation] Footnote clicked:", c);
+                                if (!c.ref_id) {
+                                  console.warn("[Citation] Footer: ref_id missing");
+                                  toast.addToast("error", "❌ Thiếu ref_id");
+                                  return;
+                                }
+                                if (!c.paper_id) {
+                                  console.warn("[Citation] Footer: paper_id missing:", c);
+                                  toast.addToast("error", "❌ Không tìm thấy file PDF cho nguồn này");
+                                  return;
+                                }
+                                const page = c.page || 1;
+                                const cacheBuster = Date.now();
+                                const pdfUrl = `${BASE_URL}/api/papers/${c.paper_id}/file#page=${page}&_=${cacheBuster}`;
+                                console.log("[Citation] Footer opening PDF:", pdfUrl);
+                                setPdfPaperUrl(pdfUrl);
+                                setShowPdfViewer(true);
+                                toast.addToast("success", `Đã mở PDF trang ${page}`);
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: "8px",
+                                padding: "8px 10px",
+                                borderRadius: "6px",
+                                background: "rgba(99, 102, 241, 0.04)",
+                                border: "1px solid rgba(99, 102, 241, 0.08)",
+                                cursor: c.paper_id ? "pointer" : "default",
+                                transition: "background 0.15s",
+                                fontSize: "0.82rem",
+                                lineHeight: 1.4,
+                              }}
+                              onMouseEnter={(e) => { if (c.paper_id) (e.currentTarget as HTMLDivElement).style.background = "rgba(99, 102, 241, 0.1)"; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(99, 102, 241, 0.04)"; }}
+                            >
+                              <span
+                                style={{
+                                  flexShrink: 0,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: "22px",
+                                  height: "22px",
+                                  borderRadius: "4px",
+                                  background: "var(--color-primary, #6366f1)",
+                                  color: "#fff",
+                                  fontSize: "0.7rem",
+                                  fontWeight: 700,
+                                  marginTop: "2px",
+                                }}
+                              >
+                                {c.ref_id || j + 1}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, color: "var(--color-text, #e4e4e7)", marginBottom: "1px" }}>
+                                  {c.paper_title || c.source}
+                                </div>
+                                {c.page && (
+                                  <div style={{ color: "var(--color-text-muted, #94a3b8)", fontSize: "0.78rem", marginBottom: "4px" }}>
+                                    Trang {c.page}
+                                  </div>
+                                )}
+                                {c.text_snippet && (
+                                  <div
+                                    style={{
+                                      color: "var(--color-text-secondary, #a3a3a3)",
+                                      fontSize: "0.78rem",
+                                      fontStyle: "italic",
+                                      marginBottom: "4px",
+                                      display: "-webkit-box",
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: "vertical",
+                                      overflow: "hidden",
+                                      lineHeight: 1.4,
+                                    }}
+                                  >
+                                    &ldquo;{c.text_snippet}&rdquo;
+                                  </div>
+                                )}
+                                {c.paper_id && (
+                                  <div style={{ color: "var(--color-primary, #6366f1)", fontSize: "0.75rem", fontWeight: 500 }}>
+                                    📄 Mở PDF →
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </>

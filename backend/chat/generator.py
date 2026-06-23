@@ -252,6 +252,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
         query: str,
         context_text: str,
         citations_meta: Optional[list[dict]] = None,
+        max_tokens: Optional[int] = None,
     ) -> GenerationResult:
         """
         Generate a response using the configured LLM.
@@ -317,7 +318,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 logger.warning(f"Gemini failed ({result.finish_reason}).")
             # 4. Fallback to local llama-server
             logger.warning("All cloud_free providers failed. Falling back to local model...")
-            return self._generate_local(user_prompt)
+            return self._generate_local(user_prompt, max_tokens=max_tokens)
 
         elif self.mode == "cloud_custom":
             if self.custom_cloud_provider == "deepseek":
@@ -331,7 +332,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 result = self._generate_deepseek(user_prompt, self.deepseek_api_key, is_free=False)
                 if result.finish_reason == "error":
                     logger.warning("Custom DeepSeek failed. Falling back to local model...")
-                    return self._generate_local(user_prompt)
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
             elif self.custom_cloud_provider == "gemini":
                 if not self.gemini_api_key:
@@ -344,7 +345,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 result = self._generate_gemini(user_prompt, self.gemini_api_key, is_free=False)
                 if result.finish_reason == "error":
                     logger.warning("Custom Gemini failed. Falling back to local model...")
-                    return self._generate_local(user_prompt)
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
             elif self.custom_cloud_provider == "claude":
                 if not self.claude_api_key:
@@ -357,7 +358,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 result = self._generate_claude(user_prompt)
                 if result.finish_reason == "error":
                     logger.warning("Custom Claude failed. Falling back to local model...")
-                    return self._generate_local(user_prompt)
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
             elif self.custom_cloud_provider == "groq":
                 if not self.groq_api_key:
@@ -370,7 +371,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model)
                 if result.finish_reason == "error":
                     logger.warning("Custom Groq failed. Falling back to local model...")
-                    return self._generate_local(user_prompt)
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
             elif self.custom_cloud_provider == "nvidia":
                 if not self.nvidia_api_key:
@@ -383,7 +384,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model)
                 if result.finish_reason == "error":
                     logger.warning("Custom Nvidia failed. Falling back to local model...")
-                    return self._generate_local(user_prompt)
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
             elif self.custom_cloud_provider == "freemodel":
                 if not self.freemodel_api_key:
@@ -396,16 +397,17 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model)
                 if result.finish_reason == "error":
                     logger.warning("Custom FreeModel failed. Falling back to local model...")
-                    return self._generate_local(user_prompt)
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
 
         # Local mode
-        return self._generate_local(user_prompt)
+        return self._generate_local(user_prompt, max_tokens=max_tokens)
 
     def generate_direct(
         self,
         user_prompt: str,
         system_prompt: str = "",
+        max_tokens: int = 1024,
     ) -> str:
         """
         Direct LLM call without RAG context — for research planning, compression, synthesis.
@@ -416,6 +418,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
         Args:
             user_prompt: The user message content.
             system_prompt: Optional system prompt override.
+            max_tokens: Maximum tokens for generation (default 1024).
 
         Returns:
             Generated text content, or empty string on failure.
@@ -426,6 +429,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
             result = self._generate_uncached(
                 query=user_prompt,
                 context_text="__EXTERNAL_KNOWLEDGE__",
+                max_tokens=max_tokens,
             )
             return result.content if result else ""
         finally:
@@ -676,7 +680,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
     def _apply_chat_template(system: str, user: str) -> str:
         return f"<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
 
-    def _generate_local(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_local(self, prompt: str, system_prompt_override: str = None, max_tokens: Optional[int] = None) -> GenerationResult:
         """Generate response using llama-server (local GGUF model).
 
         Uses OpenAI-compatible API first to get reasoning_content if available,
@@ -692,13 +696,14 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         content = None
         model_used = f"local/{self.local_model}"
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
+        local_ntokens = max_tokens or (self.local_max_tokens if not is_fast else 192)
         try:
             headers = {"Content-Type": "application/json"}
             payload = {
                 "model": "local",
                 "messages": messages,
                 "temperature": 0.1 if is_fast else 0.3,
-                "max_tokens": self.local_max_tokens if not is_fast else 192,
+                "max_tokens": local_ntokens,
                 "stream": False,
             }
             resp = self.http_client.post(
@@ -729,7 +734,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     f"{self.llama_server_url}/completion",
                     json={
                         "prompt": full_prompt,
-                        "n_predict": self.local_max_tokens if not is_fast else 192,
+                        "n_predict": local_ntokens,
                         "temperature": 0.1 if is_fast else 0.3,
                         "top_k": 40,
                         "top_p": 0.1 if is_fast else 0.9,

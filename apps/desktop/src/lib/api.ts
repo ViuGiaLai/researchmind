@@ -5,7 +5,7 @@
  * Backend runs at http://127.0.0.1:8765 by default.
  */
 
-const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
+export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
 
 async function request<T>(
   method: string,
@@ -77,9 +77,20 @@ export interface SearchResultCluster {
   chunks: SearchResult[];
 }
 
+export interface Citation {
+  source: string;
+  page: number | null;
+  text: string;
+  ref_id?: number;
+  paper_id?: string;
+  paper_title?: string;
+  text_snippet?: string;
+}
+
 export interface ChatResponse {
   answer: string;
-  citations: { source: string; page: number | null; text: string }[];
+  modified_content?: string;
+  citations: Citation[];
   model_used: string;
   papers_used: string[];
   chunks_used: number;
@@ -455,7 +466,7 @@ export const api = {
     const stream: {
       onChunk: ((text: string) => void) | null;
       onStatus: ((text: string) => void) | null;
-      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number) => void) | null;
+      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number, modified_content?: string) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
     } = { onChunk: null, onStatus: null, onDone: null, onError: null, abort: () => controller.abort() };
@@ -492,7 +503,7 @@ export const api = {
               try {
                 const data = JSON.parse(dataStr);
                 if (data.done) {
-                  stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0);
+                  stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "");
                 } else if (data.status !== undefined) {
                   stream.onStatus?.(data.status);
                 } else if (data.chunk !== undefined) {
