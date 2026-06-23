@@ -57,7 +57,7 @@ class HybridSearch:
             while True:
                 time.sleep(60)
                 if self._cross_encoder is not None and time.time() - self.last_used > 300:
-                    logger.info("Power Saver Mode: Unloading Cross-Encoder model to free RAM")
+                    logger.info("Power Saver Mode: Unloading BGE-Reranker model to free RAM")
                     self._cross_encoder = None
                     import gc
                     import torch
@@ -87,10 +87,11 @@ class HybridSearch:
             List of SearchResult sorted by relevance.
         """
         import time
-        # Step 1: BM25 search
+        # Step 1: BM25 search — get many candidates for reranker
         t0 = time.time()
         logger.debug(f"BM25 search: '{query}'")
-        bm25_results = self.bm25.search(query, paper_ids, top_k=10)
+        bm25_top_k = getattr(settings, "top_k_bm25", 50)
+        bm25_results = self.bm25.search(query, paper_ids, top_k=bm25_top_k)
         t1 = time.time()
         logger.debug(f"BM25 search: {len(bm25_results)} results in {t1-t0:.2f}s")
 
@@ -98,7 +99,8 @@ class HybridSearch:
         logger.debug(f"Vector search: '{query}'")
         query_embedding = self._embed_query_cached(query)
         mmr_lambda = getattr(settings, "mmr_lambda", None)
-        vector_results = self.vector.search(query_embedding, paper_ids, top_k=10, mmr_lambda=mmr_lambda)
+        vector_top_k = getattr(settings, "top_k_vector", 50)
+        vector_results = self.vector.search(query_embedding, paper_ids, top_k=vector_top_k, mmr_lambda=mmr_lambda)
         t2 = time.time()
         logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
 
@@ -197,7 +199,7 @@ class HybridSearch:
 
     def _rerank(self, query: str, results: list[dict]) -> list[dict]:
         """
-        Re-rank results using a cross-encoder model.
+        Re-rank results using BGE-Reranker-v2-M3 cross-encoder.
         """
         if not results:
             return results
@@ -210,7 +212,7 @@ class HybridSearch:
             return copy.deepcopy(cached)
 
         try:
-            model = self._get_cross_encoder()
+            model = self._get_reranker()
             if model is None:
                 return results
 
@@ -226,7 +228,7 @@ class HybridSearch:
             if len(self._rerank_cache) > self._rerank_cache_max:
                 self._rerank_cache.popitem(last=False)
         except Exception as e:
-            logger.warning(f"Cross-encoder re-ranking failed: {e}")
+            logger.warning(f"BGE-Reranker re-ranking failed: {e}")
 
         return results
 
@@ -238,17 +240,16 @@ class HybridSearch:
     def clear_rerank_cache(self):
         self._rerank_cache.clear()
 
-    def _get_cross_encoder(self):
-        """Lazy-load cross-encoder model."""
+    def _get_reranker(self):
+        """Lazy-load BGE-Reranker-v2-M3 model."""
         self.last_used = time.time()
         if self._cross_encoder is None:
             try:
                 from sentence_transformers import CrossEncoder
-                self._cross_encoder = CrossEncoder(
-                    "cross-encoder/ms-marco-MiniLM-L-6-v2"
-                )
-                logger.info("Cross-encoder model loaded")
+                model_name = getattr(settings, "reranker_model", "BAAI/bge-reranker-v2-m3")
+                self._cross_encoder = CrossEncoder(model_name)
+                logger.info(f"BGE-Reranker model loaded: {model_name}")
             except Exception as e:
-                logger.warning(f"Failed to load cross-encoder: {e}")
+                logger.warning(f"Failed to load BGE-Reranker: {e}")
                 return None
         return self._cross_encoder

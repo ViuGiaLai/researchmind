@@ -157,9 +157,35 @@ async def search(query: dict = Body(...)):
         f"total={time.time() - t0:.3f}s"
     )
 
+    from collections import OrderedDict
+    clustered: OrderedDict = OrderedDict()
+    seen_ids = set()
+    for r in results:
+        if r.chunk_id in seen_ids:
+            continue
+        seen_ids.add(r.chunk_id)
+        key = r.paper_id
+        if key not in clustered:
+            clustered[key] = {
+                "paper_id": r.paper_id,
+                "paper_title": r.paper_title,
+                "chunks": [],
+            }
+        clustered[key]["chunks"].append({
+            "chunk_id": r.chunk_id,
+            "chunk_index": r.chunk_index,
+            "content": r.content,
+            "page_number": r.page_number,
+            "score": round(r.score, 4),
+        })
+
+    for paper_data in clustered.values():
+        paper_data["chunks"].sort(key=lambda c: c.get("chunk_index", 0))
+
     return {
         "query": text,
         "total": len(results),
+        "clustered": list(clustered.values()),
         "results": [
             {
                 "chunk_id": r.chunk_id,
@@ -168,6 +194,7 @@ async def search(query: dict = Body(...)):
                 "content": r.content,
                 "page_number": r.page_number,
                 "score": round(r.score, 4),
+                "chunk_index": r.chunk_index,
             }
             for r in results
         ],

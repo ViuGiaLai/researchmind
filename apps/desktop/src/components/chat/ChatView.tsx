@@ -63,6 +63,7 @@ export const ChatView: React.FC<{
     mode: string;
   } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
   const activeChatStreamRef = useRef<{ abort: () => void } | null>(null);
 
   // Auto-cite state
@@ -76,6 +77,7 @@ export const ChatView: React.FC<{
   const [exportingSynthesis, setExportingSynthesis] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const [scope, setScope] = useState<Scope>("current");
+  const [reasoningMode, setReasoningMode] = useState<"fast" | "deep">("fast");
   const [collections, setCollections] = useState<Collection[]>([]);
   const [activeCollectionId, setActiveCollectionId] = useState("");
   const [showPaperPicker, setShowPaperPicker] = useState(false);
@@ -206,7 +208,7 @@ export const ChatView: React.FC<{
   }, [initialQuery, paperIds.join(",")]);
 
   useEffect(() => {
-    if (listRef.current) {
+    if (listRef.current && isNearBottomRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages]);
@@ -277,7 +279,7 @@ export const ChatView: React.FC<{
     try {
       if (stream && initialMode === "chat") {
         const ids = effectiveIds;
-        const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined);
+        const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined, reasoningMode);
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = messages.length + 1;
 
@@ -309,10 +311,7 @@ export const ChatView: React.FC<{
           setMessages((prev) => prev.map((m, i) => {
             if (i !== assistantIdx) return m;
             const current = m.content;
-            if (current.startsWith("Dang ")) {
-              return { ...m, content: chunk };
-            }
-            if (current === "🔍 Đang tra cứu tài liệu...") {
+            if (current.startsWith("Dang ") || current.includes("Đang")) {
               return { ...m, content: chunk };
             }
             return { ...m, content: current + chunk };
@@ -414,7 +413,7 @@ export const ChatView: React.FC<{
             };
           }
         } else {
-          res = await api.chat(text, effectiveIds, scope, scope === "collection" ? activeCollectionId : undefined);
+          res = await api.chat(text, effectiveIds, scope, scope === "collection" ? activeCollectionId : undefined, reasoningMode);
         }
         const assistantMsg: Message = {
           role: "assistant",
@@ -1101,7 +1100,11 @@ export const ChatView: React.FC<{
         )}
       </div>
 
-      <div className="chat-view-messages" ref={listRef}>
+      <div className="chat-view-messages" ref={listRef} onScroll={() => {
+        const el = listRef.current;
+        if (!el) return;
+        isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      }}>
         {messages.length === 0 && !showCitePanel && (
           <div className="chat-view-empty">
             <IconBrain size={56} className="icon-gradient" />
@@ -1415,6 +1418,13 @@ export const ChatView: React.FC<{
           rows={2}
           disabled={loading}
         />
+        <button
+          className="chat-view-mode-btn"
+          onClick={() => setReasoningMode(reasoningMode === "fast" ? "deep" : "fast")}
+          title={reasoningMode === "fast" ? "Chuyển sang chế độ Deep (suy luận sâu)" : "Chuyển sang chế độ Fast (trả lời nhanh)"}
+        >
+          {reasoningMode === "fast" ? "⚡ Fast" : "🧠 Deep"}
+        </button>
         <button
           className="chat-view-send-btn"
           onClick={() => isStreaming ? handleCancelStream() : handleSend()}

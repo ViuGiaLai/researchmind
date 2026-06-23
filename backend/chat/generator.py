@@ -13,6 +13,7 @@ import re
 import httpx
 from loguru import logger
 from config.settings import settings
+from common.text_utils import clean_thinking_content
 
 # Type hint for anthropic (optional import)
 from typing import TYPE_CHECKING
@@ -99,7 +100,11 @@ class Generator:
     def _get_system_prompt(self) -> str:
         if getattr(self, '_system_prompt_override', None):
             return self._system_prompt_override
-        return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.
+        fast_rule = ""
+        if getattr(self, 'reasoning_mode', 'fast') == "fast":
+            fast_rule = """
+6. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."""
+        return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.
 
 ## QUY TẮC NGÔN NGỮ (QUAN TRỌNG):
 - Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.
@@ -114,26 +119,29 @@ class Generator:
 - Tách section rõ ràng bằng ## và ---.
 
 ## QUY TẮC NỘI DUNG:
-1. CHỈ trả lời dựa trên thông tin trong context được cung cấp.
-2. Mọi câu trả lời PHẢI có trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].
-3. Nếu context không đủ, nói "Tôi không tìm thấy thông tin này trong tài liệu đã import."
-4. KHÔNG thêm thông tin ngoài context.
-5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."""
+1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.
+2. Nếu thông tin trong context có liên quan, PHẢI trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].
+3. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ "(kiến thức chung)" ở cuối.
+4. Với câu chào hỏi thông thường, hãy trả lời tự nhiên như một trợ lý thân thiện.
+5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng.""" + fast_rule
 
     def _get_local_system_prompt(self) -> str:
         if getattr(self, '_system_prompt_override', None):
             return self._system_prompt_override
+        fast_rule = ""
+        if getattr(self, 'reasoning_mode', 'fast') == "fast":
+            fast_rule = "\n6. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."
         return (
-            "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp.\n\n"
+            "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
             "## QUY TẮC NGÔN NGỮ:\n"
             "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
             "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n\n"
             "## QUY TẮC NỘI DUNG:\n"
-            "1. CHỈ trả lời dựa trên thông tin trong context được cung cấp.\n"
-            "2. Mọi câu trả lời PHẢI có trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].\n"
-            "3. Nếu context không đủ, nói \"Tôi không tìm thấy thông tin này trong tài liệu đã import.\"\n"
-            "4. KHÔNG thêm thông tin ngoài context.\n"
-            "5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."
+            "1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.\n"
+            "2. Nếu thông tin trong context có liên quan, PHẢI trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].\n"
+            "3. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ \"(kiến thức chung)\" ở cuối.\n"
+            "4. Với câu chào hỏi thông thường, hãy trả lời tự nhiên như một trợ lý thân thiện.\n"
+            "5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng." + fast_rule
         )
 
     def generate(
@@ -141,23 +149,20 @@ class Generator:
         query: str,
         context_text: str,
         citations_meta: Optional[list[dict]] = None,
+        reasoning_mode: str = "fast",
     ) -> GenerationResult:
+        self.reasoning_mode = reasoning_mode
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             user_prompt = query
         elif not context_text.strip() or len(context_text.strip()) < 50:
-            return GenerationResult(
-                content="Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác.",
-                citations=[],
-                model_used="none",
-                finish_reason="no_context",
-            )
+            user_prompt = query
         else:
             user_prompt = f"""Context từ tài liệu:
 {context_text}
 
 Câu hỏi: {query}
 
-Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
+Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
         import hashlib
         import json
@@ -215,6 +220,9 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
             finally:
                 session.close()
 
+        if reasoning_mode == "fast" and result.content:
+            result.content = clean_thinking_content(result.content)
+
         return result
 
     def _generate_uncached(
@@ -234,15 +242,9 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
         Returns:
             GenerationResult with content, citations, and model info.
         """
-        if not context_text.strip():
-            return GenerationResult(
-                content="Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác.",
-                citations=[],
-                model_used="none",
-                finish_reason="no_context",
-            )
-
         if context_text == "__EXTERNAL_KNOWLEDGE__":
+            user_prompt = query
+        elif not context_text.strip():
             user_prompt = query
         else:
             user_prompt = f"""Context từ tài liệu:
@@ -250,7 +252,7 @@ Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] c
 
 Câu hỏi: {query}
 
-Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
+Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
         import time
         # LLM Routing
@@ -976,26 +978,27 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         self,
         query: str,
         context_text: str,
+        reasoning_mode: str = "fast",
     ):
         """
         Generate a streaming response.
 
         Yields content chunks as they arrive from the LLM.
         """
+        self.reasoning_mode = reasoning_mode
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             user_prompt = f"""Câu hỏi: {query}
 
 Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
         elif not context_text.strip() or len(context_text.strip()) < 50:
-            yield "Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác."
-            return
+            user_prompt = query
         else:
             user_prompt = f"""Context từ tài liệu:
 {context_text}
 
 Câu hỏi: {query}
 
-Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
+Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
         self._system_prompt_override = None
 
@@ -1200,6 +1203,7 @@ Câu hỏi: {query}"""
             }
 
             in_thinking = False
+            is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
             with self.http_client.stream(
                 "POST",
                 "https://api.deepseek.com/chat/completions",
@@ -1219,21 +1223,22 @@ Câu hỏi: {query}"""
                             
                             reasoning_chunk = delta.get("reasoning_content", "")
                             content_chunk = delta.get("content", "")
+                            is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
                             
-                            if reasoning_chunk:
+                            if reasoning_chunk and not is_fast:
                                 if not in_thinking:
                                     yield "<think>\n"
                                     in_thinking = True
                                 yield reasoning_chunk
                                 
                             if content_chunk:
-                                if in_thinking:
+                                if not is_fast and in_thinking:
                                     yield "\n</think>\n"
                                     in_thinking = False
                                 yield content_chunk
                         except Exception:
                             continue
-                if in_thinking:
+                if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except Exception as e:
             logger.error(f"DeepSeek stream failed: {e}")
@@ -1259,6 +1264,7 @@ Câu hỏi: {query}"""
                 "stream": True,
             }
             in_thinking = False
+            is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
             with self.http_client.stream(
                 "POST",
                 f"{base_url.rstrip('/')}/chat/completions",
@@ -1279,20 +1285,20 @@ Câu hỏi: {query}"""
                             reasoning_chunk = delta.get("reasoning_content", "")
                             content_chunk = delta.get("content", "")
                             
-                            if reasoning_chunk:
+                            if reasoning_chunk and not is_fast:
                                 if not in_thinking:
                                     yield "<think>\n"
                                     in_thinking = True
                                 yield reasoning_chunk
                                 
                             if content_chunk:
-                                if in_thinking:
+                                if not is_fast and in_thinking:
                                     yield "\n</think>\n"
                                     in_thinking = False
                                 yield content_chunk
                         except Exception:
                             continue
-                if in_thinking:
+                if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except Exception as e:
             logger.error(f"OpenAI-compatible stream failed: {e}")
@@ -1358,6 +1364,7 @@ Câu hỏi: {query}"""
         ]
 
         in_thinking = False
+        is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
 
         # Try OpenAI-compatible API first (supports reasoning_content)
         try:
@@ -1387,19 +1394,19 @@ Câu hỏi: {query}"""
                             delta = data["choices"][0]["delta"]
                             reasoning_chunk = delta.get("reasoning_content", "")
                             content_chunk = delta.get("content", "")
-                            if reasoning_chunk:
+                            if reasoning_chunk and not is_fast:
                                 if not in_thinking:
                                     yield "<think>\n"
                                     in_thinking = True
                                 yield reasoning_chunk
                             if content_chunk:
-                                if in_thinking:
+                                if not is_fast and in_thinking:
                                     yield "\n</think>\n"
                                     in_thinking = False
                                 yield content_chunk
                         except Exception:
                             continue
-                if in_thinking:
+                if not is_fast and in_thinking:
                     yield "\n</think>\n"
                 return
         except Exception as e:
@@ -1424,6 +1431,7 @@ Câu hỏi: {query}"""
             ) as response:
                 response.raise_for_status()
                 in_thinking = False
+                is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
                 for line in response.iter_lines():
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
@@ -1433,6 +1441,9 @@ Câu hỏi: {query}"""
                             data = json.loads(data_str)
                             chunk = data.get("content", "")
                             if not chunk:
+                                continue
+                            if is_fast:
+                                yield chunk
                                 continue
                             # Parse inline <think> tags from raw text
                             while chunk:
@@ -1468,7 +1479,7 @@ Câu hỏi: {query}"""
                                         continue
                         except json.JSONDecodeError:
                             continue
-                if in_thinking:
+                if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except httpx.ConnectError:
             yield "\n⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy."

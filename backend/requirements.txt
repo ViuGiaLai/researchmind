@@ -40,6 +40,9 @@ python-louvain==0.16.*   # community detection (always available fallback)
 pytest==8.*
 pytest-asyncio==0.24.*
 
+# External Search
+duckduckgo_search==8.*
+
 # Utils
 pydantic==2.*
 pydantic-settings==2.*

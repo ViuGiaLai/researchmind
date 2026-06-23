@@ -8,7 +8,7 @@ interface ThinkingBlockProps {
 }
 
 const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(isThinking);
 
   return (
     <div
@@ -38,7 +38,7 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
         }}
       >
         {isCollapsed ? <ChevronRight size={14} style={{ display: "inline" }} /> : <ChevronDown size={14} style={{ display: "inline" }} />}
-        <IconBrain size={16} style={{ filter: "grayscale(30%)", display: "inline" }} />
+        <IconBrain size={16} style={{ display: "inline" }} className={isThinking ? "brain-icon-loading" : ""} />
         <span>
           {isThinking ? "AI đang suy nghĩ..." : "Chuỗi suy luận (Thinking Process)"}
         </span>

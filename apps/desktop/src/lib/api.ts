@@ -68,6 +68,13 @@ export interface SearchResult {
   content: string;
   page_number: number | null;
   score: number;
+  chunk_index?: number;
+}
+
+export interface SearchResultCluster {
+  paper_id: string;
+  paper_title: string;
+  chunks: SearchResult[];
 }
 
 export interface ChatResponse {
@@ -398,7 +405,7 @@ export const api = {
 
   // Search
   search: (text: string, paperIds?: string[], topK = 10, filters?: SearchFilters) =>
-    request<{ query: string; total: number; results: SearchResult[] }>("POST", "/api/search", {
+    request<{ query: string; total: number; results: SearchResult[]; clustered?: SearchResultCluster[] }>("POST", "/api/search", {
       text,
       paper_ids: paperIds,
       top_k: topK,
@@ -413,7 +420,7 @@ export const api = {
       signal,
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json() as Promise<{ query: string; total: number; results: SearchResult[] }>;
+    return res.json() as Promise<{ query: string; total: number; results: SearchResult[]; clustered?: SearchResultCluster[] }>;
   },
 
   searchSuggest: (q: string) =>
@@ -428,8 +435,8 @@ export const api = {
   },
 
   // Chat
-  chat: (message: string, paperIds?: string[], scope?: string, collectionId?: string) =>
-    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope, collection_id: collectionId }),
+  chat: (message: string, paperIds?: string[], scope?: string, collectionId?: string, reasoningMode?: string) =>
+    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope, collection_id: collectionId, reasoning_mode: reasoningMode }),
 
   chatCollection: (message: string, collectionId: string) =>
     request<ChatResponse>("POST", "/api/chat", { message, scope: "collection", collection_id: collectionId }),
@@ -440,9 +447,10 @@ export const api = {
     scope?: string,
     sessionId: string = "default",
     collectionId?: string,
+    reasoningMode?: string,
   ) => {
     const url = `${BASE_URL}/api/chat`;
-    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId, collection_id: collectionId });
+    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId, collection_id: collectionId, reasoning_mode: reasoningMode });
     const controller = new AbortController();
     const stream: {
       onChunk: ((text: string) => void) | null;

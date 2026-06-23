@@ -1226,6 +1226,9 @@ body {
   transform: scale(1.1);
   filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.5));
 }
+.brain-icon-loading {
+  animation: iconSpin 1s linear infinite, brainGlow 2s ease-in-out infinite;
+}
 @keyframes brainGlow {
   0%, 100% { filter: drop-shadow(0 1px 3px rgba(99, 102, 241, 0.3)) brightness(1); }
   50% { filter: drop-shadow(0 2px 10px rgba(99, 102, 241, 0.6)) brightness(1.08); }
@@ -2088,6 +2091,69 @@ body {
   overflow: hidden;
 }
 
+/* Search Paper Cluster */
+.search-paper-cluster {
+  margin-bottom: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.search-paper-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px var(--space-md);
+  cursor: pointer;
+  user-select: none;
+  background: var(--color-bg-subtle, #fafafa);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: background var(--transition-fast);
+}
+.search-paper-header:hover {
+  background: var(--color-highlight);
+}
+.search-paper-toggle {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  width: 12px;
+  flex-shrink: 0;
+}
+.search-paper-title {
+  flex: 1;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-paper-count {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-right: var(--space-sm);
+}
+.search-paper-best-score {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.search-paper-cluster .search-result-card {
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.search-paper-cluster .search-result-card:last-child {
+  border-bottom: none;
+}
+.search-result-page-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
 /* Search Suggestions - Clickable Cards */
 .search-suggestions-container {
   display: flex;
@@ -2923,6 +2989,30 @@ body {
 
 .chat-view-textarea::placeholder {
   color: var(--color-text-muted);
+}
+
+.chat-view-mode-btn {
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.chat-view-mode-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-highlight);
 }
 
 .chat-view-send-btn {

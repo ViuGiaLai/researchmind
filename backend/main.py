@@ -182,18 +182,18 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Search engines initialized")
 
-    def _warmup_cross_encoder():
+    def _warmup_reranker():
         time.sleep(float(os.environ.get("RESEARCHMIND_RERANKER_WARMUP_DELAY", "10")))
         warmup_t0 = time.time()
         try:
-            logger.info("Warming up cross-encoder model...")
-            state.hybrid._get_cross_encoder()
-            logger.info(f"Cross-encoder model ready in {time.time() - warmup_t0:.2f}s")
+            logger.info(f"Warming up BGE-Reranker model: {settings.reranker_model}...")
+            state.hybrid._get_reranker()
+            logger.info(f"BGE-Reranker model ready in {time.time() - warmup_t0:.2f}s")
         except Exception as e:
-            logger.error(f"Failed to load cross-encoder: {e}")
+            logger.error(f"Failed to load BGE-Reranker: {e}")
 
     if os.environ.get("RESEARCHMIND_DISABLE_RERANKER_IDLE_WARMUP", "0").lower() not in ("1", "true", "yes"):
-        threading.Thread(target=_warmup_cross_encoder, daemon=True).start()
+        threading.Thread(target=_warmup_reranker, daemon=True).start()
 
     app.state.engine = state.engine
 

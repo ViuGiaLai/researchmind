@@ -52,14 +52,17 @@ class Settings(BaseSettings):
     embedding_passage_instruction: str = ""
 
     # Search
-    top_k_bm25: int = 20
-    top_k_vector: int = 20
-    top_k_final: int = 10
+    top_k_bm25: int = 50
+    top_k_vector: int = 50
+    top_k_final: int = 50
     hybrid_alpha: float = 0.3  # 0 = pure vector, 1 = pure BM25
     rrf_k: int = 60  # Reciprocal Rank Fusion constant
 
     # RAG
     top_k_retrieval: int = 5
+
+    # BGE-Reranker
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
 
     # LLM
     provider_timeout: float = 180.0
@@ -97,8 +100,8 @@ class Settings(BaseSettings):
     freemodel_model: str = "gpt-4o-mini"
     freemodel_url: str = "https://api.freemodel.dev/v1"
     
-    # Reranking settings (disabled by default for CPU performance)
-    enable_reranker: bool = False
+    # Reranking settings (BGE cross-encoder for improved relevance)
+    enable_reranker: bool = True
 
     # MMR (Maximal Marginal Relevance): balances relevance vs diversity
     # 0.0–1.0; 1.0 = pure relevance, 0.7 = balanced, None = disabled
@@ -117,7 +120,7 @@ class Settings(BaseSettings):
     embedding_pooling: str = "cls"
 
     # Retrieval postprocessing
-    similarity_cutoff: float = 0.0
+    similarity_cutoff: float = 0.1
 
     # Response synthesis mode: "compact", "refine", "tree_summarize", "simple"
     response_mode: str = "compact"

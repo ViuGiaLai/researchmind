@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { api, Collection, SavedSearch, SearchFilters, SearchResult } from "../../lib/api";
+import { api, Collection, SavedSearch, SearchFilters, SearchResult, SearchResultCluster } from "../../lib/api";
 import {
   IconSearch,
   IconBrain,
@@ -25,6 +25,8 @@ const makeSearchCacheKey = (query: string, filters: SearchFilters) =>
 export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }> = ({ onStartChat }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [clustered, setClustered] = useState<SearchResultCluster[]>([]);
+  const [expandedPapers, setExpandedPapers] = useState<Set<string>>(new Set());
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -77,6 +79,10 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
       console.info(`SEARCH_FRONTEND_TIMING total=${(performance.now() - started).toFixed(1)}ms results=${res.results.length}`);
       searchSessionCache.set(cacheKey, res.results);
       setResults(res.results);
+      setClustered(res.clustered || []);
+      if (res.clustered) {
+        setExpandedPapers(new Set(res.clustered.map(c => c.paper_id)));
+      }
       window.setTimeout(() => setVisibleResultCount(res.results.length), 120);
     } catch (e) {
       if ((e as Error).name !== "AbortError") console.error("Search failed:", e);
@@ -347,7 +353,52 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             </div>
 
             <div className="search-results-list">
-              {results.slice(0, visibleResultCount || results.length).map((r, i) => (
+              {(clustered.length > 0 ? clustered : []).map((cluster) => {
+                const isExpanded = expandedPapers.has(cluster.paper_id);
+                return (
+                  <div key={cluster.paper_id} className="search-paper-cluster">
+                    <div
+                      className="search-paper-header"
+                      onClick={() => {
+                        const next = new Set(expandedPapers);
+                        if (isExpanded) next.delete(cluster.paper_id);
+                        else next.add(cluster.paper_id);
+                        setExpandedPapers(next);
+                      }}
+                    >
+                      <span className="search-paper-toggle">{isExpanded ? "▼" : "▶"}</span>
+                      <IconFileText size={16} style={{ marginRight: 6 }} />
+                      <span className="search-paper-title">
+                        {cluster.paper_title
+                          .replace(/^[0-9a-f-]{36}_/, '')
+                          .replace(/\+/g, ' ')
+                          .replace(/%[0-9a-fA-F]{2}/g, '')
+                          || "Không có tiêu đề"}
+                      </span>
+                      <span className="search-paper-count">{cluster.chunks.length} đoạn</span>
+                      <span className="search-paper-best-score">
+                        ⭐ {Math.max(...cluster.chunks.map(c => Math.abs(c.score))).toFixed(2)}
+                      </span>
+                    </div>
+                    {isExpanded && cluster.chunks.map((r) => (
+                      <div key={r.chunk_id} className="search-result-card" style={{ marginLeft: 24 }}>
+                        <div className="search-result-content">
+                          <div className="search-result-header">
+                            <span className="search-result-page-label">
+                              {r.page_number ? `Trang ${r.page_number}` : ""}
+                            </span>
+                            <span className="search-result-score">
+                              ⭐ {Math.abs(r.score).toFixed(2)}
+                            </span>
+                          </div>
+                          <p className="search-result-text">{r.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+              {clustered.length === 0 && results.slice(0, visibleResultCount || results.length).map((r, i) => (
                 <div key={r.chunk_id} className="search-result-card">
                   <div className="search-result-num">{i + 1}</div>
                   <div className="search-result-content">

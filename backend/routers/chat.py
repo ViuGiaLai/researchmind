@@ -74,14 +74,14 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None):
+def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast"):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
     first_token_at = None
     full_response = ""
     yield f"data: {json.dumps({'status': 'Dang ket noi model...'})}\n\n"
-    for chunk in state.generator.stream_generate(query, context_text):
+    for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode):
         if first_token_at is None:
             first_token_at = time_mod.time()
             logger.info(
@@ -159,6 +159,7 @@ async def chat(request: dict = Body(...)):
     stream = request.get("stream", False)
     session_id = request.get("session_id", "default")
     collection_id = request.get("collection_id")
+    reasoning_mode = request.get("reasoning_mode", "fast")
 
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
@@ -223,13 +224,17 @@ async def chat(request: dict = Body(...)):
 
     if scope == "external":
         from types import SimpleNamespace
+        from academic.external_search import search_external
+        t1 = time_mod.time()
+        ext_context = await search_external(message, top_k=5)
+        t2 = time_mod.time()
         retrieval = SimpleNamespace(
-            context_text="__EXTERNAL_KNOWLEDGE__",
-            total_chunks=0,
+            context_text=ext_context or "__EXTERNAL_KNOWLEDGE__",
+            total_chunks=ext_context.count("**") // 2 if ext_context else 0,
             papers_used=[],
         )
-        t2 = time_mod.time()
-        retrieve_time = 0.0
+        retrieve_time = t2 - t1
+        logger.info(f"TIMING: external_search={t2-t1:.2f}s context_len={len(ext_context)}")
     else:
         t1 = time_mod.time()
         retrieval = await asyncio.to_thread(
@@ -251,6 +256,7 @@ async def chat(request: dict = Body(...)):
                 paper_ids,
                 {"start": t0, "retrieve": retrieve_time, "chunks_used": retrieval.total_chunks},
                 cache_key,
+                reasoning_mode,
             ),
             media_type="text/event-stream",
         )
@@ -259,6 +265,7 @@ async def chat(request: dict = Body(...)):
         state.generator.generate,
         query=message,
         context_text=retrieval.context_text,
+        reasoning_mode=reasoning_mode,
     )
     t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")

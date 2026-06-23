@@ -65,6 +65,30 @@ async def get_work_by_title(title: str, timeout: float = 5.0) -> Optional[OpenAl
             return None
 
 
+async def search_works(
+    query: str,
+    limit: int = 5,
+    timeout: float = 5.0
+) -> list[dict]:
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            resp = await client.get(
+                f"{OPENALEX_BASE}/works",
+                params={
+                    "search": query,
+                    "per_page": limit,
+                    "sort": "cited_by_count:desc",
+                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index"
+                },
+                headers=HEADERS
+            )
+            if resp.status_code != 200:
+                return []
+            return resp.json().get("results", [])
+        except (httpx.TimeoutException, httpx.RequestError):
+            return []
+
+
 async def get_recent_citing_works(
     openalex_id: str,
     since_year: int = 2022,
