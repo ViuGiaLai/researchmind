@@ -288,10 +288,12 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
         elif not context_text.strip():
             user_prompt = query
         else:
-            user_prompt = f"""Context từ tài liệu:
+            # Consistent prefix for implicit Gemini caching
+            user_prompt = f"""## Context từ tài liệu:
 {context_text}
 
-Câu hỏi: {query}
+## Câu hỏi:
+{query}
 
 Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
@@ -516,10 +518,12 @@ Nếu không có dữ liệu ngoài: chỉ dùng local PDF. Nếu không đủ: 
                 finish_reason="no_context",
             )
 
-        user_prompt = f"""Context từ tài liệu và nguồn học thuật bên ngoài:
+        # Consistent prefix for implicit Gemini caching
+        user_prompt = f"""## Context từ tài liệu và nguồn học thuật bên ngoài:
 {combined_context}
 
-Câu hỏi: {query}
+## Câu hỏi:
+{query}
 
 Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. Phân biệt rõ nguồn từ local PDF và nguồn từ OpenAlex/Crossref."""
 

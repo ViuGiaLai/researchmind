@@ -791,7 +791,7 @@ export const ChatView: React.FC<{
           console.log("[Citation] Opening PDF:", pdfUrl);
           setPdfPaperUrl(pdfUrl);
           setShowPdfViewer(true);
-          toast.addToast("success", `📄 Đã mở PDF trang ${page}`);
+          toast.addToast("success", `Đã mở PDF trang ${page}`);
         }}
       />
     );
