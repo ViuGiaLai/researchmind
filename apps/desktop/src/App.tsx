@@ -277,7 +277,7 @@ function App() {
               <span>Dữ liệu cục bộ</span>
             </div>
             <div className="sidebar-version">
-              v0.2.0
+              v0.6.0
             </div>
           </div>
         )}

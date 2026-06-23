@@ -1114,7 +1114,7 @@ export const SettingsView: React.FC = () => {
           Hệ thống
         </h3>
         <div className="settings-about">
-          <p>Phiên bản: <strong>0.2.0</strong></p>
+          <p>Phiên bản: <strong>0.6.0</strong></p>
           <p>Phát triển bởi: <strong>Viu Gia Lai</strong></p>
           <p>
             Chế độ AI:{" "}

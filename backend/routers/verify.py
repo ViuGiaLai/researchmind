@@ -177,6 +177,7 @@ async def verify_research(request: VerifyRequest = Body(...)):
         query=query,
         context_text=combined_context,
         external_data_text="",
+        task_type="verify",
     )
     t_generate = time_mod.time() - t_generate
 
@@ -484,7 +485,7 @@ def _stream_verify_response(query, combined_context, external_sources_json, veri
 
     yield f"data: {json.dumps({'type': 'academic', 'data': external_sources_json, 'verify_status': verify_status})}\n\n"
 
-    for chunk in state.generator.stream_generate_verify(query, combined_context):
+    for chunk in state.generator.stream_generate_verify(query, combined_context, task_type="verify"):
         full_response += chunk
         yield f"data: {json.dumps({'type': 'chunk', 'chunk': chunk})}\n\n"
 

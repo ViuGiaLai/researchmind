@@ -16,7 +16,7 @@ from config.settings import settings
 from db.database import get_session
 from db.models import Paper, Chunk, Setting, ImportJob, CollectionPaper
 from ingestion.parser import extract_document, SUPPORTED_EXTENSIONS
-from ingestion.chunker import chunk_text
+from ingestion.chunker import SentenceSplitter
 
 router = APIRouter(prefix="/api/papers", tags=["Papers"])
 jobs_router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
@@ -409,11 +409,11 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
 
     session = get_session(state.engine)
     try:
-        chunks = chunk_text(
-            doc.text_by_page,
+        splitter = SentenceSplitter(
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
         )
+        chunks = splitter.chunk_text(doc.text_by_page)
 
         if not chunks:
             logger.warning(f"No chunks generated for {doc.filename}")
@@ -496,7 +496,8 @@ Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
 
             result = state.generator.generate(
                 query=summary_prompt,
-                context_text=summary_context
+                context_text=summary_context,
+                task_type="summary",
             )
 
             if result and result.content:
@@ -1280,6 +1281,7 @@ CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng
             state.generator.generate,
             query=highlight_prompt,
             context_text=retrieval.context_text,
+            task_type="summary",
         )
 
         highlights = []

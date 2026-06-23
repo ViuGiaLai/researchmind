@@ -13,8 +13,8 @@ Chỉ chạy test/lint cho phần code thay đổi (~2-3 phút):
 ## Khi tạo release (tag v*)
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.6.0
+git push origin v0.6.0
 ```
 
 CI sẽ:

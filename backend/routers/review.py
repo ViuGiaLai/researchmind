@@ -195,6 +195,7 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
         state.generator.generate,
         query=full_prompt,
         context_text=retrieval.context_text,
+        task_type="review",
     )
 
     citations = extract_citations(generation.content, paper_titles)
@@ -353,6 +354,7 @@ Dùng tiếng Việt cho description. Key dùng tiếng Anh không dấu, viết
         state.generator.generate,
         query=prompt,
         context_text=paper_info,
+        task_type="review",
     )
 
     content = generation.content.strip()
@@ -633,7 +635,7 @@ Trả về đúng JSON sau, không kèm văn bản khác:
 
 Đoạn trích:\n{retrieval.context_text}"""
 
-        generation = await asyncio.to_thread(state.generator.generate, query=prompt, context_text=retrieval.context_text)
+        generation = await asyncio.to_thread(state.generator.generate, query=prompt, context_text=retrieval.context_text, task_type="review")
         content = generation.content.strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -862,6 +864,7 @@ Chỉ trả về JSON array hợp lệ, không kèm văn bản khác."""
                 state.generator.generate,
                 query=prompt,
                 context_text=sections_text,
+                task_type="quality_check",
             )
             llm_issues = _parse_llm_issues(generation.content, section_list)
             all_issues.extend(llm_issues)

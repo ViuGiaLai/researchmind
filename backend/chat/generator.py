@@ -494,7 +494,9 @@ Nếu không có dữ liệu ngoài: chỉ dùng local PDF. Nếu không đủ: 
         context_text: str,
         external_data_text: str = "",
         citations_meta: Optional[list[dict]] = None,
+        task_type: str = "verify",
     ) -> GenerationResult:
+        max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         """Generate a verification response using local RAG + external academic data.
 
         Args:
@@ -533,19 +535,19 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         if mode == "cloud_free":
             # Chain: Groq → NVIDIA NIM (Kimi → DeepSeek) → Gemini → local
             if self.groq_api_key:
-                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, system_prompt_override=system_prompt)
+                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, max_tokens, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
                     return result
             if self.nvidia_api_key:
-                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, system_prompt_override=system_prompt)
+                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
                     return result
                 if self.nvidia_deepseek_api_key:
-                    result = self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, system_prompt_override=system_prompt)
+                    result = self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, system_prompt_override=system_prompt)
                     if result.finish_reason != "error":
                         return result
             if self.gemini_api_key:
-                result = self._generate_gemini(user_prompt, is_free=True, system_prompt_override=system_prompt)
+                result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=True, system_prompt_override=system_prompt)
                 if result.finish_reason != "error":
                     return result
             return self._generate_local(user_prompt, system_prompt_override=system_prompt)
@@ -553,19 +555,19 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         elif mode == "cloud_custom":
             provider = self.custom_cloud_provider
             if provider == "deepseek" and self.deepseek_api_key:
-                result = self._generate_deepseek(user_prompt, self.deepseek_api_key, system_prompt_override=system_prompt)
+                result = self._generate_deepseek(user_prompt, self.deepseek_api_key, max_tokens, system_prompt_override=system_prompt)
                 if result.finish_reason == "error":
                     logger.warning("Custom DeepSeek failed. Falling back to local model...")
                     return self._generate_local(user_prompt, system_prompt_override=system_prompt)
                 return result
             if provider == "claude" and self.claude_api_key:
-                result = self._generate_claude(user_prompt, system_prompt_override=system_prompt)
+                result = self._generate_claude(user_prompt, max_tokens, system_prompt_override=system_prompt)
                 if result.finish_reason == "error":
                     logger.warning("Custom Claude failed. Falling back to local model...")
                     return self._generate_local(user_prompt, system_prompt_override=system_prompt)
                 return result
             if provider == "gemini" and self.gemini_api_key:
-                result = self._generate_gemini(user_prompt, is_free=False, system_prompt_override=system_prompt)
+                result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False, system_prompt_override=system_prompt)
                 if result.finish_reason == "error":
                     logger.warning("Custom Gemini failed. Falling back to local model...")
                     return self._generate_local(user_prompt, system_prompt_override=system_prompt)
@@ -1063,19 +1065,25 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
         self,
         query: str,
         context_text: str,
+        task_type: str = "verify",
     ):
         if not context_text.strip() or len(context_text.strip()) < 50:
             yield "Không tìm thấy tài liệu liên quan. Vui lòng import PDF trước hoặc thử câu hỏi khác."
             return
 
+        max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         self._system_prompt_override = self._get_verify_system_prompt()
 
-        user_prompt = f"""Context:
+        # Consistent prefix for implicit Gemini caching
+        user_prompt = f"""## Context từ tài liệu và nguồn học thuật bên ngoài:
 {context_text}
 
-Câu hỏi: {query}"""
+## Câu hỏi:
+{query}
 
-        yield from self._stream_chain(user_prompt)
+Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. Phân biệt rõ nguồn từ local PDF và nguồn từ OpenAlex/Crossref."""
+
+        yield from self._stream_chain(user_prompt, max_tokens)
 
     def _set_model(self, model_str: str, token_count: int = 0) -> None:
         self.current_model = model_str

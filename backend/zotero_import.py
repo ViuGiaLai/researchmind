@@ -24,7 +24,7 @@ from config.settings import settings
 from app_state import state
 from db.database import get_session
 from db.models import Chunk, Paper
-from ingestion.chunker import chunk_text
+from ingestion.chunker import SentenceSplitter
 from ingestion.parser import extract_pdf
 
 router = APIRouter(prefix="/api/papers/import", tags=["Zotero Import"])
@@ -642,11 +642,11 @@ def _index_paper_from_zotero(file_id: str, title: str, doc):
     session = _get_db_session(state.engine)  # noqa: F821
     try:
         # Chunk
-        chunks = chunk_text(
-            doc.text_by_page,
+        splitter = SentenceSplitter(
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
         )
+        chunks = splitter.chunk_text(doc.text_by_page)
 
         if not chunks:
             logger.warning(f"No chunks for {title}")

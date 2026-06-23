@@ -280,6 +280,7 @@ Dùng markdown headings. Trả lời tiếng Việt."""
                     generation = state.generator.generate(
                         query=daily_prompt,
                         context_text=papers_context,
+                        task_type="chat",
                     )
                     if generation and generation.content and generation.finish_reason != "error":
                         daily_suggestion = {
