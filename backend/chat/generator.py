@@ -10,10 +10,11 @@ from typing import Optional
 from dataclasses import dataclass
 import json
 import re
+import threading
 import httpx
 from loguru import logger
 from config.settings import settings
-from common.text_utils import clean_thinking_content
+from common.text_utils import clean_thinking_content, redact_api_key
 
 # Type hint for anthropic (optional import)
 from typing import TYPE_CHECKING
@@ -88,6 +89,7 @@ class Generator:
         self.current_router_reason: str = ""
         self.current_token_count: int = 0
         self._http_client = None
+        self._local = threading.local()
 
     @property
     def http_client(self):
@@ -98,12 +100,13 @@ class Generator:
         return self._http_client
 
     def _get_system_prompt(self) -> str:
-        if getattr(self, '_system_prompt_override', None):
-            return self._system_prompt_override
+        override = getattr(self._local, 'system_prompt_override', None)
+        if override:
+            return override
         fast_rule = ""
-        if getattr(self, 'reasoning_mode', 'fast') == "fast":
+        if getattr(self._local, 'reasoning_mode', 'fast') == "fast":
             fast_rule = """
-6. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."""
+5. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."""
         return """Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.
 
 ## QUY TẮC NGÔN NGỮ (QUAN TRỌNG):
@@ -122,14 +125,28 @@ class Generator:
 1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.
 2. Nếu thông tin trong context có liên quan, PHẢI trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].
 3. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ "(kiến thức chung)" ở cuối.
-4. Với câu chào hỏi thông thường, hãy trả lời tự nhiên như một trợ lý thân thiện.
-5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng.""" + fast_rule
+4. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng.""" + fast_rule
+
+    @staticmethod
+    def _get_external_system_prompt() -> str:
+        return """Bạn là trợ lý AI thông thái. Trả lời ngắn gọn, trực tiếp, KHÔNG suy luận hay giải thích dài dòng.
+
+## QUY TẮC NGÔN NGỮ:
+- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.
+- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.
+- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào.
+
+## QUY TẮC NỘI DUNG:
+1. Trả lời thoải mái dựa trên kiến thức của bạn, KHÔNG cần tìm kiếm hay trích dẫn tài liệu.
+2. KHÔNG suy luận nội bộ, KHÔNG đặt câu hỏi, KHÔNG dùng thẻ <think>.
+3. Nếu không biết, nói thẳng "Tôi không có đủ thông tin."
+4. Giữ câu trả lời súc tích, đúng trọng tâm."""
 
     def _get_local_system_prompt(self) -> str:
-        if getattr(self, '_system_prompt_override', None):
-            return self._system_prompt_override
+        if getattr(self._local, 'system_prompt_override', None):
+            return self._local.system_prompt_override
         fast_rule = ""
-        if getattr(self, 'reasoning_mode', 'fast') == "fast":
+        if getattr(self._local, 'reasoning_mode', 'fast') == "fast":
             fast_rule = "\n6. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."
         return (
             "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
@@ -151,12 +168,15 @@ class Generator:
         citations_meta: Optional[list[dict]] = None,
         reasoning_mode: str = "fast",
     ) -> GenerationResult:
-        self.reasoning_mode = reasoning_mode
+        self._local.reasoning_mode = reasoning_mode
         if context_text == "__EXTERNAL_KNOWLEDGE__":
+            self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
         elif not context_text.strip() or len(context_text.strip()) < 50:
+            self._local.system_prompt_override = None
             user_prompt = query
         else:
+            self._local.system_prompt_override = None
             user_prompt = f"""Context từ tài liệu:
 {context_text}
 
@@ -220,7 +240,9 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
             finally:
                 session.close()
 
+        # Post-process: strip thinking content in fast mode
         if reasoning_mode == "fast" and result.content:
+            from common.text_utils import clean_thinking_content
             result.content = clean_thinking_content(result.content)
 
         return result
@@ -633,9 +655,10 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
             logger.error(f"Gemini generation failed: {e}")
             detail = ""
             if e.response.status_code == 400 and "API key" in e.response.text:
-                detail = " API Key không hợp lệ hoặc sai định dạng. Gemini key là chuỗi chữ-số dài, không phải OAuth token. Lấy key tại https://aistudio.google.com/app/apikey"
+                detail = " API Key không hợp lệ hoặc sai định dạng."
+            msg = redact_api_key(e.response.text[:300])
             return GenerationResult(
-                content=f"⚠️ Lỗi Gemini Cloud (HTTP {e.response.status_code}): {e.response.text[:200]}{detail}",
+                content=f"⚠️ Lỗi Gemini Cloud (HTTP {e.response.status_code}): {msg}{detail}",
                 citations=[],
                 model_used="gemini/error",
                 finish_reason="error",
@@ -643,7 +666,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}")
             return GenerationResult(
-                content=f"⚠️ Lỗi kết nối Gemini Cloud: {str(e)}",
+                content=f"⚠️ Lỗi kết nối Gemini Cloud: {redact_api_key(str(e))}",
                 citations=[],
                 model_used="gemini/error",
                 finish_reason="error",
@@ -668,29 +691,28 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         # Try OpenAI-compatible API first
         content = None
         model_used = f"local/{self.local_model}"
+        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
         try:
             headers = {"Content-Type": "application/json"}
             payload = {
                 "model": "local",
                 "messages": messages,
-                "temperature": 0.3,
-                "max_tokens": self.local_max_tokens,
+                "temperature": 0.1 if is_fast else 0.3,
+                "max_tokens": self.local_max_tokens if not is_fast else 192,
                 "stream": False,
             }
             resp = self.http_client.post(
                 f"{self.llama_server_url}/v1/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=180.0,
+                timeout=120.0,
             )
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
             msg = choice.get("message", {})
-
             raw_reasoning = msg.get("reasoning_content", "")
             raw_content = msg.get("content", "")
-
             if raw_reasoning:
                 content = f"<think>\n{raw_reasoning.strip()}\n</think>\n\n{raw_content}"
             else:
@@ -702,18 +724,19 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         if content is None:
             try:
                 full_prompt = self._apply_chat_template(sp, prompt)
+                completion_stop = ["<|im_end|>", "<|im_start|>"]
                 response = self.http_client.post(
                     f"{self.llama_server_url}/completion",
                     json={
                         "prompt": full_prompt,
-                        "n_predict": self.local_max_tokens,
-                        "temperature": 0.3,
+                        "n_predict": self.local_max_tokens if not is_fast else 192,
+                        "temperature": 0.1 if is_fast else 0.3,
                         "top_k": 40,
-                        "top_p": 0.9,
-                        "stop": ["<|im_end|>", "<|im_start|>"],
+                        "top_p": 0.1 if is_fast else 0.9,
+                        "stop": completion_stop,
                         "stream": False,
                     },
-                    timeout=180.0,
+                    timeout=120.0,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -985,22 +1008,23 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
 
         Yields content chunks as they arrive from the LLM.
         """
-        self.reasoning_mode = reasoning_mode
+        self._local.reasoning_mode = reasoning_mode
         if context_text == "__EXTERNAL_KNOWLEDGE__":
+            self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = f"""Câu hỏi: {query}
 
-Hãy trả lời câu hỏi trên bằng kiến thức học thuật tổng quan của bạn về chủ đề này. Không cần trích dẫn tài liệu học thuật nội bộ."""
+Hãy trả lời câu hỏi trên bằng kiến thức sẵn có của bạn một cách tự nhiên và thoải mái."""
         elif not context_text.strip() or len(context_text.strip()) < 50:
+            self._local.system_prompt_override = None
             user_prompt = query
         else:
+            self._local.system_prompt_override = None
             user_prompt = f"""Context từ tài liệu:
 {context_text}
 
 Câu hỏi: {query}
 
 Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
-
-        self._system_prompt_override = None
 
         yield from self._stream_chain(user_prompt)
 
@@ -1346,9 +1370,20 @@ Câu hỏi: {query}"""
                             continue
         except Exception as e:
             logger.error(f"Gemini stream failed: {e}")
-            yield f"\n⚠️ Gemini Cloud gặp sự cố ({str(e)}). Đang chuyển sang Local model...\n"
+            yield f"\n⚠️ Gemini Cloud gặp sự cố ({redact_api_key(str(e))}). Đang chuyển sang Local model...\n"
             for chunk in self._stream_local(prompt):
                 yield chunk
+
+    def _sse_lines(self, response):
+        """Read raw bytes from httpx stream and yield complete SSE lines."""
+        buffer = b""
+        for chunk in response.iter_bytes():
+            buffer += chunk
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                yield line.decode("utf-8", errors="replace").rstrip("\r")
+        if buffer.strip():
+            yield buffer.decode("utf-8", errors="replace").rstrip("\r")
 
     def _stream_local(self, prompt: str):
         """Stream response from llama-server (local GGUF model via llama.cpp).
@@ -1364,7 +1399,7 @@ Câu hỏi: {query}"""
         ]
 
         in_thinking = False
-        is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
+        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
 
         # Try OpenAI-compatible API first (supports reasoning_content)
         try:
@@ -1372,113 +1407,119 @@ Câu hỏi: {query}"""
             payload = {
                 "model": "local",
                 "messages": messages,
-                "temperature": 0.3,
-                "max_tokens": self.local_max_tokens,
+                "temperature": 0.1 if is_fast else 0.3,
+                "max_tokens": self.local_max_tokens if not is_fast else 192,
                 "stream": True,
             }
+            any_content = False
             with self.http_client.stream(
                 "POST",
                 f"{self.llama_server_url}/v1/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=180.0,
+                timeout=60.0 if is_fast else 120.0,
             ) as response:
                 response.raise_for_status()
-                for line in response.iter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
-                        if data_str == "[DONE]":
-                            break
-                        try:
-                            data = json.loads(data_str)
-                            delta = data["choices"][0]["delta"]
-                            reasoning_chunk = delta.get("reasoning_content", "")
-                            content_chunk = delta.get("content", "")
-                            if reasoning_chunk and not is_fast:
-                                if not in_thinking:
-                                    yield "<think>\n"
-                                    in_thinking = True
-                                yield reasoning_chunk
-                            if content_chunk:
-                                if not is_fast and in_thinking:
-                                    yield "\n</think>\n"
-                                    in_thinking = False
-                                yield content_chunk
-                        except Exception:
-                            continue
+                for line in self._sse_lines(response):
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                        delta = data["choices"][0]["delta"]
+                        reasoning_chunk = delta.get("reasoning_content", "")
+                        content_chunk = delta.get("content", "")
+                        if reasoning_chunk and not is_fast:
+                            if not in_thinking:
+                                yield "<think>\n"
+                                in_thinking = True
+                            yield reasoning_chunk
+                            any_content = True
+                        if content_chunk:
+                            if not is_fast and in_thinking:
+                                yield "\n</think>\n"
+                                in_thinking = False
+                            yield content_chunk
+                            any_content = True
+                    except Exception:
+                        continue
                 if not is_fast and in_thinking:
                     yield "\n</think>\n"
-                return
+                if any_content:
+                    return
         except Exception as e:
             logger.warning(f"OpenAI API on local failed ({e}), falling back to /completion...")
 
         # Fallback: native /completion endpoint — raw text with <think> tags
         try:
             full_prompt = self._apply_chat_template(sp, prompt)
+            completion_stop = ["<|im_end|>", "<|im_start|>"]
             with self.http_client.stream(
                 "POST",
                 f"{self.llama_server_url}/completion",
                 json={
                     "prompt": full_prompt,
-                    "n_predict": self.local_max_tokens,
-                    "temperature": 0.3,
+                    "n_predict": self.local_max_tokens if not is_fast else 192,
+                    "temperature": 0.1 if is_fast else 0.3,
                     "top_k": 40,
-                    "top_p": 0.9,
-                    "stop": ["<|im_end|>", "<|im_start|>"],
+                    "top_p": 0.1 if is_fast else 0.9,
+                    "stop": completion_stop,
                     "stream": True,
                 },
-                timeout=180.0,
+                timeout=60.0 if is_fast else 120.0,
             ) as response:
                 response.raise_for_status()
                 in_thinking = False
-                is_fast = getattr(self, 'reasoning_mode', 'fast') == 'fast'
-                for line in response.iter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
-                        if data_str == "[DONE]":
-                            break
-                        try:
-                            data = json.loads(data_str)
-                            chunk = data.get("content", "")
-                            if not chunk:
-                                continue
-                            if is_fast:
-                                yield chunk
-                                continue
-                            # Parse inline <think> tags from raw text
-                            while chunk:
-                                if not in_thinking:
-                                    idx = chunk.find("<think>")
-                                    if idx == -1:
-                                        # No more think tags — yield entire remaining chunk
-                                        before, rest = chunk, ""
-                                    else:
-                                        before = chunk[:idx]
-                                        rest = chunk[idx + 7:]
+                is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
+                for line in self._sse_lines(response):
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        data = json.loads(data_str)
+                        chunk = data.get("content", "")
+                        if not chunk:
+                            continue
+                        if is_fast:
+                            yield chunk
+                            continue
+                        # Parse inline <think> tags from raw text
+                        while chunk:
+                            if not in_thinking:
+                                idx = chunk.find("<think>")
+                                if idx == -1:
+                                    before, rest = chunk, ""
+                                else:
+                                    before = chunk[:idx]
+                                    rest = chunk[idx + 7:]
+                                if before:
+                                    yield before
+                                if idx != -1 and not in_thinking:
+                                    yield "<think>\n"
+                                    in_thinking = True
+                                    chunk = rest
+                                    continue
+                                chunk = rest
+                            else:
+                                idx = chunk.find("</think>")
+                                if idx == -1:
+                                    yield chunk
+                                    chunk = ""
+                                else:
+                                    before = chunk[:idx]
+                                    rest = chunk[idx + 8:]
                                     if before:
                                         yield before
-                                    if idx != -1 and not in_thinking:
-                                        yield "<think>\n"
-                                        in_thinking = True
-                                        chunk = rest
-                                        continue
+                                    yield "\n</think>\n"
+                                    in_thinking = False
                                     chunk = rest
-                                else:  # in_thinking
-                                    idx = chunk.find("</think>")
-                                    if idx == -1:
-                                        yield chunk
-                                        chunk = ""
-                                    else:
-                                        before = chunk[:idx]
-                                        rest = chunk[idx + 8:]
-                                        if before:
-                                            yield before
-                                        yield "\n</think>\n"
-                                        in_thinking = False
-                                        chunk = rest
-                                        continue
-                        except json.JSONDecodeError:
-                            continue
+                                    continue
+                    except json.JSONDecodeError:
+                        continue
                 if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except httpx.ConnectError:

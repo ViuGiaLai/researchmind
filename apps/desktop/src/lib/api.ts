@@ -908,6 +908,55 @@ export const api = {
       return res.blob();
     }),
 
+  generateOutline: (paperIds: string[], existingSections?: OutlineSection[]) =>
+    request<OutlineResponse>("POST", "/api/review/builder/outline", {
+      paper_ids: paperIds,
+      existing_sections: existingSections,
+    }),
+
+  getEvidence: (paperIds: string[], section: string, topK?: number) =>
+    request<EvidenceResponse>("POST", "/api/review/builder/evidence", {
+      paper_ids: paperIds,
+      section,
+      top_k: topK || 10,
+    }),
+
+  saveReviewDraft: (data: {
+    id?: string;
+    title: string;
+    paper_ids: string[];
+    paper_titles: string[];
+    outline_sections: OutlineSection[];
+    sections: Record<string, ReviewSection>;
+    full_text: string;
+    create_version?: boolean;
+  }) =>
+    request<{ id: string; status: string; error?: string; versions_count?: number }>("POST", "/api/review/builder/save", data),
+
+  listReviewDrafts: () =>
+    request<{ drafts: ReviewDraftSummary[] }>("GET", "/api/review/builder/drafts"),
+
+  loadReviewDraft: (draftId: string) =>
+    request<ReviewDraftData>("GET", `/api/review/builder/draft/${draftId}`),
+
+  deleteReviewDraft: (draftId: string) =>
+    request<{ status: string; error?: string }>("DELETE", `/api/review/builder/draft/${draftId}`),
+
+  listDraftVersions: (draftId: string) =>
+    request<{ versions: DraftVersionSummary[] }>("GET", `/api/review/builder/draft/${draftId}/versions`),
+
+  loadDraftVersion: (draftId: string, versionIdx: number) =>
+    request<DraftVersionData>("GET", `/api/review/builder/draft/${draftId}/versions/${versionIdx}`),
+
+  restoreDraftVersion: (draftId: string, versionIdx: number) =>
+    request<{ status: string; error?: string }>("POST", `/api/review/builder/draft/${draftId}/versions/${versionIdx}/restore`),
+
+  checkQuality: (title: string, sections: Record<string, ReviewSection>) =>
+    request<QualityCheckResponse>("POST", "/api/review/builder/check-quality", {
+      title,
+      sections,
+    }),
+
   // ─── GraphRAG ───────────────────────────────────────────
 
   buildGraph: (paperIds?: string[], entityTypes?: string[], maxGleanings?: number) =>
@@ -959,6 +1008,7 @@ export interface ReviewSection {
   chunks_used: number;
   model_used?: string;
   error?: string;
+  citations?: { paper_id: string; paper_title: string; citation_text: string }[];
 }
 
 export interface ReviewDraftResponse {
@@ -977,11 +1027,96 @@ export interface ReviewSectionResponse {
   chunks_used: number;
   model_used?: string;
   error?: string;
+  citations?: { paper_id: string; paper_title: string; citation_text: string }[];
 }
 
 export interface ReviewMatrixResponse {
   matrix: { columns: string[]; rows: string[][] };
   markdown: string;
+  error?: string;
+}
+
+export interface OutlineSection {
+  key: string;
+  title: string;
+  description: string;
+}
+
+export interface OutlineResponse {
+  sections: OutlineSection[];
+  paper_titles: string[];
+  error?: string;
+}
+
+export interface EvidenceItem {
+  chunk_id: string;
+  paper_id: string;
+  paper_title: string;
+  content: string;
+  page_number: number | null;
+  score: number;
+}
+
+export interface EvidenceResponse {
+  section: string;
+  total_chunks: number;
+  papers_used: string[];
+  evidence: EvidenceItem[];
+  error?: string;
+}
+
+export interface ReviewDraftSummary {
+  id: string;
+  title: string;
+  paper_count: number;
+  section_count: number;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface ReviewDraftData {
+  id: string;
+  title: string;
+  paper_ids: string[];
+  paper_titles: string[];
+  outline_sections: OutlineSection[];
+  sections: Record<string, ReviewSection>;
+  full_text: string;
+  created_at: string;
+  updated_at: string;
+  error?: string;
+}
+
+export interface DraftVersionSummary {
+  index: number;
+  saved_at: string;
+  title: string;
+  section_count: number;
+  paper_count: number;
+}
+
+export interface DraftVersionData {
+  title: string;
+  paper_ids: string[];
+  paper_titles: string[];
+  outline_sections: OutlineSection[];
+  sections: Record<string, ReviewSection>;
+  full_text: string;
+  saved_at: string;
+  error?: string;
+}
+
+export interface QualityIssue {
+  severity: "high" | "medium" | "low";
+  section: string;
+  type: "missing_citation" | "unsourced_claim" | "repetition" | "contradiction" | "length_too_short" | "length_too_long" | "other";
+  message: string;
+  action: "add_citation" | "trim_content" | "expand_content" | "review_conflict" | "regenerate" | "none";
+  action_label: string;
+}
+
+export interface QualityCheckResponse {
+  issues: QualityIssue[];
   error?: string;
 }
 

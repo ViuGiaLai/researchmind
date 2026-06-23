@@ -1,6 +1,8 @@
 """
 ResearchMind VN — Literature Review Builder.
 
+POST /api/review/builder/outline  → Generate dynamic outline from papers
+POST /api/review/builder/evidence → Get evidence count for a section
 POST /api/review/builder/draft    → Generate full review draft (all sections)
 POST /api/review/builder/section  → Generate/regenerate a single section
 POST /api/review/builder/matrix   → Generate comparison matrix
@@ -8,6 +10,7 @@ POST /api/review/builder/export   → Export full review as DOCX/HTML/Markdown
 """
 import asyncio
 import json
+import re
 from datetime import datetime
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import StreamingResponse
@@ -16,7 +19,7 @@ from loguru import logger
 from app_state import state
 from academic.paper_check import check_papers_ready
 from db.database import get_session
-from db.models import Paper
+from db.models import Paper, ReviewDraft
 
 router = APIRouter(prefix="/api/review/builder", tags=["review"])
 
@@ -130,6 +133,33 @@ Viết khoảng 200-400 từ, văn phong học thuật. Sử dụng trích dẫn
 }
 
 
+# ─── Citation Extraction ─────────────────────────────────────
+
+def extract_citations(content: str, paper_titles: dict[str, str]) -> list[dict]:
+    """Parse [Paper Name] citations from generated content.
+    Returns list of {paper_id, paper_title, citation_text}.
+    """
+    citations = []
+    pattern = r'\[([^\]]+?)\]'
+    seen = set()
+    for match in re.finditer(pattern, content):
+        title_match = match.group(1).strip()
+        for pid, ptitle in paper_titles.items():
+            if ptitle and (title_match.lower() in ptitle.lower() or ptitle.lower() in title_match.lower()):
+                key = f"{pid}:{title_match}"
+                if key not in seen:
+                    seen.add(key)
+                    citations.append({
+                        "paper_id": pid,
+                        "paper_title": ptitle,
+                        "citation_text": title_match,
+                    })
+                break
+    return citations
+
+
+# ─── Section Generation ──────────────────────────────────────
+
 async def _generate_section(paper_ids: list[str], section: str, paper_titles: dict) -> dict:
     """Generate a single section of the literature review."""
     if section == "bibliography":
@@ -155,6 +185,7 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
             "content": f"*Không đủ dữ liệu từ các tài liệu đã chọn để viết phần này.*",
             "papers_used": [],
             "chunks_used": 0,
+            "citations": [],
         }
 
     paper_list_text = "\n".join([f"- {t}" for t in paper_titles.values()])
@@ -166,13 +197,37 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
         context_text=retrieval.context_text,
     )
 
+    citations = extract_citations(generation.content, paper_titles)
+
+    # Inject numbered citation markers [1][2] etc based on order of appearance
+    content_with_refs = generation.content
+    citation_map: dict[str, int] = {}
+    ref_counter = 1
+    def replace_citation(match):
+        nonlocal ref_counter
+        title_match = match.group(1).strip()
+        key = None
+        for pid, ptitle in paper_titles.items():
+            if ptitle and (title_match.lower() in ptitle.lower() or ptitle.lower() in title_match.lower()):
+                key = title_match
+                break
+        if key:
+            if key not in citation_map:
+                citation_map[key] = ref_counter
+                ref_counter += 1
+            return f"[{citation_map[key]}]"
+        return match.group(0)
+
+    content_with_refs = re.sub(r'\[([^\]]+?)\]', replace_citation, content_with_refs)
+
     return {
         "section": section,
         "title": title,
-        "content": generation.content,
+        "content": content_with_refs,
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
         "model_used": generation.model_used,
+        "citations": citations,
     }
 
 
@@ -188,6 +243,7 @@ async def _generate_bibliography(paper_ids: list[str], paper_titles: dict) -> di
                 "content": "*Không có dữ liệu thư mục.*",
                 "papers_used": [],
                 "chunks_used": 0,
+                "citations": [],
             }
 
         entries: list[str] = []
@@ -229,10 +285,149 @@ async def _generate_bibliography(paper_ids: list[str], paper_titles: dict) -> di
             "papers_used": list(paper_titles.keys()),
             "chunks_used": 0,
             "model_used": "citation-formatting",
+            "citations": [],
         }
     finally:
         session.close()
 
+
+# ─── Outline Generation ──────────────────────────────────────
+
+@router.post("/outline")
+async def generate_outline(body: dict = Body(...)):
+    """Generate a dynamic outline based on selected papers' content.
+    STORM-inspired: analyze papers, suggest relevant sections.
+    """
+    paper_ids = body.get("paper_ids", [])
+    existing_sections = body.get("existing_sections", None)
+
+    if not paper_ids:
+        return {"error": "Vui lòng chọn ít nhất 1 tài liệu.", "sections": []}
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {"error": paper_error, "sections": []}
+
+    session = get_session(state.engine)
+    try:
+        papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
+        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_abstracts = {}
+        for p in papers_db:
+            summary = p.auto_summary or p.abstract or ""
+            paper_abstracts[p.id] = summary[:500] if summary else "Không có tóm tắt."
+    finally:
+        session.close()
+
+    if not paper_titles:
+        return {"error": "Không tìm thấy tài liệu nào.", "sections": []}
+
+    paper_info = "\n\n".join([
+        f"Paper: {paper_titles[pid]}\nTóm tắt: {paper_abstracts.get(pid, 'N/A')}"
+        for pid in paper_ids if pid in paper_titles
+    ])
+
+    prompt = f"""Bạn là chuyên gia phân tích tài liệu nghiên cứu. Dựa trên danh sách các paper dưới đây, hãy đề xuất một outline (dàn ý) phù hợp cho một bài Literature Review.
+
+Các paper:
+{paper_info}
+
+Yêu cầu:
+1. Phân tích chủ đề chung của các paper
+2. Đề xuất các section phù hợp với nội dung cụ thể của các paper này
+3. Mỗi section cần có: key (id ngắn không dấu), title (tiêu đề hiển thị), description (mô tả ngắn nội dung section)
+4. Ưu tiên các section liên quan đến: phương pháp, kết quả, so sánh, hạn chế, khoảng trống nghiên cứu
+5. Tối thiểu 4 section, tối đa 8 section (không tính Bibliography)
+
+Trả về JSON array đúng định dạng sau, không kèm văn bản khác:
+[
+  {{"key": "background", "title": "1. Background", "description": "Tổng quan về lĩnh vực nghiên cứu"}},
+  {{"key": "methodology_comparison", "title": "2. Methodology Comparison", "description": "So sánh các phương pháp"}}
+]
+
+Dùng tiếng Việt cho description. Key dùng tiếng Anh không dấu, viết thường, underscore."""
+    if existing_sections:
+        prompt += f"\n\nCác section hiện tại (có thể giữ hoặc đề xuất thay đổi): {json.dumps(existing_sections)}"
+
+    generation = await asyncio.to_thread(
+        state.generator.generate,
+        query=prompt,
+        context_text=paper_info,
+    )
+
+    content = generation.content.strip()
+    if content.startswith("```"):
+        content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+    sections = []
+    try:
+        start = content.find("[")
+        end = content.rfind("]")
+        if start != -1 and end != -1:
+            sections = json.loads(content[start:end+1])
+    except Exception as e:
+        logger.warning(f"Outline JSON parse failed: {e}")
+        sections = []
+
+    if not sections:
+        sections = [
+            {"key": "background", "title": "1. Background", "description": "Tổng quan về lĩnh vực nghiên cứu"},
+            {"key": "related_work", "title": "2. Related Work", "description": "Các công trình liên quan"},
+            {"key": "methodology_comparison", "title": "3. Methodology Comparison", "description": "So sánh phương pháp"},
+            {"key": "findings", "title": "4. Findings", "description": "Kết quả nghiên cứu chính"},
+            {"key": "limitations", "title": "5. Limitations", "description": "Hạn chế của các nghiên cứu"},
+            {"key": "research_gaps", "title": "6. Research Gaps", "description": "Khoảng trống nghiên cứu"},
+            {"key": "future_directions", "title": "7. Future Directions", "description": "Hướng phát triển tương lai"},
+        ]
+
+    return {"sections": sections, "paper_titles": list(paper_titles.values())}
+
+
+# ─── Evidence Retrieval ──────────────────────────────────────
+
+@router.post("/evidence")
+async def get_evidence(body: dict = Body(...)):
+    """Get evidence chunks for a specific section query.
+    Returns count, papers used, and sample chunks.
+    """
+    paper_ids = body.get("paper_ids", [])
+    section = body.get("section", "")
+    top_k = body.get("top_k", 10)
+
+    if not paper_ids or not section:
+        return {"error": "Missing paper_ids or section", "evidence": [], "total_chunks": 0, "papers_used": []}
+
+    config = SECTION_CONFIG.get(section)
+    if not config:
+        return {"error": f"Unknown section: {section}", "evidence": [], "total_chunks": 0, "papers_used": []}
+
+    retrieval = await asyncio.to_thread(
+        state.retriever.retrieve,
+        query=config["query"],
+        paper_ids=paper_ids,
+        top_k=top_k,
+    )
+
+    evidence = []
+    for chunk in retrieval.chunks:
+        evidence.append({
+            "chunk_id": chunk["chunk_id"],
+            "paper_id": chunk["paper_id"],
+            "paper_title": chunk["paper_title"],
+            "content": chunk["content"][:300],
+            "page_number": chunk.get("page_number"),
+            "score": round(chunk["score"], 4),
+        })
+
+    return {
+        "section": section,
+        "total_chunks": retrieval.total_chunks,
+        "papers_used": retrieval.papers_used,
+        "evidence": evidence,
+    }
+
+
+# ─── Draft Generation ────────────────────────────────────────
 
 @router.post("/draft")
 async def generate_draft(body: dict = Body(...)):
@@ -327,6 +522,7 @@ async def generate_draft_stream(body: dict = Body(...)):
                     "content": "",
                     "papers_used": [],
                     "chunks_used": 0,
+                    "citations": [],
                     "error": str(e),
                 }
 
@@ -382,6 +578,8 @@ async def generate_section(body: dict = Body(...)):
     result = await _generate_section(paper_ids, section, paper_titles)
     return result
 
+
+# ─── Comparison Matrix ───────────────────────────────────────
 
 @router.post("/matrix")
 async def generate_matrix(body: dict = Body(...)):
@@ -472,6 +670,471 @@ Trả về đúng JSON sau, không kèm văn bản khác:
 
     return {"matrix": {"columns": columns, "rows": rows}, "markdown": md}
 
+
+# ─── Quality Checks ──────────────────────────────────────────
+# Two-stage pipeline:
+#   1. Rule-based (deterministic, no LLM)
+#   2. LLM-based (semantic understanding)
+
+QUALITY_CHECK_SECTIONS = ["background", "related_work", "methodology_comparison", "findings", "limitations", "research_gaps", "future_directions"]
+
+# Citation patterns to detect: numbered [1], [1][2], parenthetical (Author, 2023), DOI, [Paper Name]
+CITATION_RE = re.compile(
+    r'\[\d+\](?:\[\d+\])*'                 # [1] or [1][2]
+    r'|\([^)]*\d{4}[^)]*\)'               # (Author, 2023)
+    r'|https?://doi\.org/\S+'              # DOI URL
+    r'|\[[\w\sÀ-ỹ\-]+\]'                    # [Tên Paper]
+)
+MIN_WORDS_PER_SECTION = 50
+MAX_WORDS_PER_SECTION = 800
+
+# Actions available per issue type
+ISSUE_ACTIONS = {
+    "missing_citation": {"action": "add_citation", "label": "Thêm citation", "section_target": True},
+    "unsourced_claim": {"action": "add_citation", "label": "Thêm citation", "section_target": True},
+    "repetition": {"action": "trim_content", "label": "Rút gọn", "section_target": True},
+    "contradiction": {"action": "review_conflict", "label": "Xem mâu thuẫn", "section_target": False},
+    "length_too_short": {"action": "expand_content", "label": "Mở rộng", "section_target": True},
+    "length_too_long": {"action": "trim_content", "label": "Rút gọn", "section_target": True},
+}
+
+
+def _rule_based_checks(sections: dict[str, dict]) -> list[dict]:
+    """Run rule-based quality checks (deterministic, no LLM)."""
+    issues = []
+
+    word_counts: dict[str, int] = {}
+    for sec_key in QUALITY_CHECK_SECTIONS:
+        data = sections.get(sec_key)
+        if not data or not data.get("content", "").strip():
+            continue
+        content = data["content"]
+        words = len(content.split())
+        word_counts[sec_key] = words
+
+        # Check: missing_citation — section has content but no citation pattern
+        if not CITATION_RE.search(content):
+            action = ISSUE_ACTIONS["missing_citation"]
+            issues.append({
+                "severity": "high",
+                "section": sec_key,
+                "type": "missing_citation",
+                "message": f"Section này không có trích dẫn nào.",
+                "action": action["action"],
+                "action_label": action["label"],
+            })
+
+    # Check: length_issue (relative to other sections)
+    if word_counts:
+        valid_counts = [wc for wc in word_counts.values() if wc > 0]
+        if valid_counts:
+            avg_words = sum(valid_counts) / len(valid_counts)
+            for sec_key, wc in word_counts.items():
+                if wc < MIN_WORDS_PER_SECTION:
+                    action = ISSUE_ACTIONS["length_too_short"]
+                    issues.append({
+                        "severity": "medium",
+                        "section": sec_key,
+                        "type": "length_too_short",
+                        "message": f"Section quá ngắn ({wc} từ — trung bình {int(avg_words)} từ).",
+                        "action": action["action"],
+                        "action_label": action["label"],
+                    })
+                elif wc > MAX_WORDS_PER_SECTION and wc > avg_words * 1.5:
+                    action = ISSUE_ACTIONS["length_too_long"]
+                    issues.append({
+                        "severity": "medium",
+                        "section": sec_key,
+                        "type": "length_too_long",
+                        "message": f"Section quá dài ({wc} từ — trung bình {int(avg_words)} từ).",
+                        "action": action["action"],
+                        "action_label": action["label"],
+                    })
+
+    return issues
+
+
+def _build_llm_input(sections: dict[str, dict], title: str, rule_issues: list[dict]) -> tuple[str, list[dict]]:
+    """Build input text for LLM-based checks (only sections that pass rules)."""
+    sections_text = ""
+    section_list = []
+    for sec_key in QUALITY_CHECK_SECTIONS:
+        data = sections.get(sec_key)
+        if not data or not data.get("content", "").strip():
+            continue
+        sec_title = SECTION_TITLES.get(sec_key, sec_key)
+        content = data["content"]
+        citations = data.get("citations", [])
+        # Include section in LLM check if it has content
+        sections_text += f"\n--- Section ID: {sec_key} | Title: {sec_title} ---\n"
+        sections_text += f"Trích dẫn gốc: {', '.join(c.get('paper_title', '') for c in citations) if citations else 'None'}\n"
+        sections_text += f"Nội dung: {content[:2000]}\n"
+        section_list.append(sec_key)
+
+    return sections_text, section_list
+
+
+def _parse_llm_issues(content: str, section_list: list[str]) -> list[dict]:
+    """Parse LLM JSON output into structured issues."""
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+    parsed = []
+    try:
+        start = cleaned.find("[")
+        end = cleaned.rfind("]")
+        if start != -1 and end != -1:
+            parsed = json.loads(cleaned[start:end+1])
+    except Exception:
+        return []
+
+    issues = []
+    for iss in parsed:
+        sec = iss.get("section", "")
+        if sec not in section_list:
+            continue
+        if not iss.get("message"):
+            continue
+        itype = iss.get("type", "unsourced_claim")
+        action_key = itype if itype in ISSUE_ACTIONS else "unsourced_claim"
+        action = ISSUE_ACTIONS[action_key]
+        issues.append({
+            "severity": iss.get("severity", "low"),
+            "section": sec,
+            "type": itype,
+            "message": iss.get("message"),
+            "action": action["action"],
+            "action_label": action["label"],
+        })
+    return issues
+
+
+@router.post("/check-quality")
+async def check_quality(body: dict = Body(...)):
+    """Check quality of a review draft.
+
+    Two-stage pipeline:
+    1. Rule-based: citation detection, length heuristics (no LLM cost)
+    2. LLM-based: repetition, contradiction, unsourced claims
+    """
+    title = body.get("title", "Literature Review")
+    sections = body.get("sections", {})
+
+    if not sections:
+        return {"issues": []}
+
+    all_issues = []
+
+    # Stage 1: Rule-based checks
+    rule_issues = _rule_based_checks(sections)
+    all_issues.extend(rule_issues)
+
+    # Sections that already have missing_citation flagged by rules
+    sections_with_citation_issues = {i["section"] for i in all_issues if i["type"] == "missing_citation"}
+
+    # Stage 2: LLM-based checks (repetition, contradiction, unsourced claims)
+    sections_text, section_list = _build_llm_input(sections, title, rule_issues)
+    if sections_text.strip() and section_list:
+        # Tell LLM which sections already have rule issues to avoid duplicates
+        skip_note = ""
+        if sections_with_citation_issues:
+            skip_note = f"\nCác section sau đã được phát hiện thiếu citation bởi rule, KHÔNG cần kiểm tra lại: {', '.join(sorted(sections_with_citation_issues))}"
+
+        prompt = f"""Bạn là chuyên gia đánh giá chất lượng Literature Review. Phân tích bài viết dưới đây.
+
+Tiêu đề: {title}
+{skip_note}
+{sections_text}
+
+Yêu cầu: Chỉ kiểm tra các vấn đề SAU (bỏ qua thiếu citation và độ dài — đã được kiểm tra tự động):
+1. **unsourced_claim** — Có khẳng định/nhận định không có nguồn dẫn chứng cụ thể
+2. **repetition** — Cùng một ý/ luận điểm xuất hiện ở nhiều section khác nhau
+3. **contradiction** — Hai section nói ngược nhau về cùng một vấn đề
+
+Trả về JSON array, mỗi issue định dạng:
+{{"severity": "high"|"medium"|"low", "section": "{section_key}", "type": "unsourced_claim"|"repetition"|"contradiction", "message": "Mô tả vấn đề cụ thể bằng tiếng Việt"}}
+
+Chỉ trả về JSON array hợp lệ, không kèm văn bản khác."""
+
+        try:
+            generation = await asyncio.to_thread(
+                state.generator.generate,
+                query=prompt,
+                context_text=sections_text,
+            )
+            llm_issues = _parse_llm_issues(generation.content, section_list)
+            all_issues.extend(llm_issues)
+        except Exception as e:
+            logger.exception(f"LLM quality check failed: {e}")
+
+    if not all_issues:
+        return {"issues": []}
+
+    return {"issues": all_issues}
+
+
+# ─── Save / Load Drafts ─────────────────────────────────────
+
+@router.post("/save")
+async def save_draft(body: dict = Body(...)):
+    """Save or update a review draft. If id is provided, update existing draft."""
+    draft_id = body.get("id")
+    title = body.get("title", "Literature Review")
+    paper_ids = body.get("paper_ids", [])
+    paper_titles = body.get("paper_titles", [])
+    outline_sections = body.get("outline_sections", [])
+    sections = body.get("sections", {})
+    full_text = body.get("full_text", "")
+    create_version = body.get("create_version", False)  # manual save → True, auto-save → False
+
+    MAX_VERSIONS = 3
+    session = get_session(state.engine)
+    try:
+        if draft_id:
+            existing = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+            if existing:
+                # Try to read versions column (may not exist in old DB)
+                try:
+                    raw_versions = existing.versions or "[]"
+                except Exception:
+                    raw_versions = "[]"
+
+                versions = json.loads(raw_versions)
+
+                # Only create version point on manual save (not on every debounce)
+                if create_version:
+                    saved_at = None
+                    try:
+                        saved_at = existing.updated_at.isoformat() if existing.updated_at else None
+                    except Exception:
+                        pass
+                    versions.append({
+                        "title": existing.title,
+                        "paper_ids": json.loads(existing.paper_ids or "[]"),
+                        "paper_titles": json.loads(existing.paper_titles or "[]"),
+                        "outline_sections": json.loads(existing.outline_sections or "[]"),
+                        "sections": json.loads(existing.sections or "{}"),
+                        "full_text": existing.full_text or "",
+                        "saved_at": saved_at,
+                    })
+                    if len(versions) > MAX_VERSIONS:
+                        versions = versions[-MAX_VERSIONS:]
+
+                existing.title = title
+                existing.paper_ids = json.dumps(paper_ids, ensure_ascii=False)
+                existing.paper_titles = json.dumps(paper_titles, ensure_ascii=False)
+                existing.outline_sections = json.dumps(outline_sections, ensure_ascii=False)
+                existing.sections = json.dumps(sections, ensure_ascii=False)
+                existing.full_text = full_text
+
+                # Only set versions column if it exists in the table
+                try:
+                    existing.versions = json.dumps(versions, ensure_ascii=False)
+                except Exception:
+                    pass
+
+                session.commit()
+                return {"id": draft_id, "status": "updated", "versions_count": len(versions)}
+            else:
+                draft_id = None
+
+        if not draft_id:
+            new_draft = ReviewDraft(
+                title=title,
+                paper_ids=json.dumps(paper_ids, ensure_ascii=False),
+                paper_titles=json.dumps(paper_titles, ensure_ascii=False),
+                outline_sections=json.dumps(outline_sections, ensure_ascii=False),
+                sections=json.dumps(sections, ensure_ascii=False),
+                full_text=full_text,
+            )
+            session.add(new_draft)
+            session.commit()
+            return {"id": new_draft.id, "status": "created", "versions_count": 0}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save review draft: {e}")
+        return {"error": f"Không thể lưu draft: {str(e)}"}
+    finally:
+        session.close()
+
+
+@router.get("/drafts")
+async def list_drafts():
+    """List all saved review drafts."""
+    session = get_session(state.engine)
+    try:
+        drafts = session.query(ReviewDraft).order_by(ReviewDraft.updated_at.desc()).all()
+        result = []
+        for d in drafts:
+            result.append({
+                "id": d.id,
+                "title": d.title,
+                "paper_count": len(json.loads(d.paper_ids or "[]")),
+                "section_count": len(json.loads(d.outline_sections or "[]")),
+                "updated_at": d.updated_at.isoformat() if d.updated_at else None,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            })
+        return {"drafts": result}
+    except Exception as e:
+        logger.error(f"Failed to list review drafts: {e}")
+        return {"drafts": []}
+    finally:
+        session.close()
+
+
+@router.get("/draft/{draft_id}")
+async def load_draft(draft_id: str):
+    """Load a saved review draft by ID."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+
+        return {
+            "id": draft.id,
+            "title": draft.title,
+            "paper_ids": json.loads(draft.paper_ids or "[]"),
+            "paper_titles": json.loads(draft.paper_titles or "[]"),
+            "outline_sections": json.loads(draft.outline_sections or "[]"),
+            "sections": json.loads(draft.sections or "{}"),
+            "full_text": draft.full_text or "",
+            "created_at": draft.created_at.isoformat() if draft.created_at else None,
+            "updated_at": draft.updated_at.isoformat() if draft.updated_at else None,
+        }
+    except Exception as e:
+        logger.error(f"Failed to load review draft: {e}")
+        return {"error": f"Không thể tải draft: {str(e)}"}
+    finally:
+        session.close()
+
+
+@router.delete("/draft/{draft_id}")
+async def delete_draft(draft_id: str):
+    """Delete a saved review draft."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+        session.delete(draft)
+        session.commit()
+        return {"status": "deleted", "id": draft_id}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to delete review draft: {e}")
+        return {"error": f"Không thể xoá draft: {str(e)}"}
+    finally:
+        session.close()
+
+
+# ─── Version History ─────────────────────────────────────────
+
+@router.get("/draft/{draft_id}/versions")
+async def list_draft_versions(draft_id: str):
+    """List all saved versions for a draft."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+
+        versions = json.loads(draft.versions or "[]")
+        result = []
+        for i, v in enumerate(versions):
+            result.append({
+                "index": i,
+                "saved_at": v.get("saved_at"),
+                "title": v.get("title", draft.title),
+                "section_count": len(v.get("outline_sections", [])),
+                "paper_count": len(v.get("paper_ids", [])),
+            })
+        return {"versions": result}
+    except Exception as e:
+        logger.error(f"Failed to list draft versions: {e}")
+        return {"versions": []}
+    finally:
+        session.close()
+
+
+@router.get("/draft/{draft_id}/versions/{version_idx}")
+async def load_draft_version(draft_id: str, version_idx: int):
+    """Load a specific version of a draft."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+
+        versions = json.loads(draft.versions or "[]")
+        if version_idx < 0 or version_idx >= len(versions):
+            return {"error": f"Version {version_idx} không tồn tại."}
+
+        v = versions[version_idx]
+        return {
+            "title": v.get("title", draft.title),
+            "paper_ids": v.get("paper_ids", []),
+            "paper_titles": v.get("paper_titles", []),
+            "outline_sections": v.get("outline_sections", []),
+            "sections": v.get("sections", {}),
+            "full_text": v.get("full_text", ""),
+            "saved_at": v.get("saved_at"),
+        }
+    except Exception as e:
+        logger.error(f"Failed to load draft version: {e}")
+        return {"error": f"Không thể tải version: {str(e)}"}
+    finally:
+        session.close()
+
+
+@router.post("/draft/{draft_id}/versions/{version_idx}/restore")
+async def restore_draft_version(draft_id: str, version_idx: int):
+    """Restore a draft to a previous version."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+
+        versions = json.loads(draft.versions or "[]")
+        if version_idx < 0 or version_idx >= len(versions):
+            return {"error": f"Version {version_idx} không tồn tại."}
+
+        v = versions[version_idx]
+
+        # Save current state as a version before restoring
+        current_version = {
+            "title": draft.title,
+            "paper_ids": json.loads(draft.paper_ids or "[]"),
+            "paper_titles": json.loads(draft.paper_titles or "[]"),
+            "outline_sections": json.loads(draft.outline_sections or "[]"),
+            "sections": json.loads(draft.sections or "{}"),
+            "full_text": draft.full_text or "",
+            "saved_at": draft.updated_at.isoformat() if draft.updated_at else None,
+        }
+        versions.append(current_version)
+        if len(versions) > 3:
+            versions = versions[-3:]
+
+        draft.title = v.get("title", draft.title)
+        draft.paper_ids = json.dumps(v.get("paper_ids", []), ensure_ascii=False)
+        draft.paper_titles = json.dumps(v.get("paper_titles", []), ensure_ascii=False)
+        draft.outline_sections = json.dumps(v.get("outline_sections", []), ensure_ascii=False)
+        draft.sections = json.dumps(v.get("sections", {}), ensure_ascii=False)
+        draft.full_text = v.get("full_text", "")
+        draft.versions = json.dumps(versions, ensure_ascii=False)
+        session.commit()
+        return {"status": "restored", "id": draft_id}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to restore draft version: {e}")
+        return {"error": f"Không thể khôi phục version: {str(e)}"}
+    finally:
+        session.close()
+
+
+# ─── Export ──────────────────────────────────────────────────
 
 @router.post("/export")
 async def export_review(body: dict = Body(...)):

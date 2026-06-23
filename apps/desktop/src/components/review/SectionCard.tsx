@@ -1,0 +1,265 @@
+import { IconRefresh, IconSpinner, IconCheck, IconFileText, IconError } from "../Icons";
+
+interface QualityIssue {
+  severity: "high" | "medium" | "low";
+  section: string;
+  type: string;
+  message: string;
+  action: string;
+  action_label: string;
+}
+
+interface SectionCardProps {
+  section: string;
+  title: string;
+  description?: string;
+  content?: string;
+  loading?: boolean;
+  evidenceCount?: number;
+  paperCount?: number;
+  status: "pending" | "generating" | "done" | "empty";
+  issues?: QualityIssue[];
+  onGenerate: (section: string) => void;
+  onEdit?: (section: string) => void;
+  onIssueAction?: (section: string, action: string, type: string) => void;
+}
+
+const sectionCardStyles = `
+.section-card-citation {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary, #6366f1);
+  font-size: 0.75em;
+  font-weight: 600;
+  margin: 0 1px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+`;
+
+export function SectionCard({
+  section,
+  title,
+  description,
+  content,
+  loading,
+  evidenceCount,
+  paperCount,
+  status,
+  issues,
+  onGenerate,
+  onEdit,
+  onIssueAction,
+}: SectionCardProps) {
+  return (
+    <>
+      <style>{sectionCardStyles}</style>
+    <div
+      style={{
+        border: "1px solid var(--color-border, rgba(148, 163, 184, 0.15))",
+        borderRadius: 10,
+        marginBottom: 12,
+        background: "var(--color-surface, rgba(255, 255, 255, 0.02))",
+        overflow: "hidden",
+        transition: "all 0.2s",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 16px",
+          borderBottom: status === "done" ? "1px solid var(--color-border, rgba(148, 163, 184, 0.1))" : "none",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {status === "done" ? (
+            <IconCheck size={16} style={{ color: "var(--color-success, #22c55e)" }} />
+          ) : status === "generating" ? (
+            <IconSpinner size={16} style={{ color: "var(--color-primary, #6366f1)" }} />
+          ) : (
+            <div style={{
+              width: 16, height: 16, borderRadius: "50%",
+              border: "2px solid var(--color-border, rgba(148, 163, 184, 0.3))",
+            }} />
+          )}
+          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{title}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {evidenceCount !== undefined && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "2px 8px", borderRadius: 4,
+              background: "rgba(99, 102, 241, 0.08)",
+              color: "var(--color-primary, #6366f1)",
+              fontSize: "0.72rem", fontWeight: 500,
+            }}>
+              <IconFileText size={11} />
+              {evidenceCount} chunks
+              {paperCount ? ` · ${paperCount} papers` : ""}
+            </div>
+          )}
+          {issues && issues.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              {issues.some((i) => i.severity === "high") ? (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 3,
+                  padding: "2px 7px", borderRadius: 4,
+                  background: "rgba(239, 68, 68, 0.1)",
+                  color: "#ef4444", fontSize: "0.68rem", fontWeight: 600,
+                }}>
+                  <IconError size={10} />
+                  {issues.length}
+                </div>
+              ) : issues.some((i) => i.severity === "medium") ? (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 3,
+                  padding: "2px 7px", borderRadius: 4,
+                  background: "rgba(245, 158, 11, 0.1)",
+                  color: "#f59e0b", fontSize: "0.68rem", fontWeight: 600,
+                }}>
+                  {issues.length}
+                </div>
+              ) : (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 3,
+                  padding: "2px 7px", borderRadius: 4,
+                  background: "rgba(148, 163, 184, 0.1)",
+                  color: "var(--color-text-muted, #94a3b8)",
+                  fontSize: "0.68rem", fontWeight: 600,
+                }}>
+                  {issues.length}
+                </div>
+              )}
+            </div>
+          )}
+          {status === "done" ? (
+            <button
+              onClick={() => onEdit?.(section)}
+              style={{
+                padding: "4px 10px", borderRadius: 4,
+                border: "1px solid rgba(148, 163, 184, 0.2)",
+                background: "transparent",
+                color: "var(--color-text-muted, #94a3b8)",
+                cursor: "pointer", fontSize: "0.75rem",
+              }}
+            >
+              Sửa
+            </button>
+          ) : null}
+          <button
+            onClick={() => onGenerate(section)}
+            disabled={loading}
+            style={{
+              padding: "4px 12px", borderRadius: 4,
+              border: "1px solid var(--color-primary, #6366f1)",
+              background: loading ? "rgba(99, 102, 241, 0.08)" : "rgba(99, 102, 241, 0.08)",
+              color: "var(--color-primary, #6366f1)",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontSize: "0.75rem", fontWeight: 500,
+              opacity: loading ? 0.5 : 1,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            {loading ? (
+              <IconSpinner size={12} />
+            ) : (
+              <IconRefresh size={12} />
+            )}
+            {loading ? "Đang tạo..." : status === "done" ? "Tạo lại" : "Tạo"}
+          </button>
+        </div>
+      </div>
+      {status === "done" && content ? (
+        <div style={{ padding: "12px 16px" }}>
+          <div style={{
+            fontSize: "0.82rem", lineHeight: 1.7,
+            color: "var(--color-text, #e2e8f0)",
+          }}
+            dangerouslySetInnerHTML={{
+              __html: (content.length > 500 ? content.slice(0, 500) + "..." : content)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\[(\d+)\]/g, '<span class="section-card-citation">[$1]</span>')
+                .replace(/\n/g, "<br/>"),
+            }}
+          />
+          {issues && issues.length > 0 && (
+            <div style={{
+              marginTop: 8, paddingTop: 8,
+              borderTop: "1px solid var(--color-border, rgba(148, 163, 184, 0.08))",
+            }}>
+              {issues.map((iss, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 6,
+                    padding: "4px 8px", borderRadius: 4, marginBottom: 3,
+                    fontSize: "0.72rem", lineHeight: 1.4,
+                    background: iss.severity === "high"
+                      ? "rgba(239, 68, 68, 0.06)"
+                      : iss.severity === "medium"
+                      ? "rgba(245, 158, 11, 0.06)"
+                      : "rgba(148, 163, 184, 0.06)",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flex: 1, minWidth: 0 }}>
+                    <span style={{
+                      fontWeight: 700, flexShrink: 0,
+                      color: iss.severity === "high" ? "#ef4444" : iss.severity === "medium" ? "#f59e0b" : "var(--color-text-muted, #94a3b8)",
+                    }}>
+                      {iss.severity === "high" ? "!" : iss.severity === "medium" ? "?" : "·"}
+                    </span>
+                    <span style={{ color: "var(--color-text-muted, #94a3b8)" }}>
+                      {iss.message}
+                    </span>
+                  </div>
+                  {iss.action && iss.action !== "none" && (
+                    <button
+                      onClick={() => onIssueAction?.(section, iss.action, iss.type)}
+                      style={{
+                        padding: "2px 8px", borderRadius: 3,
+                        border: "1px solid var(--color-primary, #6366f1)",
+                        background: "rgba(99, 102, 241, 0.06)",
+                        color: "var(--color-primary, #6366f1)",
+                        cursor: "pointer", fontSize: "0.65rem", fontWeight: 500,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {iss.action_label}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : status === "generating" ? (
+        <div style={{
+          padding: "20px", textAlign: "center",
+          color: "var(--color-text-muted, #94a3b8)",
+          fontSize: "0.82rem",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        }}>
+          <IconSpinner size={14} />
+          <span>Đang tạo nội dung...</span>
+        </div>
+      ) : description ? (
+        <div style={{
+          padding: "12px 16px",
+          fontSize: "0.78rem",
+          color: "var(--color-text-muted, #94a3b8)",
+          fontStyle: "italic",
+        }}>
+          {description}
+        </div>
+      ) : null}
+    </div>
+    </>
+  );
+}

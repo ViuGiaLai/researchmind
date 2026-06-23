@@ -20,6 +20,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
+import json
 import sys
 import threading
 import time
@@ -132,6 +133,21 @@ def _migrate_auto_summary(engine):
         logger.warning(f"Paper schema migration skipped (may already exist): {e}")
 
 
+def _migrate_review_draft_versions(engine):
+    """Add versions column to review_drafts table if missing."""
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info(review_drafts)"))
+            columns = [row[1] for row in result.fetchall()]
+            if "versions" not in columns:
+                conn.execute(text("ALTER TABLE review_drafts ADD COLUMN versions TEXT DEFAULT '[]'"))
+                logger.info("Migration: Added versions column to review_drafts table")
+                conn.commit()
+    except Exception as e:
+        logger.warning(f"ReviewDraft versions migration skipped: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize app state on startup, cleanup on shutdown."""
@@ -146,6 +162,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(state.engine)
 
     _migrate_auto_summary(state.engine)
+    _migrate_review_draft_versions(state.engine)
 
     logger.info("Database initialized")
 
@@ -291,13 +308,16 @@ app.include_router(graph_router)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler to ensure CORS headers are returned on 500 errors."""
     logger.exception(f"Unhandled exception occurred: {exc}")
-    return JSONResponse(
+    from starlette.responses import Response
+    return Response(
         status_code=500,
-        content={
+        content=json.dumps({
             "detail": "Internal Server Error",
             "message": str(exc),
             "type": exc.__class__.__name__,
-        },
+        }),
+        media_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
     )
 
 

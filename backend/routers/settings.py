@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, Body, HTTPException
+from common.text_utils import redact_api_key
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -195,7 +196,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Gemini: {err_msg}"}
+                    return {"valid": False, "error": f"Lỗi Gemini: {redact_api_key(err_msg)}"}
 
             elif provider == "deepseek":
                 url = "https://api.deepseek.com/chat/completions"

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { api, Paper, Highlight } from "../../lib/api";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { api, Paper, Highlight, ChatResponse } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import {
   IconSearch,
@@ -8,7 +8,51 @@ import {
   IconCopy,
   IconChat,
   IconSparkle,
+  IconCheck,
+  IconBookOpen,
+  IconBrain,
+  IconBulb,
 } from "../Icons";
+
+const CATEGORIES = [
+  { value: "all", label: "Tất cả" },
+  { value: "key_finding", label: "Kết quả" },
+  { value: "methodology", label: "Phương pháp" },
+  { value: "conclusion", label: "Kết luận" },
+  { value: "novel_contribution", label: "Đóng góp" },
+  { value: "limitation", label: "Hạn chế" },
+  { value: "important_claim", label: "Ý chính" },
+];
+
+const CATEGORY_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  key_finding: { bg: "rgba(34, 197, 94, 0.12)", color: "#16a34a", border: "rgba(34, 197, 94, 0.3)" },
+  methodology: { bg: "rgba(99, 102, 241, 0.12)", color: "#4f46e5", border: "rgba(99, 102, 241, 0.3)" },
+  conclusion: { bg: "rgba(168, 85, 247, 0.12)", color: "#9333ea", border: "rgba(168, 85, 247, 0.3)" },
+  novel_contribution: { bg: "rgba(236, 72, 153, 0.12)", color: "#db2777", border: "rgba(236, 72, 153, 0.3)" },
+  limitation: { bg: "rgba(239, 68, 68, 0.12)", color: "#dc2626", border: "rgba(239, 68, 68, 0.3)" },
+  important_claim: { bg: "rgba(148, 163, 184, 0.15)", color: "#475569", border: "rgba(148, 163, 184, 0.3)" },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  key_finding: "Kết quả chính",
+  methodology: "Phương pháp",
+  conclusion: "Kết luận",
+  novel_contribution: "Đóng góp mới",
+  limitation: "Hạn chế",
+  important_claim: "Ý chính",
+};
+
+function renderStars(importance: string): string {
+  return importance === "high" ? "★★★★★" : "★★★☆☆";
+}
+
+function getPdfPageUrl(paperId: string, pageNumber: number | null): string {
+  const base = `http://127.0.0.1:8765/api/papers/${paperId}/file`;
+  if (pageNumber) {
+    return `${base}#page=${pageNumber}`;
+  }
+  return base;
+}
 
 export const HighlightsLibraryView: React.FC<{
   onStartChat: (paperIds: string[]) => void;
@@ -20,8 +64,47 @@ export const HighlightsLibraryView: React.FC<{
   const [loadingHighlights, setLoadingHighlights] = useState(false);
   const [searchPaperQuery, setSearchPaperQuery] = useState("");
   const [highlightQuery, setHighlightQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("all");
   const toast = useToast();
+
+  // Context toggle: track which highlight IDs (stable hash) are included in chat context
+  const [contextIncluded, setContextIncluded] = useState<Set<string>>(new Set());
+
+  // PDF overlay state
+  const [showPdfOverlay, setShowPdfOverlay] = useState(false);
+  const [pdfOverlayUrl, setPdfOverlayUrl] = useState<string | null>(null);
+
+  // Close PDF overlay on Escape
+  useEffect(() => {
+    if (!showPdfOverlay) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowPdfOverlay(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [showPdfOverlay]);
+
+  // Generate section state
+  const GENERATE_OPTIONS = [
+    { id: "summary", label: "Summary", desc: "Tóm tắt tổng quan tài liệu" },
+    { id: "compare", label: "Method Comparison", desc: "So sánh phương pháp với các tài liệu khác" },
+    { id: "debate", label: "Debate", desc: "Tranh luận đa chiều về nội dung" },
+    { id: "gap", label: "Research Gap", desc: "Phát hiện lỗ hổng nghiên cứu" },
+    { id: "litreview", label: "Literature Review", desc: "Viết literature review tự động" },
+  ] as const;
+  const [generatingType, setGeneratingType] = useState<string | null>(null);
+  const [generateResults, setGenerateResults] = useState<{ type: string; result: ChatResponse }[]>([]);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // AI Insights card state
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [paperDetail, setPaperDetail] = useState<Paper & { chunk_count?: number } | null>(null);
+  const [loadingPaperDetail, setLoadingPaperDetail] = useState(false);
+
+  // Generate a stable ID for a highlight (independent of array index)
+  const getHighlightId = useCallback((h: Highlight): string => {
+    return `${h.category}::${h.text.slice(0, 60)}::${h.page_hint || "0"}`;
+  }, []);
 
   useEffect(() => {
     loadPapers();
@@ -30,8 +113,13 @@ export const HighlightsLibraryView: React.FC<{
   useEffect(() => {
     if (selectedPaper) {
       loadHighlights(selectedPaper.id);
+      loadPaperDetail(selectedPaper.id);
+      setContextIncluded(new Set());
     } else {
       setHighlights([]);
+      setPaperDetail(null);
+      setGenerateResults([]);
+      setGenerateError(null);
     }
   }, [selectedPaper?.id]);
 
@@ -65,8 +153,116 @@ export const HighlightsLibraryView: React.FC<{
 
   const handleCopyHighlight = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.addToast("success", "📋 Đã sao chép đoạn trích vào clipboard!");
+    toast.addToast("success", "Đã sao chép đoạn trích vào clipboard!");
   };
+
+  const handleChatWithHighlight = () => {
+    if (!selectedPaper) return;
+    onStartChat([selectedPaper.id]);
+  };
+
+  const handleOpenPdfPage = (pageNumber: number | null) => {
+    if (!selectedPaper) return;
+    const url = getPdfPageUrl(selectedPaper.id, pageNumber);
+    setPdfOverlayUrl(url);
+    setShowPdfOverlay(true);
+  };
+
+  const toggleContext = (id: string) => {
+    setContextIncluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const loadPaperDetail = async (paperId: string) => {
+    setLoadingPaperDetail(true);
+    try {
+      const res = await api.getPaper(paperId);
+      setPaperDetail(res);
+    } catch (e) {
+      console.error("Failed to load paper detail:", e);
+    } finally {
+      setLoadingPaperDetail(false);
+    }
+  };
+
+  const handleChatWithSelected = () => {
+    if (!selectedPaper || contextIncluded.size === 0) return;
+    onStartChat([selectedPaper.id]);
+  };
+
+  // ─── Generate handlers ────────────────────────────────────
+  const handleGenerateOne = async (optId: string) => {
+    if (!selectedPaper || generatingType) return;
+    setGeneratingType(optId);
+    setGenerateError(null);
+    try {
+      let res: ChatResponse;
+      switch (optId) {
+        case "summary":
+          res = await api.review("Tóm tắt chi tiết tài liệu này: mục tiêu, phương pháp, kết quả chính và kết luận.", [selectedPaper.id]);
+          break;
+        case "compare":
+          res = await api.comparePapers([selectedPaper.id]);
+          break;
+        case "debate":
+          res = await api.debate("Phân tích các luận điểm chính trong tài liệu này từ nhiều góc nhìn khác nhau.", [selectedPaper.id]);
+          break;
+        case "gap":
+          res = await api.findResearchGap([selectedPaper.id]);
+          break;
+        case "litreview":
+          res = await api.review("Viết literature review ngắn dựa trên tài liệu này: bối cảnh, đóng góp chính, hướng phát triển.", [selectedPaper.id]);
+          break;
+        default:
+          return;
+      }
+      setGenerateResults((prev) => {
+        const filtered = prev.filter((r) => r.type !== optId);
+        return [...filtered, { type: optId, result: res }];
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setGenerateError(`Error: ${msg}`);
+      console.error(`Generate failed for ${optId}:`, e);
+    } finally {
+      setGeneratingType(null);
+    }
+  };
+
+  // Compute insights stats from highlights
+  const insightsStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    let highCount = 0;
+    let totalImportance = 0;
+    highlights.forEach((h) => {
+      counts[h.category] = (counts[h.category] || 0) + 1;
+      if (h.importance === "high") highCount++;
+      totalImportance++;
+    });
+    return {
+      counts,
+      total: highlights.length,
+      highCount,
+      importantRatio: totalImportance > 0 ? Math.round((highCount / totalImportance) * 100) : 0,
+    };
+  }, [highlights]);
+
+  // Parse tags from paper
+  const parsedTags = useMemo(() => {
+    if (!selectedPaper?.tags) return [];
+    try {
+      return JSON.parse(selectedPaper.tags) as string[];
+    } catch {
+      return [];
+    }
+  }, [selectedPaper?.tags]);
 
   const filteredPapers = papers.filter((p) =>
     (p.title || p.filename).toLowerCase().includes(searchPaperQuery.toLowerCase())
@@ -77,46 +273,76 @@ export const HighlightsLibraryView: React.FC<{
       h.text.toLowerCase().includes(highlightQuery.toLowerCase()) ||
       h.note.toLowerCase().includes(highlightQuery.toLowerCase());
     const matchesCategory =
-      categoryFilter === "all" || h.category === categoryFilter;
+      activeTab === "all" || h.category === activeTab;
     return matchesSearch && matchesCategory;
   });
 
+  // ─── Helper: render auto_summary markdown ────────────────
+  const renderSummary = (text: string) => {
+    const lines = text.split('\n');
+    const summaryLines = summaryExpanded ? lines : lines.slice(0, 6);
+    const isLong = lines.length > 6;
+    return (
+      <>
+        {summaryLines.map((line, i) => {
+          if (line.startsWith('###')) {
+            return <h5 key={i} className="hl-insight-summary-heading">{line.replace(/^#+\s*/, '')}</h5>;
+          }
+          if (line.startsWith('* **')) {
+            const parts = line.replace(/^\*\s*/, '').split(':');
+            const label = parts[0]?.replace(/\*\*/g, '') || '';
+            const value = parts.slice(1).join(':').trim();
+            return (
+              <div key={i} className="hl-insight-summary-item">
+                <span className="hl-insight-summary-label">{label}</span>
+                <span className="hl-insight-summary-value">{value}</span>
+              </div>
+            );
+          }
+          if (line.trim()) return <p key={i} className="hl-insight-summary-text">{line}</p>;
+          return null;
+        })}
+        {isLong && (
+          <button
+            className="hl-insight-summary-toggle"
+            onClick={() => setSummaryExpanded(!summaryExpanded)}
+          >
+            {summaryExpanded ? '▲ Thu gọn' : '▼ Xem thêm'}
+          </button>
+        )}
+      </>
+    );
+  };
+
   return (
-    <div className="highlights-library-container" style={{ display: "flex", height: "100%", width: "100%", background: "var(--color-bg)" }}>
+    <div className="hl-view">
       {/* Left sidebar: Paper list */}
-      <div className="hl-sidebar" style={{ width: "320px", borderRight: "1px solid var(--color-border)", display: "flex", flexDirection: "column", height: "100%", background: "var(--color-bg-sidebar, var(--color-bg))" }}>
-        <div style={{ padding: "16px", borderBottom: "1px solid var(--color-border)" }}>
-          <h3 style={{ margin: "0 0 12px 0", fontSize: "1.1rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text)" }}>
-            📖 Chọn tài liệu
+      <div className="hl-sidebar">
+        <div className="hl-sidebar-header">
+          <h3 className="hl-sidebar-title">
+            <IconFileText size={16} />
+            <span>Chọn tài liệu</span>
           </h3>
-          <div style={{ position: "relative" }}>
+          <div className="hl-sidebar-search">
+            <IconSearch size={14} className="hl-sidebar-search-icon" />
             <input
               type="text"
               placeholder="Tìm tài liệu..."
               value={searchPaperQuery}
               onChange={(e) => setSearchPaperQuery(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "8px 12px 8px 32px",
-                borderRadius: "var(--radius-md, 6px)",
-                border: "1px solid var(--color-border)",
-                background: "var(--color-surface)",
-                color: "var(--color-text)",
-                fontSize: "0.85rem",
-              }}
+              className="hl-sidebar-search-input"
             />
-            <IconSearch size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+        <div className="hl-sidebar-list">
           {loadingPapers ? (
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "32px", gap: "8px" }}>
+            <div className="hl-sidebar-loading">
               <IconSpinner size={18} />
-              <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Đang tải...</span>
+              <span>Đang tải...</span>
             </div>
           ) : filteredPapers.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
+            <div className="hl-sidebar-empty">
               Không tìm thấy tài liệu phù hợp.
             </div>
           ) : (
@@ -126,22 +352,15 @@ export const HighlightsLibraryView: React.FC<{
                 <div
                   key={p.id}
                   onClick={() => setSelectedPaper(p)}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "var(--radius-md, 6px)",
-                    marginBottom: "4px",
-                    cursor: "pointer",
-                    background: isActive ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                    border: isActive ? "1px solid var(--color-primary, #6366f1)" : "1px solid transparent",
-                    transition: "all 0.2s",
-                  }}
-                  className="hl-paper-item"
+                  className={`hl-paper-item ${isActive ? "active" : ""}`}
                 >
-                  <div style={{ fontWeight: 600, fontSize: "0.85rem", color: isActive ? "var(--color-primary, #6366f1)" : "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div className="hl-paper-item-title" title={p.title || p.filename}>
                     {p.title || p.filename}
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {p.authors && p.authors !== "[]" ? p.authors.replace(/[\[\]"']/g, "") : "Chưa cập nhật tác giả"}
+                  <div className="hl-paper-item-meta">
+                    {p.authors && p.authors !== "[]"
+                      ? p.authors.replace(/[\[\]"']/g, "")
+                      : "Chưa cập nhật tác giả"}
                   </div>
                 </div>
               );
@@ -150,256 +369,494 @@ export const HighlightsLibraryView: React.FC<{
         </div>
       </div>
 
-      {/* Right side: Highlights panel */}
-      <div className="hl-content" style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", padding: "20px", overflowY: "auto" }}>
+      {/* Center: Evidence Panel */}
+      <div className="hl-content">
         {selectedPaper ? (
           <>
-            <div style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: "16px", marginBottom: "20px" }}>
-              <span style={{ fontSize: "0.75rem", background: "rgba(99, 102, 241, 0.1)", color: "var(--color-primary)", padding: "2px 8px", borderRadius: "12px", fontWeight: "bold" }}>
-                Đang xem đoạn trích
-              </span>
-              <h2 style={{ fontSize: "1.4rem", margin: "8px 0 4px 0", color: "var(--color-text)" }}>
-                {selectedPaper.title || selectedPaper.filename}
-              </h2>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
-                Tác giả: {selectedPaper.authors && selectedPaper.authors !== "[]" ? selectedPaper.authors.replace(/[\[\]"']/g, "") : "Không rõ"} • Năm: {selectedPaper.year || "N/A"}
-              </p>
-            </div>
-
-            {/* Filter and search bars */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "20px", alignItems: "center", justifyContent: "space-between" }}>
-              {/* Category chips */}
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {[
-                  { value: "all", label: "Tất cả" },
-                  { value: "key_finding", label: "🔬 Kết quả chính" },
-                  { value: "methodology", label: "⚙️ Phương pháp" },
-                  { value: "conclusion", label: "📋 Kết luận" },
-                  { value: "novel_contribution", label: "💡 Đóng góp" },
-                  { value: "limitation", label: "⚠️ Hạn chế" },
-                  { value: "important_claim", label: "📌 Ý chính" },
-                ].map((cat) => {
-                  const isActive = categoryFilter === cat.value;
-                  return (
-                    <button
-                      key={cat.value}
-                      onClick={() => setCategoryFilter(cat.value)}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: "15px",
-                        border: "1px solid var(--color-border)",
-                        background: isActive ? "var(--color-primary, #6366f1)" : "var(--color-surface)",
-                        color: isActive ? "#ffffff" : "var(--color-text)",
-                        fontSize: "0.78rem",
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      {cat.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Highlights Search */}
-              <div style={{ position: "relative", minWidth: "220px" }}>
-                <input
-                  type="text"
-                  placeholder="Tìm từ khoá đoạn trích..."
-                  value={highlightQuery}
-                  onChange={(e) => setHighlightQuery(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "6px 12px 6px 28px",
-                    borderRadius: "var(--radius-md, 6px)",
-                    border: "1px solid var(--color-border)",
-                    background: "var(--color-surface)",
-                    color: "var(--color-text)",
-                    fontSize: "0.82rem",
-                  }}
-                />
-                <IconSearch size={12} style={{ position: "absolute", left: "8px", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-              </div>
-            </div>
-
-            {/* Highlights Feed */}
-            {loadingHighlights ? (
-              <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", flex: 1, padding: "64px" }}>
-                <IconSpinner size={32} />
-                <span style={{ marginTop: "12px", fontSize: "0.9rem", color: "var(--color-text-muted)" }}>
-                  AI đang phân tích & trích xuất các đoạn thông tin đắt giá nhất...
-                </span>
-              </div>
-            ) : filteredHighlights.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "64px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-lg, 8px)", border: "1px dashed var(--color-border)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1 }}>
-                <IconSparkle size={40} className="icon-gradient" style={{ marginBottom: "12px" }} />
-                <h4 style={{ margin: "0 0 8px 0", color: "var(--color-text)" }}>Chưa có dữ liệu đoạn trích</h4>
-                <p style={{ margin: "0 0 16px 0", fontSize: "0.85rem", color: "var(--color-text-muted)", maxWidth: "400px" }}>
-                  Hãy nhấp phân tích lại để AI tự động trích xuất các nhận định, kết quả, phương pháp quan trọng từ bài nghiên cứu này.
+            {/* Paper header */}
+            <div className="hl-content-header">
+              <div className="hl-content-header-info">
+                <span className="hl-content-header-badge">Đoạn trích</span>
+                <h2 className="hl-content-header-title">
+                  {selectedPaper.title || selectedPaper.filename}
+                </h2>
+                <p className="hl-content-header-meta">
+                  Tác giả: {selectedPaper.authors && selectedPaper.authors !== "[]"
+                    ? selectedPaper.authors.replace(/[\[\]"']/g, "")
+                    : "Không rõ"}{" "}
+                  • Năm: {selectedPaper.year || "N/A"}
                 </p>
+              </div>
+              <div className="hl-content-header-actions">
+                {contextIncluded.size > 0 && (
+                  <button
+                    className="hl-chat-selected-btn"
+                    onClick={handleChatWithSelected}
+                    title={`Hỏi AI về ${contextIncluded.size} đoạn đã chọn`}
+                  >
+                    <IconChat size={14} />
+                    <span>Hỏi AI ({contextIncluded.size})</span>
+                  </button>
+                )}
                 <button
-                  onClick={() => loadHighlights(selectedPaper.id)}
-                  style={{
-                    padding: "8px 16px",
-                    background: "var(--color-primary, #6366f1)",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "var(--radius-md, 6px)",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                  }}
+                  className="hl-refresh-btn"
+                  onClick={() => selectedPaper && loadHighlights(selectedPaper.id)}
+                  title="Phân tích lại"
                 >
-                  🚀 Bắt đầu trích xuất
+                  <IconSparkle size={14} />
+                  <span>Phân tích lại</span>
                 </button>
               </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
-                {filteredHighlights.map((h, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      border: "1px solid var(--color-border)",
-                      borderRadius: "var(--radius-md, 8px)",
-                      background: "var(--color-surface)",
-                      padding: "16px",
-                      position: "relative",
-                      transition: "transform 0.2s, box-shadow 0.2s",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                    }}
-                    className="highlight-library-card"
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                      <span
-                        style={{
-                          fontSize: "0.72rem",
-                          fontWeight: "bold",
-                          padding: "2px 8px",
-                          borderRadius: "4px",
-                          background:
-                            h.category === "key_finding" ? "rgba(34, 197, 94, 0.15)"
-                            : h.category === "methodology" ? "rgba(99, 102, 241, 0.15)"
-                            : h.category === "conclusion" ? "rgba(168, 85, 247, 0.15)"
-                            : h.category === "novel_contribution" ? "rgba(236, 72, 153, 0.15)"
-                            : h.category === "limitation" ? "rgba(239, 68, 68, 0.15)"
-                            : "rgba(148, 163, 184, 0.15)",
-                          color:
-                            h.category === "key_finding" ? "#16a34a"
-                            : h.category === "methodology" ? "#4f46e5"
-                            : h.category === "conclusion" ? "#9333ea"
-                            : h.category === "novel_contribution" ? "#db2777"
-                            : h.category === "limitation" ? "#dc2626"
-                            : "#475569",
-                        }}
-                      >
-                        {h.category === "key_finding" ? "🔬 Kết quả chính"
-                          : h.category === "methodology" ? "⚙️ Phương pháp"
-                          : h.category === "conclusion" ? "📋 Kết luận"
-                          : h.category === "novel_contribution" ? "💡 Đóng góp mới"
-                          : h.category === "limitation" ? "⚠️ Hạn chế"
-                          : "📌 Ý chính"}
-                      </span>
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        {h.page_hint && (
-                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-                            Trang {h.page_hint}
-                          </span>
-                        )}
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            padding: "2px 6px",
-                            borderRadius: "10px",
-                            background: h.importance === "high" ? "#fee2e2" : "#fef9c3",
-                            color: h.importance === "high" ? "#ef4444" : "#ca8a04",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          {h.importance === "high" ? "Quan trọng" : "Trung bình"}
-                        </span>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="hl-tabs">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  className={`hl-tab ${activeTab === cat.value ? "active" : ""}`}
+                  onClick={() => setActiveTab(cat.value)}
+                >
+                              <span className="hl-tab-label">{cat.label}</span>
+                  {activeTab === cat.value && (
+                    <span className="hl-tab-count">
+                      {cat.value === "all"
+                        ? highlights.length
+                        : highlights.filter((h) => h.category === cat.value).length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Search bar */}
+            <div className="hl-search-bar">
+              <IconSearch size={14} className="hl-search-bar-icon" />
+              <input
+                type="text"
+                placeholder="Tìm từ khoá trong đoạn trích..."
+                value={highlightQuery}
+                onChange={(e) => setHighlightQuery(e.target.value)}
+                className="hl-search-bar-input"
+              />
+              {highlightQuery && (
+                <button
+                  className="hl-search-bar-clear"
+                  onClick={() => setHighlightQuery("")}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Evidence Cards Feed */}
+            <div className="hl-cards-feed">
+              {/* ─── AI Insights Cards ─────────────────────── */}
+              <div className="hl-overview-cards">
+                {/* Summary Card */}
+                <div className="hl-overview-card">
+                  <div className="hl-overview-card-header">
+                    <IconBrain size={16} />
+                    <span className="hl-overview-card-title">Summary</span>
+                  </div>
+                  {loadingPaperDetail ? (
+                    <div className="hl-insight-loading">
+                      <IconSpinner size={14} />
+                      <span>Loading...</span>
+                    </div>
+                  ) : paperDetail?.auto_summary ? (
+                    <div className="hl-insight-summary">
+                      {renderSummary(paperDetail.auto_summary)}
+                    </div>
+                  ) : (
+                    <p className="hl-insight-empty">No summary available for this paper.</p>
+                  )}
+                </div>
+
+                {/* Concepts Card */}
+                <div className="hl-overview-card">
+                  <div className="hl-overview-card-header">
+                    <IconFileText size={16} />
+                    <span className="hl-overview-card-title">Concepts & Metadata</span>
+                  </div>
+                  {loadingPaperDetail ? (
+                    <div className="hl-insight-loading">
+                      <IconSpinner size={14} />
+                      <span>Loading...</span>
+                    </div>
+                  ) : parsedTags.length > 0 ? (
+                    <div className="hl-insight-tags">
+                      {parsedTags.map((tag, i) => (
+                        <span key={i} className="hl-insight-tag">{tag}</span>
+                      ))}
+                    </div>
+                  ) : paperDetail?.chunk_count !== undefined ? (
+                    <div className="hl-insight-paper-meta">
+                      <div className="hl-insight-meta-item">
+                        <span className="hl-insight-meta-label">Chunks</span>
+                        <span className="hl-insight-meta-value">{paperDetail.chunk_count}</span>
+                      </div>
+                      <div className="hl-insight-meta-item">
+                        <span className="hl-insight-meta-label">Pages</span>
+                        <span className="hl-insight-meta-value">{selectedPaper.page_count || "?"}</span>
+                      </div>
+                      {selectedPaper.language && (
+                        <div className="hl-insight-meta-item">
+                          <span className="hl-insight-meta-label">Language</span>
+                          <span className="hl-insight-meta-value">{selectedPaper.language.toUpperCase()}</span>
+                        </div>
+                      )}
+                      <div className="hl-insight-meta-item">
+                        <span className="hl-insight-meta-label">File size</span>
+                        <span className="hl-insight-meta-value">{(selectedPaper.file_size / 1024).toFixed(0)} KB</span>
                       </div>
                     </div>
+                  ) : (
+                    <p className="hl-insight-empty">No tags or metadata available.</p>
+                  )}
+                </div>
 
-                    <blockquote
-                      style={{
-                        margin: "0 0 12px 0",
-                        paddingLeft: "12px",
-                        borderLeft: "3px solid var(--color-primary, #6366f1)",
-                        fontSize: "0.9rem",
-                        fontStyle: "italic",
-                        color: "var(--color-text)",
-                        lineHeight: "1.5",
-                      }}
-                    >
-                      "{h.text}"
-                    </blockquote>
-
-                    {h.note && (
-                      <div
-                        style={{
-                          fontSize: "0.82rem",
-                          background: "var(--color-bg-hover, #f8fafc)",
-                          padding: "8px 12px",
-                          borderRadius: "6px",
-                          color: "var(--color-text-secondary)",
-                          marginBottom: "12px",
-                          border: "1px solid var(--color-border)",
-                        }}
-                      >
-                        💡 <strong>Phân tích:</strong> {h.note}
+                {/* Stats Card - only when highlights exist */}
+                {highlights.length > 0 && (
+                  <div className="hl-overview-card">
+                    <div className="hl-overview-card-header">
+                      <IconSparkle size={16} />
+                      <span className="hl-overview-card-title">Highlights Stats</span>
+                    </div>
+                    <div className="hl-insight-stats">
+                      <div className="hl-insight-stat-row highlight">
+                        <span className="hl-insight-stat-label">Total</span>
+                        <span className="hl-insight-stat-value">{insightsStats.total}</span>
                       </div>
-                    )}
-
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid var(--color-border)", paddingTop: "12px" }}>
-                      <button
-                        onClick={() => handleCopyHighlight(h.text)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          background: "transparent",
-                          border: "1px solid var(--color-border)",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          fontSize: "0.78rem",
-                          cursor: "pointer",
-                          color: "var(--color-text)",
-                        }}
-                      >
-                        <IconCopy size={12} /> Sao chép
-                      </button>
-                      <button
-                        onClick={() => onStartChat([selectedPaper.id])}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          background: "rgba(99, 102, 241, 0.1)",
-                          border: "1px solid var(--color-primary, #6366f1)",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          fontSize: "0.78rem",
-                          cursor: "pointer",
-                          color: "var(--color-primary, #6366f1)",
-                          fontWeight: 600,
-                        }}
-                      >
-                        <IconChat size={12} /> Hỏi AI về đoạn này
-                      </button>
+                      <div className="hl-insight-stat-row">
+                        <span className="hl-insight-stat-label">High importance</span>
+                        <span className="hl-insight-stat-value high">{insightsStats.highCount}</span>
+                      </div>
+                      <div className="hl-insight-stat-row">
+                        <span className="hl-insight-stat-label">Important ratio</span>
+                        <span className="hl-insight-stat-value">{insightsStats.importantRatio}%</span>
+                      </div>
+                      <div className="hl-insight-divider" />
+                      {CATEGORIES.filter(c => c.value !== "all").map((cat) => {
+                        const count = insightsStats.counts[cat.value] || 0;
+                        if (count === 0) return null;
+                        const cs = CATEGORY_STYLES[cat.value] || CATEGORY_STYLES.important_claim;
+                        return (
+                          <div key={cat.value} className="hl-insight-stat-row">
+                            <span className="hl-insight-stat-label">
+                              <span className="hl-insight-stat-dot" style={{ background: cs.color }} />
+                              {cat.label}
+                            </span>
+                            <span className="hl-insight-stat-value">{count}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
-            )}
+
+              {loadingHighlights ? (
+                <div className="hl-loading-state">
+                  <IconSpinner size={32} />
+                  <span>AI is analyzing this paper to extract key insights...</span>
+                </div>
+              ) : filteredHighlights.length === 0 && highlightQuery ? (
+                <div className="hl-empty-state">
+                  <IconSparkle size={36} />
+                  <h4>Không có kết quả</h4>
+                  <p>Không tìm thấy đoạn trích phù hợp với từ khoá.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Evidence Cards (only when highlights exist) */}
+                  {filteredHighlights.length > 0 && (
+                    <div className="hl-cards-grid">
+                      {/* Context toggle bulk actions */}
+                      <div className="hl-bulk-actions">
+                        <span className="hl-bulk-label">
+                          Chọn đoạn để đưa vào Chat:
+                        </span>
+                        <button
+                          className="hl-bulk-btn"
+                          onClick={() => {
+                            const all = new Set<string>();
+                            filteredHighlights.forEach((h) => all.add(getHighlightId(h)));
+                            setContextIncluded(all);
+                          }}
+                        >
+                          Chọn tất cả
+                        </button>
+                        <button
+                          className="hl-bulk-btn"
+                          onClick={() => setContextIncluded(new Set())}
+                        >
+                          Bỏ chọn
+                        </button>
+                      </div>
+
+                      {filteredHighlights.map((h) => {
+                        const hid = getHighlightId(h);
+                        const cs = CATEGORY_STYLES[h.category] || CATEGORY_STYLES.important_claim;
+                        const isIncluded = contextIncluded.has(hid);
+
+                        return (
+                          <div
+                            key={hid}
+                            className={`hl-evidence-card ${isIncluded ? "included" : ""}`}
+                            style={{ borderLeftColor: cs.color }}
+                          >
+                            {/* Context toggle */}
+                            <div
+                              className={`hl-context-toggle ${isIncluded ? "active" : ""}`}
+                              onClick={() => toggleContext(hid)}
+                              title={isIncluded ? "Bỏ khỏi ngữ cảnh Chat" : "Thêm vào ngữ cảnh Chat"}
+                              role="checkbox"
+                              aria-checked={isIncluded}
+                              tabIndex={0}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleContext(hid); } }}
+                            >
+                              {isIncluded ? (
+                                <IconCheck size={12} />
+                              ) : (
+                                <IconBookOpen size={12} />
+                              )}
+                            </div>
+
+                            {/* Card header: category badge + importance stars */}
+                            <div className="hl-evidence-header">
+                              <div className="hl-evidence-header-left">
+                                <span
+                                  className="hl-evidence-category"
+                                  style={{
+                                    background: cs.bg,
+                                    color: cs.color,
+                                    border: `1px solid ${cs.border}`,
+                                  }}
+                                >
+                                  {CATEGORY_LABELS[h.category] || "Ý chính"}
+                                </span>
+                                {h.page_hint && (
+                                  <span className="hl-evidence-page">
+                                    <IconFileText size={11} /> Trang {h.page_hint}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="hl-evidence-header-right">
+                                <span
+                                  className={`hl-evidence-importance ${
+                                    h.importance === "high" ? "high" : "medium"
+                                  }`}
+                                  title={
+                                    h.importance === "high"
+                                      ? "Độ quan trọng: Cao"
+                                      : "Độ quan trọng: Trung bình"
+                                  }
+                                >
+                                  {renderStars(h.importance)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Evidence text */}
+                            <blockquote className="hl-evidence-text">
+                              "{h.text}"
+                            </blockquote>
+
+                            {/* AI Insight */}
+                            {h.note && (
+                              <div className="hl-evidence-note">
+                                <strong>Phân tích:</strong> {h.note}
+                              </div>
+                            )}
+
+                            {/* Source info bar */}
+                            <div className="hl-evidence-source">
+                              <span className="hl-evidence-source-label">
+                                Nguồn: {selectedPaper.title || selectedPaper.filename}
+                              </span>
+                              {h.page_hint && (
+                                <span className="hl-evidence-source-page">
+                                  Trang {h.page_hint}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="hl-evidence-actions">
+                              <button
+                                className="hl-evidence-action-btn"
+                                onClick={() => handleCopyHighlight(h.text)}
+                                title="Sao chép đoạn trích"
+                              >
+                                <IconCopy size={13} />
+                                <span>Sao chép</span>
+                              </button>
+                              <button
+                                className="hl-evidence-action-btn primary"
+                                onClick={() => handleChatWithHighlight()}
+                                title="Hỏi AI về đoạn này"
+                              >
+                                <IconChat size={13} />
+                                <span>Hỏi AI</span>
+                              </button>
+                              <button
+                                className="hl-evidence-action-btn outline"
+                                onClick={() => handleOpenPdfPage(h.page_hint)}
+                                title={h.page_hint ? `Mở PDF trang ${h.page_hint}` : "Mở PDF"}
+                              >
+                                <IconFileText size={13} />
+                                <span>{h.page_hint ? `Trang ${h.page_hint}` : "Mở PDF"}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Empty state when no highlights and no search */}
+                  {filteredHighlights.length === 0 && !highlightQuery && (
+                    <div className="hl-empty-state">
+                      <IconSparkle size={40} className="icon-gradient" />
+                      <h4>No Evidence Extracted Yet</h4>
+                      <p>Extract key findings, methods, limitations, and contributions from this paper with AI.</p>
+                      <button
+                        className="hl-extract-btn"
+                        onClick={() => selectedPaper && loadHighlights(selectedPaper.id)}
+                      >
+                        <IconSparkle size={16} /> Start Extraction
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ─── Generate Section ──────────────────────────── */}
+                  <div className="hl-generate-section">
+                    <div className="hl-generate-header">
+                      <IconBulb size={16} />
+                      <span className="hl-generate-title">Generate from this paper</span>
+                    </div>
+
+                    {/* Action cards */}
+                    <div className="hl-generate-actions">
+                      {GENERATE_OPTIONS.map((opt) => {
+                        const isGenerating = generatingType === opt.id;
+                        const result = generateResults.find(r => r.type === opt.id);
+                        return (
+                          <div key={opt.id} className={`hl-generate-action ${result ? "has-result" : ""}`}>
+                            <div className="hl-generate-action-row">
+                              <div className="hl-generate-action-info">
+                                <span className="hl-generate-action-label">{opt.label}</span>
+                                <span className="hl-generate-action-desc">{opt.desc}</span>
+                              </div>
+                              <button
+                                className={`hl-generate-action-btn ${isGenerating ? "generating" : ""}`}
+                                onClick={() => handleGenerateOne(opt.id)}
+                                disabled={generatingType !== null}
+                              >
+                                {isGenerating ? (
+                                  <><IconSpinner size={13} /> Generating</>
+                                ) : result ? (
+                                  "Regenerate"
+                                ) : (
+                                  "Generate"
+                                )}
+                              </button>
+                            </div>
+                            {isGenerating && (
+                              <div className="hl-generate-action-loading">
+                                <IconSpinner size={13} />
+                                <span>Generating {opt.label.toLowerCase()}...</span>
+                              </div>
+                            )}
+                            {result && (
+                              <div className="hl-generate-action-result">
+                                <div className="hl-generate-result-content">{result.result.answer}</div>
+                                {result.result.citations.length > 0 && (
+                                  <div className="hl-generate-result-citations">
+                                    <span className="hl-generate-citations-label">Sources:</span>
+                                    {result.result.citations.map((c, i) => (
+                                      <span key={i} className="hl-generate-citation">
+                                        {c.source}{c.page ? ` (p. ${c.page})` : ""}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {generateError && (
+                      <div className="hl-generate-error">{generateError}</div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", flex: 1, color: "var(--color-text-muted)" }}>
-            <IconFileText size={48} style={{ marginBottom: "12px" }} />
+          <div className="hl-no-paper">
+            <IconFileText size={48} />
             <h3>Chưa chọn tài liệu</h3>
             <p>Vui lòng chọn tài liệu ở thanh bên trái để xem các đoạn trích quan trọng.</p>
           </div>
         )}
       </div>
+
+
+
+      {/* PDF Viewer Overlay */}
+      {showPdfOverlay && pdfOverlayUrl && (          <div
+            className="hl-pdf-overlay"
+            onClick={() => setShowPdfOverlay(false)}
+            role="dialog"
+            aria-modal="true"
+          >
+          <div
+            className="hl-pdf-overlay-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="hl-pdf-overlay-header">
+              <div className="hl-pdf-overlay-header-left">
+                <IconFileText size={16} />
+                <span className="hl-pdf-overlay-title">
+                  {selectedPaper?.title || selectedPaper?.filename || "PDF Viewer"}
+                </span>
+                {pdfOverlayUrl?.includes("#page=") && (
+                  <span className="hl-pdf-overlay-page-badge">
+                    <IconFileText size={12} /> Trang {pdfOverlayUrl.split("#page=")[1]}
+                  </span>
+                )}
+              </div>
+              <div className="hl-pdf-overlay-header-actions">
+                <button
+                  className="hl-pdf-overlay-open-btn"
+                  onClick={() => window.open(pdfOverlayUrl, "_blank")}
+                  title="Mở trong tab mới"
+                >
+                  <IconFileText size={13} />
+                  <span>Mở tab mới</span>
+                </button>
+                <button
+                  className="hl-pdf-overlay-close-btn"
+                  onClick={() => setShowPdfOverlay(false)}
+                  title="Đóng (Esc)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={pdfOverlayUrl}
+              className="hl-pdf-overlay-iframe"
+              title={selectedPaper?.title || "PDF Viewer"}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

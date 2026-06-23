@@ -148,3 +148,18 @@ class SavedSearch(Base):
     filters = Column(Text, default="{}")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ReviewDraft(Base):
+    __tablename__ = "review_drafts"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, default="Literature Review")
+    paper_ids = Column(Text, default="[]")         # JSON array
+    paper_titles = Column(Text, default="[]")       # JSON array
+    outline_sections = Column(Text, default="[]")   # JSON array of {key, title, description}
+    sections = Column(Text, default="{}")           # JSON object key → section data
+    full_text = Column(Text, default="")
+    versions = Column(Text, default="[]")  # JSON array: [{title, paper_ids, paper_titles, outline_sections, sections, full_text, saved_at}, ...]
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

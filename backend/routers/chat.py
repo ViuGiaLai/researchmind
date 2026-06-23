@@ -62,6 +62,22 @@ def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
         session.close()
 
 
+_SIMPLE_QUESTION_MAX_LEN = 100
+_SIMPLE_QUESTION_KEYWORDS = {"là gì", "khác nhau", "so sánh", "tại sao", "thế nào",
+                            "cách", "bao nhiêu", "khi nào", "ở đâu", "ai"}
+
+
+def _is_simple_question(message: str) -> bool:
+    """Quick check: bỏ qua external_search nếu câu hỏi đơn giản, model tự trả lời."""
+    msg = message.strip().lower()
+    if len(msg) > _SIMPLE_QUESTION_MAX_LEN:
+        return False
+    if any(kw in msg for kw in _SIMPLE_QUESTION_KEYWORDS):
+        return True
+    # Yes/no, greeting, short definition
+    return len(msg.split()) <= 15
+
+
 # ─── Helpers ─────────────────────────────────────────────────────
 
 def count_free_queries_today(session) -> int:
@@ -224,17 +240,26 @@ async def chat(request: dict = Body(...)):
 
     if scope == "external":
         from types import SimpleNamespace
-        from academic.external_search import search_external
-        t1 = time_mod.time()
-        ext_context = await search_external(message, top_k=5)
-        t2 = time_mod.time()
-        retrieval = SimpleNamespace(
-            context_text=ext_context or "__EXTERNAL_KNOWLEDGE__",
-            total_chunks=ext_context.count("**") // 2 if ext_context else 0,
-            papers_used=[],
-        )
-        retrieve_time = t2 - t1
-        logger.info(f"TIMING: external_search={t2-t1:.2f}s context_len={len(ext_context)}")
+        if _is_simple_question(message):
+            logger.info(f"TIMING: external_search skipped (simple question)")
+            retrieval = SimpleNamespace(
+                context_text="__EXTERNAL_KNOWLEDGE__",
+                total_chunks=0,
+                papers_used=[],
+            )
+            retrieve_time = 0.0
+        else:
+            from academic.external_search import search_external
+            t1 = time_mod.time()
+            ext_context = await search_external(message, top_k=5)
+            t2 = time_mod.time()
+            retrieval = SimpleNamespace(
+                context_text=ext_context or "__EXTERNAL_KNOWLEDGE__",
+                total_chunks=ext_context.count("**") // 2 if ext_context else 0,
+                papers_used=[],
+            )
+            retrieve_time = t2 - t1
+            logger.info(f"TIMING: external_search={t2-t1:.2f}s context_len={len(ext_context)}")
     else:
         t1 = time_mod.time()
         retrieval = await asyncio.to_thread(

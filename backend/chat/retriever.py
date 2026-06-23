@@ -113,11 +113,18 @@ class Retriever:
                 "chunk_index": getattr(r, 'chunk_index', 0),
             })
 
+        chunks_before_pp = chunks[:]
         for pp in self.postprocessors:
             before = len(chunks)
             chunks = pp(chunks)
             if len(chunks) < before:
                 logger.debug(f"Postprocessor {pp.__class__.__name__}: {before} → {len(chunks)} chunks")
+
+        # Fallback: nếu postprocessor lọc hết, giữ top-k chunk gốc
+        if not chunks and chunks_before_pp:
+            chunks_before_pp.sort(key=lambda c: c.get("score") or 0, reverse=True)
+            chunks = chunks_before_pp[:top_k]
+            logger.debug(f"Postprocessor filtered all chunks, fallback to top {len(chunks)}")
 
         # Step 5: Intent-aware section boosting
         intent = self._detect_intent(query)

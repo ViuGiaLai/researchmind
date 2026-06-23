@@ -104,3 +104,11 @@ def truncate_to_token_limit(text: str, max_tokens: int, model: str = "gpt-4o") -
         truncated = truncated[: sentence_end + 1]
 
     return truncated.strip()
+
+
+_API_KEY_IN_URL = re.compile(r'(key=|api[_-]?key=)[^&\s"\']+')
+
+
+def redact_api_key(text: str) -> str:
+    """Remove API keys from URLs/error messages."""
+    return _API_KEY_IN_URL.sub(r'\1[REDACTED]', text)

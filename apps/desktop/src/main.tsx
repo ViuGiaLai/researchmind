@@ -6,6 +6,7 @@ import "./styles/globals.css";
 import "./styles/daily-reader.css";
 import "./styles/cite-panel.css";
 import "./styles/debate.css";
+import "./styles/highlights.css";
 
 // Apply saved theme before first render to prevent flash
 (function () {
