@@ -273,14 +273,14 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None):
+def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
     first_token_at = None
     full_response = ""
     yield f"data: {json.dumps({'status': 'Dang ket noi model...'})}\n\n"
-    for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode):
+    for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type):
         if first_token_at is None:
             first_token_at = time_mod.time()
             logger.info(
@@ -474,6 +474,7 @@ async def chat(request: dict = Body(...)):
                 {"start": t0, "retrieve": retrieve_time, "chunks_used": retrieval.total_chunks},
                 cache_key,
                 reasoning_mode,
+                "chat",
                 paper_title_map,
                 chunk_map,
             ),
@@ -485,6 +486,7 @@ async def chat(request: dict = Body(...)):
         query=message,
         context_text=retrieval.context_text,
         reasoning_mode=reasoning_mode,
+        task_type="chat",
     )
     t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")
@@ -638,6 +640,7 @@ Lưu ý: chỉ dùng thông tin từ các đoạn đã cung cấp, nêu rõ trí
         state.generator.generate,
         query=query,
         context_text=retrieval.context_text,
+        task_type="review",
     )
 
     session = get_session(state.engine)
@@ -720,6 +723,7 @@ Trả về kết quả theo dạng gạch đầu dòng, mỗi điểm ngắn g�
         state.generator.generate,
         query=full_query,
         context_text=retrieval.context_text,
+        task_type="critique",
     )
 
     session = get_session(state.engine)
@@ -816,6 +820,7 @@ Viết tiếng Việt, chỉ dùng thông tin từ context. Giữ ngắn gọn, 
         state.generator.generate,
         query=full_query,
         context_text=context_for_generation,
+        task_type="debate",
     )
 
     session = get_session(state.engine)

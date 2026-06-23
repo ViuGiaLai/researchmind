@@ -1314,7 +1314,7 @@ export const ChatView: React.FC<{
                                 }
                                 if (!c.paper_id) {
                                   console.warn("[Citation] Footer: paper_id missing:", c);
-                                  toast.addToast("error", "❌ Không tìm thấy file PDF cho nguồn này");
+                                  // toast.addToast("error", "❌ Không tìm thấy file PDF cho nguồn này");
                                   return;
                                 }
                                 const page = c.page || 1;
@@ -1323,7 +1323,7 @@ export const ChatView: React.FC<{
                                 console.log("[Citation] Footer opening PDF:", pdfUrl);
                                 setPdfPaperUrl(pdfUrl);
                                 setShowPdfViewer(true);
-                                toast.addToast("success", `Đã mở PDF trang ${page}`);
+                                // toast.addToast("success", `Đã mở PDF trang ${page}`);
                               }}
                               style={{
                                 display: "flex",

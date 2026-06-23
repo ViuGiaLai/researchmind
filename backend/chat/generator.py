@@ -88,8 +88,23 @@ class Generator:
         self.current_model: str = ""
         self.current_router_reason: str = ""
         self.current_token_count: int = 0
+        self._current_max_tokens: int = 2048
         self._http_client = None
         self._local = threading.local()
+
+    # Max output tokens per task type — prevents blowing quota on simple tasks
+    MODE_MAX_TOKENS = {
+        "chat": 1024,
+        "summary": 512,
+        "verify": 1536,
+        "review": 1536,
+        "critique": 1536,
+        "debate": 2048,
+        "gap": 1536,
+        "quality_check": 1024,
+        "preview": 384,
+        "default": 1024,
+    }
 
     @property
     def http_client(self):
@@ -167,8 +182,10 @@ class Generator:
         context_text: str,
         citations_meta: Optional[list[dict]] = None,
         reasoning_mode: str = "fast",
+        task_type: str = "chat",
     ) -> GenerationResult:
         self._local.reasoning_mode = reasoning_mode
+        self._current_max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
@@ -177,10 +194,12 @@ class Generator:
             user_prompt = query
         else:
             self._local.system_prompt_override = None
-            user_prompt = f"""Context từ tài liệu:
+            # Consistent prefix for implicit Gemini caching
+            user_prompt = f"""## Context từ tài liệu:
 {context_text}
 
-Câu hỏi: {query}
+## Câu hỏi:
+{query}
 
 Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
@@ -568,7 +587,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2048,
+                "max_tokens": self._current_max_tokens,
                 "stream": False,
             }
 
@@ -621,7 +640,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 },
                 "generationConfig": {
                     "temperature": 0.3,
-                    "maxOutputTokens": 2048,
+                    "maxOutputTokens": self._current_max_tokens,
                 }
             }
 
@@ -788,7 +807,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2048,
+                "max_tokens": self._current_max_tokens,
                 "stream": False,
             }
             response = self.http_client.post(
@@ -843,7 +862,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2048,
+                "max_tokens": self._current_max_tokens,
                 "stream": False,
             }
             response = self.http_client.post(
@@ -887,7 +906,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2048,
+                "max_tokens": self._current_max_tokens,
                 "stream": False,
             }
             response = self.http_client.post(
@@ -927,7 +946,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
 
             response = client.messages.create(
                 model=self.claude_model,
-                max_tokens=2048,
+                max_tokens=self._current_max_tokens,
                 temperature=0.3,
                 system=sp,
                 messages=[{"role": "user", "content": prompt}],
@@ -1007,6 +1026,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         query: str,
         context_text: str,
         reasoning_mode: str = "fast",
+        task_type: str = "chat",
     ):
         """
         Generate a streaming response.
@@ -1014,6 +1034,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         Yields content chunks as they arrive from the LLM.
         """
         self._local.reasoning_mode = reasoning_mode
+        self._current_max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = f"""Câu hỏi: {query}
@@ -1024,10 +1045,12 @@ Hãy trả lời câu hỏi trên bằng kiến thức sẵn có của bạn m�
             user_prompt = query
         else:
             self._local.system_prompt_override = None
-            user_prompt = f"""Context từ tài liệu:
+            # Consistent prefix for implicit Gemini caching
+            user_prompt = f"""## Context từ tài liệu:
 {context_text}
 
-Câu hỏi: {query}
+## Câu hỏi:
+{query}
 
 Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
@@ -1143,7 +1166,7 @@ Câu hỏi: {query}"""
 
                     with client.messages.stream(
                         model=self.claude_model,
-                        max_tokens=2048,
+                        max_tokens=self._current_max_tokens,
                         temperature=0.3,
                         system=self._get_system_prompt(),
                         messages=[{"role": "user", "content": user_prompt}],
@@ -1227,7 +1250,7 @@ Câu hỏi: {query}"""
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2048,
+                "max_tokens": self._current_max_tokens,
                 "stream": True,
             }
 
@@ -1289,7 +1312,7 @@ Câu hỏi: {query}"""
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 2048,
+                "max_tokens": self._current_max_tokens,
                 "stream": True,
             }
             in_thinking = False
@@ -1349,7 +1372,7 @@ Câu hỏi: {query}"""
                 },
                 "generationConfig": {
                     "temperature": 0.3,
-                    "maxOutputTokens": 2048,
+                    "maxOutputTokens": self._current_max_tokens,
                 }
             }
 

@@ -58,6 +58,7 @@ Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
         state.generator.generate,
         query=gap_prompt,
         context_text=retrieval.context_text,
+        task_type="gap",
     )
 
     return {
