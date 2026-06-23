@@ -670,7 +670,9 @@ export const ChatView: React.FC<{
 
   /** Export all assistant messages combined into a single synthesis document */
   const handleHeaderExport = async (format: string) => {
-    const assistantMessages = messages.filter(m => m.role === "assistant" && m.content);
+    const assistantMessages = messages.filter(
+      m => m.role === "assistant" && m.content
+    );
     if (assistantMessages.length === 0) return;
 
     const combinedContent = assistantMessages
@@ -681,7 +683,19 @@ export const ChatView: React.FC<{
       })
       .join("\n\n");
 
-    await triggerSynthesisExport(combinedContent, format);
+    try {
+      await triggerSynthesisExport(combinedContent, format);
+
+      toast.addToast(
+        "success",
+        `Đã tải ${format.toUpperCase()} thành công`
+      );
+    } catch (err) {
+      toast.addToast(
+        "error",
+        `Xuất ${format.toUpperCase()} thất bại`
+      );
+    }
   };
 
   const copyToClipboard = useCallback(async (text: string, idx?: number) => {
@@ -908,12 +922,12 @@ export const ChatView: React.FC<{
       <div className="chat-view" style={{ flex: 1, width: showPdfViewer ? "50%" : "100%", display: "flex", flexDirection: "column" }}>
         <div className="chat-view-header">
           <h2 className="chat-view-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <IconBrain
+            {/* <IconBrain
               size={22}
               className="icon-gradient"
               style={{ verticalAlign: "middle", marginRight: 8 }}
             />
-            Chat với Paper
+            Chat Nghiên Cứu */}
             {paperIds.length === 1 && pdfPaperUrl && !showPdfViewer && (
               <button
                 onClick={() => setShowPdfViewer(true)}
@@ -996,7 +1010,7 @@ export const ChatView: React.FC<{
               </button>
             </div>
           )}
-          {usage && usage.mode === "cloud_free" && (
+          {/* {usage && usage.mode === "cloud_free" && (
             <span
               className="chat-view-papers-badge"
               style={{
@@ -1007,7 +1021,7 @@ export const ChatView: React.FC<{
             >
               <IconZap size={14} /> Free Cloud: {usage.used}/{usage.limit} câu
             </span>
-          )}
+          )} */}
           {paperIds.length > 0 && (
             <span className="chat-view-papers-badge">
               <IconFileText size={14} /> {paperIds.length} papers

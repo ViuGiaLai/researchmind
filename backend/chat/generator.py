@@ -88,7 +88,6 @@ class Generator:
         self.current_model: str = ""
         self.current_router_reason: str = ""
         self.current_token_count: int = 0
-        self._current_max_tokens: int = 2048
         self._http_client = None
         self._local = threading.local()
 
@@ -185,7 +184,7 @@ class Generator:
         task_type: str = "chat",
     ) -> GenerationResult:
         self._local.reasoning_mode = reasoning_mode
-        self._current_max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
+        max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
@@ -233,7 +232,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 session.close()
 
         # Call original generation logic
-        result = self._generate_uncached(query, context_text, citations_meta)
+        result = self._generate_uncached(query, context_text, citations_meta, max_tokens)
 
         # Cache the result if successful
         if result and result.finish_reason != "error" and state.engine:
@@ -304,7 +303,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
             if self.groq_api_key:
                 logger.info("cloud_free: trying Groq...")
                 t0 = time.time()
-                result = self._call_with_retry(self._generate_groq, user_prompt, self.groq_api_key, self.groq_model)
+                result = self._call_with_retry(self._generate_groq, user_prompt, self.groq_api_key, self.groq_model, max_tokens)
                 logger.info(f"TIMING: Groq={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -313,7 +312,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
             if self.nvidia_api_key:
                 logger.info("cloud_free: trying NVIDIA NIM Kimi...")
                 t0 = time.time()
-                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model, max_retries=0)
+                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, max_retries=0)
                 logger.info(f"TIMING: NVIDIA Kimi={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -321,7 +320,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                 if self.nvidia_deepseek_api_key:
                     logger.info("cloud_free: trying NVIDIA NIM DeepSeek...")
                     t0 = time.time()
-                    result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_retries=0)
+                    result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, max_retries=0)
                     logger.info(f"TIMING: NVIDIA DeepSeek={time.time()-t0:.2f}s finish={result.finish_reason}")
                     if result.finish_reason != "error":
                         return result
@@ -330,7 +329,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
             if self.gemini_api_key:
                 logger.info("cloud_free: trying Gemini...")
                 t0 = time.time()
-                result = self._call_with_retry(self._generate_gemini, user_prompt, self.gemini_api_key, is_free=True)
+                result = self._call_with_retry(self._generate_gemini, user_prompt, self.gemini_api_key, max_tokens, is_free=True)
                 logger.info(f"TIMING: Gemini={time.time()-t0:.2f}s finish={result.finish_reason}")
                 if result.finish_reason != "error":
                     return result
@@ -348,7 +347,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                         model_used="deepseek/no_key",
                         finish_reason="no_key",
                     )
-                result = self._generate_deepseek(user_prompt, self.deepseek_api_key, is_free=False)
+                result = self._generate_deepseek(user_prompt, self.deepseek_api_key, max_tokens, is_free=False)
                 if result.finish_reason == "error":
                     logger.warning("Custom DeepSeek failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
@@ -361,7 +360,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                         model_used="gemini/no_key",
                         finish_reason="no_key",
                     )
-                result = self._generate_gemini(user_prompt, self.gemini_api_key, is_free=False)
+                result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False)
                 if result.finish_reason == "error":
                     logger.warning("Custom Gemini failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
@@ -374,7 +373,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                         model_used="claude/no_key",
                         finish_reason="no_key",
                     )
-                result = self._generate_claude(user_prompt)
+                result = self._generate_claude(user_prompt, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom Claude failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
@@ -387,7 +386,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                         model_used="groq/no_key",
                         finish_reason="no_key",
                     )
-                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model)
+                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom Groq failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
@@ -400,7 +399,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                         model_used="nvidia/no_key",
                         finish_reason="no_key",
                     )
-                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model)
+                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom Nvidia failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
@@ -413,7 +412,7 @@ Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ t
                         model_used="freemodel/no_key",
                         finish_reason="no_key",
                     )
-                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model)
+                result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom FreeModel failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
@@ -572,7 +571,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         # Local mode
         return self._generate_local(user_prompt, system_prompt_override=system_prompt)
 
-    def _generate_deepseek(self, prompt: str, api_key: str, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_deepseek(self, prompt: str, api_key: str, max_tokens: int = 1024, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using DeepSeek API (OpenAI-compatible)."""
         try:
             sp = system_prompt_override or self._get_local_system_prompt()
@@ -587,7 +586,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": self._current_max_tokens,
+                "max_tokens": max_tokens,
                 "stream": False,
             }
 
@@ -622,7 +621,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 finish_reason="error",
             )
 
-    def _generate_gemini(self, prompt: str, api_key: str, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_gemini(self, prompt: str, api_key: str, max_tokens: int = 1024, is_free: bool = False, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Google Gemini API (Native)."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
@@ -640,7 +639,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 },
                 "generationConfig": {
                     "temperature": 0.3,
-                    "maxOutputTokens": self._current_max_tokens,
+                    "maxOutputTokens": max_tokens,
                 }
             }
 
@@ -792,7 +791,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
             finish_reason="stop",
         )
 
-    def _generate_groq(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_groq(self, prompt: str, api_key: str, model: str, max_tokens: int = 1024, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Groq API (OpenAI-compatible)."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
@@ -807,7 +806,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": self._current_max_tokens,
+                "max_tokens": max_tokens,
                 "stream": False,
             }
             response = self.http_client.post(
@@ -847,7 +846,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 finish_reason="error",
             )
 
-    def _generate_nvidia(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_nvidia(self, prompt: str, api_key: str, model: str, max_tokens: int = 1024, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using NVIDIA NIM API (OpenAI-compatible)."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
@@ -862,7 +861,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": self._current_max_tokens,
+                "max_tokens": max_tokens,
                 "stream": False,
             }
             response = self.http_client.post(
@@ -891,7 +890,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 finish_reason="error",
             )
 
-    def _generate_freemodel(self, prompt: str, api_key: str, model: str, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_freemodel(self, prompt: str, api_key: str, model: str, max_tokens: int = 1024, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using FreeModel.dev API (OpenAI-compatible)."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
@@ -906,7 +905,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": self._current_max_tokens,
+                "max_tokens": max_tokens,
                 "stream": False,
             }
             response = self.http_client.post(
@@ -935,7 +934,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
                 finish_reason="error",
             )
 
-    def _generate_claude(self, prompt: str, system_prompt_override: str = None) -> GenerationResult:
+    def _generate_claude(self, prompt: str, max_tokens: int = 1024, system_prompt_override: str = None) -> GenerationResult:
         """Generate response using Claude API."""
         try:
             sp = system_prompt_override or self._get_system_prompt()
@@ -946,7 +945,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
 
             response = client.messages.create(
                 model=self.claude_model,
-                max_tokens=self._current_max_tokens,
+                max_tokens=max_tokens,
                 temperature=0.3,
                 system=sp,
                 messages=[{"role": "user", "content": prompt}],
@@ -1034,7 +1033,7 @@ Hãy xác thực các tuyên bố nghiên cứu dựa trên dữ liệu trên. P
         Yields content chunks as they arrive from the LLM.
         """
         self._local.reasoning_mode = reasoning_mode
-        self._current_max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
+        max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = f"""Câu hỏi: {query}
@@ -1054,7 +1053,7 @@ Hãy trả lời câu hỏi trên bằng kiến thức sẵn có của bạn m�
 
 Trả lời dựa trên context trên (nếu có thông tin liên quan). Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
 
-        yield from self._stream_chain(user_prompt)
+        yield from self._stream_chain(user_prompt, max_tokens)
 
     def stream_generate_verify(
         self,
@@ -1085,7 +1084,7 @@ Câu hỏi: {query}"""
         except Exception:
             self.current_router_reason = ""
 
-    def _stream_chain(self, user_prompt: str):
+    def _stream_chain(self, user_prompt: str, max_tokens: int = 1024):
         self.current_router_reason = ""
         self.current_token_count = 0
 
@@ -1094,7 +1093,7 @@ Câu hỏi: {query}"""
             if self.gemini_api_key:
                 self._set_model(f"gemini/{self.gemini_model}")
                 yielded = False
-                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=True):
+                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=True):
                     yielded = True
                     yield chunk
                 if yielded:
@@ -1104,7 +1103,7 @@ Câu hỏi: {query}"""
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.groq_api_key, self.groq_model,
-                    "https://api.groq.com/openai/v1"
+                    "https://api.groq.com/openai/v1", max_tokens
                 ):
                     yielded = True
                     yield chunk
@@ -1115,7 +1114,7 @@ Câu hỏi: {query}"""
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.nvidia_api_key, self.nvidia_model,
-                    self.nvidia_url
+                    self.nvidia_url, max_tokens
                 ):
                     yielded = True
                     yield chunk
@@ -1126,7 +1125,7 @@ Câu hỏi: {query}"""
                 yielded = False
                 for chunk in self._stream_openai(
                     user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model,
-                    self.nvidia_url
+                    self.nvidia_url, max_tokens
                 ):
                     yielded = True
                     yield chunk
@@ -1144,7 +1143,7 @@ Câu hỏi: {query}"""
                     yield "⚠️ Bạn chưa nhập DeepSeek API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
                 self._set_model(f"deepseek/{self.deepseek_model}")
-                for chunk in self._stream_deepseek(user_prompt, self.deepseek_api_key, is_free=False):
+                for chunk in self._stream_deepseek(user_prompt, self.deepseek_api_key, max_tokens, is_free=False):
                     yield chunk
             elif self.custom_cloud_provider == "gemini":
                 if not self.gemini_api_key:
@@ -1152,7 +1151,7 @@ Câu hỏi: {query}"""
                     yield "⚠️ Bạn chưa nhập Gemini API Key. Vui lòng vào Cài đặt để cấu hình."
                     return
                 self._set_model(f"gemini/{self.gemini_model}")
-                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, is_free=False):
+                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False):
                     yield chunk
             elif self.custom_cloud_provider == "claude":
                 if not self.claude_api_key:
@@ -1166,7 +1165,7 @@ Câu hỏi: {query}"""
 
                     with client.messages.stream(
                         model=self.claude_model,
-                        max_tokens=self._current_max_tokens,
+                        max_tokens=max_tokens,
                         temperature=0.3,
                         system=self._get_system_prompt(),
                         messages=[{"role": "user", "content": user_prompt}],
@@ -1187,7 +1186,7 @@ Câu hỏi: {query}"""
                 try:
                     yield from self._stream_openai(
                         user_prompt, self.groq_api_key, self.groq_model,
-                        "https://api.groq.com/openai/v1"
+                        "https://api.groq.com/openai/v1", max_tokens
                     )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
@@ -1203,7 +1202,7 @@ Câu hỏi: {query}"""
                 try:
                     yield from self._stream_openai(
                         user_prompt, self.nvidia_api_key, self.nvidia_model,
-                        self.nvidia_url
+                        self.nvidia_url, max_tokens
                     )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
@@ -1219,7 +1218,7 @@ Câu hỏi: {query}"""
                 try:
                     yield from self._stream_openai(
                         user_prompt, self.freemodel_api_key, self.freemodel_model,
-                        self.freemodel_url
+                        self.freemodel_url, max_tokens
                     )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
@@ -1236,7 +1235,7 @@ Câu hỏi: {query}"""
             for chunk in self._stream_local(user_prompt):
                 yield chunk
 
-    def _stream_deepseek(self, prompt: str, api_key: str, is_free: bool = False):
+    def _stream_deepseek(self, prompt: str, api_key: str, max_tokens: int = 1024, is_free: bool = False):
         """Stream response from DeepSeek API."""
         try:
             headers = {
@@ -1250,7 +1249,7 @@ Câu hỏi: {query}"""
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": self._current_max_tokens,
+                "max_tokens": max_tokens,
                 "stream": True,
             }
 
@@ -1298,7 +1297,7 @@ Câu hỏi: {query}"""
             for chunk in self._stream_local(prompt):
                 yield chunk
 
-    def _stream_openai(self, prompt: str, api_key: str, model: str, base_url: str):
+    def _stream_openai(self, prompt: str, api_key: str, model: str, base_url: str, max_tokens: int = 1024):
         """Stream response from any OpenAI-compatible API."""
         try:
             headers = {
@@ -1312,7 +1311,7 @@ Câu hỏi: {query}"""
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
-                "max_tokens": self._current_max_tokens,
+                "max_tokens": max_tokens,
                 "stream": True,
             }
             in_thinking = False
@@ -1355,7 +1354,7 @@ Câu hỏi: {query}"""
         except Exception as e:
             logger.error(f"OpenAI-compatible stream failed: {e}")
 
-    def _stream_gemini(self, prompt: str, api_key: str, is_free: bool = False):
+    def _stream_gemini(self, prompt: str, api_key: str, max_tokens: int = 1024, is_free: bool = False):
         """Stream response from Google Gemini API (SSE native)."""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:streamGenerateContent?alt=sse&key={api_key}"
@@ -1372,7 +1371,7 @@ Câu hỏi: {query}"""
                 },
                 "generationConfig": {
                     "temperature": 0.3,
-                    "maxOutputTokens": self._current_max_tokens,
+                    "maxOutputTokens": max_tokens,
                 }
             }
 
