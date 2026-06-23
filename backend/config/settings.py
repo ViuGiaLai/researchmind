@@ -110,6 +110,11 @@ class Settings(BaseSettings):
     openrouter_model: str = "deepseek/deepseek-v4-flash"
     openrouter_url: str = "https://openrouter.ai/api/v1"
 
+    # OpenRouter Deep+ (for deepseek/deepseek-r1)
+    openrouter_api_deep_key: str = ""
+    openrouter_deep_model: str = "deepseek/deepseek-r1"
+    openrouter_url_deep: str = "https://openrouter.ai/api/v1"
+
     # Cohere (Compatibility API — OpenAI-compatible)
     cohere_api_key: str = ""
     cohere_model: str = "command-r-plus"

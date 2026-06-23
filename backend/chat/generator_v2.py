@@ -69,6 +69,9 @@ class Generator(
         openrouter_api_key: str = "",
         openrouter_model: str = "deepseek/deepseek-v4-flash",
         openrouter_url: str = "https://openrouter.ai/api/v1",
+        openrouter_api_deep_key: str = "",
+        openrouter_deep_model: str = "deepseek/deepseek-r1",
+        openrouter_url_deep: str = "https://openrouter.ai/api/v1",
         cohere_api_key: str = "",
         cohere_model: str = "command-r-plus",
         cohere_url: str = "https://api.cohere.ai/compatibility/v1",
@@ -107,6 +110,9 @@ class Generator(
         self.openrouter_api_key = openrouter_api_key
         self.openrouter_model = openrouter_model
         self.openrouter_url = openrouter_url.rstrip("/")
+        self.openrouter_api_deep_key = openrouter_api_deep_key
+        self.openrouter_deep_model = openrouter_deep_model
+        self.openrouter_url_deep = openrouter_url_deep.rstrip("/")
         self.cohere_api_key = cohere_api_key
         self.cohere_model = cohere_model
         self.cohere_url = cohere_url.rstrip("/")
@@ -183,12 +189,34 @@ class Generator(
         task_type = task_type.strip().lower() if task_type else ""
         if not task_type:
             return None
+        
+        # Dynamic routing for chat/rag tasks based on reasoning_mode
+        if task_type in ("chat", "rag"):
+            mode = getattr(self._local, "reasoning_mode", "fast")
+            if mode == "fast":
+                return "github"
+            elif mode == "deep":
+                return "openrouter"
+            elif mode in ("deep_plus", "deep+"):
+                return "openrouter_r1"
+                
         return self.task_provider_map.get(task_type)
 
     def _get_fallback_for_task(self, task_type: str) -> str | None:
         task_type = task_type.strip().lower() if task_type else ""
         if not task_type:
             return None
+            
+        # Dynamic routing for chat/rag tasks based on reasoning_mode
+        if task_type in ("chat", "rag"):
+            mode = getattr(self._local, "reasoning_mode", "fast")
+            if mode == "fast":
+                return "openrouter"
+            elif mode == "deep":
+                return "gemini"
+            elif mode in ("deep_plus", "deep+"):
+                return "gemini"
+                
         return self.task_fallback_map.get(task_type)
 
     # ── Non-streaming provider dispatch ────────────────────────
@@ -224,6 +252,14 @@ class Generator(
                 if not self.nvidia_api_key:
                     return None
                 return self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, system_prompt_override)
+            elif provider == "nvidia_deepseek":
+                if not self.nvidia_deepseek_api_key:
+                    return None
+                return self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, system_prompt_override)
+            elif provider == "openrouter_r1":
+                if not self.openrouter_api_deep_key:
+                    return None
+                return self._generate_openrouter(user_prompt, self.openrouter_api_deep_key, self.openrouter_deep_model, max_tokens, system_prompt_override)
             elif provider == "freemodel":
                 if not self.freemodel_api_key:
                     return None
@@ -425,6 +461,39 @@ class Generator(
         if override:
             return override
         fast_rule = ""
+        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
+        if is_fast:
+            fast_rule = """
+5. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."""
+        
+        detail_rule = "4. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."
+        if not is_fast:
+            detail_rule = "4. Hãy giải thích chi tiết, đầy đủ và có chiều sâu dựa trên tài liệu được cung cấp. Phân tích cặn kẽ và trình bày mạch lạc bằng các đầu mục, bảng biểu hoặc so sánh để người đọc dễ hiểu."
+
+        return (
+            "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
+            "## QUY TẮC NGÔN NGỮ (QUAN TRỌNG):\n"
+            "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+            "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n"
+            "- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào trong câu trả lời.\n\n"
+            "## QUY TẮC ĐỊNH DẠNG:\n"
+            "- Dùng **in đậm** cho tiêu đề, tên cột, điểm số.\n"
+            "- Dùng `mã code` cho ID, mã số.\n"
+            "- Bảng: dùng markdown | cột1 | cột2 |.\n"
+            "- Danh sách: dùng - hoặc 1. 2. 3.\n"
+            "- Tách section rõ ràng bằng ## và ---.\n\n"
+            "## QUY TẮC NỘI DUNG:\n"
+            "1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.\n"
+            "2. Nếu thông tin trong context có liên quan, PHẢI trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].\n"
+            "3. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ \"(kiến thức chung)\" ở cuối.\n"
+            + detail_rule + fast_rule
+        )
+
+    def _get_system_prompt_disabled(self) -> str:
+        override = getattr(self._local, 'system_prompt_override', None)
+        if override:
+            return override
+        fast_rule = ""
         if getattr(self._local, 'reasoning_mode', 'fast') == "fast":
             fast_rule = """
 5. \u26a1 **Tr\u1ea3 l\u1eddi tr\u1ef1c ti\u1ebfp, kh\u00f4ng suy lu\u1eadn.** KH\u00d4NG \u0111\u01b0\u1ee3c t\u1ef1 \u0111\u1eb7t c\u00e2u h\u1ecfi, KH\u00d4NG suy ngh\u0129 n\u1ed9i b\u1ed9. Ch\u1ec9 \u0111\u01b0a ra c\u00e2u tr\u1ea3 l\u1eddi cu\u1ed1i c\u00f9ng ngay l\u1eadp t\u1ee9c."""
@@ -447,22 +516,61 @@ class Generator(
             "4. Gi\u1eef c\u00e2u tr\u1ea3 l\u1eddi s\u00fac t\u00edch, h\u1ecdc thu\u1eadt, c\u00f3 c\u1ea5u tr\u00fac r\u00f5 r\u00e0ng." + fast_rule
         )
 
-    @staticmethod
-    def _get_external_system_prompt() -> str:
-        return (
-            "B\u1ea1n l\u00e0 tr\u1ee3 l\u00fd AI th\u00f4ng th\u00e1i. Tr\u1ea3 l\u1eddi ng\u1eafn g\u1ecdn, tr\u1ef1c ti\u1ebfp, KH\u00d4NG suy lu\u1eadn hay gi\u1ea3i th\u00edch d\u00e0i d\u00f2ng.\n\n"
-            "## QUY T\u1eaeC NG\u00d4N NG\u1eee:\n"
-            "- Lu\u00f4n tr\u1ea3 l\u1eddi b\u1eb1ng TI\u1ebeNG VI\u1ec6T. Tuy\u1ec7t \u0111\u1ed1i KH\u00d4NG d\u00f9ng ti\u1ebfng Trung Qu\u1ed1c.\n"
-            "- N\u1ebfu c\u00e2u h\u1ecfi b\u1eb1ng ti\u1ebfng Anh, tr\u1ea3 l\u1eddi b\u1eb1ng ti\u1ebfng Anh.\n"
-            "- KH\u00d4NG bao g\u1ed3m b\u1ea5t k\u1ef3 k\u00fd t\u1ef1 Trung Qu\u1ed1c n\u00e0o.\n\n"
-            "## QUY T\u1eaeC N\u1ed8I DUNG:\n"
-            "1. Tr\u1ea3 l\u1eddi tho\u1ea3i m\u00e1i d\u1ef1a tr\u00ean ki\u1ebfn th\u1ee9c c\u1ee7a b\u1ea1n, KH\u00d4NG c\u1ea7n t\u00ecm ki\u1ebfm hay tr\u00edch d\u1eabn t\u00e0i li\u1ec7u.\n"
-            "2. KH\u00d4NG suy lu\u1eadn n\u1ed9i b\u1ed9, KH\u00d4NG \u0111\u1eb7t c\u00e2u h\u1ecfi, KH\u00d4NG d\u00f9ng th\u1ebb <think>.\n"
-            "3. N\u1ebfu kh\u00f4ng bi\u1ebft, n\u00f3i th\u1eb3ng \"T\u00f4i kh\u00f4ng c\u00f3 \u0111\u1ee7 th\u00f4ng tin.\"\n"
-            "4. Gi\u1eef c\u00e2u tr\u1ea3 l\u1eddi s\u00fac t\u00edch, \u0111\u00fang tr\u1ecdng t\u00e2m."
-        )
+    def _get_external_system_prompt(self) -> str:
+        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
+        if is_fast:
+            return (
+                "Bạn là trợ lý AI thông thái. Trả lời ngắn gọn, trực tiếp, KHÔNG suy luận hay giải thích dài dòng.\n\n"
+                "## QUY TẮC NGÔN NGỮ:\n"
+                "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+                "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n"
+                "- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào.\n\n"
+                "## QUY TẮC NỘI DUNG:\n"
+                "1. Trả lời thoải mái dựa trên kiến thức của bạn, KHÔNG cần tìm kiếm hay trích dẫn tài liệu.\n"
+                "2. KHÔNG suy luận nội bộ, KHÔNG đặt câu hỏi, KHÔNG dùng thẻ <think>.\n"
+                "3. Nếu không biết, nói thẳng \"Tôi không có đủ thông tin.\"\n"
+                "4. Giữ câu trả lời súc tích, đúng trọng tâm."
+            )
+        else:
+            return (
+                "Bạn là trợ lý AI thông thái, có kiến thức sâu rộng và năng lực lập luận xuất sắc. Hãy trả lời câu hỏi một cách đầy đủ, chính xác, chi tiết và có chiều sâu.\n\n"
+                "## QUY TẮC NGÔN NGỮ:\n"
+                "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+                "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n"
+                "- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào trong câu trả lời.\n\n"
+                "## QUY TẮC NỘI DUNG & TRÌNH BÀY:\n"
+                "1. Trình bày thông tin một cách chi tiết, toàn diện. Tránh trả lời quá ngắn gọn hoặc sơ sài.\n"
+                "2. Cung cấp định nghĩa rõ ràng, phân tích các đặc điểm, đưa ra ví dụ minh họa thực tế, nêu ưu/nhược điểm và ứng dụng (nếu có).\n"
+                "3. Sử dụng định dạng Markdown phong phú (in đậm, danh sách gạch đầu dòng, bảng so sánh, hoặc khối code) để câu trả lời có cấu trúc mạch mạch, chuyên nghiệp và dễ theo dõi.\n"
+                "4. Hãy suy luận và lập luận một cách logic để giải quyết triệt để yêu cầu của người dùng."
+            )
 
     def _get_local_system_prompt(self) -> str:
+        if getattr(self._local, 'system_prompt_override', None):
+            return self._local.system_prompt_override
+        fast_rule = ""
+        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
+        if is_fast:
+            fast_rule = "\n6. ⚡ **Trả lời trực tiếp, không suy luận.** KHÔNG được tự đặt câu hỏi, KHÔNG suy nghĩ nội bộ. Chỉ đưa ra câu trả lời cuối cùng ngay lập tức."
+        
+        detail_rule = "5. Giữ câu trả lời súc tích, học thuật, có cấu trúc rõ ràng."
+        if not is_fast:
+            detail_rule = "5. Hãy giải thích chi tiết, đầy đủ và có chiều sâu dựa trên tài liệu được cung cấp. Phân tích cặn kẽ và trình bày mạch lạc bằng các đầu mục, bảng biểu hoặc so sánh để người đọc dễ hiểu."
+
+        return (
+            "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
+            "## QUY TẮC NGÔN NGỮ:\n"
+            "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+            "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n\n"
+            "## QUY TẮC NỘI DUNG:\n"
+            "1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.\n"
+            "2. Nếu thông tin trong context có liên quan, PHẢI trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].\n"
+            "3. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ \"(kiến thức chung)\" ở cuối.\n"
+            "4. Với câu chào hỏi thông thường, hãy trả lời tự nhiên như một trợ lý thân thiện.\n"
+            + detail_rule + fast_rule
+        )
+
+    def _get_local_system_prompt_disabled(self) -> str:
         if getattr(self._local, 'system_prompt_override', None):
             return self._local.system_prompt_override
         fast_rule = ""
@@ -493,19 +601,22 @@ class Generator(
     ) -> GenerationResult:
         self._local.reasoning_mode = reasoning_mode
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
+        if reasoning_mode in ("deep", "deep_plus", "deep+"):
+            max_tokens = 4096
+
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
         elif not context_text.strip() or len(context_text.strip()) < 50:
-            self._local.system_prompt_override = None
+            self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
         else:
             self._local.system_prompt_override = None
             user_prompt = (
-                f"## Context t\u1eeb t\u00e0i li\u1ec7u:\n{context_text}\n\n"
-                f"## C\u00e2u h\u1ecfi:\n{query}\n\n"
-                "Tr\u1ea3 l\u1eddi d\u1ef1a tr\u00ean context tr\u00ean (n\u1ebfu c\u00f3 th\u00f4ng tin li\u00ean quan). "
-                "Nh\u1edb tr\u00edch d\u1eabn ngu\u1ed3n [T\u00ean Paper] cho m\u1ed7i th\u00f4ng tin b\u1ea1n \u0111\u01b0a ra."
+                f"## Context từ tài liệu:\n{context_text}\n\n"
+                f"## Câu hỏi:\n{query}\n\n"
+                "Trả lời dựa trên context trên (nếu có thông tin liên quan). "
+                "Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."
             )
 
         import hashlib
@@ -885,19 +996,22 @@ class Generator(
     ):
         self._local.reasoning_mode = reasoning_mode
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
+        if reasoning_mode in ("deep", "deep_plus", "deep+"):
+            max_tokens = 4096
+
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
-            user_prompt = f"C\u00e2u h\u1ecfi: {query}\n\nH\u00e3y tr\u1ea3 l\u1eddi c\u00e2u h\u1ecfi tr\u00ean b\u1eb1ng ki\u1ebfn th\u1ee9c s\u1eb5n c\u00f3 c\u1ee7a b\u1ea1n m\u1ed9t c\u00e1ch t\u1ef1 nhi\u00ean v\u00e0 tho\u1ea3i m\u00e1i."
+            user_prompt = f"Câu hỏi: {query}\n\nHãy trả lời câu hỏi trên bằng kiến thức sẵn có của bạn một cách tự nhiên và thoải mái."
         elif not context_text.strip() or len(context_text.strip()) < 50:
-            self._local.system_prompt_override = None
+            self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
         else:
             self._local.system_prompt_override = None
             user_prompt = (
-                f"## Context t\u1eeb t\u00e0i li\u1ec7u:\n{context_text}\n\n"
-                f"## C\u00e2u h\u1ecfi:\n{query}\n\n"
-                "Tr\u1ea3 l\u1eddi d\u1ef1a tr\u00ean context tr\u00ean (n\u1ebfu c\u00f3 th\u00f4ng tin li\u00ean quan). "
-                "Nh\u1edb tr\u00edch d\u1eabn ngu\u1ed3n [T\u00ean Paper] cho m\u1ed7i th\u00f4ng tin b\u1ea1n \u0111\u01b0a ra."
+                f"## Context từ tài liệu:\n{context_text}\n\n"
+                f"## Câu hỏi:\n{query}\n\n"
+                "Trả lời dựa trên context trên (nếu có thông tin liên quan). "
+                "Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."
             )
 
         yield from self._stream_chain(user_prompt, max_tokens, task_type)

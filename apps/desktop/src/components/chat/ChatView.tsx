@@ -87,7 +87,8 @@ export const ChatView: React.FC<{
   const [exportingSynthesis, setExportingSynthesis] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const [scope, setScope] = useState<Scope>("current");
-  const [reasoningMode, setReasoningMode] = useState<"fast" | "deep">("fast");
+  const [reasoningMode, setReasoningMode] = useState<"fast" | "deep" | "deep+">("fast");
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [activeCollectionId, setActiveCollectionId] = useState("");
   const [showPaperPicker, setShowPaperPicker] = useState(false);
@@ -1578,13 +1579,63 @@ export const ChatView: React.FC<{
           rows={2}
           disabled={loading}
         />
-        <button
-          className="chat-view-mode-btn"
-          onClick={() => setReasoningMode(reasoningMode === "fast" ? "deep" : "fast")}
-          title={reasoningMode === "fast" ? "Chuyển sang chế độ Deep (suy luận sâu)" : "Chuyển sang chế độ Fast (trả lời nhanh)"}
-        >
-          {reasoningMode === "fast" ? "⚡ Fast" : "🧠 Deep"}
-        </button>
+        <div className="chat-view-mode-container">
+          <button
+            className="chat-view-mode-select-trigger"
+            onClick={() => setShowModeDropdown(!showModeDropdown)}
+            title="Chọn chế độ suy luận"
+          >
+            {reasoningMode === "fast" ? "⚡ Fast" : reasoningMode === "deep" ? "🧠 Deep" : "🧠 Deep+"}
+            <span className="dropdown-arrow"></span>
+          </button>
+          
+          {showModeDropdown && (
+            <>
+              <div className="chat-view-dropdown-overlay" onClick={() => setShowModeDropdown(false)} />
+              <div className="chat-view-mode-dropdown-menu">
+                <div
+                  className={`chat-view-mode-dropdown-item ${reasoningMode === "fast" ? "active" : ""}`}
+                  onClick={() => {
+                    setReasoningMode("fast");
+                    setShowModeDropdown(false);
+                  }}
+                >
+                  <span className="item-icon">⚡</span>
+                  <div className="item-text">
+                    <div className="item-title">Fast</div>
+                    <div className="item-desc">Trả lời nhanh, không hiển thị suy nghĩ</div>
+                  </div>
+                </div>
+                <div
+                  className={`chat-view-mode-dropdown-item ${reasoningMode === "deep" ? "active" : ""}`}
+                  onClick={() => {
+                    setReasoningMode("deep");
+                    setShowModeDropdown(false);
+                  }}
+                >
+                  <span className="item-icon">🧠</span>
+                  <div className="item-text">
+                    <div className="item-title">Deep</div>
+                    <div className="item-desc">Suy luận sâu với DeepSeek V4 Flash</div>
+                  </div>
+                </div>
+                <div
+                  className={`chat-view-mode-dropdown-item ${reasoningMode === "deep+" ? "active" : ""}`}
+                  onClick={() => {
+                    setReasoningMode("deep+");
+                    setShowModeDropdown(false);
+                  }}
+                >
+                  <span className="item-icon">🧠</span>
+                  <div className="item-text">
+                    <div className="item-title">Deep+</div>
+                    <div className="item-desc">Lập luận chuyên sâu với DeepSeek R1</div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
         <button
           className="chat-view-send-btn"
           onClick={() => isStreaming ? handleCancelStream() : handleSend()}

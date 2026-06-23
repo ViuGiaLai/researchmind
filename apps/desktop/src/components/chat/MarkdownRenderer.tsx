@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { IconBrain } from "../Icons";
 
@@ -8,7 +8,11 @@ interface ThinkingBlockProps {
 }
 
 const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
-  const [isCollapsed, setIsCollapsed] = useState(isThinking);
+  const [isCollapsed, setIsCollapsed] = useState(!isThinking);
+
+  useEffect(() => {
+    setIsCollapsed(!isThinking);
+  }, [isThinking]);
 
   return (
     <div

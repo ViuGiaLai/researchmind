@@ -324,7 +324,7 @@ class OpenAIProviderMixin:
                         try:
                             data = json.loads(data_str)
                             delta = data["choices"][0]["delta"]
-                            reasoning_chunk = delta.get("reasoning_content", "")
+                            reasoning_chunk = delta.get("reasoning_content", "") or delta.get("reasoning", "")
                             content_chunk = delta.get("content", "")
                             if reasoning_chunk and not is_fast:
                                 if not in_thinking:
@@ -369,7 +369,7 @@ class OpenAIProviderMixin:
                         try:
                             data = json.loads(data_str)
                             delta = data["choices"][0]["delta"]
-                            reasoning_chunk = delta.get("reasoning_content", "")
+                            reasoning_chunk = delta.get("reasoning_content", "") or delta.get("reasoning", "")
                             content_chunk = delta.get("content", "")
                             if reasoning_chunk and not is_fast:
                                 if not in_thinking:
