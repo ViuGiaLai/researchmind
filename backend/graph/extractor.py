@@ -186,6 +186,7 @@ async def extract_entities_and_relationships(
         response = await generator.generate_direct_async(
             user_prompt=prompt,
             system_prompt="You are a precise entity extractor. Output only the structured format.",
+            task_type="entity",
         )
     except Exception as e:
         logger.error(f"Entity extraction LLM call failed: {e}")
@@ -204,11 +205,11 @@ async def extract_entities_and_relationships(
                 logger.warning(f"Gleaning stopped: accumulated {total_chars} chars (limit {MAX_GLEAN_TOTAL_CHARS})")
                 break
 
-            try:
-                cont = await generator.generate_direct_async(
-                    user_prompt=f"{CONTINUE_PROMPT}\n\nCurrent extraction:\n{results[-2000:]}",
-                    system_prompt="Continue extracting. Only output new entities/relationships.",
-                )
+            try:                    cont = await generator.generate_direct_async(
+                        user_prompt=f"{CONTINUE_PROMPT}\n\nCurrent extraction:\n{results[-2000:]}",
+                        system_prompt="Continue extracting. Only output new entities/relationships.",
+                        task_type="entity",
+                    )
             except Exception:
                 break
 
@@ -224,6 +225,7 @@ async def extract_entities_and_relationships(
                     loop_resp = await generator.generate_direct_async(
                         user_prompt=f"Are there still unextracted entities or relationships?\n{LOOP_PROMPT}",
                         system_prompt="Answer Y or N only.",
+                        task_type="entity",
                     )
                 except Exception:
                     break

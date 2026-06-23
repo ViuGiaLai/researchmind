@@ -34,7 +34,7 @@ export const SettingsView: React.FC = () => {
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
   // ── Custom Cloud Providers ──────────────────────────────────
-  type CustomProvider = "deepseek" | "gemini" | "claude" | "groq" | "nvidia" | "freemodel";
+  type CustomProvider = "deepseek" | "gemini" | "claude" | "groq" | "nvidia" | "github" | "freemodel";
   const [customCloudProvider, setCustomCloudProvider] = useState<CustomProvider>("deepseek");
   const [claudeApiKey, setClaudeApiKey] = useState("");
   const [claudeModel, setClaudeModel] = useState("claude-sonnet-4-20250514");
@@ -48,6 +48,8 @@ export const SettingsView: React.FC = () => {
   const [nvidiaModel, setNvidiaModel] = useState("moonshotai/kimi-k2.6");
   const [freemodelApiKey, setFreemodelApiKey] = useState("");
   const [freemodelModel, setFreemodelModel] = useState("gpt-4o-mini");
+  const [githubApiKey, setGithubApiKey] = useState("");
+  const [githubModel, setGithubModel] = useState("Phi-4-mini-instruct");
 
   // ── Local (llama-server) ──────────────────────────────────
   const [llamaServerUrl, setLlamaServerUrl] = useState("http://127.0.0.1:8080");
@@ -84,6 +86,33 @@ export const SettingsView: React.FC = () => {
   const [embeddingTestMsg, setEmbeddingTestMsg] = useState<string>("");
   const [stats, setStats] = useState<{ total_papers: number; total_chunks: number; chroma_chunks: number; data_dir?: string } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+
+  // ── Provider Routing ────────────────────────────────────────
+  const ALL_TASKS = [
+    "summary", "daily_reader", "chat", "quality_check",
+    "insight", "entity", "rag", "critique", "verify",
+    "gap", "debate", "review", "research", "synthesis", "graph",
+  ] as const;
+  const ALL_PROVIDERS = [
+    "github", "gemini", "deepseek", "groq", "nvidia", "freemodel",
+    "claude", "openrouter", "cohere", "cloudflare", "cerebras", "local",
+  ] as const;
+  const PROVIDER_LABELS: Record<string, string> = {
+    github: "GitHub Models", gemini: "Gemini", deepseek: "DeepSeek",
+    groq: "Groq", nvidia: "Nvidia NIM", freemodel: "FreeModel",
+    claude: "Claude", openrouter: "OpenRouter", cohere: "Cohere",
+    cloudflare: "Cloudflare", cerebras: "Cerebras", local: "Local",
+  };
+  const TASK_LABELS: Record<string, string> = {
+    summary: "Tóm tắt", daily_reader: "Daily Reader", chat: "Chat",
+    quality_check: "Kiểm tra chất lượng", insight: "Insights",
+    entity: "Trích xuất thực thể", rag: "RAG (có context)",
+    critique: "Phản biện", verify: "Xác minh", gap: "Gap Analysis",
+    debate: "Tranh luận", review: "Review Builder",
+    research: "Nghiên cứu sâu", synthesis: "Tổng hợp", graph: "GraphRAG",
+  };
+  const [taskProviderMapStr, setTaskProviderMapStr] = useState("{}");
+  const [taskFallbackMapStr, setTaskFallbackMapStr] = useState("{}");
 
   // ── Theme State ──────────────────────────────────────────────
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -150,6 +179,8 @@ export const SettingsView: React.FC = () => {
       setNvidiaModel((s as any).nvidia_model || "moonshotai/kimi-k2.6");
       setFreemodelApiKey((s as any).freemodel_api_key === "***" ? "" : (s as any).freemodel_api_key || "");
       setFreemodelModel((s as any).freemodel_model || "gpt-4o-mini");
+      setGithubApiKey((s as any).github_api_key === "***" ? "" : (s as any).github_api_key || "");
+      setGithubModel((s as any).github_model || "Phi-4-mini-instruct");
       setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "deepseek");
       setLlamaServerUrl((s as any).llama_server_url || "http://127.0.0.1:8080");
       setLocalModel((s as any).local_model || "Qwen3-4B-Q4_K_M.gguf");
@@ -165,6 +196,8 @@ export const SettingsView: React.FC = () => {
       setLargeContextModel((s as any).large_context_model || "");
       setLargeContextProvider((s as any).large_context_provider || "");
       setZoteroDataDir((s as any).zotero_data_dir || "");
+      setTaskProviderMapStr((s as any).task_provider_map || "{}");
+      setTaskFallbackMapStr((s as any).task_fallback_map || "{}");
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
@@ -415,7 +448,9 @@ export const SettingsView: React.FC = () => {
             ? groqApiKey
             : customCloudProvider === "nvidia"
             ? nvidiaApiKey
-            : freemodelApiKey;
+            : customCloudProvider === "freemodel"
+            ? freemodelApiKey
+            : githubApiKey;
         const activeModel =
           customCloudProvider === "deepseek"
             ? deepseekModel
@@ -427,7 +462,9 @@ export const SettingsView: React.FC = () => {
             ? groqModel
             : customCloudProvider === "nvidia"
             ? nvidiaModel
-            : freemodelModel;
+            : customCloudProvider === "freemodel"
+            ? freemodelModel
+            : githubModel;
 
         if (activeKey.trim() !== "") {
           setSaveMsg({ type: "success", text: "Đang kiểm tra kết nối API Key..." });
@@ -453,6 +490,8 @@ export const SettingsView: React.FC = () => {
         groq_model: groqModel,
         nvidia_api_key: nvidiaApiKey,
         nvidia_model: nvidiaModel,
+        github_api_key: githubApiKey,
+        github_model: githubModel,
         freemodel_api_key: freemodelApiKey,
         freemodel_model: freemodelModel,
         llama_server_url: llamaServerUrl,
@@ -467,6 +506,8 @@ export const SettingsView: React.FC = () => {
         large_context_provider: largeContextProvider,
         enable_reranker: enableReranker,
         mmr_lambda: mmrLambda === "" ? null : parseFloat(mmrLambda),
+        task_provider_map: taskProviderMapStr,
+        task_fallback_map: taskFallbackMapStr,
       });
       if (zoteroDataDir.trim()) {
         await api.saveZoteroPath(zoteroDataDir.trim());
@@ -644,7 +685,7 @@ export const SettingsView: React.FC = () => {
         {llmMode === "cloud_custom" && (
           <div className="settings-mode-detail" style={{ marginTop: 16 }}>
             <div className="provider-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
-              {["deepseek", "gemini", "claude", "groq", "nvidia", "freemodel"].map((provider) => {
+              {["deepseek", "gemini", "claude", "groq", "nvidia", "github", "freemodel"].map((provider) => {
                 const isActive = customCloudProvider === provider;
                 const labels: Record<string, string> = {
                   deepseek: "DeepSeek",
@@ -652,6 +693,7 @@ export const SettingsView: React.FC = () => {
                   claude: "Claude",
                   groq: "Groq",
                   nvidia: "Nvidia NIM",
+                  github: "GitHub Models",
                   freemodel: "FreeModel"
                 };
                 return (
@@ -899,6 +941,45 @@ export const SettingsView: React.FC = () => {
                 </div>
               </>
             )}
+
+            {customCloudProvider === "github" && (
+              <>
+                <div className="settings-field">
+                  <label className="settings-label">GitHub Personal Access Token</label>
+                  <div className="settings-api-key-row">
+                    <input
+                      type={showApiKey ? "text" : "password"}
+                      className="settings-input"
+                      value={githubApiKey}
+                      onChange={(e) => setGithubApiKey(e.target.value)}
+                      placeholder="github_pat_... or ghp_..."
+                    />
+                    <button
+                      className="settings-toggle-key-btn"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                    >
+                      {showApiKey ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <p className="settings-field-hint">
+                    🔒 Token được lưu trên máy bạn, không gửi đi đâu.
+                    <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="settings-link">
+                      {" "}Lấy token tại đây →
+                    </a>
+                    <br />
+                    Cần cấp quyền <strong>AI Models (Read-only)</strong> trong phần Account permissions.
+                  </p>
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">GitHub Model</label>
+                  <select className="settings-select" value={githubModel} onChange={(e) => setGithubModel(e.target.value)}>
+                    <option value="Phi-4-mini-instruct">Phi-4-mini-instruct (nhẹ, nhanh, miễn phí)</option>
+                    <option value="microsoft/Phi-4-mini-instruct">microsoft/Phi-4-mini-instruct (full path)</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1107,6 +1188,119 @@ export const SettingsView: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Provider Routing ────────────────────────────────── */}
+      <div className="settings-section">
+        <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <IconZap size={18} /> Định tuyến Provider
+        </h3>
+        <p className="settings-desc">
+          Cấu hình provider cho từng tác vụ AI. Khi provider chính gặp lỗi, hệ thống tự động chuyển sang fallback.
+        </p>
+
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Tác vụ</th>
+                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Provider chính</th>
+                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Fallback</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const primaryMap: Record<string, string> = (() => {
+                  try { return JSON.parse(taskProviderMapStr); } catch { return {}; }
+                })();
+                const fallbackMap: Record<string, string> = (() => {
+                  try { return JSON.parse(taskFallbackMapStr); } catch { return {}; }
+                })();
+
+                const handleChangePrimary = (task: string, provider: string) => {
+                  const newMap = { ...primaryMap, [task]: provider };
+                  setTaskProviderMapStr(JSON.stringify(newMap, null, 2));
+                };
+                const handleChangeFallback = (task: string, provider: string) => {
+                  const newMap = { ...fallbackMap, [task]: provider };
+                  setTaskFallbackMapStr(JSON.stringify(newMap, null, 2));
+                };
+
+                return ALL_TASKS.map((task) => (
+                  <tr key={task}>
+                    <td style={{ padding: "4px 6px", borderBottom: "1px solid var(--color-border)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                      {TASK_LABELS[task] || task}
+                    </td>
+                    <td style={{ padding: "4px 6px", borderBottom: "1px solid var(--color-border)" }}>
+                      <select
+                        value={primaryMap[task] || ""}
+                        onChange={(e) => handleChangePrimary(task, e.target.value)}
+                        style={{
+                          width: "100%", minWidth: "120px", padding: "4px 6px", fontSize: "0.78rem",
+                          background: "var(--color-surface)", border: "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer",
+                        }}
+                      >
+                        <option value="">— Mặc định —</option>
+                        {ALL_PROVIDERS.map((prov) => (
+                          <option key={prov} value={prov}>{PROVIDER_LABELS[prov]}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={{ padding: "4px 6px", borderBottom: "1px solid var(--color-border)" }}>
+                      <select
+                        value={fallbackMap[task] || ""}
+                        onChange={(e) => handleChangeFallback(task, e.target.value)}
+                        style={{
+                          width: "100%", minWidth: "120px", padding: "4px 6px", fontSize: "0.78rem",
+                          background: "var(--color-surface)", border: "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer",
+                        }}
+                      >
+                        <option value="">— Không có —</option>
+                        {ALL_PROVIDERS.map((prov) => (
+                          <option key={prov} value={prov}>{PROVIDER_LABELS[prov]}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ));
+              })()}
+            </tbody>
+          </table>
+        </div>
+
+        <details style={{ marginTop: 12, fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
+          <summary style={{ cursor: "pointer", userSelect: "none" }}>
+            Xem JSON gốc
+          </summary>
+          <div style={{ marginTop: 8 }}>
+            <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>task_provider_map</label>
+            <textarea
+              value={taskProviderMapStr}
+              onChange={(e) => setTaskProviderMapStr(e.target.value)}
+              rows={4}
+              style={{
+                width: "100%", fontSize: "0.72rem", fontFamily: "monospace",
+                background: "var(--color-surface)", border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)", color: "var(--color-text)",
+                padding: "6px 8px", resize: "vertical",
+              }}
+            />
+            <label style={{ display: "block", margin: "8px 0 4px", fontWeight: 600 }}>task_fallback_map</label>
+            <textarea
+              value={taskFallbackMapStr}
+              onChange={(e) => setTaskFallbackMapStr(e.target.value)}
+              rows={4}
+              style={{
+                width: "100%", fontSize: "0.72rem", fontFamily: "monospace",
+                background: "var(--color-surface)", border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-sm)", color: "var(--color-text)",
+                padding: "6px 8px", resize: "vertical",
+              }}
+            />
+          </div>
+        </details>
+      </div>
+
       {/* ── System Info ───────────────────────────────────── */}
       <div className="settings-section">
         <h3 className="settings-section-title">
@@ -1131,6 +1325,7 @@ export const SettingsView: React.FC = () => {
                     : customCloudProvider === "claude" ? "Claude"
                     : customCloudProvider === "groq" ? "Groq"
                     : customCloudProvider === "nvidia" ? "Nvidia NIM"
+                    : customCloudProvider === "github" ? "GitHub Models"
                     : "FreeModel"
                   })
                 </>

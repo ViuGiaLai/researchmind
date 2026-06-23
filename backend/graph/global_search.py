@@ -86,6 +86,7 @@ async def global_search(
             response = await generator.generate_direct_async(
                 user_prompt=prompt,
                 system_prompt="You are a research analyst providing community-level analysis.",
+                task_type="research",
             )
             if response and response.strip():
                 partial_answers.append(
@@ -107,6 +108,7 @@ async def global_search(
         final_answer = await generator.generate_direct_async(
             user_prompt=reduce_prompt,
             system_prompt="You are a senior research synthesizer.",
+            task_type="synthesis",
         )
         return final_answer or "No synthesis could be generated."
     except Exception as e:

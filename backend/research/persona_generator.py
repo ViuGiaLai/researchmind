@@ -123,6 +123,7 @@ def generate_personas(
         result = generator.generate_direct(
             user_prompt=prompt,
             system_prompt="Bạn là chuyên gia phân tích và lập kế hoạch nghiên cứu.",
+            task_type="research",
         )
         import json
         data = json.loads(result)
@@ -175,6 +176,7 @@ def generate_perspective_questions(
         result = generator.generate_direct(
             user_prompt=prompt,
             system_prompt=f"Bạn là {persona.name}. Đặt câu hỏi nghiên cứu từ góc nhìn của bạn.",
+            task_type="research",
         )
         import json
         data = json.loads(result)

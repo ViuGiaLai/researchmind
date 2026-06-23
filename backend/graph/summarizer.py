@@ -70,6 +70,7 @@ async def summarize_community(
         response = await generator.generate_direct_async(
             user_prompt=prompt,
             system_prompt="You are a research analyst generating community reports.",
+            task_type="summary",
         )
     except Exception as e:
         logger.error(f"Community summarization failed for {community.id}: {e}")

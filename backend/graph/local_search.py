@@ -279,6 +279,7 @@ async def local_search(
         response = await generator.generate_direct_async(
             user_prompt=f"Question: {query}\n\nKnowledge Graph Context:\n{context}",
             system_prompt=LOCAL_SEARCH_SYSTEM_PROMPT,
+            task_type="research",
         )
         return response or "No response generated."
     except Exception as e:

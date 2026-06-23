@@ -78,6 +78,7 @@ Câu hỏi phụ: {sub_q}
 
 Trả lời chi tiết, chỉ dựa trên context, trích dẫn [Tên Paper] cho mỗi thông tin.""",
                     system_prompt="Bạn là trợ lý nghiên cứu. Trả lời dựa trên context được cung cấp.",
+                    task_type="research",
                 )
                 if result:
                     findings.append(f"## {sub_q}\n\n{result}")

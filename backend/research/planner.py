@@ -120,6 +120,7 @@ def decompose_query(query: str) -> ResearchPlan:
             result = generator.generate_direct(
                 user_prompt=prompt,
                 system_prompt="Bạn là chuyên gia phân tích câu hỏi. Trả về JSON thuần túy.",
+                task_type="research",
             )
             import json
             data = json.loads(result)
@@ -172,6 +173,7 @@ def decompose_query_simple(query: str) -> ResearchPlan:
         result = generator.generate_direct(
             user_prompt=prompt,
             system_prompt="Bạn là chuyên gia phân tích câu hỏi. Trả về JSON thuần túy.",
+            task_type="research",
         )
         import json
         data = json.loads(result)
@@ -199,6 +201,7 @@ def compress_findings(findings: list[str]) -> str:
         result = generator.generate_direct(
             user_prompt=prompt,
             system_prompt="Bạn là chuyên gia tổng hợp thông tin nghiên cứu.",
+            task_type="synthesis",
         )
         return result
     except Exception as e:
@@ -220,6 +223,7 @@ def synthesize_answer(query: str, findings: str) -> str:
         result = generator.generate_direct(
             user_prompt=prompt,
             system_prompt="Bạn là chuyên gia viết báo cáo nghiên cứu học thuật.",
+            task_type="synthesis",
         )
         return result
     except Exception as e:

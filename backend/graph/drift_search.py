@@ -69,6 +69,7 @@ async def drift_search(
         response = await generator.generate_direct_async(
             user_prompt=f"Question: {query}\n\nKnowledge Graph Context:\n{initial_context}",
             system_prompt=LOCAL_SEARCH_SYSTEM_PROMPT,
+            task_type="research",
         )
         initial_answer = response or ""
         if initial_answer:
@@ -93,6 +94,7 @@ async def drift_search(
             entity_list_resp = await generator.generate_direct_async(
                 user_prompt=extract_prompt,
                 system_prompt="Extract entity names only, one per line.",
+                task_type="entity",
             )
         except Exception as e:
             logger.error(f"DRIFT entity extraction failed at step {step}: {e}")
@@ -161,6 +163,7 @@ async def drift_search(
             drift_response = await generator.generate_direct_async(
                 user_prompt=drift_prompt,
                 system_prompt="You are exploring a knowledge graph. Build on previous findings.",
+                task_type="research",
             )
             if drift_response and drift_response.strip():
                 partial_answers.append(f"### Drift Step {step + 1}\n{drift_response.strip()}")
@@ -182,6 +185,7 @@ async def drift_search(
         final_answer = await generator.generate_direct_async(
             user_prompt=reduce_prompt,
             system_prompt="You are a senior research synthesizer.",
+            task_type="synthesis",
         )
         return final_answer or partial_answers[-1]
     except Exception as e:

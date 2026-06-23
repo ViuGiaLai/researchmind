@@ -461,6 +461,14 @@ async def chat(request: dict = Body(...)):
         retrieve_time = t2 - t1
         logger.info(f"TIMING: retrieve={t2-t1:.2f}s context_len={len(retrieval.context_text)} chunks={retrieval.total_chunks}")
 
+    # Phân biệt: có context paper → RAG (gemini), không context → chat đơn giản (github)
+    has_paper_context = (
+        retrieval.context_text
+        and retrieval.context_text != "__EXTERNAL_KNOWLEDGE__"
+        and len(retrieval.context_text.strip()) >= 50
+    )
+    actual_task_type = "rag" if has_paper_context else "chat"
+
     paper_title_map = _build_paper_title_map(paper_ids)
     chunk_map = _build_chunk_map(retrieval.context_text)
 
@@ -474,7 +482,7 @@ async def chat(request: dict = Body(...)):
                 {"start": t0, "retrieve": retrieve_time, "chunks_used": retrieval.total_chunks},
                 cache_key,
                 reasoning_mode,
-                "chat",
+                actual_task_type,
                 paper_title_map,
                 chunk_map,
             ),
@@ -486,7 +494,7 @@ async def chat(request: dict = Body(...)):
         query=message,
         context_text=retrieval.context_text,
         reasoning_mode=reasoning_mode,
-        task_type="chat",
+        task_type=actual_task_type,
     )
     t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")

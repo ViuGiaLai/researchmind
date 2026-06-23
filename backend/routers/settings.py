@@ -34,6 +34,16 @@ async def get_settings():
         "groq_model": settings.groq_model,
         "nvidia_api_key": "***" if settings.nvidia_api_key else "",
         "nvidia_model": settings.nvidia_model,
+        "github_api_key": "***" if settings.github_api_key else "",
+        "github_model": settings.github_model,
+        "openrouter_api_key": "***" if settings.openrouter_api_key else "",
+        "openrouter_model": settings.openrouter_model,
+        "cohere_api_key": "***" if settings.cohere_api_key else "",
+        "cohere_model": settings.cohere_model,
+        "cloudflare_api_key": "***" if settings.cloudflare_api_key else "",
+        "cloudflare_model": settings.cloudflare_model,
+        "cerebras_api_key": "***" if settings.cerebras_api_key else "",
+        "cerebras_model": settings.cerebras_model,
         "freemodel_api_key": "***" if settings.freemodel_api_key else "",
         "freemodel_model": settings.freemodel_model,
         "custom_cloud_provider": settings.custom_cloud_provider,
@@ -55,6 +65,8 @@ async def get_settings():
         "setup_completed": settings.setup_completed,
         "zotero_data_dir": getattr(settings, "zotero_data_dir", ""),
         "enable_reranker": settings.enable_reranker,
+        "task_provider_map": settings.task_provider_map,
+        "task_fallback_map": settings.task_fallback_map,
     }
 
 
@@ -65,9 +77,14 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "freemodel_api_key"):
+                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "freemodel_api_key", "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
+                if key in ("task_provider_map", "task_fallback_map"):
+                    if isinstance(value, str):
+                        pass  # already JSON string
+                    elif isinstance(value, dict):
+                        value = json.dumps(value, ensure_ascii=False)
                 setattr(settings, key, value)
                 db_value = "None" if value is None else str(value)
                 setting = session.query(Setting).filter(Setting.key == key).first()
@@ -100,6 +117,21 @@ async def update_settings(new_settings: dict = Body(...)):
             nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
             nvidia_deepseek_api_key=getattr(settings, "nvidia_deepseek_api_key", ""),
             nvidia_deepseek_model=getattr(settings, "nvidia_deepseek_model", "deepseek-ai/deepseek-v4-pro"),
+            github_api_key=settings.github_api_key,
+            github_model=settings.github_model,
+            github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
+            openrouter_api_key=settings.openrouter_api_key,
+            openrouter_model=settings.openrouter_model,
+            openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),
+            cohere_api_key=settings.cohere_api_key,
+            cohere_model=settings.cohere_model,
+            cohere_url=getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1"),
+            cloudflare_api_key=settings.cloudflare_api_key,
+            cloudflare_model=settings.cloudflare_model,
+            cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
+            cerebras_api_key=settings.cerebras_api_key,
+            cerebras_model=settings.cerebras_model,
+            cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.ai/v1"),
             freemodel_api_key=settings.freemodel_api_key,
             freemodel_model=settings.freemodel_model,
             freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
@@ -176,6 +208,16 @@ async def validate_api_key(body: dict = Body(...)):
             api_key = settings.groq_api_key
         elif provider == "nvidia":
             api_key = settings.nvidia_api_key
+        elif provider == "github":
+            api_key = settings.github_api_key
+        elif provider == "openrouter":
+            api_key = settings.openrouter_api_key
+        elif provider == "cohere":
+            api_key = settings.cohere_api_key
+        elif provider == "cloudflare":
+            api_key = settings.cloudflare_api_key
+        elif provider == "cerebras":
+            api_key = settings.cerebras_api_key
         elif provider == "freemodel":
             api_key = settings.freemodel_api_key
 
@@ -258,6 +300,21 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.text
                     return {"valid": False, "error": f"Lỗi Nvidia: {err_msg}"}
 
+            elif provider == "github":
+                url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "Phi-4-mini-instruct"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi GitHub Models: {err_msg}"}
+
             elif provider == "freemodel":
                 url = getattr(settings, "freemodel_url", "https://api.freemodel.dev/v1").rstrip("/") + "/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -272,6 +329,66 @@ async def validate_api_key(body: dict = Body(...)):
                     except:
                         err_msg = res.text
                     return {"valid": False, "error": f"Lỗi FreeModel: {err_msg}"}
+
+            elif provider == "openrouter":
+                url = getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "deepseek/deepseek-v4-flash"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi OpenRouter: {err_msg}"}
+
+            elif provider == "cohere":
+                url = getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "command-r-plus"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi Cohere: {err_msg}"}
+
+            elif provider == "cloudflare":
+                url = getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi Cloudflare: {err_msg}"}
+
+            elif provider == "cerebras":
+                url = getattr(settings, "cerebras_url", "https://api.cerebras.ai/v1").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "qwen-3-235b-a22b-instruct-2507"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi Cerebras: {err_msg}"}
 
             else:
                 return {"valid": False, "error": f"Nhà cung cấp '{provider}' không hợp lệ."}

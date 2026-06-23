@@ -45,7 +45,7 @@ from search.bm25 import BM25Search
 from search.vector import VectorSearch
 from search.hybrid import HybridSearch
 from chat.retriever import Retriever
-from chat.generator import Generator
+from chat.patched_generator import PatchedGenerator as Generator
 
 from export import router as export_router
 from zotero_import import router as zotero_import_router
@@ -75,9 +75,11 @@ def load_persisted_settings():
     """
     env_only_keys = {
         "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
-        "groq_api_key", "freemodel_api_key",
+        "groq_api_key", "github_api_key", "freemodel_api_key",
+        "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key",
         "local_model", "claude_model", "deepseek_model", "gemini_model",
-        "groq_model", "freemodel_model",
+        "groq_model", "github_model", "freemodel_model",
+        "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
     }
 
     session = get_session(state.engine)
@@ -234,7 +236,23 @@ async def lifespan(app: FastAPI):
         freemodel_api_key=settings.freemodel_api_key,
         freemodel_model=settings.freemodel_model,
         freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
+        github_api_key=settings.github_api_key,
+        github_model=settings.github_model,
+        github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
+        openrouter_api_key=settings.openrouter_api_key,
+        openrouter_model=settings.openrouter_model,
+        openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),
+        cohere_api_key=settings.cohere_api_key,
+        cohere_model=settings.cohere_model,
+        cohere_url=getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1"),
+        cloudflare_api_key=settings.cloudflare_api_key,
+        cloudflare_model=settings.cloudflare_model,
+        cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
+        cerebras_api_key=settings.cerebras_api_key,
+        cerebras_model=settings.cerebras_model,
+        cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.ai/v1"),
         mode=settings.llm_mode,
+        task_provider_map=settings.task_provider_map,
         custom_cloud_provider=settings.custom_cloud_provider,
         local_max_tokens=settings.local_max_tokens,
     )

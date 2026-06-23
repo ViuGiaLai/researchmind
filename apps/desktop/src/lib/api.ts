@@ -678,6 +678,8 @@ export const api = {
       nvidia_api_key: string;
       nvidia_model: string;
       nvidia_url: string;
+      github_api_key: string;
+      github_model: string;
       custom_cloud_provider: string;
       chunk_size: number;
       chunk_overlap: number;
@@ -686,6 +688,8 @@ export const api = {
       embedding_mode: string;
       setup_completed: boolean;
       enable_reranker: boolean;
+      task_provider_map: string;
+      task_fallback_map: string;
     }>("GET", "/api/settings"),
 
   updateSettings: (settings: Record<string, unknown>) =>

@@ -95,10 +95,35 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
 
+    # GitHub Models (Azure AI Foundry — OpenAI-compatible, free with GitHub PAT)
+    github_api_key: str = ""
+    github_model: str = "Phi-4-mini-instruct"
+    github_url: str = "https://models.inference.ai.azure.com"
+
     # FreeModel.dev Cloud (OpenAI-compatible proxy)
     freemodel_api_key: str = ""
     freemodel_model: str = "gpt-4o-mini"
     freemodel_url: str = "https://api.freemodel.dev/v1"
+
+    # OpenRouter (OpenAI-compatible marketplace — DeepSeek V4 Flash, Cerebras, etc.)
+    openrouter_api_key: str = ""
+    openrouter_model: str = "deepseek/deepseek-v4-flash"
+    openrouter_url: str = "https://openrouter.ai/api/v1"
+
+    # Cohere (Compatibility API — OpenAI-compatible)
+    cohere_api_key: str = ""
+    cohere_model: str = "command-r-plus"
+    cohere_url: str = "https://api.cohere.ai/compatibility/v1"
+
+    # Cloudflare Workers AI (OpenAI-compatible — needs Account ID in URL)
+    cloudflare_api_key: str = ""
+    cloudflare_model: str = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    cloudflare_url: str = "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"
+
+    # Cerebras (OpenAI-compatible — ultra-fast inference)
+    cerebras_api_key: str = ""
+    cerebras_model: str = "qwen-3-235b-a22b-instruct-2507"
+    cerebras_url: str = "https://api.cerebras.ai/v1"
     
     # Reranking settings (BGE cross-encoder for improved relevance)
     enable_reranker: bool = True
@@ -145,6 +170,15 @@ class Settings(BaseSettings):
     
     # Custom provider: "deepseek", "claude", or "gemini"
     custom_cloud_provider: str = "deepseek"
+    
+    # Per-task provider map (JSON string): task_type → provider name
+    # https://github.com/marketplace/models/azureml/Phi-4-mini-instruct
+    task_provider_map: str = ""
+
+    # Per-task fallback provider map (JSON string): task_type → fallback provider
+    # Used when primary provider fails (no key, rate limit, error)
+    # Format: {"summary":"cloudflare","daily_reader":"cohere",...}
+    task_fallback_map: str = ""
     
     # Onboarding setup completed state
     setup_completed: bool = False

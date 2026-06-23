@@ -119,6 +119,7 @@ Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
         state.generator.generate,
         query=conflict_prompt,
         context_text=retrieval.context_text,
+        task_type="insight",
     )
 
     return {
@@ -182,6 +183,7 @@ Trích dẫn [Tên Paper] khi cần. Trả lời tiếng Việt."""
         state.generator.generate,
         query=topic_prompt,
         context_text=retrieval.context_text,
+        task_type="insight",
     )
 
     return {
@@ -242,6 +244,7 @@ Trích dẫn [Tên Paper] cho mỗi giai đoạn. Trả lời tiếng Việt."""
         state.generator.generate,
         query=evolution_prompt,
         context_text=retrieval.context_text,
+        task_type="insight",
     )
 
     return {
@@ -332,6 +335,7 @@ Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, k
             state.generator.generate,
             query=prompt,
             context_text=retrieval.context_text,
+            task_type="insight",
         )
         
         content = generation.content.strip()
