@@ -1,0 +1,91 @@
+/* ============= 3D Icon Styles ============= */
+.icon-3d {
+  transition: all var(--transition-fast);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+}
+
+.icon-3d:hover {
+  transform: scale(1.12);
+  filter: drop-shadow(0 2px 4px rgba(45, 212, 191, 0.3));
+}
+
+.icon-gradient {
+  stroke: url(#icon-gradient) !important;
+  filter: drop-shadow(0 1px 2px rgba(45, 212, 191, 0.4));
+}
+
+.icon-brain { color: var(--color-primary); }
+.icon-brain-img {
+  transition: all var(--transition-fast);
+  filter: drop-shadow(0 1px 3px rgba(99, 102, 241, 0.3));
+  animation: brainGlow 3s ease-in-out infinite;
+}
+.icon-brain-img:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.5));
+}
+.brain-icon-loading {
+  animation: iconSpin 1s linear infinite, brainGlow 2s ease-in-out infinite;
+}
+@keyframes brainGlow {
+  0%, 100% { filter: drop-shadow(0 1px 3px rgba(99, 102, 241, 0.3)) brightness(1); }
+  50% { filter: drop-shadow(0 2px 10px rgba(99, 102, 241, 0.6)) brightness(1.08); }
+}
+.icon-search { color: var(--color-text-secondary); }
+.icon-chat { color: #14b8a6; }
+.icon-gradient.icon-chat {
+  filter: drop-shadow(0 1px 3px rgba(94, 234, 212, 0.4));
+}
+.icon-folder { color: #f59e0b; }
+.icon-folder-open { color: #f59e0b; }
+.icon-file-text { color: #3b82f6; }
+.icon-file-image { color: #10b981; }
+.icon-chart { color: var(--color-primary); }
+.icon-check { color: #22c55e; }
+.icon-error { color: #ef4444; }
+.icon-spin {
+  animation: iconSpin 1s linear infinite;
+  color: var(--color-primary);
+}
+
+@keyframes iconSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Nav icon sizing */
+.nav-btn svg {
+  vertical-align: middle;
+}
+
+/* Sidebar title icons */
+.sidebar-title svg {
+  vertical-align: middle;
+}
+
+/* Stat row icons */
+.sidebar-stat-row svg {
+  vertical-align: middle;
+}
+
+/* File type icons in results */
+.result-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--color-primary);
+  filter: drop-shadow(0 1px 2px rgba(45, 212, 191, 0.3));
+}
+
+/* Footer icon */
+.footer svg {
+  vertical-align: middle;
+}
+
+/* File list styles in stats */
+.file-type-item svg {
+  vertical-align: middle;
+  margin-right: 4px;
+  color: var(--color-primary);
+}
+
+

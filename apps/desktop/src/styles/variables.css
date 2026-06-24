@@ -61,7 +61,7 @@
   --space-md: 20px;
   --space-lg: 32px;
   --space-xl: 48px;
-  --space-2xl: 64px;
+  --space-2xl: 48px;
 
   /* Border Radius - Squircle nested math */
   --radius-xs: 4px;
@@ -118,4 +118,3 @@ select,
               transform var(--transition-fast),
               box-shadow var(--transition-fast);
 }
-
