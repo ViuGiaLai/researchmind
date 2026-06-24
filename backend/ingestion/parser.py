@@ -99,6 +99,7 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
                     logger.info(f"Page {page_num+1}: detected {layout.get('columns', '?')}-column layout, reordered text")
                 text = reordered
         
+        # Detect text with corrupted character encoding (control chars in wrong ranges)
         bad_chars = sum(1 for c in text if ord(c) < 0x09 or 0x0E <= ord(c) < 0x20 or 0x80 <= ord(c) < 0xA0)
         is_garbled = bad_chars > max(3, len(text.strip()) * 0.05)
         if is_garbled and len(text.strip()) > 0:
@@ -109,7 +110,18 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
                 if html_bad < bad_chars:
                     text = html_text
                     is_garbled = False
-                    
+
+        # Detect text that looks valid but is semantically garbage (wrong font mapping)
+        if not is_garbled and len(text.strip()) >= 40:
+            words = [w for w in text.split() if w.strip()]
+            if words:
+                alpha_ratio = sum(1 for c in text if c.isalpha()) / max(len(text.strip()), 1)
+                non_alpha_words = sum(1 for w in words if sum(1 for c in w if c.isalpha()) / max(len(w), 1) < 0.3)
+                garbage_word_ratio = non_alpha_words / max(len(words), 1)
+                # Heuristic: low alphabetic ratio + many "words" that are mostly punctuation = garbled
+                if alpha_ratio < 0.4 and garbage_word_ratio > 0.5:
+                    is_garbled = True
+
         if is_garbled or len(text.strip()) < 40:
             ocr_attempted = True
             try:
