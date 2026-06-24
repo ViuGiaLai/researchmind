@@ -98,11 +98,11 @@ export const HighlightsLibraryView: React.FC<{
 
   // Generate section state
   const GENERATE_OPTIONS = [
-    { id: "summary", label: "Summary", desc: "Tóm tắt tổng quan tài liệu" },
-    { id: "compare", label: "Method Comparison", desc: "So sánh phương pháp với các tài liệu khác" },
-    { id: "debate", label: "Debate", desc: "Tranh luận đa chiều về nội dung" },
-    { id: "gap", label: "Research Gap", desc: "Phát hiện lỗ hổng nghiên cứu" },
-    { id: "litreview", label: "Literature Review", desc: "Viết literature review tự động" },
+    { id: "summary", label: "Tóm tắt", desc: "Tóm tắt tổng quan tài liệu" },
+    { id: "compare", label: "So sánh phương pháp", desc: "So sánh phương pháp với các tài liệu khác" },
+    { id: "debate", label: "Tranh luận", desc: "Tranh luận đa chiều về nội dung" },
+    { id: "gap", label: "Khoảng trống nghiên cứu", desc: "Phát hiện lỗ hổng nghiên cứu" },
+    { id: "litreview", label: "Tổng quan tài liệu", desc: "Viết literature review tự động" },
   ] as const;
   const [generatingType, setGeneratingType] = useState<string | null>(null);
   const [generateResults, setGenerateResults] = useState<{ type: string; result: ChatResponse }[]>([]);
@@ -481,7 +481,7 @@ export const HighlightsLibraryView: React.FC<{
                       {renderSummary(paperDetail.auto_summary)}
                     </div>
                   ) : (
-                    <p className="hl-insight-empty">No summary available for this paper.</p>
+                    <p className="hl-insight-empty">Chưa có bản tóm tắt cho bài báo này.</p>
                   )}
                 </div>
 
@@ -489,7 +489,7 @@ export const HighlightsLibraryView: React.FC<{
                 <div className="hl-overview-card">
                   <div className="hl-overview-card-header">
                     <IconFileText size={16} />
-                    <span className="hl-overview-card-title">Concepts & Metadata</span>
+                    <span className="hl-overview-card-title">Khái niệm & Siêu dữ liệu</span>
                   </div>
                   {loadingPaperDetail ? (
                     <div className="hl-insight-loading">
@@ -571,7 +571,7 @@ export const HighlightsLibraryView: React.FC<{
               {loadingHighlights ? (
                 <div className="hl-loading-state">
                   <IconSpinner size={32} />
-                  <span>AI is analyzing this paper to extract key insights...</span>
+                  <span>AI đang phân tích bài báo để trích xuất các điểm chính...</span>
                 </div>
               ) : filteredHighlights.length === 0 && highlightQuery ? (
                 <div className="hl-empty-state">
@@ -736,13 +736,13 @@ export const HighlightsLibraryView: React.FC<{
                   {filteredHighlights.length === 0 && !highlightQuery && (
                     <div className="hl-empty-state">
                       <IconSparkle size={40} className="icon-gradient" />
-                      <h4>No Evidence Extracted Yet</h4>
-                      <p>Extract key findings, methods, limitations, and contributions from this paper with AI.</p>
+                      <h4>Chưa có bằng chứng nào</h4>
+                      <p>Trích xuất các phát hiện chính, phương pháp, hạn chế và đóng góp từ bài báo này bằng AI.</p>
                       <button
                         className="hl-extract-btn"
                         onClick={() => selectedPaper && loadHighlights(selectedPaper.id)}
                       >
-                        <IconSparkle size={16} /> Start Extraction
+                        <IconSparkle size={16} /> Bắt đầu trích xuất.
                       </button>
                     </div>
                   )}
@@ -751,7 +751,7 @@ export const HighlightsLibraryView: React.FC<{
                   <div className="hl-generate-section">
                     <div className="hl-generate-header">
                       <IconBulb size={16} />
-                      <span className="hl-generate-title">Generate from this paper</span>
+                      <span className="hl-generate-title">Tạo từ bài báo.</span>
                     </div>
 
                     {/* Action cards */}
@@ -772,11 +772,11 @@ export const HighlightsLibraryView: React.FC<{
                                 disabled={generatingType !== null}
                               >
                                 {isGenerating ? (
-                                  <><IconSpinner size={13} /> Generating</>
+                                  <><IconSpinner size={13} /> Đang tạo</>
                                 ) : result ? (
-                                  "Regenerate"
+                                  "Tạo lại"
                                 ) : (
-                                  "Generate"
+                                  "Tạo"
                                 )}
                               </button>
                             </div>

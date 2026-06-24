@@ -239,11 +239,11 @@ function App() {
             { tab: "highlights" as Tab, icon: IconBookmark, label: "Đoạn trích" },
             { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
-            { tab: "insights" as Tab, icon: IconBulb, label: "Insights" },
-            { tab: "review" as Tab, icon: IconBookOpen, label: "Review" },
+            { tab: "insights" as Tab, icon: IconBulb, label: "Nhận định" },
+            { tab: "review" as Tab, icon: IconBookOpen, label: "Đánh giá" },
             { tab: "brain" as Tab, icon: IconBrain, label: "Bộ não" },
             { tab: "daily" as Tab, icon: IconCalendar, label: "Đọc hôm nay" },
-            { tab: "graph" as Tab, icon: IconGraph, label: "Graph" },
+            { tab: "graph" as Tab, icon: IconGraph, label: "Biểu đồ" },
             { tab: "settings" as Tab, icon: IconSettings, label: "Cài đặt" },
           ].map(({ tab, icon: Icon, label }) => (
             <button

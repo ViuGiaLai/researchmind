@@ -7,14 +7,14 @@ type Strategy = "local" | "global" | "drift";
 type Tab = "explore" | "visualize" | "query";
 
 const STRATEGY_LABELS: Record<Strategy, string> = {
-  local: "Local Search",
-  global: "Global Search",
-  drift: "DRIFT Search",
+  local: "Tìm kiếm cục bộ",
+  global: "Tìm kiếm toàn cục",
+  drift: "Tìm kiếm DRIFT",
 };
 
 const STRATEGY_DESCRIPTIONS: Record<Strategy, string> = {
-  local: "Entity-centric: query → entities → neighbors → context → LLM",
-  global: "Map-reduce: community reports → partial answers → synthesis",
+  local: "Dựa trên thực thể: truy vấn → thực thể → hàng xóm → ngữ cảnh → LLM",
+  global: "Map-reduce: báo cáo cộng đồng → câu trả lời cục bộ → tổng hợp",
   drift: "Iterative: start local → extract entities → explore → reduce",
 };
 
@@ -157,7 +157,7 @@ export const GraphView: React.FC = () => {
       <div className="graph-header">
         <div className="graph-header-left">
           <IconBrain size={24} className="icon-gradient" />
-          <h2>Knowledge Graph</h2>
+          <h2>Sơ đồ tri thức</h2>
         </div>
         <div className="graph-header-actions">
           <button
@@ -166,7 +166,7 @@ export const GraphView: React.FC = () => {
             disabled={loadingState?.type === "build" || loadingState?.type === "general"}
           >
             {loadingState?.type === "build" ? <IconSpinner size={16} /> : <IconGraph size={16} />}
-            {loadingState?.type === "build" ? " Building..." : " Build Graph"}
+            {loadingState?.type === "build" ? " Đang xây dựng..." : " Xây dựng Sơ đồ"}
           </button>
           <button
             className="btn btn-secondary"
@@ -174,7 +174,7 @@ export const GraphView: React.FC = () => {
             disabled={loadingState !== null || !stats}
           >
             <IconClear size={16} />
-            {" Clear"}
+            {" Xóa"}
           </button>
         </div>
       </div>
@@ -199,23 +199,23 @@ export const GraphView: React.FC = () => {
         <div className="graph-stats-bar">
           <div className="stat-item">
             <span className="stat-value">{stats.entities}</span>
-            <span className="stat-label">Entities</span>
+            <span className="stat-label">Thực thể</span>
           </div>
           <div className="stat-item">
             <span className="stat-value">{stats.relationships}</span>
-            <span className="stat-label">Relationships</span>
+            <span className="stat-label">Mối quan hệ</span>
           </div>
           <div className="stat-item">
             <span className="stat-value">{stats.communities}</span>
-            <span className="stat-label">Communities</span>
+            <span className="stat-label">Cộng đồng</span>
           </div>
           <div className="stat-item">
             <span className="stat-value">{stats.community_reports}</span>
-            <span className="stat-label">Reports</span>
+            <span className="stat-label">Báo cáo</span>
           </div>
           <div className="stat-item">
             <span className="stat-value">{stats.text_units}</span>
-            <span className="stat-label">Text Units</span>
+            <span className="stat-label">Đơn vị văn bản</span>
           </div>
         </div>
       )}
@@ -283,7 +283,7 @@ export const GraphView: React.FC = () => {
               )}
 
               {entities.length === 0 && stats && (
-                <div className="graph-empty-text">No entities found. Build the graph first.</div>
+                <div className="graph-empty-text">Không tìm thấy thực thể nào.</div>
               )}
 
               {communities.length > 0 && (
