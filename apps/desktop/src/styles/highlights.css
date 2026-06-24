@@ -99,8 +99,8 @@
 }
 
 .hl-paper-item.active {
-  background: rgba(99, 102, 241, 0.08);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: var(--color-highlight);
+  border-color: var(--color-primary);
 }
 
 .hl-paper-item-title {
@@ -203,13 +203,13 @@
 }
 
 .hl-chat-selected-btn {
-  background: rgba(99, 102, 241, 0.08);
-  border-color: rgba(99, 102, 241, 0.2);
+  background: var(--color-highlight);
+  border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
 .hl-chat-selected-btn:hover {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(var(--color-primary-rgb), 0.15);
 }
 
 .hl-refresh-btn:hover {
@@ -252,7 +252,7 @@
 }
 
 .hl-tab.active {
-  background: rgba(99, 102, 241, 0.08);
+  background: var(--color-highlight);
   color: var(--color-primary);
   font-weight: 600;
 }
@@ -439,8 +439,8 @@
 
 .hl-evidence-card.included {
   border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.03);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1);
+  background: var(--color-highlight);
+  box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.1);
 }
 
 /* Context Toggle */
@@ -544,7 +544,7 @@
   line-height: 1.5;
   color: var(--color-text-secondary);
   padding: 8px 10px;
-  background: rgba(99, 102, 241, 0.04);
+  background: var(--color-highlight);
   border-radius: 6px;
   margin-bottom: 8px;
 }

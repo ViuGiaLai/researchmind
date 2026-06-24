@@ -40,8 +40,14 @@ import {
   BookOpen,
   Book,
   Copy,
+  Edit,
+  Link,
+  AlertTriangle,
+  ChevronDown,
+  ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
+
 
 // ---------------------------------------------------------------------------
 // Icon wrapper with 3D-like / gradient styling
@@ -66,7 +72,7 @@ function wrapIcon(
       size={size}
       className={`icon-3d ${gradient ? "icon-gradient" : ""} ${defaultClassName} ${className}`}
       style={style}
-      strokeWidth={1.75}
+      strokeWidth={1.4}
     />
   );
   Component.displayName = Icon.displayName;
@@ -105,6 +111,7 @@ export const IconSpinner: React.FC<IconProps> = ({ size = 20, className = "", ..
 );
 export const IconCheck = wrapIcon(CheckCircle2, "icon-check", true);
 export const IconError = wrapIcon(XCircle, "icon-error");
+export const IconWarning = wrapIcon(AlertTriangle, "icon-warning", true);
 export const IconLock = wrapIcon(Lock, "icon-lock");
 export const IconUser = wrapIcon(User, "icon-user");
 export const IconClip = wrapIcon(Paperclip, "icon-clip");
@@ -129,6 +136,12 @@ export const IconBook = wrapIcon(Book, "icon-book");
 export const IconBookOpen = wrapIcon(BookOpen, "icon-book-open");
 export const IconDownload = wrapIcon(Download, "icon-download");
 export const IconCopy = wrapIcon(Copy, "icon-copy");
+export const IconEdit = wrapIcon(Edit, "icon-edit");
+export const IconLink = wrapIcon(Link, "icon-link");
+export const IconChevronDown = wrapIcon(ChevronDown, "icon-chevron-down");
+export const IconArrowLeft = wrapIcon(ArrowLeft, "icon-arrow-left");
+
+
 
 export const IconGraph: React.FC<IconProps> = ({ size = 20, className = "", style }) => (
   <svg
@@ -137,7 +150,7 @@ export const IconGraph: React.FC<IconProps> = ({ size = 20, className = "", styl
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="1.4"
     strokeLinecap="round"
     strokeLinejoin="round"
     className={`icon-3d ${className}`}
@@ -160,7 +173,7 @@ export const IconClear: React.FC<IconProps> = ({ size = 20, className = "", styl
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="1.4"
     strokeLinecap="round"
     strokeLinejoin="round"
     className={`icon-3d ${className}`}

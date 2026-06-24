@@ -72,6 +72,7 @@ export const ChatView: React.FC<{
     remaining: number;
     mode: string;
   } | null>(null);
+  void usage;
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const questionsCacheRef = useRef<Map<string, string[]>>(new Map());
   const listRef = useRef<HTMLDivElement>(null);
@@ -340,7 +341,7 @@ export const ChatView: React.FC<{
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = messages.length + 1;
 
-        const loadingMsg = scope === "external" ? "🔍 Đang xử lý câu hỏi..." : "🔍 Đang tra cứu tài liệu...";
+        const loadingMsg = scope === "external" ? "Đang xử lý câu hỏi..." : "Đang tra cứu tài liệu...";
         setMessages((prev) => [...prev, { role: "assistant", content: loadingMsg }]);
         setIsStreaming(true);
 
@@ -416,7 +417,7 @@ export const ChatView: React.FC<{
             const streamCtrl = api.verifyStream(text, ids, "verify", scope === "collection" ? activeCollectionId : undefined);
             const assistantIdx = messages.length + 1;
 
-            setMessages((prev) => [...prev, { role: "assistant", content: "🔍 Đang tra cứu tài liệu..." }]);
+            setMessages((prev) => [...prev, { role: "assistant", content: "Đang tra cứu tài liệu..." }]);
             setIsStreaming(true);
 
             streamCtrl.onAcademic = (data, status) => {
@@ -434,7 +435,7 @@ export const ChatView: React.FC<{
               setMessages((prev) => prev.map((m, i) => {
                 if (i !== assistantIdx) return m;
                 const current = m.content;
-                if (current === "🔍 Đang tra cứu tài liệu...") {
+                if (current === "Đang tra cứu tài liệu...") {
                   return { ...m, content: chunk };
                 }
                 return { ...m, content: current + chunk };

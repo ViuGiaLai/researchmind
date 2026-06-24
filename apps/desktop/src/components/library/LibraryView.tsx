@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { api, Collection, Paper, RelatedPaper, Highlight } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
@@ -18,6 +18,12 @@ import {
   IconSparkle,
   IconDownload,
   IconRefresh,
+  IconEdit,
+  IconLink,
+  IconError,
+  IconSettings,
+  IconBookmark,
+  IconGraph,
 } from "../Icons";
 
 const PAGE_SIZE = 500;
@@ -34,6 +40,7 @@ const renderStatusIcon = (status: string, size = 16) => {
   return <IconFileText size={size} style={{ color: "var(--color-text-muted, #94a3b8)" }} />;
 };
 
+
 const getIndexStatusLabel = (status: string) => {
   if (status === "indexed") return "Đã trích xuất & vector hóa";
   if (status === "needs_ocr") return "Cần OCR lại";
@@ -41,6 +48,15 @@ const getIndexStatusLabel = (status: string) => {
   if (status === "summarizing") return "Đang tóm tắt";
   if (status === "indexing") return "Đang lập chỉ mục";
   return status || "Chưa rõ";
+};
+
+const getCategoryIcon = (category: string, size = 12) => {
+  if (category === "key_finding") return <IconSparkle size={size} style={{ color: "#34d399" }} />;
+  if (category === "methodology") return <IconSettings size={size} style={{ color: "#818cf8" }} />;
+  if (category === "conclusion") return <IconCheck size={size} style={{ color: "#c084fc" }} />;
+  if (category === "novel_contribution") return <IconBulb size={size} style={{ color: "#f472b6" }} />;
+  if (category === "limitation") return <IconError size={size} style={{ color: "#f87171" }} />;
+  return <IconBookmark size={size} />;
 };
 
 export const LibraryView: React.FC<{
@@ -61,6 +77,7 @@ export const LibraryView: React.FC<{
     try { return localStorage.getItem("researchmind:library-filter") || "all"; } catch { return "all"; }
   });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [syncingZotero, setSyncingZotero] = useState(false);
   const [exportingId, setExportingId] = useState<string | null>(null);
@@ -387,16 +404,22 @@ export const LibraryView: React.FC<{
     }
   };
 
+  const filteredPapersList = useMemo(() => {
+    return papers.filter((p) =>
+      (p.title || p.filename || "").toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [papers, searchQuery]);
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const viewportHeight = listRef.current?.clientHeight || 520;
   const virtualStart = Math.max(0, Math.floor(listScrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN);
   const virtualEnd = Math.min(
-    papers.length,
+    filteredPapersList.length,
     Math.ceil((listScrollTop + viewportHeight) / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN
   );
-  const virtualPapers = papers.slice(virtualStart, virtualEnd);
+  const virtualPapers = filteredPapersList.slice(virtualStart, virtualEnd);
   const virtualTop = virtualStart * VIRTUAL_ROW_HEIGHT;
-  const virtualHeight = papers.length * VIRTUAL_ROW_HEIGHT;
+  const virtualHeight = filteredPapersList.length * VIRTUAL_ROW_HEIGHT;
 
   // Export menu helpers
   const menuItemStyle: React.CSSProperties = {
@@ -413,7 +436,7 @@ export const LibraryView: React.FC<{
     textAlign: "left",
   };
   const highlightOn = (e: React.MouseEvent<HTMLButtonElement>) => {
-    (e.currentTarget as HTMLButtonElement).style.background = "var(--color-hover, #f3f4f6)";
+    (e.currentTarget as HTMLButtonElement).style.background = "var(--color-surface-hover)";
   };
   const highlightOff = (e: React.MouseEvent<HTMLButtonElement>) => {
     (e.currentTarget as HTMLButtonElement).style.background = "transparent";
@@ -439,7 +462,7 @@ export const LibraryView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export HTML:", e);
-      toast.addToast("error", "❌ Không thể export HTML. Vui lòng kiểm tra backend.");
+      toast.addToast("error", "Không thể export HTML. Vui lòng kiểm tra backend.");
     } finally {
       setExportingId(null);
     }
@@ -459,7 +482,7 @@ export const LibraryView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export DOCX:", e);
-      toast.addToast("error", "❌ Không thể export DOCX. Vui lòng kiểm tra backend và cài python-docx.");
+      toast.addToast("error", "Không thể export DOCX. Vui lòng kiểm tra backend và cài python-docx.");
     } finally {
       setExportingId(null);
     }
@@ -522,89 +545,117 @@ export const LibraryView: React.FC<{
             />
           </div>
         ) : (
-          <div className="library-header">
-            <div className="library-header-left">
-              <h2 className="library-title">
-                <IconLibrary size={22} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
-                Thư viện
-              </h2>
-              <span className="library-count">{total} papers</span>
+          <div className="library-header-new">
+            {/* Row 1: Title and sync/upload buttons */}
+            <div className="library-title-row">
+              <div className="library-title-left">
+                <h2 className="library-title">
+                  <IconLibrary size={20} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
+                  Thư viện
+                </h2>
+                <span className="library-badge">{total} paper{total !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="library-header-actions-group">
+                <button 
+                  className={`library-icon-btn zotero-sync-btn ${syncingZotero ? "syncing" : ""}`}
+                  onClick={handleZoteroSync} 
+                  disabled={syncingZotero}
+                  title={syncingZotero ? "Đang đồng bộ..." : "Đồng bộ Zotero"}
+                >
+                  {syncingZotero ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
+                </button>
+                <button 
+                  className="library-primary-btn" 
+                  onClick={() => setShowImport(true)}
+                  title="Tải lên tài liệu"
+                >
+                  <IconUpload size={14} />
+                  <span>Tải lên</span>
+                </button>
+              </div>
             </div>
-            <div className="library-actions">
-              <div className="library-collection-bar">
-                {/* <select
-                  className="library-collection-select"
+
+            {/* Row 2 (Conditional): Bulk actions */}
+            {selected.size > 0 && (
+              <div className="library-bulk-row">
+                <span className="bulk-selection-count">Đã chọn {selected.size}</span>
+                <div className="bulk-actions-group">
+                  <button className="library-bulk-action-btn primary" onClick={() => onStartChat(Array.from(selected))}>
+                    <IconChat size={13} style={{ marginRight: 4 }} />
+                    <span>Chat</span>
+                  </button>
+                  {onStartVerify && (
+                    <button className="library-bulk-action-btn" onClick={() => onStartVerify(Array.from(selected))}>
+                      <IconSearch size={13} style={{ marginRight: 4 }} />
+                      <span>Xác thực</span>
+                    </button>
+                  )}
+                  {collections.length > 0 && (
+                    <div className="library-collection-add-group">
+                      <select
+                        className="library-inline-select"
+                        value={targetCollectionId}
+                        onChange={(e) => setTargetCollectionId(e.target.value)}
+                      >
+                        <option value="">Thêm vào Project...</option>
+                        {collections.map((collection) => (
+                          <option key={collection.id} value={collection.id}>{collection.name}</option>
+                        ))}
+                      </select>
+                      <button className="library-inline-btn" onClick={addSelectedToCollection} disabled={!targetCollectionId}>
+                        Thêm
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Row 3: Search box and filter selectors */}
+            <div className="library-toolbar-row">
+              <div className="library-search-box">
+                <IconSearch size={13} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm tài liệu..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="library-search-input"
+                />
+                {searchQuery && (
+                  <button className="search-clear-btn" onClick={() => setSearchQuery("")}>✕</button>
+                )}
+              </div>
+              <div className="library-filters-dropdowns">
+                <select
+                  className="library-toolbar-select"
+                  value={filter}
+                  onChange={(e) => { setFilter(e.target.value); setPage(1); }}
+                  title="Lọc trạng thái"
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="indexed">Đã index</option>
+                  <option value="starred">Yêu thích</option>
+                  <option value="unread">Chưa đọc</option>
+                  <option value="reading">Đang đọc</option>
+                  <option value="read">Đã đọc</option>
+                </select>
+                <select
+                  className="library-toolbar-select project-select"
                   value={activeCollectionId}
                   onChange={(e) => { setActiveCollectionId(e.target.value); setPage(1); setSelected(new Set()); }}
-                  title="Collection/project"
+                  title="Project/Collection"
                 >
-                  <option value="">Toàn thư viện</option>
+                  <option value="">Projects</option>
                   {collections.map((collection) => (
                     <option key={collection.id} value={collection.id}>
                       {collection.name} ({collection.paper_count})
                     </option>
                   ))}
-                </select> */}
-                <button className="library-secondary-btn" onClick={createCollection}>
-                  + Collection
+                </select>
+                <button className="library-add-project-btn" onClick={createCollection} title="Tạo Project mới">
+                  +
                 </button>
-              </div>
-              {selected.size > 0 && collections.length > 0 && (
-                <div className="library-collection-bar">
-                  <select
-                    className="library-collection-select"
-                    value={targetCollectionId}
-                    onChange={(e) => setTargetCollectionId(e.target.value)}
-                  >
-                    <option value="">Chọn collection để thêm</option>
-                    {collections.map((collection) => (
-                      <option key={collection.id} value={collection.id}>{collection.name}</option>
-                    ))}
-                  </select>
-                  <button className="library-secondary-btn" onClick={addSelectedToCollection} disabled={!targetCollectionId}>
-                    Thêm {selected.size} paper
-                  </button>
-                </div>
-              )}
-              <div className="library-filters">
-                {["all", "indexed", "starred", "unread", "reading", "read"].map((f) => (
-                  <button
-                    key={f}
-                    className={`library-filter-chip ${filter === f ? "active" : ""}`}
-                    onClick={() => { setFilter(f); setPage(1); }}
-                  >
-                    {f === "all" ? "Tất cả" : f === "indexed" ? "Đã index" : f === "starred" ? "Đánh dấu ⭐" : f === "unread" ? "Chưa đọc" : f === "reading" ? "Đang đọc" : "Đã đọc"}
-                  </button>
-                ))}
-              </div>
-              <div className="library-action-buttons">
-                <button 
-                  className={`library-secondary-btn zotero-sync-btn ${syncingZotero ? "syncing" : ""}`}
-                  onClick={handleZoteroSync} 
-                  disabled={syncingZotero}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-                >
-                  {syncingZotero ? <IconSpinner size={16} /> : <IconRefresh size={16} />}
-                  <span>{syncingZotero ? "Đang đồng bộ..." : "Đồng bộ Zotero"}</span>
-                </button>
-                <button className="library-import-btn" onClick={() => setShowImport(true)}>
-                  <IconUpload size={16} style={{ marginRight: 4 }} />
-                  Tải lên
-                </button>
-                {selected.size > 0 && (
-                  <>
-                    <button className="library-chat-btn" onClick={() => onStartChat(Array.from(selected))}>
-                      <IconChat size={16} style={{ marginRight: 4 }} />
-                      Chat ({selected.size})
-                    </button>
-                    {onStartVerify && (
-                      <button className="library-secondary-btn" onClick={() => onStartVerify(Array.from(selected))}>
-                        <IconSearch size={16} style={{ marginRight: 4 }} />
-                        Xác thực ({selected.size})
-                      </button>
-                    )}
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -619,11 +670,11 @@ export const LibraryView: React.FC<{
         ) : papers.length === 0 ? (
           <div className="library-empty">
             <IconBrain size={48} className="icon-gradient" />
-            <h3>Chưa có paper nào</h3>
+            <h3>Chưa có tài liệu nào</h3>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "16px" }}>
               <button className="library-import-btn library-empty-import" onClick={() => setShowImport(true)}>
                 <IconUpload size={16} style={{ marginRight: 4 }} />
-                Tải lên paper đầu tiên
+                Thêm tài liệu
               </button>
               <button 
                 className="library-secondary-btn" 
@@ -666,9 +717,9 @@ export const LibraryView: React.FC<{
                 <div className="library-card-content">
                   <div className="library-card-header">
                     <span className="library-card-title">{p.title || p.filename}</span>
-                    <span className="library-card-status" title={p.read_status === "read" ? "Đã đọc" : p.read_status === "reading" ? "Đang đọc" : "Chưa đọc"}>
+                    {/* <span className="library-card-status" title={p.read_status === "read" ? "Đã đọc" : p.read_status === "reading" ? "Đang đọc" : "Chưa đọc"}>
                       {renderStatusIcon(p.read_status)}
-                    </span>
+                    </span> */}
                   </div>
                   <div className="library-card-meta">
                     {p.authors && p.authors !== "[]" && (
@@ -727,37 +778,55 @@ export const LibraryView: React.FC<{
               <h3 className="preview-title" title={activePaper.title || activePaper.filename}>
                 {activePaper.title || activePaper.filename}
               </h3>
-              {panelNarrow ? (
+               {panelNarrow ? (
                 <div className="preview-actions-narrow">
                   {onStartWow && (
                     <button className="preview-btn wow-glow-btn" onClick={() => onStartWow(activePaper.id)}
-                      style={{ background: "linear-gradient(135deg, var(--color-primary), #ec4899)", color: "#fff", border: "none", flex: 1 }}>
-                      ⚡ Phân tích AI
+                      style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                      <IconSparkle size={14} />
+                      <span>Phân tích AI</span>
                     </button>
                   )}
-                  <button className="preview-btn primary" onClick={() => onStartChat([activePaper.id])} style={{ flex: 1 }}>
-                    💬 Hỏi AI
+                  <button className="preview-btn primary" onClick={() => onStartChat([activePaper.id])}
+                    style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <IconChat size={14} />
+                    <span>Hỏi AI</span>
                   </button>
                   <div style={{ position: "relative" }}>
-                    <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title="Thao tác">
-                      <span style={{ fontSize: "1.2rem" }}>⋮</span>
+                    <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title="Thao tác"
+                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>⋮</span>
                     </button>
                     {showNarrowMenu && (
                       <div className="narrow-actions-menu" onMouseDown={(e) => e.stopPropagation()}>
                         {onStartDebate && (
-                          <button className="narrow-action-btn" onClick={() => { onStartDebate([activePaper.id]); setShowNarrowMenu(false); }}>
-                            🗣️ Tranh luận
+                          <button className="narrow-action-btn" onClick={() => { onStartDebate([activePaper.id]); setShowNarrowMenu(false); }}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                            <IconBulb size={13} />
+                            <span>Tranh luận</span>
                           </button>
                         )}
-                        <button className="narrow-action-btn" onClick={() => { toggleReadStatus(activePaper.id, activePaper.read_status); setShowNarrowMenu(false); }}>
-                          {activePaper.read_status === "read" ? "✅ Đã đọc" : activePaper.read_status === "reading" ? "📖 Đang đọc" : "📄 Chưa đọc"}
+                        <button className="narrow-action-btn" onClick={() => { toggleReadStatus(activePaper.id, activePaper.read_status); setShowNarrowMenu(false); }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          {renderStatusIcon(activePaper.read_status, 13)}
+                          <span>{activePaper.read_status === "read" ? "Đã đọc" : activePaper.read_status === "reading" ? "Đang đọc" : "Chưa đọc"}</span>
                         </button>
-                        <button className="narrow-action-btn" onClick={() => { toggleStar(activePaper.id, activePaper.starred); setShowNarrowMenu(false); }}>
-                          {activePaper.starred ? "⭐ Đã thích" : "☆ Yêu thích"}
+                        <button className="narrow-action-btn" onClick={() => { toggleStar(activePaper.id, activePaper.starred); setShowNarrowMenu(false); }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          <IconStar size={13} className={activePaper.starred ? "starred" : ""} />
+                          <span>{activePaper.starred ? "Đã thích" : "Yêu thích"}</span>
                         </button>
                         <div className="narrow-menu-divider" />
-                        <button className="narrow-action-btn" onClick={() => { handleExportHtml(activePaper.id); setShowNarrowMenu(false); }}>🌐 Export HTML</button>
-                        <button className="narrow-action-btn" onClick={() => { handleExportDocx(activePaper.id); setShowNarrowMenu(false); }}>📄 Export DOCX</button>
+                        <button className="narrow-action-btn" onClick={() => { handleExportHtml(activePaper.id); setShowNarrowMenu(false); }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          <IconLink size={13} />
+                          <span>Export HTML</span>
+                        </button>
+                        <button className="narrow-action-btn" onClick={() => { handleExportDocx(activePaper.id); setShowNarrowMenu(false); }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          <IconFileText size={13} />
+                          <span>Export DOCX</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -768,22 +837,17 @@ export const LibraryView: React.FC<{
                     <button
                       className="preview-btn wow-glow-btn"
                       onClick={() => onStartWow(activePaper.id)}
-                      style={{
-                        background: "linear-gradient(135deg, var(--color-primary), #ec4899)",
-                        color: "#fff",
-                        border: "none",
-                      }}
                     >
                       <IconSparkle size={14} />
-                      <span>Phân tích tài liệu AI</span>
+                      <span>Phân tích</span>
                     </button>
                   )}
                   <button
-                    className="preview-btn primary"
+                    className="preview-btn"
                     onClick={() => onStartChat([activePaper.id])}
                   >
                     <IconChat size={14} />
-                    <span>Hỏi AI về paper này</span>
+                    <span>Hỏi AI</span>
                   </button>
                   {onStartDebate && (
                     <button
@@ -853,7 +917,7 @@ export const LibraryView: React.FC<{
                           onMouseEnter={highlightOn}
                           onMouseLeave={highlightOff}
                         >
-                          🌐 Export HTML
+                          <IconLink size={13} style={{ marginRight: 6 }} /> Export HTML
                         </button>
                         <button
                           onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
@@ -861,7 +925,7 @@ export const LibraryView: React.FC<{
                           onMouseEnter={highlightOn}
                           onMouseLeave={highlightOff}
                         >
-                          📄 Export DOCX
+                          <IconFileText size={13} style={{ marginRight: 6 }} /> Export DOCX
                         </button>
                       </div>
                     )}
@@ -877,11 +941,11 @@ export const LibraryView: React.FC<{
                   value={previewTab}
                   onChange={(e) => setPreviewTab(e.target.value as typeof previewTab)}
                 >
-                  <option value="info">📋 Tóm tắt & Thông tin</option>
-                  <option value="ai">⚡ Phân tích AI</option>
-                  <option value="related">🔗 Papers liên quan</option>
-                  <option value="highlights">✨ Đoạn quan trọng</option>
-                  <option value="pdf">📄 Đọc tài liệu</option>
+                  <option value="info">Tóm tắt & Thông tin</option>
+                  <option value="ai">Phân tích AI</option>
+                  <option value="related">Papers liên quan</option>
+                  <option value="highlights">Đoạn quan trọng</option>
+                  <option value="pdf">Đọc tài liệu</option>
                 </select>
               </div>
             ) : (
@@ -897,13 +961,13 @@ export const LibraryView: React.FC<{
                   className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
                   onClick={() => setPreviewTab("info")}
                 >
-                  <span>📋</span> Tóm tắt
+                  <IconFileText size={14} style={{ marginRight: 6 }} /> Tóm tắt
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "ai" ? "active" : ""}`}
                   onClick={() => setPreviewTab("ai")}
                 >
-                  <span>⚡</span> Phân tích AI
+                  <IconSparkle size={14} style={{ marginRight: 6 }} /> Phân tích AI
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
@@ -914,7 +978,7 @@ export const LibraryView: React.FC<{
                     }
                   }}
                 >
-                  <span>🔗</span> Liên quan
+                  <IconGraph size={14} style={{ marginRight: 6 }} /> Liên quan
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
@@ -925,13 +989,13 @@ export const LibraryView: React.FC<{
                     }
                   }}
                 >
-                  <span>✨</span> Đoạn Q.trọng
+                  <IconStar size={14} style={{ marginRight: 6 }} /> Đoạn Q.trọng
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
                   onClick={() => setPreviewTab("pdf")}
                 >
-                  <span>📄</span> Đọc tài liệu
+                  <IconBookOpen size={14} style={{ marginRight: 6 }} /> Đọc tài liệu
                 </button>
               </div>
             )}
@@ -942,7 +1006,9 @@ export const LibraryView: React.FC<{
                 {activePaper.auto_summary && (
                   <div className="preview-summary-section">
                     <div className="preview-summary-header">
-                      <span className="preview-summary-icon">🧠</span>
+                      <span className="preview-summary-icon">
+                        <IconSparkle size={15} style={{ color: "var(--color-primary, #6366f1)" }} />
+                      </span>
                       <span className="preview-summary-label">Tóm tắt tự động bởi ResearchMind</span>
                     </div>
                     <div className="preview-summary-content">
@@ -969,7 +1035,9 @@ export const LibraryView: React.FC<{
                 {/* User Notes Section - Editable */}
                 <div className="preview-user-notes-section">
                   <div className="preview-user-notes-header">
-                    <span className="preview-user-notes-icon">📝</span>
+                    <span className="preview-user-notes-icon">
+                      <IconEdit size={15} style={{ color: "var(--color-primary, #6366f1)" }} />
+                    </span>
                     <span className="preview-user-notes-label">Ghi chú cá nhân</span>
                   </div>
                   <textarea
@@ -1092,8 +1160,9 @@ export const LibraryView: React.FC<{
             ) : previewTab === "related" ? (
               <div className="preview-body">
                 <div className="related-papers-header">
-                  <h4 className="related-papers-title">
-                    🔗 Papers liên quan (theo embedding similarity)
+                  <h4 className="related-papers-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <IconLink size={14} />
+                    <span>Papers liên quan (theo embedding similarity)</span>
                   </h4>
                   <button
                     className="related-papers-refresh-btn"
@@ -1146,8 +1215,9 @@ export const LibraryView: React.FC<{
             ) : previewTab === "highlights" ? (
               <div className="preview-body">
                 <div className="highlights-header">
-                  <h4 className="highlights-title">
-                    ✨ Đoạn quan trọng được AI xác định
+                  <h4 className="highlights-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <IconStar size={14} />
+                    <span>Đoạn quan trọng được AI xác định</span>
                   </h4>
                   <button
                     className="highlights-refresh-btn"
@@ -1174,26 +1244,29 @@ export const LibraryView: React.FC<{
                     {highlights.map((h, i) => (
                       <div key={i} className={`highlight-card ${h.importance === "high" ? "highlight-high" : "highlight-medium"}`}>
                         <div className="highlight-card-header">
-                          <span className={`highlight-category highlight-cat-${h.category}`}>
-                            {h.category === "key_finding" ? "🔬 Kết quả chính"
-                              : h.category === "methodology" ? "⚙️ Phương pháp"
-                              : h.category === "conclusion" ? "📋 Kết luận"
-                              : h.category === "novel_contribution" ? "💡 Đóng góp mới"
-                              : h.category === "limitation" ? "⚠️ Hạn chế"
-                              : "📌 Khái niệm quan trọng"}
+                          <span className={`highlight-category highlight-cat-${h.category}`} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            {getCategoryIcon(h.category, 12)}
+                            <span>{h.category === "key_finding" ? "Kết quả chính"
+                              : h.category === "methodology" ? "Phương pháp"
+                              : h.category === "conclusion" ? "Kết luận"
+                              : h.category === "novel_contribution" ? "Đóng góp mới"
+                              : h.category === "limitation" ? "Hạn chế"
+                              : "Khái niệm quan trọng"}</span>
                           </span>
                           {h.page_hint && (
                             <span className="highlight-page">Trang {h.page_hint}</span>
                           )}
-                          <span className={`highlight-importance badge-${h.importance}`}>
-                            {h.importance === "high" ? "🔴 Quan trọng" : "🟡 Trung bình"}
+                          <span className={`highlight-importance badge-${h.importance}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <span className={`importance-dot ${h.importance}`} style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: h.importance === "high" ? "var(--color-danger, #ef4444)" : "var(--color-warning, #f59e0b)" }} />
+                            <span>{h.importance === "high" ? "Quan trọng" : "Trung bình"}</span>
                           </span>
                         </div>
                         <blockquote className="highlight-text">
                           "{h.text}"
                         </blockquote>
-                        <div className="highlight-note">
-                          💬 {h.note}
+                        <div className="highlight-note" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <IconChat size={12} style={{ color: "var(--color-text-muted, #94a3b8)", flexShrink: 0 }} />
+                          <span>{h.note}</span>
                         </div>
                       </div>
                     ))}
@@ -1203,40 +1276,53 @@ export const LibraryView: React.FC<{
             ) : previewTab === "ai" ? (
               <div className="preview-body">
                 <div className="preview-ai-actions">
-                  <h4>⚡ Phân tích tài liệu AI</h4>
+                  <h4 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <IconSparkle size={16} />
+                    <span>Phân tích tài liệu AI</span>
+                  </h4>
                   <button
                     className="preview-ai-btn"
                     onClick={() => onStartReview([activePaper.id])}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                   >
-                    📝 Review tự động
+                    <IconFileText size={14} />
+                    <span>Review tự động</span>
                   </button>
                   <button
                     className="preview-ai-btn"
                     onClick={() => onStartCritique([activePaper.id])}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                   >
-                    🔍 Phê bình
+                    <IconSearch size={14} />
+                    <span>Phê bình</span>
                   </button>
                   {onStartDebate && (
                     <button
                       className="preview-ai-btn"
                       onClick={() => onStartDebate([activePaper.id])}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                     >
-                      🗣️ Tranh luận AI
+                      <IconBulb size={14} />
+                      <span>Tranh luận AI</span>
                     </button>
                   )}
                   {onStartWow && (
                     <button
                       className="preview-ai-btn"
                       onClick={() => onStartWow(activePaper.id)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                     >
-                      💥 Wow Analysis
+                      <IconSparkle size={14} />
+                      <span>Wow Analysis</span>
                     </button>
                   )}
                   <button
                     className="preview-ai-btn"
                     onClick={() => onStartChat([activePaper.id])}
+                    style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                   >
-                    💬 Hỏi AI về paper này
+                    <IconChat size={14} />
+                    <span>Hỏi AI về paper này</span>
                   </button>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, DailyReaderResponse, DailyPaper } from "../../lib/api";
-import { IconBrain, IconSpinner, IconBook, IconStar, IconCalendar } from "../Icons";
+import { IconBrain, IconSpinner, IconBook, IconStar, IconCalendar, IconBookOpen, IconLibrary, IconRefresh } from "../Icons";
 
 export const DailyReaderView: React.FC = () => {
   const [data, setData] = useState<DailyReaderResponse | null>(null);
@@ -67,7 +67,10 @@ export const DailyReaderView: React.FC = () => {
       <div className="daily-reader-hero">
         <div className="daily-reader-hero-top">
           <div>
-            <h1 className="daily-reader-hero-title">📰 Đọc gì hôm nay?</h1>
+            <h1 className="daily-reader-hero-title" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <IconBookOpen size={24} className="icon-gradient" />
+              <span>Đọc gì hôm nay?</span>
+            </h1>
             <p className="daily-reader-hero-date">{today}</p>
           </div>
           {reading_streak > 0 && (
@@ -148,8 +151,9 @@ export const DailyReaderView: React.FC = () => {
       {/* Unread Papers - Prioritized */}
       {unread_papers.length > 0 && (
         <div className="daily-reader-section">
-          <h3 className="daily-reader-section-title">
-            📋 Paper nên đọc ({unread_papers.length})
+          <h3 className="daily-reader-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            <IconLibrary size={18} className="icon-gradient" />
+            <span>Paper nên đọc ({unread_papers.length})</span>
           </h3>
           <div className="daily-reader-paper-list">
             {unread_papers.map((paper, i) => (
@@ -161,8 +165,14 @@ export const DailyReaderView: React.FC = () => {
 
       {/* Refresh button */}
       <div className="daily-reader-actions">
-        <button className="daily-reader-refresh-btn" onClick={loadDailyReader} disabled={loading}>
-          {loading ? "Đang tải..." : "🔄 Làm mới gợi ý"}
+        <button 
+          className="daily-reader-refresh-btn" 
+          onClick={loadDailyReader} 
+          disabled={loading}
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+        >
+          {loading ? <IconSpinner size={16} /> : <IconRefresh size={16} />}
+          <span>Làm mới gợi ý</span>
         </button>
       </div>
     </div>

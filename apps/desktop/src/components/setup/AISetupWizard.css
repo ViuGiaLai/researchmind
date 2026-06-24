@@ -784,6 +784,9 @@
   text-align: left;
   margin: 0;
 }
+
+.local-setup-guide {
+  display: flex;
   flex-direction: column;
   gap: 10px;
 }

@@ -73,16 +73,18 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(94, 234, 212, 0.05));
-  border: 1px solid rgba(45, 212, 191, 0.25);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xs) var(--space-md);
-  color: var(--color-primary);
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 4px 12px;
+  color: var(--color-text);
+  font-size: 0.85rem;
 }
 
 .daily-reader-streak-count {
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary);
 }
 
 .daily-reader-streak-label {
@@ -105,13 +107,18 @@
   padding: var(--space-md);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .daily-reader-stat:hover {
   border-color: var(--color-primary);
-  transform: translateY(-2px);
+  transform: translateY(-1.5px);
+  box-shadow: var(--shadow-md);
+}
+
+.daily-reader-stat:active {
+  transform: scale(0.97);
 }
 
 .daily-reader-stat-value {
@@ -247,25 +254,30 @@
   display: flex;
   gap: var(--space-md);
   padding: var(--space-md);
-  background: var(--color-bg);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .daily-reader-paper-card:hover {
   border-color: var(--color-primary);
-  transform: translateX(4px);
+  transform: translateY(-1.5px);
+  box-shadow: var(--shadow-md);
+}
+
+.daily-reader-paper-card:active {
+  transform: scale(0.99);
 }
 
 .daily-reader-paper-rank {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(94, 234, 212, 0.05));
-  border: 1px solid rgba(45, 212, 191, 0.2);
+  min-width: 32px;
+  height: 32px;
+  background: var(--color-surface-hover);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
   font-weight: 700;

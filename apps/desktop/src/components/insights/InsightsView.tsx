@@ -7,6 +7,12 @@ import {
   IconChat,
   IconBulb,
   IconError,
+  IconWarning,
+  IconSparkle,
+  IconChart,
+  IconArrowLeft,
+  IconFileText,
+  IconLink,
 } from "../Icons";
 
 interface InsightResult {
@@ -21,35 +27,35 @@ interface InsightResult {
 const INSIGHT_CARDS = [
   {
     id: "gap",
-    icon: "🔍",
+    icon: <IconSearch size={22} />,
     title: "Research Gap Finder",
     description: "Tìm lỗ hổng nghiên cứu — chỗ nào chưa ai làm tốt",
-    color: "#10b981",
+    color: "var(--color-success, #10b981)",
   },
   {
     id: "conflict",
-    icon: "⚠️",
+    icon: <IconWarning size={22} />,
     title: "Conflict Finder",
     description: "Phát hiện mâu thuẫn giữa các paper trong thư viện",
-    color: "#f59e0b",
+    color: "var(--color-warning, #f59e0b)",
   },
   {
     id: "topic",
-    icon: "💡",
+    icon: <IconBulb size={22} />,
     title: "Topic Generator",
     description: "AI đề xuất đề tài nghiên cứu dựa trên thư viện của bạn",
-    color: "#2dd4bf",
+    color: "var(--color-primary, #14b8a6)",
   },
   {
     id: "evolution",
-    icon: "🧬",
+    icon: <IconSparkle size={22} />,
     title: "Evolution Map",
     description: "Xem sự phát triển của các ý tưởng nghiên cứu qua thời gian",
     color: "#06b6d4",
   },
   {
     id: "compare",
-    icon: "📊",
+    icon: <IconChart size={22} />,
     title: "Literature Matrix",
     description: "So sánh đối chiếu mục tiêu, phương pháp, kết quả, hạn chế giữa các bài báo",
     color: "#6366f1",
@@ -251,8 +257,10 @@ export const InsightsView: React.FC<{
             setResult(null);
             setError(null);
           }}
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          ← Quay lại
+          <IconArrowLeft size={14} />
+          <span>Quay lại</span>
         </button>
         <h2 className="insights-title">
           <span>{activeCard?.icon}</span>
@@ -441,7 +449,7 @@ export const InsightsView: React.FC<{
                   disabled={exporting}
                   style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
-                  {exporting ? <IconSpinner size={14} /> : "📄"}
+                  {exporting ? <IconSpinner size={14} /> : <IconFileText size={14} />}
                   Xuất Word (DOCX)
                 </button>
                 <button
@@ -450,7 +458,7 @@ export const InsightsView: React.FC<{
                   disabled={exporting}
                   style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
-                  {exporting ? <IconSpinner size={14} /> : "🌐"}
+                  {exporting ? <IconSpinner size={14} /> : <IconLink size={14} />}
                   Xuất HTML
                 </button>
               </>

@@ -12,6 +12,9 @@ import {
   IconBookOpen,
   IconBrain,
   IconBulb,
+  IconBookmark,
+  IconSettings,
+  IconError,
 } from "../Icons";
 
 const CATEGORIES = [
@@ -25,12 +28,12 @@ const CATEGORIES = [
 ];
 
 const CATEGORY_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  key_finding: { bg: "rgba(34, 197, 94, 0.12)", color: "#16a34a", border: "rgba(34, 197, 94, 0.3)" },
-  methodology: { bg: "rgba(99, 102, 241, 0.12)", color: "#4f46e5", border: "rgba(99, 102, 241, 0.3)" },
-  conclusion: { bg: "rgba(168, 85, 247, 0.12)", color: "#9333ea", border: "rgba(168, 85, 247, 0.3)" },
-  novel_contribution: { bg: "rgba(236, 72, 153, 0.12)", color: "#db2777", border: "rgba(236, 72, 153, 0.3)" },
-  limitation: { bg: "rgba(239, 68, 68, 0.12)", color: "#dc2626", border: "rgba(239, 68, 68, 0.3)" },
-  important_claim: { bg: "rgba(148, 163, 184, 0.15)", color: "#475569", border: "rgba(148, 163, 184, 0.3)" },
+  key_finding: { bg: "rgba(16, 185, 129, 0.08)", color: "#34d399", border: "rgba(16, 185, 129, 0.2)" },
+  methodology: { bg: "rgba(99, 102, 241, 0.08)", color: "#818cf8", border: "rgba(99, 102, 241, 0.2)" },
+  conclusion: { bg: "rgba(168, 85, 247, 0.08)", color: "#c084fc", border: "rgba(168, 85, 247, 0.2)" },
+  novel_contribution: { bg: "rgba(236, 72, 153, 0.08)", color: "#f472b6", border: "rgba(236, 72, 153, 0.2)" },
+  limitation: { bg: "rgba(239, 68, 68, 0.08)", color: "#f87171", border: "rgba(239, 68, 68, 0.2)" },
+  important_claim: { bg: "var(--color-surface-hover)", color: "var(--color-text-secondary)", border: "var(--color-border)" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -45,6 +48,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 function renderStars(importance: string): string {
   return importance === "high" ? "★★★★★" : "★★★☆☆";
 }
+
+const getCategoryIcon = (category: string, size = 12) => {
+  if (category === "key_finding") return <IconSparkle size={size} style={{ color: "#34d399" }} />;
+  if (category === "methodology") return <IconSettings size={size} style={{ color: "#818cf8" }} />;
+  if (category === "conclusion") return <IconCheck size={size} style={{ color: "#c084fc" }} />;
+  if (category === "novel_contribution") return <IconBulb size={size} style={{ color: "#f472b6" }} />;
+  if (category === "limitation") return <IconError size={size} style={{ color: "#f87171" }} />;
+  return <IconBookmark size={size} />;
+};
 
 function getPdfPageUrl(paperId: string, pageNumber: number | null): string {
   const base = `http://127.0.0.1:8765/api/papers/${paperId}/file`;
@@ -632,9 +644,13 @@ export const HighlightsLibraryView: React.FC<{
                                     background: cs.bg,
                                     color: cs.color,
                                     border: `1px solid ${cs.border}`,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
                                   }}
                                 >
-                                  {CATEGORY_LABELS[h.category] || "Ý chính"}
+                                  {getCategoryIcon(h.category, 12)}
+                                  <span>{CATEGORY_LABELS[h.category] || "Ý chính"}</span>
                                 </span>
                                 {h.page_hint && (
                                   <span className="hl-evidence-page">
@@ -663,12 +679,13 @@ export const HighlightsLibraryView: React.FC<{
                               "{h.text}"
                             </blockquote>
 
-                            {/* AI Insight */}
-                            {h.note && (
-                              <div className="hl-evidence-note">
-                                <strong>Phân tích:</strong> {h.note}
-                              </div>
-                            )}
+                             {/* AI Insight */}
+                             {h.note && (
+                               <div className="hl-evidence-note" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                 <IconChat size={12} style={{ color: "var(--color-text-muted, #94a3b8)", flexShrink: 0 }} />
+                                 <span><strong>Phân tích:</strong> {h.note}</span>
+                               </div>
+                             )}
 
                             {/* Source info bar */}
                             <div className="hl-evidence-source">

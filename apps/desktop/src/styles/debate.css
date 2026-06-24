@@ -82,9 +82,9 @@
 
 .debate-conclusion {
   padding: var(--space-lg);
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(147, 112, 219, 0.08));
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 .debate-conclusion h4 {
@@ -92,7 +92,7 @@
   font-weight: 600;
   color: var(--color-primary);
   margin-bottom: var(--space-md);
-  border-bottom: 2px solid var(--color-primary);
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-sm);
 }
 
@@ -104,17 +104,17 @@
 
 .debate-suggestions {
   padding: var(--space-lg);
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(245, 158, 11, 0.08));
-  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 .debate-suggestions h4 {
   font-size: 1rem;
   font-weight: 600;
-  color: #f97316;
+  color: var(--color-warning);
   margin-bottom: var(--space-md);
-  border-bottom: 2px solid #f97316;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-sm);
 }
 

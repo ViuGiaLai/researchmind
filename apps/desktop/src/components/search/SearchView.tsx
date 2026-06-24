@@ -7,15 +7,24 @@ import {
   IconSpinner,
   IconChat,
   IconBulb,
+  IconChart,
+  IconStar,
+  IconZap,
+  IconBookmark,
+  IconFolder,
+  IconCalendar,
+  IconBookOpen,
+  IconUser,
+  IconChevronDown,
 } from "../Icons";
 
 const SUGGESTED_QUERIES = [
-  { icon: "🧠", text: "Tổng hợp các ý tưởng chính trong thư viện" },
-  { icon: "📊", text: "So sánh phương pháp giữa các paper" },
-  { icon: "🔍", text: "Paper nào nói về transformer" },
-  { icon: "💡", text: "Xu hướng nghiên cứu gần đây" },
-  { icon: "📝", text: "Tóm tắt đóng góp chính của các paper" },
-  { icon: "⚖️", text: "Điểm mạnh và yếu điểm của các phương pháp" },
+  { icon: <IconBrain size={18} />, text: "Tổng hợp các ý tưởng chính trong thư viện" },
+  { icon: <IconChart size={18} />, text: "So sánh phương pháp giữa các paper" },
+  { icon: <IconSearch size={18} />, text: "Paper nào nói về transformer" },
+  { icon: <IconBulb size={18} />, text: "Xu hướng nghiên cứu gần đây" },
+  { icon: <IconFileText size={18} />, text: "Tóm tắt đóng góp chính của các paper" },
+  { icon: <IconZap size={18} />, text: "Điểm mạnh và yếu điểm của các phương pháp" },
 ];
 
 const searchSessionCache = new Map<string, SearchResult[]>();
@@ -161,77 +170,59 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
 
   return (
     <div className="search-view">
-      <div className="search-hero">
-        <h2 className="search-hero-title">
-          <IconBrain size={28} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
-          ResearchMind VN
-        </h2>
-        <p className="search-hero-desc">
-          Tìm kiếm ngữ nghĩa trong toàn bộ thư viện PDF của bạn
-        </p>
-      </div>
+      {!searched && (
+        <div className="search-hero">
+          <h2 className="search-hero-title">
+            <IconBrain size={28} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
+            ResearchMind VN
+          </h2>
+          <p className="search-hero-desc">
+            Tìm kiếm ngữ nghĩa trong toàn bộ thư viện PDF của bạn
+          </p>
+        </div>
+      )}
 
       <div className="search-bar-container" style={{ position: "relative" }}>
-        <div className="search-bar">
-          <input
-            type="text"
-            className="search-input"
-            placeholder='Ví dụ: "phương pháp đánh giá độ trễ mạng 5G"'
-            value={query}
-            onChange={(e) => {
-              handleQueryChange(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            onKeyDown={handleKeyDown}
-          />
-          <button className="search-btn" onClick={handleSearch} disabled={searching}>
-            {searching ? <IconSpinner size={24} /> : <IconSearch size={24} />}
-          </button>
+        <div className="search-bar-outer">
+          <div className="search-bar">
+            <input
+              type="text"
+              className="search-input"
+              placeholder='Ví dụ: "phương pháp đánh giá độ trễ mạng 5G"'
+              value={query}
+              onChange={(e) => {
+                handleQueryChange(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onKeyDown={handleKeyDown}
+            />
+            <button className="search-btn" onClick={handleSearch} disabled={searching}>
+              {searching ? <IconSpinner size={18} /> : <IconSearch size={18} />}
+            </button>
+          </div>
         </div>
 
         {showSuggestions && suggestions.length > 0 && (
-          <div className="search-suggest-dropdown" style={{
-            position: "absolute",
-            top: "100%",
-            left: 0,
-            right: 0,
-            background: "var(--color-surface, #fff)",
-            border: "1px solid var(--color-border, #e2e8f0)",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            zIndex: 100,
-            marginTop: "4px",
-            maxHeight: "240px",
-            overflowY: "auto"
-          }}>
+          <div className="search-suggest-dropdown">
             {suggestions.map((s, idx) => {
               const isTag = s.startsWith("Thẻ: ");
               const displayText = isTag ? s.substring(5) : s;
               return (
                 <div
                   key={idx}
+                  className="search-suggest-item"
                   onClick={() => handleSuggestionClick(displayText, isTag)}
-                  style={{
-                    padding: "8px 16px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    borderBottom: idx < suggestions.length - 1 ? "1px solid var(--color-border)" : "none",
-                    background: "transparent",
-                    transition: "background 0.2s"
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-bg-hover, #f8fafc)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 >
-                  <span style={{ fontSize: "0.9rem" }}>{isTag ? "🏷️" : "📄"}</span>
-                  <span style={{
-                    fontSize: "0.88rem",
-                    fontWeight: isTag ? 600 : 400,
-                    color: isTag ? "var(--color-primary, #6366f1)" : "var(--color-text, #1a1a1a)"
-                  }}>{displayText}</span>
+                  {isTag ? (
+                    <IconBookmark size={14} style={{ color: "var(--color-primary)" }} />
+                  ) : (
+                    <IconFileText size={14} style={{ color: "var(--color-text-muted)" }} />
+                  )}
+                  <span className={`search-suggest-item-text ${isTag ? "search-suggest-item-tag" : ""}`}>
+                    {displayText}
+                  </span>
                 </div>
               );
             })}
@@ -240,73 +231,119 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
       </div>
 
       <div className="search-filter-bar">
-        <select
-          className="search-filter-input"
-          value={filters.collection_id || ""}
-          onChange={(e) => setFilters((prev) => ({ ...prev, collection_id: e.target.value || undefined }))}
-          title="Collection"
+        <div className="filter-pill filter-pill-dropdown">
+          <IconFolder size={14} className="filter-pill-icon" />
+          <select
+            className="filter-pill-select"
+            value={filters.collection_id || ""}
+            onChange={(e) => setFilters((prev) => ({ ...prev, collection_id: e.target.value || undefined }))}
+            title="Collection"
+          >
+            <option value="">Toàn thư viện</option>
+            {collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>{collection.name}</option>
+            ))}
+          </select>
+          <IconChevronDown size={11} className="filter-pill-arrow" />
+        </div>
+
+        <div className="filter-pill">
+          <IconUser size={14} className="filter-pill-icon" />
+          <input
+            className="filter-pill-input"
+            value={filters.author || ""}
+            onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value }))}
+            placeholder="Tác giả"
+          />
+        </div>
+
+        <div className="filter-pill">
+          <IconCalendar size={14} className="filter-pill-icon" />
+          <input
+            className="filter-pill-input compact"
+            type="number"
+            value={filters.year_from || ""}
+            onChange={(e) => setFilters((prev) => ({ ...prev, year_from: e.target.value ? Number(e.target.value) : null }))}
+            placeholder="Từ năm"
+          />
+        </div>
+
+        <div className="filter-pill">
+          <IconCalendar size={14} className="filter-pill-icon" />
+          <input
+            className="filter-pill-input compact"
+            type="number"
+            value={filters.year_to || ""}
+            onChange={(e) => setFilters((prev) => ({ ...prev, year_to: e.target.value ? Number(e.target.value) : null }))}
+            placeholder="Đến năm"
+          />
+        </div>
+
+        <div className="filter-pill">
+          <IconBookmark size={14} className="filter-pill-icon" />
+          <input
+            className="filter-pill-input"
+            value={(filters.tags || []).join(", ")}
+            onChange={(e) => setFilters((prev) => ({ ...prev, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }))}
+            placeholder="Thẻ (tags)"
+          />
+        </div>
+
+        <div className="filter-pill filter-pill-dropdown">
+          <IconBookOpen size={14} className="filter-pill-icon" />
+          <select
+            className="filter-pill-select"
+            value={filters.read_status || ""}
+            onChange={(e) => setFilters((prev) => ({ ...prev, read_status: e.target.value || undefined }))}
+            title="Trạng thái đọc"
+          >
+            <option value="">Trạng thái đọc</option>
+            <option value="unread">Chưa đọc</option>
+            <option value="reading">Đang đọc</option>
+            <option value="read">Đã đọc</option>
+          </select>
+          <IconChevronDown size={11} className="filter-pill-arrow" />
+        </div>
+
+        <div className="filter-pill filter-pill-dropdown">
+          <IconStar size={14} className="filter-pill-icon" />
+          <select
+            className="filter-pill-select"
+            value={filters.starred === true ? "true" : filters.starred === false ? "false" : ""}
+            onChange={(e) => setFilters((prev) => ({ ...prev, starred: e.target.value === "" ? null : e.target.value === "true" }))}
+            title="Yêu thích"
+          >
+            <option value="">Yêu thích</option>
+            <option value="true">Đã thích</option>
+            <option value="false">Không star</option>
+          </select>
+          <IconChevronDown size={11} className="filter-pill-arrow" />
+        </div>
+
+        <div className="filter-pill filter-pill-dropdown">
+          <IconChart size={14} className="filter-pill-icon" />
+          <select
+            className="filter-pill-select"
+            value={filters.sort_by || "relevance"}
+            onChange={(e) => setFilters((prev) => ({ ...prev, sort_by: e.target.value }))}
+            title="Sắp xếp"
+          >
+            <option value="relevance">Sắp xếp: Relevance</option>
+            <option value="year">Year</option>
+            <option value="title">Title</option>
+            <option value="created_at">Imported</option>
+          </select>
+          <IconChevronDown size={11} className="filter-pill-arrow" />
+        </div>
+
+        <button 
+          className="search-filter-btn" 
+          onClick={saveCurrentSearch}
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
-          <option value="">Toàn thư viện</option>
-          {collections.map((collection) => (
-            <option key={collection.id} value={collection.id}>{collection.name}</option>
-          ))}
-        </select>
-        <input
-          className="search-filter-input"
-          value={filters.author || ""}
-          onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value }))}
-          placeholder="Author"
-        />
-        <input
-          className="search-filter-input compact"
-          type="number"
-          value={filters.year_from || ""}
-          onChange={(e) => setFilters((prev) => ({ ...prev, year_from: e.target.value ? Number(e.target.value) : null }))}
-          placeholder="Từ năm"
-        />
-        <input
-          className="search-filter-input compact"
-          type="number"
-          value={filters.year_to || ""}
-          onChange={(e) => setFilters((prev) => ({ ...prev, year_to: e.target.value ? Number(e.target.value) : null }))}
-          placeholder="Đến năm"
-        />
-        <input
-          className="search-filter-input"
-          value={(filters.tags || []).join(", ")}
-          onChange={(e) => setFilters((prev) => ({ ...prev, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }))}
-          placeholder="Tags"
-        />
-        <select
-          className="search-filter-input compact"
-          value={filters.read_status || ""}
-          onChange={(e) => setFilters((prev) => ({ ...prev, read_status: e.target.value || undefined }))}
-        >
-          <option value="">Read</option>
-          <option value="unread">Chưa đọc</option>
-          <option value="reading">Đang đọc</option>
-          <option value="read">Đã đọc</option>
-        </select>
-        <select
-          className="search-filter-input compact"
-          value={filters.starred === true ? "true" : filters.starred === false ? "false" : ""}
-          onChange={(e) => setFilters((prev) => ({ ...prev, starred: e.target.value === "" ? null : e.target.value === "true" }))}
-        >
-          <option value="">Star</option>
-          <option value="true">Yêu thích</option>
-          <option value="false">Không star</option>
-        </select>
-        <select
-          className="search-filter-input compact"
-          value={filters.sort_by || "relevance"}
-          onChange={(e) => setFilters((prev) => ({ ...prev, sort_by: e.target.value }))}
-        >
-          <option value="relevance">Relevance</option>
-          <option value="year">Year</option>
-          <option value="title">Title</option>
-          <option value="created_at">Imported</option>
-        </select>
-        <button className="search-filter-btn" onClick={saveCurrentSearch}>Lưu search</button>
+          <IconBookmark size={13} />
+          <span>Lưu search</span>
+        </button>
       </div>
 
       {savedSearches.length > 0 && (
@@ -338,17 +375,18 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
         {results.length > 0 && (
           <>
             <div className="search-results-header">
-              <span className="search-results-count">
-                🎯 {results.length} kết quả
+              <span className="search-results-count" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <IconSearch size={14} style={{ color: "var(--color-primary)" }} />
+                <span>Tìm thấy {results.length} đoạn trích</span>
               </span>
               {embeddingInfo && (
-                <span style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", marginLeft: 8, opacity: 0.7 }} title={`Pooling: ${embeddingInfo.pooling.toUpperCase()}, Normalize: ${embeddingInfo.normalize}`}>
-                  {embeddingInfo.mode === "cloud" ? "☁️" : "💻"} {embeddingInfo.pooling.toUpperCase()}
+                <span className="embedding-badge" title={`Pooling: ${embeddingInfo.pooling.toUpperCase()}, Normalize: ${embeddingInfo.normalize}`}>
+                  {embeddingInfo.mode === "cloud" ? "Cloud Mode" : "Local Model"} ({embeddingInfo.pooling.toUpperCase()})
                 </span>
               )}
               <button className="search-chat-btn" onClick={chatWithResults}>
-                <IconChat size={16} style={{ marginRight: 4 }} />
-                Chat với kết quả này
+                <IconChat size={14} />
+                <span>Chat với kết quả này</span>
               </button>
             </div>
 
@@ -376,8 +414,9 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                           || "Không có tiêu đề"}
                       </span>
                       <span className="search-paper-count">{cluster.chunks.length} đoạn</span>
-                      <span className="search-paper-best-score">
-                        ⭐ {Math.max(...cluster.chunks.map(c => Math.abs(c.score))).toFixed(2)}
+                      <span className="search-paper-best-score" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <IconStar size={12} className="starred" style={{ color: "var(--color-warning, #eab308)" }} />
+                        <span>{Math.max(...cluster.chunks.map(c => Math.abs(c.score))).toFixed(2)}</span>
                       </span>
                     </div>
                     {isExpanded && cluster.chunks.map((r) => (
@@ -387,8 +426,9 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                             <span className="search-result-page-label">
                               {r.page_number ? `Trang ${r.page_number}` : ""}
                             </span>
-                            <span className="search-result-score">
-                              ⭐ {Math.abs(r.score).toFixed(2)}
+                            <span className="search-result-score" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <IconStar size={12} className="starred" style={{ color: "var(--color-warning, #eab308)" }} />
+                              <span>{Math.abs(r.score).toFixed(2)}</span>
                             </span>
                           </div>
                           <p className="search-result-text">{r.content}</p>
@@ -411,8 +451,9 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                           .replace(/%[0-9a-fA-F]{2}/g, '')
                           || "Không có tiêu đề"}
                       </span>
-                      <span className="search-result-score">
-                        ⭐ {Math.abs(r.score).toFixed(2)}
+                      <span className="search-result-score" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <IconStar size={12} className="starred" style={{ color: "var(--color-warning, #eab308)" }} />
+                        <span>{Math.abs(r.score).toFixed(2)}</span>
                       </span>
                     </div>
                     {r.page_number && (

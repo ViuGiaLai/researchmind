@@ -1,79 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700&family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@300;400;500;600;700&display=swap');
+
 :root,
 [data-theme="dark"] {
-  --color-bg: #0a0a0a;
-  --color-bg-rgb: 10, 10, 10;
-  --color-surface: #141414;
-  --color-surface-rgb: 20, 20, 20;
-  --color-surface-hover: #1e1e1e;
-  --color-surface-hover-rgb: 30, 30, 30;
-  --color-border: #282828;
-  --color-border-rgb: 40, 40, 40;
-  --color-primary: #2dd4bf;
-  --color-primary-rgb: 45, 212, 191;
-  --color-primary-hover: #5eead4;
-  --color-text: #f5f5f5;
-  --color-text-rgb: 245, 245, 245;
-  --color-text-secondary: #a3a3a3;
-  --color-text-muted: #737373;
-  --color-success: #22c55e;
+  --color-bg: #08080a;
+  --color-bg-rgb: 8, 8, 10;
+  --color-surface: #0f0f11;
+  --color-surface-rgb: 15, 15, 17;
+  --color-surface-hover: rgba(255, 255, 255, 0.04);
+  --color-surface-hover-rgb: 255, 255, 255;
+  --color-border: rgba(255, 255, 255, 0.075);
+  --color-border-rgb: 255, 255, 255;
+  --color-primary: #14b8a6; /* Vercel/Linear-inspired desaturated teal */
+  --color-primary-rgb: 20, 184, 166;
+  --color-primary-hover: #2dd4bf;
+  --color-text: #f4f4f5; /* Zinc-100 */
+  --color-text-rgb: 244, 244, 245;
+  --color-text-secondary: #a1a1aa; /* Zinc-400 */
+  --color-text-muted: #52525b; /* Zinc-600 */
+  --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  --color-highlight: rgba(45, 212, 191, 0.15);
-  --color-surface-elevated: #1c1c1c;
+  --color-highlight: rgba(20, 184, 166, 0.08);
+  --color-surface-elevated: #18181b;
+  --color-bg-subtle: rgba(255, 255, 255, 0.025);
+  --color-bg-outer: rgba(255, 255, 255, 0.02);
+  --color-border-outer: rgba(20, 184, 166, 0.08);
 }
 
 [data-theme="light"] {
-  --color-bg: #f8f9fa;
-  --color-bg-rgb: 248, 249, 250;
+  --color-bg: #fafafa;
+  --color-bg-rgb: 250, 250, 250;
   --color-surface: #ffffff;
   --color-surface-rgb: 255, 255, 255;
-  --color-surface-hover: #f1f3f5;
-  --color-surface-hover-rgb: 241, 243, 245;
-  --color-border: #dee2e6;
-  --color-border-rgb: 222, 226, 230;
+  --color-surface-hover: rgba(0, 0, 0, 0.03);
+  --color-surface-hover-rgb: 0, 0, 0;
+  --color-border: rgba(0, 0, 0, 0.065);
+  --color-border-rgb: 0, 0, 0;
   --color-primary: #0d9488;
   --color-primary-rgb: 13, 148, 136;
   --color-primary-hover: #0f766e;
-  --color-text: #1a1a1a;
-  --color-text-rgb: 26, 26, 26;
-  --color-text-secondary: #525252;
-  --color-text-muted: #a3a3a3;
-  --color-success: #16a34a;
+  --color-text: #09090b; /* Zinc-950 */
+  --color-text-rgb: 9, 9, 11;
+  --color-text-secondary: #52525b; /* Zinc-600 */
+  --color-text-muted: #8e8e93;
+  --color-success: #059669;
   --color-warning: #d97706;
   --color-error: #dc2626;
-  --color-highlight: rgba(13, 148, 136, 0.1);
+  --color-highlight: rgba(13, 148, 136, 0.06);
   --color-surface-elevated: #ffffff;
+  --color-bg-subtle: rgba(0, 0, 0, 0.02);
+  --color-bg-outer: rgba(0, 0, 0, 0.015);
+  --color-border-outer: rgba(13, 148, 136, 0.08);
 }
 
 :root {
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
+  /* Spacing - Linear & Vercel precise microspacing */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+  --space-2xl: 64px;
 
-  /* Border Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  /* Border Radius - Squircle nested math */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
 
-  /* Font */
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  /* Font Families */
+  --font-sans: "Geist", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", monospace;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.7);
+  /* Shadows - Tinted soft ambient */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.1);
 
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
+  /* Transitions - Cinematic Mass Spring Easing */
+  --transition-fast: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 500ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Smooth theme switching */
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+/* Remove performance-degrading global wildcards. Apply transitions selectively. */
+button,
+a,
+input,
+textarea,
+select,
+.sidebar-menu-btn,
+.nav-btn,
+.cite-style-btn,
+.cite-copy-all-btn,
+.cite-export-bib-btn,
+.cite-close-btn,
+.cite-copy-btn,
+.chat-view-cite-btn,
+.chat-view-export-btn,
+.hl-tab,
+.hl-refresh-btn,
+.hl-chat-selected-btn,
+.hl-evidence-action-btn,
+.hl-pdf-overlay-open-btn,
+.hl-pdf-overlay-close-btn,
+.hl-context-toggle,
+.daily-reader-retry,
+.daily-reader-refresh-btn,
+.daily-reader-stat,
+.daily-reader-paper-card {
+  transition: background-color var(--transition-fast),
+              border-color var(--transition-fast),
+              color var(--transition-fast),
+              transform var(--transition-fast),
+              box-shadow var(--transition-fast);
 }
+
