@@ -1,5 +1,5 @@
 # Web Framework
-fastapi==0.115.*
+fastapi==0.138.*
 uvicorn[standard]==0.32.*
 python-multipart==0.0.*
 
