@@ -592,7 +592,7 @@
 .chat-view-mode-dropdown-menu {
   position: absolute;
   bottom: 52px; /* Open upwards as input area is at bottom */
-  right: 0;
+  left: 0;
   z-index: 999;
   width: 320px;
   background: rgba(18, 18, 22, 0.95);
