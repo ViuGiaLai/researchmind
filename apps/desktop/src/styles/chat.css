@@ -91,10 +91,12 @@
 }
 
 .chat-view-suggestions {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-sm);
-  align-items: center;
+  align-items: stretch;
+  width: 100%;
+  max-width: 920px;
 }
 
 .chat-view-suggestion-btn {
@@ -109,7 +111,8 @@
   color: var(--color-text);
   transition: all var(--transition-fast);
   width: 100%;
-  max-width: 360px;
+  min-width: 0;
+  text-align: left;
 }
 
 .chat-view-suggestion-btn:hover {
