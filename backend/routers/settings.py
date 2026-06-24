@@ -36,6 +36,8 @@ async def get_settings():
         "nvidia_model": settings.nvidia_model,
         "github_api_key": "***" if settings.github_api_key else "",
         "github_model": settings.github_model,
+        "github_deepseek_v3_api_key": "***" if settings.github_deepseek_v3_api_key else "",
+        "github_deepseek_v3_model": settings.github_deepseek_v3_model,
         "openrouter_api_key": "***" if settings.openrouter_api_key else "",
         "openrouter_model": settings.openrouter_model,
         "cohere_api_key": "***" if settings.cohere_api_key else "",
@@ -77,7 +79,7 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "freemodel_api_key", "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key"):
+                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "github_deepseek_v3_api_key", "freemodel_api_key", "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
                 if key in ("task_provider_map", "task_fallback_map"):
@@ -120,6 +122,8 @@ async def update_settings(new_settings: dict = Body(...)):
             github_api_key=settings.github_api_key,
             github_model=settings.github_model,
             github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
+            github_deepseek_v3_api_key=settings.github_deepseek_v3_api_key,
+            github_deepseek_v3_model=settings.github_deepseek_v3_model,
             openrouter_api_key=settings.openrouter_api_key,
             openrouter_model=settings.openrouter_model,
             openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),
@@ -213,6 +217,8 @@ async def validate_api_key(body: dict = Body(...)):
             api_key = settings.nvidia_api_key
         elif provider == "github":
             api_key = settings.github_api_key
+        elif provider == "github_deepseek_v3":
+            api_key = settings.github_deepseek_v3_api_key
         elif provider == "openrouter":
             api_key = settings.openrouter_api_key
         elif provider == "cohere":
@@ -317,6 +323,21 @@ async def validate_api_key(body: dict = Body(...)):
                     except:
                         err_msg = res.text
                     return {"valid": False, "error": f"Lỗi GitHub Models: {err_msg}"}
+
+            elif provider == "github_deepseek_v3":
+                url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                model_name = model or "DeepSeek-V3-0324"
+                payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    return {"valid": True}
+                else:
+                    try:
+                        err_msg = res.json().get("error", {}).get("message", res.text)
+                    except:
+                        err_msg = res.text
+                    return {"valid": False, "error": f"Lỗi GitHub Models (Qwen): {err_msg}"}
 
             elif provider == "freemodel":
                 url = getattr(settings, "freemodel_url", "https://api.freemodel.dev/v1").rstrip("/") + "/chat/completions"

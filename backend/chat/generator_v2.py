@@ -63,6 +63,8 @@ class Generator(
         github_api_key: str = "",
         github_model: str = "Phi-4-mini-instruct",
         github_url: str = "https://models.inference.ai.azure.com",
+        github_deepseek_v3_api_key: str = "",
+        github_deepseek_v3_model: str = "DeepSeek-V3-0324",
         freemodel_api_key: str = "",
         freemodel_model: str = "gpt-4o-mini",
         freemodel_url: str = "https://freemodel.dev/v1",
@@ -104,6 +106,8 @@ class Generator(
         self.github_api_key = github_api_key
         self.github_model = github_model
         self.github_url = github_url.rstrip("/")
+        self.github_deepseek_v3_api_key = github_deepseek_v3_api_key
+        self.github_deepseek_v3_model = github_deepseek_v3_model
         self.freemodel_api_key = freemodel_api_key
         self.freemodel_model = freemodel_model
         self.freemodel_url = freemodel_url.rstrip("/")
@@ -199,7 +203,13 @@ class Generator(
                 return "openrouter"
             elif mode in ("deep_plus", "deep+"):
                 return "openrouter_r1"
-                
+
+        # Heavy analytical tasks → DeepSeek-V3-0324 via GitHub Models
+        if task_type in ("critique", "debate", "insight", "gap"):
+            if self.github_deepseek_v3_api_key:
+                return "github_deepseek_v3"
+            logger.warning(f"github_deepseek_v3_api_key empty, falling back to task_provider_map for {task_type}")
+
         return self.task_provider_map.get(task_type)
 
     def _get_fallback_for_task(self, task_type: str) -> str | None:
@@ -236,6 +246,10 @@ class Generator(
                 if not self.github_api_key:
                     return None
                 return self._generate_github(user_prompt, self.github_api_key, self.github_model, max_tokens, system_prompt_override)
+            elif provider == "github_deepseek_v3":
+                if not self.github_deepseek_v3_api_key:
+                    return None
+                return self._generate_github(user_prompt, self.github_deepseek_v3_api_key, self.github_deepseek_v3_model, max_tokens, system_prompt_override)
             elif provider == "gemini":
                 if not self.gemini_api_key:
                     return None
@@ -336,6 +350,11 @@ class Generator(
                 if not self.github_api_key:
                     return
                 yield from self._stream_openai(user_prompt, self.github_api_key, self.github_model, self.github_url, max_tokens)
+                return
+            elif provider == "github_deepseek_v3":
+                if not self.github_deepseek_v3_api_key:
+                    return
+                yield from self._stream_openai(user_prompt, self.github_deepseek_v3_api_key, self.github_deepseek_v3_model, self.github_url, max_tokens)
                 return
             elif provider == "gemini":
                 if not self.gemini_api_key:

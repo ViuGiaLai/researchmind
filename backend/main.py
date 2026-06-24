@@ -239,6 +239,8 @@ async def lifespan(app: FastAPI):
         github_api_key=settings.github_api_key,
         github_model=settings.github_model,
         github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
+        github_deepseek_v3_api_key=settings.github_deepseek_v3_api_key,
+        github_deepseek_v3_model=settings.github_deepseek_v3_model,
         openrouter_api_key=settings.openrouter_api_key,
         openrouter_model=settings.openrouter_model,
         openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),

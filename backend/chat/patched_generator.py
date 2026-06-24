@@ -42,6 +42,12 @@ class PatchedGenerator(
                 self._set_model(f"github/{self.github_model}")
                 yield from self._stream_openai(user_prompt, self.github_api_key, self.github_model, self.github_url, max_tokens)
                 return
+            elif provider == "github_deepseek_v3":
+                if not self.github_deepseek_v3_api_key:
+                    return
+                self._set_model(f"github_deepseek_v3/{self.github_deepseek_v3_model}")
+                yield from self._stream_openai(user_prompt, self.github_deepseek_v3_api_key, self.github_deepseek_v3_model, self.github_url, max_tokens)
+                return
             elif provider == "gemini":
                 if not self.gemini_api_key:
                     return

@@ -252,7 +252,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
 
       if (!summaryCompleted) {
         try {
-          const res = await api.review("", [paperId]);
+          const res = await api.chat(
+            "Hãy tóm tắt paper này ngắn gọn: background, phương pháp, kết quả chính, kết luận. Trả lời tiếng Việt.",
+            [paperId], "current", undefined, "fast"
+          );
           if (activeAnalysisRunId.current !== runId) return;
           setSteps((prev) => ({
             ...prev,
@@ -278,7 +281,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       }));
       startLoadingMessages("critique");
       try {
-        const res = await api.critique("", [paperId]);
+        const res = await api.chat(
+          "Phân tích phản biện paper này: chỉ ra điểm mạnh, điểm yếu, hạn chế về phương pháp, và đề xuất cải thiện. Trả lời tiếng Việt.",
+          [paperId], "current", undefined, "fast"
+        );
         if (activeAnalysisRunId.current !== runId) return;
         setSteps((prev) => ({
           ...prev,
@@ -303,7 +309,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       }));
       startLoadingMessages("conflict");
       try {
-        const res = await api.findConflicts([paperId]);
+        const res = await api.chat(
+          "Phân tích các mâu thuẫn (conflict) trong paper này: các kết quả trái ngược, quan điểm khác biệt với nghiên cứu trước. Trả lời tiếng Việt.",
+          [paperId], "current", undefined, "fast"
+        );
         if (activeAnalysisRunId.current !== runId) return;
         setSteps((prev) => ({
           ...prev,
@@ -328,7 +337,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       }));
       startLoadingMessages("gap");
       try {
-        const res = await api.findResearchGap([paperId]);
+        const res = await api.chat(
+          "Phân tích khoảng trống nghiên cứu (research gap) từ paper này: những vấn đề chưa được giải quyết, hướng nghiên cứu tương lai. Trả lời tiếng Việt.",
+          [paperId], "current", undefined, "fast"
+        );
         if (activeAnalysisRunId.current !== runId) return;
         setSteps((prev) => ({
           ...prev,
@@ -353,7 +365,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       }));
       startLoadingMessages("debate");
       try {
-        const res = await api.debate("", [paperId]);
+        const res = await api.chat(
+          "Tạo một cuộc tranh luận AI về paper này: góc nhìn ủng hộ vs góc nhìn phản biện, chỉ ra ưu điểm và hạn chế. Trả lời tiếng Việt.",
+          [paperId], "current", undefined, "fast"
+        );
         if (activeAnalysisRunId.current !== runId) return;
         setSteps((prev) => ({
           ...prev,

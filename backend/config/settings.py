@@ -100,6 +100,10 @@ class Settings(BaseSettings):
     github_model: str = "Phi-4-mini-instruct"
     github_url: str = "https://models.inference.ai.azure.com"
 
+    # GitHub Models — separate key for DeepSeek-V3-0324 (use different GH account to avoid rate limits)
+    github_deepseek_v3_api_key: str = ""
+    github_deepseek_v3_model: str = "DeepSeek-V3-0324"
+
     # FreeModel.dev Cloud (OpenAI-compatible proxy)
     freemodel_api_key: str = ""
     freemodel_model: str = "gpt-4o-mini"
