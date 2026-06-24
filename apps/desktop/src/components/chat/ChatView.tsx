@@ -1104,28 +1104,28 @@ export const ChatView: React.FC<{
             className={`chat-view-scope-tab ${scope === "current" ? "active" : ""}`}
             onClick={() => setScope("current")}
           >
-            📄 Paper hiện tại
+            <IconFileText size={14} /> Paper hiện tại
           </button>
           <button
             type="button"
             className={`chat-view-scope-tab ${scope === "library" ? "active" : ""}`}
             onClick={() => setScope("library")}
           >
-            📚 Toàn bộ thư viện
+            <IconLibrary size={14} /> Toàn bộ thư viện
           </button>
           <button
             type="button"
             className={`chat-view-scope-tab ${scope === "collection" ? "active" : ""}`}
             onClick={() => setScope("collection")}
           >
-            🗂 Collection
+            <IconBook size={14} /> Collection
           </button>
           <button
             type="button"
             className={`chat-view-scope-tab ${scope === "external" ? "active" : ""}`}
             onClick={() => setScope("external")}
           >
-            🌐 Nghiên cứu bên ngoài
+            <IconSearch size={14} /> Nghiên cứu bên ngoài
           </button>
         </div>
 
