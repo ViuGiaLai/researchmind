@@ -784,7 +784,7 @@ export const LibraryView: React.FC<{
                       <span>Phân tích AI</span>
                     </button>
                   )}
-                  <button className="preview-btn primary" onClick={() => onStartChat([activePaper.id])}
+                  <button className="preview-btn" onClick={() => onStartChat([activePaper.id])}
                     style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
                     <IconChat size={14} />
                     <span>Hỏi AI</span>
