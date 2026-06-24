@@ -535,12 +535,9 @@ export const LibraryView: React.FC<{
               <button className="library-import-close" onClick={() => setShowImport(false)}>✕</button>
             </div>
             <ImportPanel
-              onImported={(paperId) => {
+              onImported={() => {
                 loadPapers();
                 setShowImport(false);
-                if (paperId && onStartWow) {
-                  onStartWow(paperId);
-                }
               }}
             />
           </div>

@@ -168,12 +168,14 @@ async def import_document(
         _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=f"Cannot parse file: {file.filename}")
         raise HTTPException(status_code=400, detail=f"Cannot parse file: {file.filename}")
 
+    paper_title = getattr(doc, "suggested_title", None) or doc.title
+
     session = get_session(state.engine)
     try:
         paper = Paper(
             id=file_id,
             filename=file.filename,
-            title=doc.title,
+            title=paper_title,
             authors=doc.authors,
             year=doc.year,
             doi=doc.doi,
@@ -202,17 +204,15 @@ async def import_document(
         _enrich_paper_background,
         paper_id=file_id,
         file_path=str(save_path),
-        title=doc.title or file.filename,
+        title=paper_title or file.filename,
         authors=doc.authors.split(",") if doc.authors else []
     )
 
-    suggested_title = getattr(doc, "suggested_title", None) or doc.title
     return {
         "paper_id": file_id,
         "job_id": job_id,
         "filename": file.filename,
-        "title": doc.title,
-        "suggested_title": suggested_title,
+        "title": paper_title,
         "page_count": doc.page_count,
         "language": doc.language,
         "status": "indexing",
@@ -262,12 +262,14 @@ async def import_folder(
             shutil.copy2(str(doc_file), str(save_path))
             _update_import_job(job_id, status="saved", stage="saved", progress=35, paper_id=file_id, file_path=str(save_path))
 
+            paper_title = getattr(doc, "suggested_title", None) or doc.title
+
             session = get_session(state.engine)
             try:
                 paper = Paper(
                     id=file_id,
                     filename=doc_file.name,
-                    title=doc.title,
+                    title=paper_title,
                     authors=doc.authors,
                     year=doc.year,
                     doi=doc.doi,
@@ -300,7 +302,7 @@ async def import_folder(
                 _enrich_paper_background,
                 paper_id=file_id,
                 file_path=str(save_path),
-                title=doc.title or doc_file.name,
+                title=paper_title or doc_file.name,
                 authors=doc.authors.split(",") if doc.authors else []
             )
             import_results.append({
