@@ -38,11 +38,13 @@ interface ImportResult {
   error?: string;
   pages?: number;
   title?: string;
+  suggestedTitle?: string;
   ocrPagesCount?: number;
   ocrPagesFailed?: number;
   isScanned?: boolean;
   pdfStatus?: string;
   pdfError?: string;
+  editing?: boolean;
 }
 
 export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> = ({ onImported }) => {
@@ -50,6 +52,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
   const [dragOver, setDragOver] = useState(false);
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<ImportResult[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const bibtexInputRef = useRef<HTMLInputElement>(null);
@@ -115,6 +119,36 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     startStatusPolling([jobId]);
   };
 
+  const startEditing = (idx: number, currentTitle: string) => {
+    setEditingIndex(idx);
+    setEditValue(currentTitle);
+  };
+
+  const saveTitle = async (idx: number) => {
+    const result = results[idx];
+    if (!result || !result.paper_id || !editValue.trim()) return;
+    const newTitle = editValue.trim();
+    try {
+      await api.updatePaper(result.paper_id, { title: newTitle });
+      setResults((prev) => prev.map((r, i) => i === idx ? { ...r, title: newTitle, suggestedTitle: newTitle } : r));
+    } catch {
+      // revert silently
+    }
+    setEditingIndex(null);
+    setEditValue("");
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveTitle(idx);
+    }
+    if (e.key === "Escape") {
+      setEditingIndex(null);
+      setEditValue("");
+    }
+  };
+
   // ── PDF Import ────────────────────────────────────────────
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -170,6 +204,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     for (const file of files) {
       try {
         const res = await api.importPaper(file);
+        const suggested = (res as any).suggested_title || res.title;
         newResults.push({
           job_id: res.job_id,
           filename: file.name,
@@ -177,7 +212,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           progress: 35,
           paper_id: res.paper_id,
           pages: res.page_count,
-          title: res.title,
+          title: suggested,
+          suggestedTitle: suggested,
           ocrPagesCount: res.ocr_pages_count,
           ocrPagesFailed: res.ocr_pages_failed,
           isScanned: res.is_scanned,
@@ -673,7 +709,34 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       <IconCheck size={16} style={{ color: iconColor }} />
                     )}
                   </span>
-                  <span className="import-result-name">{r.title || r.filename}</span>
+                  {editingIndex === i ? (
+                    <input
+                      className="import-result-name-input"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => saveTitle(i)}
+                      onKeyDown={(e) => handleTitleKeyDown(e, i)}
+                      autoFocus
+                      style={{
+                        flex: 1, minWidth: 0, padding: "2px 6px", borderRadius: 4,
+                        border: "1px solid var(--color-primary, #6366f1)",
+                        background: "var(--color-bg, #f9fafb)",
+                        color: "var(--color-text, #1a1a1a)", fontSize: 13, outline: "none",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className="import-result-name"
+                      style={{ cursor: r.paper_id ? "pointer" : "default" }}
+                      onClick={() => r.paper_id && startEditing(i, r.title || r.filename)}
+                      title={r.paper_id ? "Nhấp để sửa tên" : ""}
+                    >
+                      {r.title || r.filename}
+                      {r.paper_id && (
+                        <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.4 }}>✎</span>
+                      )}
+                    </span>
+                  )}
                   {r.pages && <span className="import-result-pages">{r.pages} trang</span>}
                   {isProcessing && <span className="import-result-pages">{r.stage || r.status} {typeof r.progress === "number" ? `${r.progress}%` : ""}</span>}
                   {["indexed", "ready"].includes(r.status) && <span className="import-result-pages">sẵn sàng</span>}

@@ -206,11 +206,13 @@ async def import_document(
         authors=doc.authors.split(",") if doc.authors else []
     )
 
+    suggested_title = getattr(doc, "suggested_title", None) or doc.title
     return {
         "paper_id": file_id,
         "job_id": job_id,
         "filename": file.filename,
         "title": doc.title,
+        "suggested_title": suggested_title,
         "page_count": doc.page_count,
         "language": doc.language,
         "status": "indexing",
@@ -838,7 +840,7 @@ async def update_paper(paper_id: str, update: dict):
         if not paper:
             raise HTTPException(status_code=404, detail="Paper not found")
 
-        allowed_fields = {"tags", "notes", "read_status", "starred"}
+        allowed_fields = {"tags", "notes", "read_status", "starred", "title"}
         for key, value in update.items():
             if key in allowed_fields:
                 setattr(paper, key, value)

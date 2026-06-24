@@ -32,6 +32,24 @@ class ExtractedDocument:
     ocr_pages_failed: int = 0
     is_scanned: bool = False
     layout_stats: Optional[dict] = None
+    suggested_title: Optional[str] = None
+
+
+def _extract_title_from_text(text: str, fallback: str, max_chars: int = 150) -> str:
+    """Get first meaningful line from text as a suggested title."""
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        # Skip short lines (page numbers, headers)
+        if len(line) < 10:
+            continue
+        # Skip lines that are mostly numbers or symbols
+        alpha_ratio = sum(1 for c in line if c.isalpha()) / max(len(line), 1)
+        if alpha_ratio < 0.4:
+            continue
+        return line[:max_chars].strip()
+    return fallback
 
 
 def extract_document(file_path: str) -> Optional[ExtractedDocument]:
@@ -209,6 +227,10 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
 
     language = _detect_language(full_text[:2000])
 
+    # Extract suggested title from first page text (fallback if metadata title is poor)
+    first_page_text = text_by_page.get(1, "")
+    suggested_title = _extract_title_from_text(first_page_text, path.stem)
+
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -225,7 +247,16 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_failed=ocr_pages_failed,
         is_scanned=ocr_pages_count > 0,
         layout_stats=layout_stats if layout_stats else None,
+        suggested_title=suggested_title,
     )
+
+
+def _make_suggested_title(doc: ExtractedDocument) -> str:
+    """Compute suggested_title from first page text if not already set."""
+    if doc.suggested_title:
+        return doc.suggested_title
+    first_text = doc.text_by_page.get(1, "")
+    return _extract_title_from_text(first_text, doc.filename)
 
 
 def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
@@ -273,6 +304,7 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
 
     language = _detect_language(full_text[:2000])
 
+    suggested = _extract_title_from_text(full_text, path.stem)
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -288,6 +320,7 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=0,
         ocr_pages_failed=0,
         is_scanned=False,
+        suggested_title=suggested,
     )
 
 
@@ -308,6 +341,7 @@ def _extract_txt(file_path: str) -> Optional[ExtractedDocument]:
 
     language = _detect_language(full_text[:2000])
 
+    suggested = _extract_title_from_text(full_text, path.stem)
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -323,6 +357,7 @@ def _extract_txt(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=0,
         ocr_pages_failed=0,
         is_scanned=False,
+        suggested_title=suggested,
     )
 
 
@@ -365,6 +400,7 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
 
     language = _detect_language(clean[:2000])
 
+    suggested = _extract_title_from_text(clean, path.stem)
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -380,6 +416,7 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=0,
         ocr_pages_failed=0,
         is_scanned=False,
+        suggested_title=suggested,
     )
 
 
@@ -411,6 +448,7 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
 
     language = _detect_language(full_text[:2000])
 
+    suggested = _extract_title_from_text(full_text, path.stem)
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -426,6 +464,7 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=0,
         ocr_pages_failed=0,
         is_scanned=False,
+        suggested_title=suggested,
     )
 
 
@@ -477,6 +516,7 @@ def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
 
     language = _detect_language(full_text[:2000])
 
+    suggested = _extract_title_from_text(full_text, path.stem)
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -492,6 +532,7 @@ def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=0,
         ocr_pages_failed=0,
         is_scanned=False,
+        suggested_title=suggested,
     )
 
 
