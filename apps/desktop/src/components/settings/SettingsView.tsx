@@ -665,7 +665,7 @@ export const SettingsView: React.FC = () => {
                 <span style={{ fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                   <IconZap size={16} /> Lượt sử dụng miễn phí
                 </span>
-                <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Hạn mức hệ thống tự động đặt lại mỗi ngày</span>
+                {/* <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Hạn mức hệ thống tự động đặt lại mỗi ngày</span> */}
               </div>
               <div style={{ textAlign: "right" }}>
                 {usage ? (
