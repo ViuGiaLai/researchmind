@@ -446,6 +446,9 @@ export const api = {
   },
 
   // Chat
+  suggestQuestions: (scope: string, paperIds?: string[], collectionId?: string) =>
+    request<{ questions: string[] }>("POST", "/api/chat/suggest-questions", { scope, paper_ids: paperIds, collection_id: collectionId }),
+
   chat: (message: string, paperIds?: string[], scope?: string, collectionId?: string, reasoningMode?: string) =>
     request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope, collection_id: collectionId, reasoning_mode: reasoningMode }),
 

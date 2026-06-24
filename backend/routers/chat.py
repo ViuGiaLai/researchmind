@@ -355,6 +355,72 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
 
 # ─── Chat ────────────────────────────────────────────────────────
 
+@router.post("/chat/suggest-questions")
+async def suggest_questions(body: dict = Body(...)):
+    """
+    Generate 3 quick suggested questions.
+    - external → simple prompt, no context
+    - paper scopes → use paper titles only (no RAG), fast & light
+    """
+    scope = body.get("scope", "current")
+    paper_ids = body.get("paper_ids")
+    collection_id = body.get("collection_id")
+
+    if collection_id and not paper_ids:
+        paper_ids = _resolve_collection_paper_ids(collection_id)
+        if not paper_ids:
+            return {"questions": []}
+
+    # Build paper context from titles only (fast, no RAG)
+    paper_titles: list[str] = []
+    if paper_ids or scope == "library":
+        session = get_session(state.engine)
+        try:
+            q = session.query(Paper.title).filter(Paper.id.in_(paper_ids)) if paper_ids else session.query(Paper.title)
+            paper_titles = [row[0] for row in q.all() if row[0]]
+        finally:
+            session.close()
+
+    if scope == "external" or not paper_titles:
+        prompt = (
+            "Đưa ra 3 câu hỏi tiếng Việt, mỗi câu 1 dòng bắt đầu bằng '- '. "
+            "Câu hỏi về AI/ML cho người mới. Ví dụ:\n"
+            "- Transformer là gì?\n"
+            "- Sự khác nhau giữa CNN và RNN?\n"
+            "- Các xu hướng AI năm 2026?"
+        )
+        context = "__EXTERNAL_KNOWLEDGE__"
+    else:
+        titles_str = "\n".join(f"- {t}" for t in paper_titles[:10])
+        prompt = (
+            "Dựa vào các paper sau, đưa ra 3 câu hỏi nghiên cứu tiếng Việt "
+            "mà người dùng muốn hỏi nhất. Mỗi câu 1 dòng, bắt đầu bằng '- '.\n\n"
+            f"Papers:\n{titles_str}"
+        )
+        context = ""
+
+    generation = await asyncio.to_thread(
+        state.generator.generate,
+        query=prompt,
+        context_text=context,
+        task_type="chat",
+    )
+
+    questions: list[str] = []
+    for line in generation.content.strip().split("\n"):
+        line = line.strip()
+        if line.startswith("- "):
+            q = line[2:].strip()
+            if q:
+                questions.append(q)
+        elif line and not line.startswith("#"):
+            questions.append(line)
+        if len(questions) >= 3:
+            break
+
+    return {"questions": questions[:3]}
+
+
 @router.post("/chat")
 async def chat(request: dict = Body(...)):
     """Chat with selected papers using RAG pipeline."""

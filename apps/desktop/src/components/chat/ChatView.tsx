@@ -72,9 +72,12 @@ export const ChatView: React.FC<{
     remaining: number;
     mode: string;
   } | null>(null);
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+  const questionsCacheRef = useRef<Map<string, string[]>>(new Map());
   const listRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const activeChatStreamRef = useRef<{ abort: () => void } | null>(null);
+  const questionsAbortRef = useRef<AbortController | null>(null);
 
   // Auto-cite state
   const [citeStyle, setCiteStyle] = useState<CitationStyle>("apa");
@@ -232,6 +235,49 @@ export const ChatView: React.FC<{
       console.error("Failed to load chat usage:", e);
     }
   };
+
+  const getScopeKey = useCallback(() => {
+    if (scope === "external") return "external";
+    if (scope === "collection") return `collection:${activeCollectionId}`;
+    if (scope === "current") return `current:${paperIds.sort().join(",")}`;
+    return `library`;
+  }, [scope, paperIds, activeCollectionId]);
+
+  const fetchSuggestedQuestions = useCallback(async () => {
+    questionsAbortRef.current?.abort();
+    const controller = new AbortController();
+    questionsAbortRef.current = controller;
+    const key = getScopeKey();
+
+    // Dùng cache nếu có
+    const cached = questionsCacheRef.current.get(key);
+    if (cached) {
+      setSuggestedQuestions(cached);
+      return;
+    }
+
+    try {
+      const res = await api.suggestQuestions(
+        scope,
+        scope === "current" ? paperIds : undefined,
+        scope === "collection" ? activeCollectionId : undefined
+      );
+      if (!controller.signal.aborted) {
+        const qs = res.questions.length > 0 ? res.questions : [];
+        questionsCacheRef.current.set(key, qs);
+        setSuggestedQuestions(qs);
+      }
+    } catch {
+      if (!controller.signal.aborted) {
+        setSuggestedQuestions([]);
+      }
+    }
+  }, [scope, paperIds, activeCollectionId, getScopeKey]);
+
+  useEffect(() => {
+    fetchSuggestedQuestions();
+    return () => questionsAbortRef.current?.abort();
+  }, [fetchSuggestedQuestions]);
 
   const handleCancelStream = () => {
     activeChatStreamRef.current?.abort();
@@ -746,17 +792,7 @@ export const ChatView: React.FC<{
     setTempPaperIds(prev => prev.filter(id => !allFilteredIds.includes(id)));
   };
 
-  const suggestedQuestions = scope === "external"
-    ? [
-      "Transformer là gì?",
-      "Sự khác nhau giữa CNN và RNN?",
-      "Các xu hướng AI năm 2026?",
-    ]
-    : [
-      "Tóm tắt các paper trong thư viện",
-      "So sánh phương pháp trong các paper đã chọn",
-      "Những xu hướng nghiên cứu chính trong các paper này?",
-    ];
+  const displayQuestions = suggestedQuestions.length > 0 ? suggestedQuestions : null;
 
   const formatContent = (text: string, msgCitations?: CitationInfo[]) => {
     return (
@@ -1184,20 +1220,22 @@ export const ChatView: React.FC<{
               Chọn paper trong thư viện hoặc hỏi tất cả. AI sẽ trả lời có
               trích dẫn nguồn.
             </p>
-            <div className="chat-view-suggestions">
-              {suggestedQuestions.map((q, i) => (
-                <button
-                  key={i}
-                  className="chat-view-suggestion-btn"
-                  onClick={() => {
-                    setInput(q);
-                  }}
-                >
-                  <IconBulb size={14} style={{ marginRight: 4 }} />
-                  {q}
-                </button>
-              ))}
-            </div>
+            {displayQuestions && (
+              <div className="chat-view-suggestions">
+                {displayQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    className="chat-view-suggestion-btn"
+                    onClick={() => {
+                      setInput(q);
+                    }}
+                  >
+                    <IconBulb size={14} style={{ marginRight: 4 }} />
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
