@@ -25,6 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env from secrets
+        shell: bash
+        run: |
+          echo "${{ secrets.DOTENV }}" > backend/.env
+          echo "✅ .env created ($(wc -c < backend/.env) bytes)"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -50,7 +56,7 @@ jobs:
       - name: Build backend executable
         run: pyinstaller backend.spec
 
-      - name: Copy backend to Tauri resources
+      - name: Copy backend + .env to Tauri resources
         shell: bash
         run: |
           mkdir -p apps/desktop/src-tauri/resources
@@ -64,6 +70,7 @@ jobs:
             cp dist/backend/backend apps/desktop/src-tauri/resources/backend
             cp dist/backend/backend apps/desktop/src-tauri/resources/backend.exe
           fi
+          cp backend/.env apps/desktop/src-tauri/resources/.env
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

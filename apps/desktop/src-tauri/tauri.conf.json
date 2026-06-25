@@ -30,7 +30,8 @@
     "targets": "all",
     "icon": ["icons/icon.ico", "icons/icon.png"],
     "resources": {
-      "resources/backend.exe": "resources/"
+      "resources/backend.exe": "resources/",
+      "resources/.env": "resources/"
     },
     "windows": {
       "wix": null,
