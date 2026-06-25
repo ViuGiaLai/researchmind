@@ -41,7 +41,9 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
 
     // 1. Check next to the app binary
     if let Ok(exe_dir) = std::env::current_exe().map(|p| {
-        p.parent().unwrap_or(std::path::Path::new(".")).to_path_buf()
+        p.parent()
+            .unwrap_or(std::path::Path::new("."))
+            .to_path_buf()
     }) {
         let bundled = exe_dir.join(name);
         if is_valid_executable(&bundled) {
@@ -56,7 +58,11 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
             let resource_path = res_dir.join(name);
             if is_valid_executable(&resource_path) {
                 info!("Found {} in resource dir: {:?}", name, resource_path);
-                return Some((resource_path.to_string_lossy().to_string(), vec![], Some(res_dir)));
+                return Some((
+                    resource_path.to_string_lossy().to_string(),
+                    vec![],
+                    Some(res_dir),
+                ));
             }
         }
     }
@@ -83,15 +89,19 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
 
     // Try multiple candidate paths for main.py
     let candidates = [
-        cargo_dir.join("../../../backend/main.py"),                  // repo root from apps/desktop/src-tauri
-        cargo_dir.join("../../backend/main.py"),                     // legacy layout
-        PathBuf::from("backend/main.py"),                           // current working dir
-        PathBuf::from("../backend/main.py"),                        // one level up
+        cargo_dir.join("../../../backend/main.py"), // repo root from apps/desktop/src-tauri
+        cargo_dir.join("../../backend/main.py"),    // legacy layout
+        PathBuf::from("backend/main.py"),           // current working dir
+        PathBuf::from("../backend/main.py"),        // one level up
     ];
 
     let mut main_py = None;
     for candidate in &candidates {
-        info!("Checking backend path: {} (exists: {})", candidate.display(), candidate.exists());
+        info!(
+            "Checking backend path: {} (exists: {})",
+            candidate.display(),
+            candidate.exists()
+        );
         if candidate.exists() {
             main_py = Some(candidate.to_path_buf());
             break;
@@ -101,11 +111,19 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
     if let Some(path) = main_py {
         info!("Using development mode: {} -u {}", python, path.display());
         let cwd = path.parent().map(|p| p.to_path_buf());
-        Some((python, vec!["-u".into(), path.to_string_lossy().to_string()], cwd))
+        Some((
+            python,
+            vec!["-u".into(), path.to_string_lossy().to_string()],
+            cwd,
+        ))
     } else {
         error!(
             "No backend found. Checked: {}",
-            candidates.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+            candidates
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
         );
         None
     }
@@ -187,7 +205,10 @@ fn kill_backend(proc: State<'_, BackendProcess>) -> Result<(), String> {
 /// Run the Tauri application.
 pub fn run() {
     env_logger::init();
-    info!("Starting ResearchMind VN Desktop v{}", env!("CARGO_PKG_VERSION"));
+    info!(
+        "Starting ResearchMind VN Desktop v{}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     tauri::Builder::default()
         .setup(|app| {
