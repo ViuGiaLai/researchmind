@@ -92,7 +92,7 @@ jobs:
 
   build:
     needs: [changes, lint-frontend, test-backend, lint-rust]
-    if: github.ref_type == 'tag'
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     strategy:
