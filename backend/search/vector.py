@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from loguru import logger
 import numpy as np
+import chromadb
 
 
 def _patch_chromadb_telemetry():
@@ -80,17 +81,42 @@ class VectorSearch:
         metadatas: list[dict],
         documents: list[str],
     ):
-        """Add chunks with embeddings to ChromaDB."""
+        """Add chunks with embeddings to ChromaDB.
+
+        Auto-fixes dimension mismatch: if the existing ChromaDB collection
+        was created with a different embedding dimension (e.g. after switching
+        from bge-m3 1024-dim to Gemini 3072-dim), recreates the collection
+        and retries automatically.
+        """
         if not chunk_ids:
             return
 
-        self.collection.add(
-            ids=chunk_ids,
-            embeddings=embeddings,
-            metadatas=metadatas,
-            documents=documents,
-        )
-        logger.debug(f"Added {len(chunk_ids)} chunks to ChromaDB")
+        try:
+            self.collection.add(
+                ids=chunk_ids,
+                embeddings=embeddings,
+                metadatas=metadatas,
+                documents=documents,
+            )
+            logger.debug(f"Added {len(chunk_ids)} chunks to ChromaDB")
+        except (ValueError, chromadb.errors.InvalidDimensionException) as e:
+            err_str = str(e).lower()
+            if "dimension" in err_str and ("does not match" in err_str or "mismatch" in err_str):
+                embedding_dim = len(embeddings[0]) if embeddings else 0
+                logger.warning(
+                    f"ChromaDB dimension mismatch: old collection dim != {embedding_dim}. "
+                    f"Recreating collection and retrying... Error: {e}"
+                )
+                self.clear_collection()
+                self.collection.add(
+                    ids=chunk_ids,
+                    embeddings=embeddings,
+                    metadatas=metadatas,
+                    documents=documents,
+                )
+                logger.info(f"Added {len(chunk_ids)} chunks to recreated ChromaDB collection (dim={embedding_dim})")
+            else:
+                raise
 
     def search(
         self,

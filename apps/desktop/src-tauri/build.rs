@@ -16,11 +16,11 @@ fn main() {
         let img_size: u32 = 40 + (32 * 32 * 4) + (4 * 32); // BMPINFOHEADER + XOR mask + AND mask
         let img_offset: u32 = 6 + 16; // header + directory
 
-        ico.push(32);                 // width
-        ico.push(32);                 // height
-        ico.push(0);                  // colors
-        ico.push(0);                  // reserved
-        ico.extend_from_slice(&1u16.to_le_bytes());  // planes
+        ico.push(32); // width
+        ico.push(32); // height
+        ico.push(0); // colors
+        ico.push(0); // reserved
+        ico.extend_from_slice(&1u16.to_le_bytes()); // planes
         ico.extend_from_slice(&32u16.to_le_bytes()); // bpp
         ico.extend_from_slice(&img_size.to_le_bytes());
         ico.extend_from_slice(&img_offset.to_le_bytes());
@@ -29,9 +29,9 @@ fn main() {
         ico.extend_from_slice(&40u32.to_le_bytes()); // biSize
         ico.extend_from_slice(&32i32.to_le_bytes()); // biWidth
         ico.extend_from_slice(&64i32.to_le_bytes()); // biHeight (double: XOR + AND)
-        ico.extend_from_slice(&1u16.to_le_bytes());  // biPlanes
+        ico.extend_from_slice(&1u16.to_le_bytes()); // biPlanes
         ico.extend_from_slice(&32u16.to_le_bytes()); // biBitCount
-        ico.extend_from_slice(&[0u8; 24]);           // compression + rest (zeros)
+        ico.extend_from_slice(&[0u8; 24]); // compression + rest (zeros)
 
         // --- XOR mask: 32x32 pixels, BGRA, bottom-up ---
         let purple_bgra = [0x8B, 0x5C, 0xF6, 0xFF]; // BGRA purple

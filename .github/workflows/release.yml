@@ -90,6 +90,13 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev
 
+      - name: Clean WiX cache (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Remove-Item -LiteralPath "$env:LOCALAPPDATA\tauri\WixTools" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "WiX cache cleared"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
