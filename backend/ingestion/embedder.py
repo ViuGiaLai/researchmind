@@ -1,95 +1,33 @@
-"""Embedding generation: local (sentence-transformers) or cloud (Gemini Embedding).
+"""Cloud embedding via Google Gemini Embedding API.
 
-Local: bge-m3 via sentence-transformers (multilingual, 1024-dim).
-Cloud: Google Gemini embedding API (gemini-embedding-001, free tier).
+Gemini gemini-embedding-001 (free tier, 768-dim).
+No local model — keeps app size small.
 """
 
 from typing import Optional
-import numpy as np
+import hashlib
+import json
+import time
+
 from loguru import logger
 from config.settings import settings
-import time
-import threading
 
 
 class Embedder:
-    def __init__(self, model_name: str = "BAAI/bge-m3"):
+    def __init__(self, model_name: str = "gemini-embedding-001"):
         self.model_name = model_name
-        self._model = None
-        self._mode = settings.embedding_mode
-        self._cloud_dim: Optional[int] = None  # detected dynamically from API
-        self.last_used = time.time()
-        self._start_unload_thread()
-
-    def _start_unload_thread(self):
-        def check_idle():
-            while True:
-                time.sleep(60)
-                if self._model is not None and self._model != "cloud" and time.time() - self.last_used > 300:
-                    logger.info("Power Saver Mode: Unloading local embedding model to free RAM")
-                    self._model = None
-                    import gc
-                    import torch
-                    gc.collect()
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-        t = threading.Thread(target=check_idle, daemon=True)
-        t.start()
-
-    def _load_model(self):
-        self.last_used = time.time()
-        if self._model is not None:
-            return
-        if self._mode == "cloud":
-            api_key = settings.gemini_api_key
-            if not api_key:
-                logger.warning("Cloud embedding: no Gemini API key, falling back to local")
-                self._mode = "local"
-            else:
-                logger.info("Cloud embedding: Gemini gemini-embedding-001")
-                self._model = "cloud"
-                return
-        logger.info(f"Loading local embedding model: {self.model_name}")
-        from sentence_transformers import SentenceTransformer
-        import torch
-        import os
-        
-        # Optimize PyTorch CPU inference threads to prevent CPU thrashing
-        if not torch.cuda.is_available():
-            num_cores = os.cpu_count() or 4
-            torch.set_num_threads(max(1, min(4, num_cores // 2)))
-            logger.info(f"PyTorch CPU threads set to {torch.get_num_threads()}")
-
-        try:
-            self._model = SentenceTransformer(
-                self.model_name,
-                model_kwargs={"low_cpu_mem_usage": False, "trust_remote_code": True},
-                device="cpu" if not torch.cuda.is_available() else "cuda",
-            )
-        except Exception as e:
-            logger.warning(f"Failed to load model from Hugging Face: {e}")
-            logger.info("Retrying via hf-mirror.com (Asia mirror)...")
-            os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-            self._model = SentenceTransformer(
-                self.model_name,
-                model_kwargs={"low_cpu_mem_usage": False, "trust_remote_code": True},
-                device="cpu" if not torch.cuda.is_available() else "cuda",
-            )
-            logger.info("Model loaded via hf-mirror.com mirror")
-        logger.info(f"Local model loaded. Dimension: {self._model.get_sentence_embedding_dimension()}")
+        self._cloud_dim: Optional[int] = None
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        
-        import hashlib
-        import json
+
         from app_state import state
         from db.database import get_session
         from db.models import EmbeddingCache
 
-        mode_prefix = f"mode:{self._mode}|model:{self.model_name}|"
-        
+        mode_prefix = f"mode:cloud|model:{self.model_name}|"
+
         hashes = []
         hash_to_text = {}
         for idx, text in enumerate(texts):
@@ -101,7 +39,7 @@ class Embedder:
         unique_hashes = list(set(hashes))
         cached_embeddings = {}
         uncached_hashes = []
-        
+
         if state.engine:
             session = get_session(state.engine)
             try:
@@ -112,15 +50,15 @@ class Embedder:
                 logger.warning(f"Failed to query embedding cache: {cache_err}")
             finally:
                 session.close()
-                
+
         for h in unique_hashes:
             if h not in cached_embeddings:
                 uncached_hashes.append(h)
 
         if uncached_hashes:
             uncached_texts = [hash_to_text[h] for h in uncached_hashes]
-            new_embeddings = self._embed_uncached(uncached_texts)
-            
+            new_embeddings = self._embed_gemini(uncached_texts)
+
             if state.engine:
                 session = get_session(state.engine)
                 try:
@@ -145,77 +83,62 @@ class Embedder:
         results = [None] * len(texts)
         for idx, h in enumerate(hashes):
             results[idx] = cached_embeddings[h]
-            
-        return results
 
-    def _embed_uncached(self, texts: list[str]) -> list[list[float]]:
-        self._load_model()
-        if self._mode == "cloud":
-            return self._embed_gemini(texts)
-        # Use configurable instruction format (FlagEmbedding-inspired)
-        query_inst = getattr(settings, "query_instruction", "").strip()
-        if query_inst:
-            prefixed = [query_inst.replace("{}", t) for t in texts]
-        else:
-            prefixed = texts
-        normalize = getattr(settings, "normalize_embeddings", True)
-        embeddings = self._model.encode(prefixed, normalize_embeddings=normalize, show_progress_bar=False)
-        return embeddings.tolist()
+        return results
 
     def embed_query(self, query: str) -> list[float]:
         return self.embed([query])[0]
 
     def _embed_gemini(self, texts: list[str]) -> list[list[float]]:
         import httpx
+
         api_key = settings.gemini_api_key
+        if not api_key:
+            raise RuntimeError(
+                "Gemini API key not configured. Set GEMINI_API_KEY in .env or use EMBEDDING_MODE=local"
+            )
+
         results = []
-        try:
-            # Batch requests in chunks of 100 (Gemini API limit)
-            batch_size = 100
-            for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i : i + batch_size]
-                requests_payload = [
-                    {
-                        "model": "models/gemini-embedding-001",
-                        "content": {"parts": [{"text": text}]},
-                    }
-                    for text in batch_texts
-                ]
-                resp = httpx.post(
-                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents",
-                    params={"key": api_key},
-                    json={"requests": requests_payload},
-                    timeout=60,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                embeddings_data = data.get("embeddings", [])
-                for emb_item in embeddings_data:
-                    embedding = emb_item.get("values", [])
-                    if self._cloud_dim is None and embedding:
-                        self._cloud_dim = len(embedding)
-                        logger.info(f"Cloud embedding dimension detected: {self._cloud_dim}")
-                    results.append(embedding)
-            return results
-        except Exception as e:
-            logger.error(f"Gemini embedding failed: {e}, falling back to local")
-            self._mode = "local"
-            self._model = None
-            self._load_model()
-            return self.embed(texts)
+        batch_size = 100
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i : i + batch_size]
+            requests_payload = [
+                {
+                    "model": f"models/{self.model_name}",
+                    "content": {"parts": [{"text": text}]},
+                }
+                for text in batch_texts
+            ]
+            resp = httpx.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:batchEmbedContents",
+                params={"key": api_key},
+                json={"requests": requests_payload},
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            embeddings_data = data.get("embeddings", [])
+            for emb_item in embeddings_data:
+                embedding = emb_item.get("values", [])
+                if self._cloud_dim is None and embedding:
+                    self._cloud_dim = len(embedding)
+                    logger.info(f"Cloud embedding dimension: {self._cloud_dim}")
+                results.append(embedding)
+        return results
 
     @property
     def dimension(self) -> int:
-        self._load_model()
-        if self._model == "cloud":
-            return self._cloud_dim or 768  # fallback 768 if not yet detected
-        return self._model.get_sentence_embedding_dimension()
+        return self._cloud_dim or 768  # fallback until first API call
+
+    def _ensure_api_key(self) -> None:
+        """Placeholder — kept for API compatibility with upstream callers."""
+        pass
 
 
 _embedder: Optional[Embedder] = None
 
 
-def get_embedder(model_name: str = "BAAI/bge-m3") -> Embedder:
+def get_embedder(model_name: str = "gemini-embedding-001") -> Embedder:
     global _embedder
     if _embedder is None:
         _embedder = Embedder(model_name)

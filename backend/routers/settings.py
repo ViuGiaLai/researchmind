@@ -99,9 +99,10 @@ async def update_settings(new_settings: dict = Body(...)):
         if "embedding_mode" in new_settings:
             from ingestion.embedder import _embedder
             if _embedder is not None:
-                _embedder._model = None
-                _embedder._mode = settings.embedding_mode
-                logger.info("Embedder reset: mode={}", settings.embedding_mode)
+                if settings.embedding_mode == "cloud":
+                    logger.info("Embedding mode set to cloud (Gemini API)")
+                else:
+                    logger.info("Embedding mode set to: {}", settings.embedding_mode)
 
         state.generator = Generator(
             llama_server_url=settings.llama_server_url,
@@ -503,9 +504,8 @@ async def get_model_status():
     reranker_idle_sec = 0.0
     
     if hasattr(state, "embedder") and state.embedder is not None:
-        embedder_loaded = state.embedder._model is not None
-        embedder_last_used = getattr(state.embedder, "last_used", 0.0)
-        embedder_idle_sec = max(0.0, time.time() - embedder_last_used) if embedder_last_used > 0 else 0.0
+        embedder_loaded = True  # cloud embedding is always ready
+        embedder_idle_sec = 0
         
     if hasattr(state, "hybrid") and state.hybrid is not None:
         reranker_loaded = state.hybrid._cross_encoder is not None

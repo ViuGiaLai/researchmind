@@ -1,11 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
 
 datas = [('backend/ingestion', 'ingestion'), ('backend/search', 'search'), ('backend/chat', 'chat'), ('backend/config', 'config'), ('backend/db', 'db')]
 binaries = []
 hiddenimports = ['uvicorn', 'uvicorn.loggers', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto', 'chromadb']
-tmp_ret = collect_all('sentence_transformers')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(

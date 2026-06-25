@@ -171,22 +171,9 @@ async def lifespan(app: FastAPI):
     load_persisted_settings()
 
     state.embedder = get_embedder(settings.embedding_model)
-    state.init_message = "Đang tải mô hình AI..."
-
-    def _warmup_embedder():
-        warmup_t0 = time.time()
-        try:
-            logger.info(f"Warming up embedding model: {settings.embedding_model}")
-            state.embedder._load_model()
-            state.embedder_ready = True
-            state.init_message = "Sẵn sàng"
-            logger.info(f"Embedding model ready in {time.time() - warmup_t0:.2f}s")
-        except Exception as e:
-            logger.error(f"Failed to load embedding model: {e}")
-            state.embedder_ready = True
-            state.init_message = "Sẵn sàng (model lỗi)"
-
-    threading.Thread(target=_warmup_embedder, daemon=True).start()
+    state.init_message = "Sẵn sàng"
+    state.embedder_ready = True
+    logger.info(f"Cloud embedding ready: {settings.embedding_model} (Gemini API)")
 
     db_session = get_session(state.engine)
     state.bm25 = BM25Search(db_session)

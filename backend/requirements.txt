@@ -11,8 +11,7 @@ aiosqlite==0.20.*
 PyMuPDF==1.25.*
 rapidocr_onnxruntime==1.4.*
 
-# AI / Embedding
-sentence-transformers==3.3.*
+# AI / Embedding (cloud via Gemini API; no local model dependencies)
 chromadb==0.6.*
 
 # LLM
