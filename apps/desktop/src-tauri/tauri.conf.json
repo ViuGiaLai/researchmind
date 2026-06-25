@@ -28,11 +28,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": {
-      "macos": ["icons/icon.png"],
-      "windows": ["icons/icon.ico"],
-      "linux": ["icons/icon.png"]
-    },
+    "icon": ["icons/icon.png"],
     "resources": {
       "resources/backend.exe": "resources/",
       "resources/.env": "resources/"
