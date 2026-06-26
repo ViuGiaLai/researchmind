@@ -1,13 +1,32 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-datas = [('backend/ingestion', 'ingestion'), ('backend/search', 'search'), ('backend/chat', 'chat'), ('backend/config', 'config'), ('backend/db', 'db')]
-binaries = []
-hiddenimports = ['uvicorn', 'uvicorn.loggers', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.protocols', 'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto', 'chromadb']
+datas = [
+    ('backend/ingestion', 'ingestion'),
+    ('backend/search', 'search'),
+    ('backend/chat', 'chat'),
+    ('backend/config', 'config'),
+    ('backend/db', 'db'),
+]
 
+binaries = []
+
+hiddenimports = [
+    'uvicorn',
+    'uvicorn.loggers',
+    'uvicorn.loops',
+    'uvicorn.loops.auto',
+    'uvicorn.protocols',
+    'uvicorn.protocols.http',
+    'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.websockets',
+    'uvicorn.protocols.websockets.auto',
+    'chromadb',
+    'app_state',
+]
 
 a = Analysis(
     ['backend/main.py'],
-    pathex=[],
+    pathex=['.', 'backend'],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -18,6 +37,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
