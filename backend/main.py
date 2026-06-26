@@ -334,12 +334,24 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ─── Main ────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import sys
     import uvicorn
-    reload_enabled = os.environ.get("RESEARCHMIND_BACKEND_RELOAD", "1").lower() in ("1", "true", "yes")
-    uvicorn.run(
-        "main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=reload_enabled,
-        log_level="info",
-    )
+    # Khi chạy bằng PyInstaller (.exe), sys.frozen = True
+    is_frozen = getattr(sys, "frozen", False)
+    if is_frozen:
+        # PyInstaller: truyền trực tiếp object app và reload=False để tránh lỗi import động
+        uvicorn.run(
+            app,
+            host=settings.host,
+            port=settings.port,
+            log_level="info",
+        )
+    else:
+        # Development: truyền chuỗi "main:app" để reload hoạt động khi sửa code
+        uvicorn.run(
+            "main:app",
+            host=settings.host,
+            port=settings.port,
+            reload=True,
+            log_level="info",
+        )

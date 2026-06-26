@@ -12,7 +12,7 @@ import asyncio
 import json
 import re
 from datetime import datetime
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -20,6 +20,28 @@ from app_state import state
 from academic.paper_check import check_papers_ready
 from db.database import get_session
 from db.models import Paper, ReviewDraft
+
+def _parse_authors(authors_str: str) -> list[str]:
+    if not authors_str:
+        return []
+    try:
+        val = json.loads(authors_str)
+        if isinstance(val, list):
+            return val
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    try:
+        val = json.loads(authors_str.replace("'", '"'))
+        if isinstance(val, list):
+            return val
+    except Exception:
+        pass
+        
+    import re
+    cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
+    return [a.strip() for a in cleaned.split(",") if a.strip()]
+
 
 router = APIRouter(prefix="/api/review/builder", tags=["review"])
 
@@ -249,10 +271,9 @@ async def _generate_bibliography(paper_ids: list[str], paper_titles: dict) -> di
 
         entries: list[str] = []
         for paper in papers_db:
-            try:
-                authors_list = json.loads(paper.authors) if paper.authors else []
-            except (json.JSONDecodeError, TypeError):
-                authors_list = [a.strip() for a in paper.authors.split(",")] if paper.authors else ["Unknown"]
+            authors_list = _parse_authors(paper.authors)
+            if not authors_list:
+                authors_list = ["Unknown"]
 
             title = paper.title or paper.filename.replace(".pdf", "").replace("_", " ")
             year = paper.year or "n.d."
@@ -479,7 +500,7 @@ async def generate_draft(body: dict = Body(...)):
 
 
 @router.post("/draft/stream")
-async def generate_draft_stream(body: dict = Body(...)):
+async def generate_draft_stream(req: Request, body: dict = Body(...)):
     """Stream a literature review draft section-by-section as SSE."""
     paper_ids = body.get("paper_ids", [])
     title = body.get("title", "Literature Review")
@@ -532,6 +553,11 @@ async def generate_draft_stream(body: dict = Body(...)):
         completed: list[dict] = []
 
         for task in asyncio.as_completed(tasks):
+            if await req.is_disconnected():
+                logger.info("REVIEW_STREAM client disconnected, cancelling pending tasks")
+                for t in tasks:
+                    t.cancel()
+                break
             section, result = await task
             completed.append(result)
             yield f"data: {json.dumps({'type': 'section', 'section': result}, ensure_ascii=False)}\n\n"

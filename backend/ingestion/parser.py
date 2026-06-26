@@ -157,6 +157,25 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
     return page_num, text, ocr_attempted, ocr_failed, layout
 
 
+def _clean_metadata_string(text: str) -> str:
+    if not text:
+        return ""
+    try:
+        # Try encoding latin-1 to byte representation and decode to UTF-8
+        decoded = text.encode("latin-1").decode("utf-8")
+        # Check if it contains common Vietnamese accented characters
+        if any(c in decoded for c in "áàảãạăắằẳẵặâấầẩẫậéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ"):
+            return decoded
+        return text
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+
+
+def _serialize_authors(authors_list: list) -> str:
+    import json
+    return json.dumps(authors_list, ensure_ascii=False)
+
+
 def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     path = Path(file_path)
 
@@ -211,10 +230,10 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     try:
         doc = fitz.open(file_path)
         meta = doc.metadata or {}
-        title = meta.get("title", "").strip() or path.stem
-        authors_raw = meta.get("author", "").strip()
+        title = _clean_metadata_string(meta.get("title", "").strip()) or path.stem
+        authors_raw = _clean_metadata_string(meta.get("author", "").strip())
         authors_list = [a.strip() for a in authors_raw.split(";") if a.strip()] if authors_raw else []
-        authors_json = str(authors_list)
+        authors_json = _serialize_authors(authors_list)
 
         year = None
         year_str = meta.get("creationDate", "")
@@ -321,7 +340,7 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
         path=str(path.absolute()),
         filename=path.name,
         title=title,
-        authors=str(authors_list),
+        authors=_serialize_authors(authors_list),
         year=None,
         doi="",
         page_count=1,
@@ -417,7 +436,7 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
         path=str(path.absolute()),
         filename=path.name,
         title=title,
-        authors=str(authors_list),
+        authors=_serialize_authors(authors_list),
         year=None,
         doi="",
         page_count=1,
@@ -533,7 +552,7 @@ def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
         path=str(path.absolute()),
         filename=path.name,
         title=title,
-        authors=str(authors_list),
+        authors=_serialize_authors(authors_list),
         year=None,
         doi="",
         page_count=1,

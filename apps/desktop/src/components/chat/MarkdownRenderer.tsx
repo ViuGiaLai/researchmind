@@ -314,6 +314,18 @@ interface CitationTooltip {
   text_snippet?: string;
 }
 
+function decodeHTMLEntities(htmlStr: string): string {
+  if (!htmlStr) return "";
+  return htmlStr
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;amp;/g, '&');
+}
+
 interface MarkdownRendererProps {
   text: string;
   onCitationClick?: (refId: number) => void;
@@ -321,19 +333,26 @@ interface MarkdownRendererProps {
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCitationClick, citations }) => {
+  const decodedText = decodeHTMLEntities(text);
+  const decodedCitations = citations?.map(c => ({
+    ...c,
+    paper_title: c.paper_title ? decodeHTMLEntities(c.paper_title) : undefined,
+    text_snippet: c.text_snippet ? decodeHTMLEntities(c.text_snippet) : undefined
+  }));
+
   let thinkingContent = "";
-  let mainContent = text;
+  let mainContent = decodedText;
   let isThinkingActive = false;
 
-  const thinkStartIndex = text.indexOf("<think>");
+  const thinkStartIndex = decodedText.indexOf("<think>");
   if (thinkStartIndex !== -1) {
-    const thinkEndIndex = text.indexOf("</think>", thinkStartIndex + 7);
+    const thinkEndIndex = decodedText.indexOf("</think>", thinkStartIndex + 7);
     if (thinkEndIndex !== -1) {
-      thinkingContent = text.slice(thinkStartIndex + 7, thinkEndIndex).trim();
-      mainContent = text.slice(0, thinkStartIndex) + text.slice(thinkEndIndex + 8);
+      thinkingContent = decodedText.slice(thinkStartIndex + 7, thinkEndIndex).trim();
+      mainContent = decodedText.slice(0, thinkStartIndex) + decodedText.slice(thinkEndIndex + 8);
     } else {
-      thinkingContent = text.slice(thinkStartIndex + 7).trim();
-      mainContent = text.slice(0, thinkStartIndex);
+      thinkingContent = decodedText.slice(thinkStartIndex + 7).trim();
+      mainContent = decodedText.slice(0, thinkStartIndex);
       isThinkingActive = true;
     }
   }
@@ -385,7 +404,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCita
       continue;
     }
 
-    const rendered = renderLine(line, i, onCitationClick, citations);
+    const rendered = renderLine(line, i, onCitationClick, decodedCitations);
     if (rendered !== null) {
       elements.push(rendered);
     }
@@ -408,7 +427,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCita
 
     const styleCell = (label: string, ci: number, isHeader: boolean) => {
       const parsed = parseInline(label).map((s, j) =>
-        renderSegment(s, j, onCitationClick, citations)
+        renderSegment(s, j, onCitationClick, decodedCitations)
       );
       return React.createElement(isHeader ? "th" : "td", {
         key: ci,

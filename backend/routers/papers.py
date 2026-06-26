@@ -24,13 +24,35 @@ jobs_router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
 
 # ─── Helpers ─────────────────────────────────────────────────────
 
+def _parse_authors(authors_str: str) -> list[str]:
+    if not authors_str:
+        return []
+    try:
+        val = json.loads(authors_str)
+        if isinstance(val, list):
+            return val
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    try:
+        val = json.loads(authors_str.replace("'", '"'))
+        if isinstance(val, list):
+            return val
+    except Exception:
+        pass
+        
+    import re
+    cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
+    return [a.strip() for a in cleaned.split(",") if a.strip()]
+
+
 def _paper_to_dict(paper) -> dict:
     """Convert a Paper ORM object to a dictionary."""
     return {
         "id": paper.id,
         "filename": paper.filename,
         "title": paper.title,
-        "authors": paper.authors,
+        "authors": json.dumps(_parse_authors(paper.authors), ensure_ascii=False),
         "year": paper.year,
         "doi": paper.doi,
         "page_count": paper.page_count,
@@ -1031,10 +1053,9 @@ async def generate_citations(body: dict):
             if not paper:
                 continue
 
-            try:
-                authors_list = json.loads(paper.authors) if paper.authors else []
-            except (json.JSONDecodeError, TypeError):
-                authors_list = [a.strip() for a in paper.authors.split(",")] if paper.authors else ["Unknown"]
+            authors_list = _parse_authors(paper.authors)
+            if not authors_list:
+                authors_list = ["Unknown"]
 
             title = paper.title or paper.filename.replace(".pdf", "").replace("_", " ")
             year = paper.year or "n.d."

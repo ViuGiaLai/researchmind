@@ -37,17 +37,34 @@ def _get_db(request: Request):
 
 # ─── Helpers ────────────────────────────────────────────────────
 
+def _parse_authors(authors_str: str) -> list[str]:
+    if not authors_str:
+        return []
+    try:
+        val = json.loads(authors_str)
+        if isinstance(val, list):
+            return val
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    try:
+        val = json.loads(authors_str.replace("'", '"'))
+        if isinstance(val, list):
+            return val
+    except Exception:
+        pass
+        
+    import re
+    cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
+    return [a.strip() for a in cleaned.split(",") if a.strip()]
+
 def _get_paper_data(paper_id: str, session: Session) -> dict | None:
     """Fetch paper metadata + chunks from DB."""
     paper = session.query(Paper).filter(Paper.id == paper_id).first()
     if not paper:
         return None
 
-    # Parse authors
-    try:
-        authors_list = json.loads(paper.authors) if paper.authors else []
-    except (json.JSONDecodeError, TypeError):
-        authors_list = [a.strip() for a in paper.authors.split(",")] if paper.authors else []
+    authors_list = _parse_authors(paper.authors)
 
     # Parse tags
     try:

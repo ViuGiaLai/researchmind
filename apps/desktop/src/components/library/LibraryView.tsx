@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { api, Collection, Paper, RelatedPaper, Highlight } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
+import { ListSkeleton } from "../shared/Skeleton";
 import {
   IconBrain,
   IconSearch,
@@ -660,9 +661,8 @@ export const LibraryView: React.FC<{
 
         {/* Paper list container */}
         {loading ? (
-          <div className="library-loading">
-            <IconSpinner size={24} />
-            <span>Đang tải...</span>
+          <div style={{ padding: "8px 16px" }}>
+            <ListSkeleton count={6} />
           </div>
         ) : papers.length === 0 ? (
           <div className="library-empty">

@@ -287,9 +287,10 @@ export const ChatView: React.FC<{
     setLoading(false);
     setMessages((prev) => prev.map((m, i) =>
       i === prev.length - 1 && m.role === "assistant"
-        ? { ...m, content: `${m.content}\n\n[Da huy yeu cau.]` }
+        ? { ...m, content: `${m.content}\n\n[Đã dừng tạo phản hồi từ AI.]` }
         : m
     ));
+    toast.addToast("info", "Đã dừng tạo phản hồi từ AI.");
   };
 
   const handleSend = async (overrideText?: string) => {
@@ -415,6 +416,7 @@ export const ChatView: React.FC<{
           if (stream) {
             const ids = effectiveIds;
             const streamCtrl = api.verifyStream(text, ids, "verify", scope === "collection" ? activeCollectionId : undefined);
+            activeChatStreamRef.current = streamCtrl;
             const assistantIdx = messages.length + 1;
 
             setMessages((prev) => [...prev, { role: "assistant", content: "Đang tra cứu tài liệu..." }]);
@@ -443,6 +445,7 @@ export const ChatView: React.FC<{
             };
 
             streamCtrl.onDone = (model, citations, externalSources, status) => {
+              activeChatStreamRef.current = null;
               setIsStreaming(false);
               setVerifyResult({
                 answer: messages[messages.length]?.content || "",
@@ -459,6 +462,7 @@ export const ChatView: React.FC<{
             };
 
             streamCtrl.onError = (err) => {
+              activeChatStreamRef.current = null;
               setIsStreaming(false);
               const content = `❌ Lỗi: ${err}\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
               setMessages((prev) => prev.map((m, i) =>

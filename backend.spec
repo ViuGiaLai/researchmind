@@ -21,6 +21,7 @@ hiddenimports = [
     'uvicorn.protocols.websockets',
     'uvicorn.protocols.websockets.auto',
     'chromadb',
+    'chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2',
     'app_state',
 ]
 

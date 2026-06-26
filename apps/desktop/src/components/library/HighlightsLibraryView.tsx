@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api, Paper, Highlight, ChatResponse } from "../../lib/api";
 import { useToast } from "../shared/Toast";
+import { HighlightListSkeleton } from "../shared/Skeleton";
 import {
   IconSearch,
   IconSpinner,
@@ -569,9 +570,12 @@ export const HighlightsLibraryView: React.FC<{
               </div>
 
               {loadingHighlights ? (
-                <div className="hl-loading-state">
-                  <IconSpinner size={32} />
-                  <span>AI đang phân tích bài báo để trích xuất các điểm chính...</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+                  <div style={{ fontSize: "12.5px", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <IconSpinner size={14} />
+                    <span>AI đang phân tích bài báo để trích xuất các điểm chính...</span>
+                  </div>
+                  <HighlightListSkeleton count={4} />
                 </div>
               ) : filteredHighlights.length === 0 && highlightQuery ? (
                 <div className="hl-empty-state">

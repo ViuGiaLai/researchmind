@@ -23,7 +23,7 @@ def _assign_columns(
     min_blocks_per_column: int = 2,
     max_k: int = 4,
     indent_tol_ratio: float = 0.12,
-    silhouette_threshold: float = 0.3,
+    silhouette_threshold: float = 0.18,  # Lowered from 0.3 to better tolerate layout noise in academic papers
 ) -> tuple[int, np.ndarray]:
     """
     Assign column IDs to text blocks on a single page using K-Means.
@@ -57,17 +57,30 @@ def _assign_columns(
         for x in x0
     ], dtype=float)
 
-    max_try = min(max_k, n)
+    # Filter out wide blocks (spanning blocks) for clustering.
+    # Spanning blocks like titles or full-width tables start at the left margin but span both columns.
+    # Including them in clustering distorts KMeans centers and degrades Silhouette Score.
+    is_narrow = np.ones(n, dtype=bool)
+    if x1 is not None:
+        is_narrow = (x1 - x0) <= 0.6 * page_width
+
+    narrow_indices = np.where(is_narrow)[0]
+    # Fallback to all blocks if too few narrow blocks are found
+    if len(narrow_indices) < min_blocks_per_column * 2:
+        narrow_indices = np.arange(n)
+
+    x0s_narrow = x0s[narrow_indices]
+    max_try = min(max_k, len(narrow_indices))
     best_k = 1
     best_score = -1.0
-    best_labels = np.zeros(n, dtype=int)
+    best_labels_narrow = np.zeros(len(narrow_indices), dtype=int)
 
     for k in range(1, max_try + 1):
         from sklearn.cluster import KMeans
         from sklearn.metrics import silhouette_score
 
         km = KMeans(n_clusters=k, random_state=0, n_init="auto")
-        labels = km.fit_predict(x0s)
+        labels = km.fit_predict(x0s_narrow)
 
         unique, counts = np.unique(labels, return_counts=True)
         if np.any(counts < min_blocks_per_column):
@@ -75,7 +88,7 @@ def _assign_columns(
 
         if k > 1:
             try:
-                score = silhouette_score(x0s, labels)
+                score = silhouette_score(x0s_narrow, labels)
             except ValueError:
                 score = -1
         else:
@@ -87,20 +100,28 @@ def _assign_columns(
         if adjusted > best_score:
             best_score = adjusted
             best_k = k
-            best_labels = labels
+            best_labels_narrow = labels
 
     if best_score < silhouette_threshold:
         best_k = 1
-        best_labels = np.zeros(n, dtype=int)
+        return 1, np.zeros(n, dtype=int)
 
     # Remap column indices left-to-right by mean x0
     if best_k > 1:
-        means = np.array([x0[best_labels == i].mean() for i in range(best_k)])
+        from sklearn.cluster import KMeans
+        km = KMeans(n_clusters=best_k, random_state=0, n_init="auto")
+        km.fit(x0s_narrow)
+        
+        # Predict column labels for all blocks (including wide ones)
+        all_labels = km.predict(x0s)
+
+        means = np.array([x0[narrow_indices][best_labels_narrow == i].mean() for i in range(best_k)])
         order = np.argsort(means)
         remap = {old: new for new, old in enumerate(order)}
-        best_labels = np.array([remap[int(l)] for l in best_labels])
-
-    return best_k, best_labels
+        best_labels = np.array([remap[int(l)] for l in all_labels])
+        return best_k, best_labels
+    else:
+        return 1, np.zeros(n, dtype=int)
 
 
 def reorder_page_text(page: "fitz.Page") -> str:

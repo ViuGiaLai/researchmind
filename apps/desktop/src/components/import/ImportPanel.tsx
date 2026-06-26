@@ -178,14 +178,21 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
     e.target.value = "";
   };
 
-  const handleFolderSelect = async () => {
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const folder = await invoke<string | null>("select_folder");
-      if (folder) {
-        await importFolder(folder);
-      }
-    } catch {
+  const handleFolderSelect = () => {
+    const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+    if (isTauri) {
+      (async () => {
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          const folder = await invoke<string | null>("select_folder");
+          if (folder) {
+            await importFolder(folder);
+          }
+        } catch (err) {
+          console.error("Tauri native folder picker failed:", err);
+        }
+      })();
+    } else {
       folderInputRef.current?.click();
     }
   };

@@ -4,7 +4,7 @@ import re
 import time as time_mod
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -273,7 +273,7 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None):
+async def _stream_chat(req: Request, query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
@@ -281,6 +281,9 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
     full_response = ""
     yield f"data: {json.dumps({'status': 'Dang ket noi model...'})}\n\n"
     for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type):
+        if await req.is_disconnected():
+            logger.info("CHAT_STREAM: client disconnected, aborting LLM generation")
+            break
         if first_token_at is None:
             first_token_at = time_mod.time()
             logger.info(
@@ -291,6 +294,7 @@ def _stream_chat(query: str, context_text: str, session_id: str, paper_ids: list
             )
         full_response += chunk
         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+        await asyncio.sleep(0.001)  # Yield execution control back to the event loop so Starlette can check socket disconnect state
 
     model_used = state.generator.current_model
     router_reason = state.generator.current_router_reason
@@ -422,7 +426,7 @@ async def suggest_questions(body: dict = Body(...)):
 
 
 @router.post("/chat")
-async def chat(request: dict = Body(...)):
+async def chat(req: Request, request: dict = Body(...)):
     """Chat with selected papers using RAG pipeline."""
     t0 = time_mod.time()
     message = request.get("message", "")
@@ -541,6 +545,7 @@ async def chat(request: dict = Body(...)):
     if stream:
         return StreamingResponse(
             _stream_chat(
+                req,
                 message,
                 retrieval.context_text,
                 session_id,
