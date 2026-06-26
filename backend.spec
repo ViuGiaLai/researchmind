@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 datas = [
     ('backend/ingestion', 'ingestion'),
@@ -10,9 +10,14 @@ datas = [
     ('backend/db', 'db'),
 ]
 
+# Include chromadb & onnxruntime data files (e.g. ONNX model)
+datas += collect_data_files("chromadb")
+datas += collect_data_files("onnxruntime")
+
 binaries = []
 
 hiddenimports = [
+    # === Web framework ===
     'uvicorn',
     'uvicorn.loggers',
     'uvicorn.loops',
@@ -23,6 +28,140 @@ hiddenimports = [
     'uvicorn.protocols.websockets',
     'uvicorn.protocols.websockets.auto',
     'app_state',
+    'starlette',
+    'pydantic',
+    'pydantic_settings',
+    'python_multipart',
+    'python_dotenv',
+
+    # === Database ===
+    'sqlalchemy',
+    'aiosqlite',
+
+    # === Templates ===
+    'jinja2',
+    'jinja2.ext',
+    'markupsafe',
+
+    # === HTTP client ===
+    'httpx',
+    'anyio',
+    'certifi',
+    'httpcore',
+    'idna',
+    'sniffio',
+
+    # === PDF / OCR / Image ===
+    'fitz',             # PyMuPDF
+    'PIL',
+    'PIL._imaging',
+    'PIL.ExifTags',
+    'PIL.Image',
+    'PIL.ImageDraw',
+    'PIL.ImageFont',
+    'numpy',
+    'onnxruntime',
+    'cv2',              # opencv-python
+    'pyclipper',
+    'shapely',
+    'six',
+
+    # === ChromaDB core ===
+    'tqdm',
+    'bcrypt',
+    'build',
+    'chroma_hnswlib',
+    'grpcio',
+    'grpcio._channel',
+    'grpcio.aio',
+    'grpcio._grpcio_gevent',
+    'importlib_resources',
+    'kubernetes',
+    'kubernetes.client',
+    'kubernetes.config',
+    'kubernetes.watch',
+    'mmh3',
+    'orjson',
+    'overrides',
+    'posthog',
+    'pypika',
+    'tenacity',
+    'typer',
+    'rich',
+    'yaml',
+    'typing_extensions',
+    'opentelemetry_api',
+    'opentelemetry_sdk',
+    'opentelemetry_sdk.trace',
+    'opentelemetry_sdk.resources',
+    'opentelemetry_exporter_otlp_proto_grpc',
+    'opentelemetry_instrumentation_fastapi',
+
+    # === Tokenizers & Huggingface ===
+    'tokenizers',
+    'huggingface_hub',
+
+    # === LLM Providers ===
+    'anthropic',
+    'groq',
+
+    # === Token counting ===
+    'tiktoken',
+
+    # === Graph / Community detection ===
+    'networkx',
+    'community',         # python-louvain
+    'graspologic',
+
+    # === Document export/import ===
+    'docx',              # python-docx
+    'ebooklib',
+    'fpdf',              # fpdf2
+    'lxml',
+    'lxml.etree',
+    'lxml.html',
+    'defusedxml',
+    'fonttools',
+
+    # === Web search ===
+    'duckduckgo_search',
+    'click',
+    'primp',
+
+    # === ML / Embedding / Reranking ===
+    'sentence_transformers',
+    'transformers',
+    'torch',
+    'torch.nn',
+    'torch.nn.modules',
+    'torch.jit',
+    'torch._C',
+    'torch.utils',
+    'torch.utils.data',
+    'sklearn',
+    'sklearn.cluster',
+    'sklearn.metrics',
+    'scipy',
+    'scipy.sparse',
+    'scipy.cluster',
+    'joblib',
+    'narwhals',
+    'threadpoolctl',
+    'filelock',
+    'fsspec',
+    'setuptools',
+    'sympy',
+    'safetensors',
+    'regex',
+    'packaging',
+
+    # === System ===
+    'psutil',
+    'distro',
+    'colorama',
+    'win32_setctime',
+    'loguru',
+    'loguru._logger',
 ]
 
 # Thu thập toàn bộ module của ChromaDB
@@ -30,6 +169,9 @@ hiddenimports += collect_submodules("chromadb")
 
 # Thu thập toàn bộ module của Tokenizers
 hiddenimports += collect_submodules("tokenizers")
+
+# Thu thập toàn bộ module của onnxruntime (hay bị thiếu submodules)
+hiddenimports += collect_submodules("onnxruntime")
 
 a = Analysis(
     ['backend/main.py'],
