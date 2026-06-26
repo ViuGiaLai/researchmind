@@ -1,5 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_submodules
+
 datas = [
     ('backend/ingestion', 'ingestion'),
     ('backend/search', 'search'),
@@ -20,10 +22,14 @@ hiddenimports = [
     'uvicorn.protocols.http.auto',
     'uvicorn.protocols.websockets',
     'uvicorn.protocols.websockets.auto',
-    'chromadb',
-    'chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2',
     'app_state',
 ]
+
+# Thu thập toàn bộ module của ChromaDB
+hiddenimports += collect_submodules("chromadb")
+
+# Thu thập toàn bộ module của Tokenizers
+hiddenimports += collect_submodules("tokenizers")
 
 a = Analysis(
     ['backend/main.py'],
