@@ -881,7 +881,7 @@ Yêu cầu: Chỉ kiểm tra các vấn đề SAU (bỏ qua thiếu citation và
 3. **contradiction** — Hai section nói ngược nhau về cùng một vấn đề
 
 Trả về JSON array, mỗi issue định dạng:
-{{"severity": "high"|"medium"|"low", "section": "{section_key}", "type": "unsourced_claim"|"repetition"|"contradiction", "message": "Mô tả vấn đề cụ thể bằng tiếng Việt"}}
+{{"severity": "high"|"medium"|"low", "section": "{{section_key}}", "type": "unsourced_claim"|"repetition"|"contradiction", "message": "Mô tả vấn đề cụ thể bằng tiếng Việt"}}
 
 Chỉ trả về JSON array hợp lệ, không kèm văn bản khác."""
 

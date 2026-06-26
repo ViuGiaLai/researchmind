@@ -210,6 +210,14 @@ class Generator(
                 return "github_deepseek_v3"
             logger.warning(f"github_deepseek_v3_api_key empty, falling back to task_provider_map for {task_type}")
 
+        # Quality check → Groq (fastest inference, llama-3.3-70b-instant ~100 tok/s)
+        # GitHub Phi-4-mini-instruct is too slow for this analytical task
+        if task_type == "quality_check":
+            if self.groq_api_key:
+                return "groq"
+            # Skip task_provider_map — GitHub times out for quality_check
+            return None
+
         return self.task_provider_map.get(task_type)
 
     def _get_fallback_for_task(self, task_type: str) -> str | None:
@@ -228,6 +236,35 @@ class Generator(
                 return "gemini"
                 
         return self.task_fallback_map.get(task_type)
+
+    def _get_fallback_chain(self, task_type: str) -> list[str]:
+        """Get ordered fallback chain for a task.
+        Returns list of providers to try in sequence after primary fails.
+        """
+        chain: list[str] = []
+        task_type = task_type.strip().lower() if task_type else ""
+        if not task_type:
+            return chain
+
+        # Quality check: try fast providers in priority order
+        if task_type == "quality_check":
+            for p, key_attr in [
+                ("cerebras", "cerebras_api_key"),
+                ("freemodel", "freemodel_api_key"),
+                ("gemini", "gemini_api_key"),
+                ("nvidia", "nvidia_api_key"),
+                ("cloudflare", "cloudflare_api_key"),
+                ("cohere", "cohere_api_key"),
+            ]:
+                if getattr(self, key_attr, None):
+                    chain.append(p)
+
+        # Also include the task_fallback_map entry if not already in chain
+        fb = self._get_fallback_for_task(task_type)
+        if fb and fb not in chain:
+            chain.append(fb)
+
+        return chain
 
     # ── Non-streaming provider dispatch ────────────────────────
 
@@ -315,7 +352,7 @@ class Generator(
         system_prompt_override: str | None = None,
     ) -> GenerationResult | None:
         """Route to the mapped provider for this task_type.
-        Tries primary first, then fallback, then returns None.
+        Tries primary first, then fallback chain, then returns None.
         Returns GenerationResult on success, None if all fail.
         """
         provider = self._get_provider_for_task(task_type)
@@ -324,19 +361,21 @@ class Generator(
 
         logger.info(f"task_routing: {task_type} → {provider} (primary)")
         result = self._call_provider(provider, user_prompt, max_tokens, system_prompt_override)
-        if result is not None:
+        if result is not None and result.finish_reason != "error":
             return result
 
-        fallback = self._get_fallback_for_task(task_type)
-        if fallback and fallback != provider:
-            logger.info(f"task_routing: {task_type} primary={provider} failed, trying fallback={fallback}")
-            result = self._call_provider(fallback, user_prompt, max_tokens, system_prompt_override)
-            if result is not None:
+        # Try fallback chain (primary → fb1 → fb2 → ... → default chain)
+        fallbacks = self._get_fallback_chain(task_type)
+        for fb in fallbacks:
+            if fb == provider:
+                continue
+            logger.info(f"task_routing: {task_type} primary={provider} failed, trying fallback={fb}")
+            result = self._call_provider(fb, user_prompt, max_tokens, system_prompt_override)
+            if result is not None and result.finish_reason != "error":
                 return result
-            logger.warning(f"task_routing: {task_type} fallback={fallback} also failed")
-        else:
-            logger.info(f"task_routing: {task_type} primary={provider} failed, no fallback")
+            logger.warning(f"task_routing: {task_type} fallback={fb} also failed")
 
+        logger.info(f"task_routing: {task_type} all fallbacks failed")
         return None
 
     # ── Streaming provider dispatch ────────────────────────────
