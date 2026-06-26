@@ -8,6 +8,16 @@ datas = [
     ('backend/chat', 'chat'),
     ('backend/config', 'config'),
     ('backend/db', 'db'),
+    ('backend/routers', 'routers'),
+    ('backend/prompts', 'prompts'),
+    ('backend/common', 'common'),
+    ('backend/graph', 'graph'),
+    ('backend/academic', 'academic'),
+    ('backend/research', 'research'),
+    ('backend/ai', 'ai'),
+    ('backend/export.py', 'export.py'),
+    ('backend/zotero_import.py', 'zotero_import.py'),
+    ('backend/app_state.py', 'app_state.py'),
 ]
 
 # Include chromadb & onnxruntime data files (e.g. ONNX model)
@@ -31,8 +41,8 @@ hiddenimports = [
     'starlette',
     'pydantic',
     'pydantic_settings',
-    'python_multipart',
-    'python_dotenv',
+    'multipart',
+    'dotenv',
 
     # === Database ===
     'sqlalchemy',
@@ -70,11 +80,10 @@ hiddenimports = [
     'tqdm',
     'bcrypt',
     'build',
-    'chroma_hnswlib',
-    'grpcio',
-    'grpcio._channel',
-    'grpcio.aio',
-    'grpcio._grpcio_gevent',
+    'hnswlib',
+    'grpc',
+    'grpc._channel',
+    'grpc.aio',
     'importlib_resources',
     'kubernetes',
     'kubernetes.client',
@@ -90,12 +99,12 @@ hiddenimports = [
     'rich',
     'yaml',
     'typing_extensions',
-    'opentelemetry_api',
-    'opentelemetry_sdk',
-    'opentelemetry_sdk.trace',
-    'opentelemetry_sdk.resources',
-    'opentelemetry_exporter_otlp_proto_grpc',
-    'opentelemetry_instrumentation_fastapi',
+    'opentelemetry',
+    'opentelemetry.sdk',
+    'opentelemetry.sdk.trace',
+    'opentelemetry.sdk.resources',
+    'opentelemetry.exporter.otlp.proto.grpc',
+    'opentelemetry.instrumentation.fastapi',
 
     # === Tokenizers & Huggingface ===
     'tokenizers',
@@ -121,7 +130,7 @@ hiddenimports = [
     'lxml.etree',
     'lxml.html',
     'defusedxml',
-    'fonttools',
+    'fontTools',
 
     # === Web search ===
     'duckduckgo_search',

@@ -1,8 +1,8 @@
 from groq import Groq
-import os
 
+# Dán trực tiếp API key vào đây
 client = Groq(
-    api_key=os.environ["GROQ_API_KEY"]
+    api_key=""
 )
 
 response = client.chat.completions.create(
