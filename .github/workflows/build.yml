@@ -4,11 +4,12 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "apps/desktop/**"
-      - "backend/**"
-      - "docs/**"
-      - ".github/**"
+      - "apps/desktop/"
+      - "backend/"
+      - "docs/"
+      - ".github/"
       - "Cargo.toml"
+      - "Cargo.lock"
       - "backend.spec"
   pull_request:
     branches: [ "main" ]
@@ -35,6 +36,7 @@ jobs:
               - 'apps/desktop/package.json'
               - 'apps/desktop/pnpm-lock.yaml'
               - 'apps/desktop/vite.config.ts'
+              - 'apps/desktop/tsconfig.json'
             backend:
               - 'backend/**'
               - 'backend.spec'
@@ -49,17 +51,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
+        with:
+          version: 9
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
           cache-dependency-path: apps/desktop/pnpm-lock.yaml
+
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
+
       - run: npx tsc --noEmit
         working-directory: apps/desktop
+
       - run: npx vitest run
         working-directory: apps/desktop
 
@@ -69,9 +77,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
+        with:
+          python-version: "3.11"
+
       - run: pip install -r backend/requirements.txt pytest pytest-timeout
+
       - run: pytest test_debate.py test_all_exports.py test_docx_export.py test_html_export.py test_pdf_export.py -v --timeout=120
 
   lint-rust:
@@ -80,11 +92,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Linux dependencies (clippy)
-        run: sudo apt-get update && sudo apt-get install -y libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev
+      
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+
       - uses: Swatinem/rust-cache@v2
+
       - run: cargo clippy -- -D warnings
+
       - run: cargo fmt --check
