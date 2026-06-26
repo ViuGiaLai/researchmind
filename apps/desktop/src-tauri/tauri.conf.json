@@ -36,10 +36,11 @@
         "icons/icon.ico",
         "icons/icon.png"
       ],
-    "resources": {
-      "resources/backend.exe": "resources/",
-      "resources/.env": "resources/"
-    },
+    "resources": [
+      "resources/backend.exe",
+      "resources/backend",
+      "resources/.env"
+    ],
     "windows": {
       "wix": null,
       "nsis": null
