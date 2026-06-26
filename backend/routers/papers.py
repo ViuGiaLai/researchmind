@@ -46,6 +46,160 @@ def _parse_authors(authors_str: str) -> list[str]:
     return [a.strip() for a in cleaned.split(",") if a.strip()]
 
 
+def _parse_highlights_json(content: str) -> list[dict]:
+    content = content.strip()
+    start = content.find('[')
+    end = content.rfind(']')
+    if start == -1 or end == -1:
+        raise ValueError("No JSON array found in response")
+    json_str = content[start:end + 1]
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        pass
+
+    repaired = _repair_truncated_json(json_str)
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError:
+        pass
+
+    objects = _extract_partial_objects(json_str)
+    if objects:
+        return objects
+
+    raise ValueError("Could not parse highlights JSON after all repair attempts")
+
+
+def _repair_truncated_json(s: str) -> str:
+    in_string = False
+    escape = False
+    quote_char = None
+    result = []
+
+    for ch in s:
+        if escape:
+            result.append(ch)
+            escape = False
+            continue
+        if ch == '\\':
+            result.append(ch)
+            escape = True
+            continue
+        if in_string:
+            result.append(ch)
+            if ch == quote_char:
+                in_string = False
+                quote_char = None
+            elif ch == '\n':
+                result.append('\\n')
+        else:
+            if ch in ('"', "'"):
+                in_string = True
+                quote_char = ch
+            result.append(ch)
+
+    if in_string:
+        result.append(quote_char)
+
+    s2 = ''.join(result)
+
+    stack = []
+    last_valid_end = -1
+    in_str = False
+    esc = False
+    q = None
+    for i, ch in enumerate(s2):
+        if esc:
+            esc = False
+            continue
+        if ch == '\\':
+            esc = True
+            continue
+        if in_str:
+            if ch == q:
+                in_str = False
+                q = None
+            continue
+        if ch in ('"', "'"):
+            in_str = True
+            q = ch
+        elif ch in ('[', '{'):
+            stack.append(ch)
+        elif ch in (']', '}'):
+            if stack:
+                stack.pop()
+                if not stack:
+                    last_valid_end = i
+            else:
+                pass
+
+    if in_str:
+        stack.append(q)
+
+    if stack:
+        if last_valid_end >= 0:
+            s2 = s2[:last_valid_end + 1]
+        close_map = {'[': ']', '{': '}', '"': '"', "'": "'"}
+        for b in reversed(stack):
+            s2 += close_map.get(b, ']')
+
+    return s2
+
+
+def _extract_partial_objects(s: str) -> list[dict]:
+    objects = []
+    i = 0
+    while i < len(s):
+        i = s.find('{', i)
+        if i == -1:
+            break
+        depth = 0
+        in_str = False
+        esc = False
+        quote = None
+        j = i
+        try:
+            while j < len(s):
+                ch = s[j]
+                if esc:
+                    esc = False
+                    j += 1
+                    continue
+                if ch == '\\':
+                    esc = True
+                    j += 1
+                    continue
+                if in_str:
+                    if ch == quote:
+                        in_str = False
+                        quote = None
+                else:
+                    if ch in ('"', "'"):
+                        in_str = True
+                        quote = ch
+                    elif ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            try:
+                                obj = json.loads(s[i:j + 1])
+                                if isinstance(obj, dict):
+                                    objects.append(obj)
+                            except json.JSONDecodeError:
+                                pass
+                            i = j
+                            break
+                j += 1
+        except (IndexError, ValueError):
+            pass
+        i += 1
+
+    return objects
+
+
 def _paper_to_dict(paper) -> dict:
     """Convert a Paper ORM object to a dictionary."""
     return {
@@ -1313,12 +1467,13 @@ CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng
         try:
             content = generation.content.strip()
             if content.startswith("```"):
-                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-            start = content.find('[')
-            end = content.rfind(']')
-            if start != -1 and end != -1:
-                json_str = content[start:end + 1]
-                highlights = json.loads(json_str)
+                fences = re.findall(r'```', content)
+                if len(fences) >= 2:
+                    content = content.split('\n', 1)[-1]
+                    content = content.rsplit('```', 1)[0].strip()
+                elif len(fences) == 1:
+                    content = content.replace('```', '').strip()
+            highlights = _parse_highlights_json(content)
         except Exception as parse_err:
             logger.warning(f"Failed to parse highlights JSON: {parse_err}")
             fallback_text = generation.content.strip()

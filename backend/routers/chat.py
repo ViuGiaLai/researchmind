@@ -44,12 +44,13 @@ def _put_chat_cache(key: str, value: dict) -> None:
 def _stream_cached_chat(cached: dict):
     yield f"data: {json.dumps({'status': 'Trả lời từ cache...'})}\n\n"
     yield f"data: {json.dumps({'chunk': cached.get('answer', '')})}\n\n"
-    yield f"data: {json.dumps({
+    done_payload = {
         'done': True,
         'model_used': cached.get('model_used', 'cache'),
         'citations': cached.get('citations', []),
         'modified_content': cached.get('modified_content', cached.get('answer', '')),
-    })}\n\n"
+    }
+    yield f"data: {json.dumps(done_payload)}\n\n"
 
 
 def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:

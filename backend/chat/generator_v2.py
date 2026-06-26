@@ -148,7 +148,7 @@ class Generator(
         "chat": 1024,
         "summary": 512,
         "verify": 1536,
-        "review": 1536,
+        "review": 2048,
         "critique": 1536,
         "debate": 2048,
         "gap": 1536,
@@ -210,13 +210,14 @@ class Generator(
                 return "github_deepseek_v3"
             logger.warning(f"github_deepseek_v3_api_key empty, falling back to task_provider_map for {task_type}")
 
-        # Quality check → Groq (fastest inference, llama-3.3-70b-instant ~100 tok/s)
-        # GitHub Phi-4-mini-instruct is too slow for this analytical task
-        if task_type == "quality_check":
+        # Summary, review, & quality check → Groq (fastest inference)
+        # GitHub Phi-4-mini-instruct is too slow for these tasks
+        if task_type in ("summary", "review", "quality_check"):
             if self.groq_api_key:
                 return "groq"
-            # Skip task_provider_map — GitHub times out for quality_check
-            return None
+            if task_type == "quality_check":
+                # Skip task_provider_map — GitHub times out
+                return None
 
         return self.task_provider_map.get(task_type)
 
@@ -729,6 +730,9 @@ class Generator(
                 logger.warning(f"Failed to save to LLM cache: {cache_err}")
             finally:
                 session.close()
+
+        if result.finish_reason == "length":
+            logger.warning(f"LLM response truncated (finish_reason=length) for task_type={task_type}, max_tokens={max_tokens}, content_len={len(result.content)}")
 
         if reasoning_mode == "fast" and result.content:
             from common.text_utils import clean_thinking_content

@@ -198,24 +198,42 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
         query=config["query"],
         paper_ids=paper_ids,
         top_k=10,
+        use_reranker=False,
     )
 
     if not retrieval.context_text.strip():
-        return {
-            "section": section,
-            "title": title,
-            "content": f"*Không đủ dữ liệu từ các tài liệu đã chọn để viết phần này.*",
-            "papers_used": [],
-            "chunks_used": 0,
-            "citations": [],
-        }
+        fallback_queries = [
+            "kết quả phân tích đánh giá dữ liệu thử nghiệm",
+            "hạn chế khó khăn thách thức vấn đề tồn tại",
+            "khoảng trống nghiên cứu hướng phát triển tương lai",
+            "nội dung chính phương pháp kết quả bàn luận",
+        ]
+        for fbq in fallback_queries:
+            retrieval = await asyncio.to_thread(
+                state.retriever.retrieve,
+                query=fbq,
+                paper_ids=paper_ids,
+                top_k=10,
+                use_reranker=False,
+            )
+            if retrieval.context_text.strip():
+                break
+
+    if not retrieval.context_text.strip():
+        retrieval = await asyncio.to_thread(
+            state.retriever.retrieve,
+            query="nghiên cứu phân tích kết quả phương pháp dữ liệu mô hình",
+            paper_ids=paper_ids,
+            top_k=10,
+            use_reranker=False,
+        )
 
     paper_list_text = "\n".join([f"- {t}" for t in paper_titles.values()])
-    full_prompt = f"{config['prompt']}\n\nCác tài liệu tham khảo:\n{paper_list_text}\n\nĐoạn trích từ tài liệu:\n{retrieval.context_text}"
+    section_query = f"{config['prompt']}\n\nCác tài liệu tham khảo:\n{paper_list_text}"
 
     generation = await asyncio.to_thread(
         state.generator.generate,
-        query=full_prompt,
+        query=section_query,
         context_text=retrieval.context_text,
         task_type="review",
     )

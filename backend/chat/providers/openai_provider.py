@@ -41,11 +41,13 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            choice = data.get("choices", [{}])[0]
+            content = choice.get("message", {}).get("content", "")
+            finish_reason = choice.get("finish_reason", "stop")
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
-                                    model_used=f"github/{model}", finish_reason="stop")
+                                    model_used=f"github/{model}", finish_reason=finish_reason)
         except httpx.HTTPStatusError as e:
             logger.error(f"GitHub Models generation failed: {e}")
             detail = ""
@@ -77,11 +79,13 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            choice = data.get("choices", [{}])[0]
+            content = choice.get("message", {}).get("content", "")
+            finish_reason = choice.get("finish_reason", "stop")
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
-                                    model_used=f"groq/{model}", finish_reason="stop")
+                                    model_used=f"groq/{model}", finish_reason=finish_reason)
         except httpx.HTTPStatusError as e:
             logger.error(f"Groq generation failed: {e}")
             detail = " API Key không hợp lệ." if e.response.status_code == 401 else ""
@@ -286,12 +290,14 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            choice = data.get("choices", [{}])[0]
+            content = choice.get("message", {}).get("content", "")
+            finish_reason = choice.get("finish_reason", "stop")
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             model_name = "deepseek/free" if is_free else f"deepseek/{self.deepseek_model}"
             return GenerationResult(content=content, citations=citations,
-                                    model_used=model_name, finish_reason="stop")
+                                    model_used=model_name, finish_reason=finish_reason)
         except Exception as e:
             logger.error(f"DeepSeek generation failed: {e}")
             return GenerationResult(content=f"⚠️ Lỗi DeepSeek: {str(e)}",

@@ -180,7 +180,7 @@ export function SectionCard({
             color: "var(--color-text, #e2e8f0)",
           }}
             dangerouslySetInnerHTML={{
-              __html: (content.length > 500 ? content.slice(0, 500) + "..." : content)
+              __html: content
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")

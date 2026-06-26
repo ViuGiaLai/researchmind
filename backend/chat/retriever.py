@@ -58,6 +58,7 @@ class Retriever:
         query: str,
         paper_ids: Optional[list[str]] = None,
         top_k: int = 5,
+        use_reranker: bool = True,
     ) -> RetrievalResult:
         """
         Retrieve relevant chunks for a query.
@@ -66,6 +67,7 @@ class Retriever:
             query: User's natural language query.
             paper_ids: Optional filter to specific papers.
             top_k: Number of chunks to retrieve.
+            use_reranker: Whether to apply cross-encoder re-ranking.
 
         Returns:
             RetrievalResult with chunks, context text, and metadata.
@@ -78,7 +80,7 @@ class Retriever:
             query=query,
             paper_ids=paper_ids,
             top_k=top_k,
-            use_reranker=True,
+            use_reranker=use_reranker,
         )
 
         # Step 3: Try expanded queries if not enough results

@@ -889,7 +889,10 @@ export function ReviewBuilderView() {
                       title={sec.title}
                       description={sec.description}
                       status="pending"
-                      onGenerate={() => {}}
+                      onGenerate={() => {
+                        setStep("review");
+                        handleGenerateSection(sec.key);
+                      }}
                     />
                   ))}
                 </div>
