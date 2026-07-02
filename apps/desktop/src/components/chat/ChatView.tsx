@@ -141,6 +141,7 @@ export const ChatView: React.FC<{
   const [pdfPaperId, setPdfPaperId] = useState<string | null>(null);
   const [pdfHighlightText, setPdfHighlightText] = useState<string>("");
   const [pdfInitialPage, setPdfInitialPage] = useState(1);
+  const [pdfRefreshKey, setPdfRefreshKey] = useState(0);
   const [claimAnalyses, setClaimAnalyses] = useState<Record<number, ClaimAnalysis>>({});
 
   useEffect(() => {
@@ -159,6 +160,7 @@ export const ChatView: React.FC<{
       setPdfInitialPage(1);
       setPdfHighlightText("");
       setShowPdfViewer(true);
+      setPdfRefreshKey(k => k + 1);
     } else {
       setPdfPaperUrl(null);
       setPdfPaperId(null);
@@ -885,6 +887,7 @@ export const ChatView: React.FC<{
           setPdfInitialPage(page);
           setPdfHighlightText(citation.text_snippet || citation.text || "");
           setShowPdfViewer(true);
+          setPdfRefreshKey(k => k + 1);
           toast.addToast("success", `Đã mở PDF trang ${page}`);
         }}
       />
@@ -972,6 +975,7 @@ export const ChatView: React.FC<{
     <div className="chat-view-container" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
       {showPdfViewer && pdfPaperId && (
         <PdfViewer
+          key={`${pdfPaperId}-${pdfInitialPage}-${pdfRefreshKey}`}
           paperId={pdfPaperId}
           paperTitle={paperTitles.get(pdfPaperId) || "Tài liệu"}
           initialPage={pdfInitialPage}
@@ -1367,6 +1371,7 @@ export const ChatView: React.FC<{
                                 setPdfInitialPage(page);
                                 setPdfHighlightText(c.text_snippet || c.text || "");
                                 setShowPdfViewer(true);
+                                setPdfRefreshKey(k => k + 1);
                                 // toast.addToast("success", `Đã mở PDF trang ${page}`);
                               }}
                               style={{
