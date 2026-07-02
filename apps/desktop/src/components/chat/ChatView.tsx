@@ -1,6 +1,8 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from "react";
-import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse } from "../../lib/api";
+import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
+import { TrustPanel } from "./TrustPanel";
+import { PdfViewer } from "../pdf/PdfViewer";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
   IconBrain,
@@ -51,6 +53,37 @@ const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
   vancouver: "Vancouver",
 };
 
+const OverflowAction: React.FC<{
+  label: string;
+  title: string;
+  onClick: () => void;
+  highlight?: boolean;
+}> = ({ label, title, onClick, highlight }) => (
+  <button
+    onClick={onClick}
+    title={title}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "6px 10px",
+      borderRadius: "6px",
+      border: "none",
+      background: "transparent",
+      color: highlight ? "var(--color-primary, #6366f1)" : "var(--color-text, #e4e4e7)",
+      fontWeight: highlight ? 600 : 400,
+      cursor: "pointer",
+      fontSize: "0.82rem",
+      whiteSpace: "nowrap",
+      transition: "background 0.1s",
+    }}
+    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
+    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+  >
+    {label}
+  </button>
+);
+
 export const ChatView: React.FC<{
   initialPaperIds?: string[];
   initialQuery?: string;
@@ -88,11 +121,13 @@ export const ChatView: React.FC<{
   const [showCitePanel, setShowCitePanel] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [exportingSynthesis, setExportingSynthesis] = useState(false);
+  const [, setExportingSynthesis] = useState(false);
   const [verifyResult, setVerifyResult] = useState<VerifyResponse | null>(null);
   const [scope, setScope] = useState<Scope>("current");
   const [reasoningMode, setReasoningMode] = useState<"fast" | "deep" | "deep+">("fast");
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const [strictEvidence, setStrictEvidence] = useState(false);
+  const [showOverflowActions, setShowOverflowActions] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [activeCollectionId, setActiveCollectionId] = useState("");
   const [showPaperPicker, setShowPaperPicker] = useState(false);
@@ -103,6 +138,10 @@ export const ChatView: React.FC<{
 
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [pdfPaperUrl, setPdfPaperUrl] = useState<string | null>(null);
+  const [pdfPaperId, setPdfPaperId] = useState<string | null>(null);
+  const [pdfHighlightText, setPdfHighlightText] = useState<string>("");
+  const [pdfInitialPage, setPdfInitialPage] = useState(1);
+  const [claimAnalyses, setClaimAnalyses] = useState<Record<number, ClaimAnalysis>>({});
 
   useEffect(() => {
     api.listCollections().then((res) => {
@@ -116,9 +155,13 @@ export const ChatView: React.FC<{
   useEffect(() => {
     if (paperIds.length === 1) {
       setPdfPaperUrl(`${BASE_URL}/api/papers/${paperIds[0]}/file`);
+      setPdfPaperId(paperIds[0]);
+      setPdfInitialPage(1);
+      setPdfHighlightText("");
       setShowPdfViewer(true);
     } else {
       setPdfPaperUrl(null);
+      setPdfPaperId(null);
       setShowPdfViewer(false);
     }
   }, [paperIds]);
@@ -338,7 +381,7 @@ export const ChatView: React.FC<{
     try {
       if (stream && initialMode === "chat") {
         const ids = effectiveIds;
-        const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined, reasoningMode);
+        const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined, reasoningMode, strictEvidence);
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = messages.length + 1;
 
@@ -395,6 +438,15 @@ export const ChatView: React.FC<{
               : m
           ));
           loadUsage();
+          // Auto-analyze claims for trust report
+          const finalContent = modified_content || messages[assistantIdx]?.content || "";
+          if (finalContent && citations && citations.length > 0) {
+            api.analyzeClaims(finalContent, citations).then(res => {
+              if (res.analysis) {
+                setClaimAnalyses(prev => ({ ...prev, [assistantIdx]: res.analysis! }));
+              }
+            }).catch(() => {});
+          }
         };
 
         streamCtrl.onError = (err) => {
@@ -828,10 +880,10 @@ export const ChatView: React.FC<{
             return;
           }
           const page = citation.page || 1;
-          const cacheBuster = Date.now();
-          const pdfUrl = `${BASE_URL}/api/papers/${paperId}/file#page=${page}&_=${cacheBuster}`;
-          console.log("[Citation] Opening PDF:", pdfUrl);
-          setPdfPaperUrl(pdfUrl);
+          setPdfPaperId(paperId);
+          setPdfPaperUrl(`${BASE_URL}/api/papers/${paperId}/file`);
+          setPdfInitialPage(page);
+          setPdfHighlightText(citation.text_snippet || citation.text || "");
           setShowPdfViewer(true);
           toast.addToast("success", `Đã mở PDF trang ${page}`);
         }}
@@ -918,50 +970,21 @@ export const ChatView: React.FC<{
 
   return (
     <div className="chat-view-container" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
-      {showPdfViewer && pdfPaperUrl && (
-        <div className="chat-pdf-panel" style={{ width: "50%", height: "100%", borderRight: "1px solid var(--color-border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div className="pdf-panel-header" style={{ height: "48px", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", flexShrink: 0 }}>
-            <span style={{ fontWeight: 600, fontSize: "0.85rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "50%" }}>
-              📖 {paperIds.length === 1 ? (paperTitles.get(paperIds[0]) || "Tài liệu") : "Tài liệu"}
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button
-                onClick={handlePasteHighlight}
-                style={{
-                  background: "rgba(99, 102, 241, 0.08)",
-                  color: "var(--color-primary, #6366f1)",
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                  borderRadius: "var(--radius-sm, 4px)",
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px"
-                }}
-                title="Trích dẫn văn bản đang chọn trong PDF"
-              >
-                📋 Trích dẫn
-              </button>
-              <button
-                onClick={() => setShowPdfViewer(false)}
-                style={{ background: "transparent", border: "none", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "1rem", fontWeight: "bold" }}
-                title="Đóng trình xem PDF"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-          <iframe
-            key={pdfPaperUrl}
-            src={pdfPaperUrl}
-            style={{ width: "100%", height: "calc(100% - 48px)", border: "none" }}
-            title="PDF Viewer"
-          />
-        </div>
+      {showPdfViewer && pdfPaperId && (
+        <PdfViewer
+          paperId={pdfPaperId}
+          paperTitle={paperTitles.get(pdfPaperId) || "Tài liệu"}
+          initialPage={pdfInitialPage}
+          highlightText={pdfHighlightText}
+          onClose={() => setShowPdfViewer(false)}
+          onCopyQuote={(text, page) => {
+            const quote = `> "${text}" (tr.${page})\n\n`;
+            setInput(prev => prev ? prev + quote : quote);
+            toast.addToast("success", "Đã thêm trích dẫn vào input");
+          }}
+        />
       )}
-      <div className="chat-view" style={{ flex: 1, width: showPdfViewer ? "50%" : "100%", display: "flex", flexDirection: "column" }}>
+      <div className="chat-view" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
         <div className="chat-view-header">
           <h2 className="chat-view-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {/* <IconBrain
@@ -1011,47 +1034,7 @@ export const ChatView: React.FC<{
               Citation
             </button>
           )}
-          {/* Export buttons in header — prominent position */}
-          {messages.filter(m => m.role === "assistant").length > 0 && (
-            <div className="chat-view-export-group">
-              <button
-                className="chat-view-export-btn"
-                onClick={() => handleHeaderExport("md")}
-                disabled={exportingSynthesis}
-                title="Tải báo cáo Markdown"
-              >
-                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
-                Markdown
-              </button>
-              <button
-                className="chat-view-export-btn"
-                onClick={() => handleHeaderExport("docx")}
-                disabled={exportingSynthesis}
-                title="Tải báo cáo Word"
-              >
-                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
-                Word
-              </button>
-              <button
-                className="chat-view-export-btn"
-                onClick={() => handleHeaderExport("html")}
-                disabled={exportingSynthesis}
-                title="Tải báo cáo HTML"
-              >
-                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
-                HTML
-              </button>
-              <button
-                className="chat-view-export-btn chat-view-export-btn-pdf"
-                onClick={() => handleHeaderExport("pdf")}
-                disabled={exportingSynthesis}
-                title="Tải báo cáo PDF"
-              >
-                {exportingSynthesis ? <IconSpinner size={11} /> : <IconFileText size={13} />}
-                PDF
-              </button>
-            </div>
-          )}
+          
           {/* {usage && usage.mode === "cloud_free" && (
             <span
               className="chat-view-papers-badge"
@@ -1380,6 +1363,9 @@ export const ChatView: React.FC<{
                                 const pdfUrl = `${BASE_URL}/api/papers/${c.paper_id}/file#page=${page}&_=${cacheBuster}`;
                                 console.log("[Citation] Footer opening PDF:", pdfUrl);
                                 setPdfPaperUrl(pdfUrl);
+                                setPdfPaperId(c.paper_id);
+                                setPdfInitialPage(page);
+                                setPdfHighlightText(c.text_snippet || c.text || "");
                                 setShowPdfViewer(true);
                                 // toast.addToast("success", `Đã mở PDF trang ${page}`);
                               }}
@@ -1467,6 +1453,27 @@ export const ChatView: React.FC<{
                 />
               )}
 
+              {claimAnalyses[i] && msg.role === "assistant" && (
+                <TrustPanel
+                  analysis={claimAnalyses[i]}
+                  onViewUncited={() => {
+                    const uncited = claimAnalyses[i].uncited_claim_texts;
+                    if (uncited.length > 0) {
+                      toast.addToast("info", `Có ${uncited.length} claim thiếu nguồn. Xem trong Trust Report.`);
+                    }
+                  }}
+                  onFindMoreSources={() => {
+                    toast.addToast("info", "Tính năng tự động tìm nguồn sẽ có trong bản cập nhật sau.");
+                  }}
+                  onKeepOnlyCited={() => {
+                    toast.addToast("info", "Tính năng lọc claim chỉ giữ bằng chứng sẽ có trong bản cập nhật sau.");
+                  }}
+                  onExport={() => {
+                    toast.addToast("info", "Xuất bản kiểm chứng sẽ có trong bản cập nhật sau.");
+                  }}
+                />
+              )}
+
               {msg.role === "assistant" && (
                 <div className="chat-view-model-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "8px", fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -1539,7 +1546,7 @@ export const ChatView: React.FC<{
             className="chat-view-action-btn"
             onClick={() => handleQuickAction("summary")}
             disabled={loading}
-            title="Tóm tắt paper"
+            title="Tóm tắt các ý chính"
           >
             <IconFileText size={13} /> Tóm tắt
           </button>
@@ -1547,39 +1554,15 @@ export const ChatView: React.FC<{
             className="chat-view-action-btn"
             onClick={() => handleQuickAction("verify")}
             disabled={loading}
-            title="Xác thực học thuật"
+            title="Xác thực kết quả dựa trên dữ liệu học thuật"
           >
             <IconSearch size={13} /> Xác thực
           </button>
           <button
             className="chat-view-action-btn"
-            onClick={() => handleQuickAction("debate")}
-            disabled={loading}
-            title="Tranh luận AI đa chiều"
-          >
-            Tranh luận
-          </button>
-          <button
-            className="chat-view-action-btn"
-            onClick={() => handleQuickAction("related")}
-            disabled={loading}
-            title="Tìm nghiên cứu liên quan"
-          >
-            Liên quan
-          </button>
-          <button
-            className="chat-view-action-btn"
-            onClick={() => handleQuickAction("insight")}
-            disabled={loading}
-            title="Phân tích chuyên sâu"
-          >
-            <IconBulb size={13} /> Insight
-          </button>
-          <button
-            className="chat-view-action-btn"
             onClick={() => handleQuickAction("deep_research")}
             disabled={loading || !input.trim()}
-            title="Deep Research: phân tích câu hỏi thành nhiều hướng và tổng hợp"
+            title="Phân tích câu hỏi thành nhiều hướng và tổng hợp kết quả"
             style={{
               color: "var(--color-primary, #6366f1)",
               fontWeight: 600,
@@ -1587,24 +1570,93 @@ export const ChatView: React.FC<{
               background: "rgba(99, 102, 241, 0.05)"
             }}
           >
-            <IconZap size={13} /> Deep Research
+            <IconZap size={13} /> Nghiên cứu sâu
           </button>
-          {paperIds.length === 1 && (
+
+          {/* Overflow menu */}
+          <div style={{ position: "relative" }}>
             <button
               className="chat-view-action-btn"
-              onClick={handlePasteHighlight}
-              disabled={loading}
-              title="Trích dẫn văn bản đang chọn trong PDF"
-              style={{
-                color: "var(--color-primary, #6366f1)",
-                fontWeight: 600,
-                border: "1px dashed rgba(99, 102, 241, 0.3)",
-                background: "rgba(99, 102, 241, 0.04)"
-              }}
+              onClick={() => setShowOverflowActions(!showOverflowActions)}
+              title="Thêm công cụ"
             >
-              📋 Trích dẫn PDF
+              <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>···</span>
             </button>
-          )}
+
+            {showOverflowActions && (
+              <>
+                <div
+                  style={{
+                    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                    zIndex: 99,
+                  }}
+                  onClick={() => setShowOverflowActions(false)}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 4px)",
+                    left: 0,
+                    background: "var(--color-surface, #1a1a1a)",
+                    border: "1px solid var(--color-border, #282828)",
+                    borderRadius: "8px",
+                    padding: "4px",
+                    zIndex: 100,
+                    minWidth: "160px",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                  }}
+                >
+                  <OverflowAction
+                    label="Tranh luận"
+                    title="Tranh luận AI đa chiều"
+                    onClick={() => { handleQuickAction("debate"); setShowOverflowActions(false); }}
+                  />
+                  <OverflowAction
+                    label="Liên quan"
+                    title="Tìm nghiên cứu liên quan"
+                    onClick={() => { handleQuickAction("related"); setShowOverflowActions(false); }}
+                  />
+                  <OverflowAction
+                    label="Phân tích"
+                    title="Phân tích chuyên sâu"
+                    onClick={() => { handleQuickAction("insight"); setShowOverflowActions(false); }}
+                  />
+                  {paperIds.length === 1 && (
+                    <OverflowAction
+                      label="Trích dẫn PDF"
+                      title="Trích dẫn văn bản đang chọn trong PDF"
+                      onClick={() => { handlePasteHighlight(); setShowOverflowActions(false); }}
+                      highlight
+                    />
+                  )}
+                  <div style={{ height: "1px", background: "var(--color-border, #282828)", margin: "4px 0" }} />
+                  <OverflowAction
+                    label="Tải Markdown"
+                    title="Tải báo cáo dạng Markdown"
+                    onClick={() => { handleHeaderExport("md"); setShowOverflowActions(false); }}
+                  />
+                  <OverflowAction
+                    label="Tải Word"
+                    title="Tải báo cáo dạng Word"
+                    onClick={() => { handleHeaderExport("docx"); setShowOverflowActions(false); }}
+                  />
+                  <OverflowAction
+                    label="Tải HTML"
+                    title="Tải báo cáo dạng HTML"
+                    onClick={() => { handleHeaderExport("html"); setShowOverflowActions(false); }}
+                  />
+                  <OverflowAction
+                    label="Tải PDF"
+                    title="Tải báo cáo dạng PDF"
+                    onClick={() => { handleHeaderExport("pdf"); setShowOverflowActions(false); }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1679,6 +1731,29 @@ export const ChatView: React.FC<{
             </>
           )}
         </div>
+        <button
+          className="chat-view-strict-evidence-toggle"
+          onClick={() => setStrictEvidence(!strictEvidence)}
+          title={strictEvidence ? "ĐANG BẬT: Model chỉ trả lời khi có bằng chứng trong tài liệu" : "ĐANG TẮT: Model có thể dùng kiến thức chung để trả lời"}
+          style={{
+            background: strictEvidence ? "rgba(99, 102, 241, 0.12)" : "transparent",
+            border: strictEvidence ? "1px solid rgba(99, 102, 241, 0.3)" : "1px solid var(--color-border, #333)",
+            borderRadius: "6px",
+            color: strictEvidence ? "var(--color-primary, #6366f1)" : "var(--color-text-muted, #94a3b8)",
+            cursor: "pointer",
+            padding: "4px 8px",
+            fontSize: "0.75rem",
+            fontWeight: strictEvidence ? 600 : 400,
+            whiteSpace: "nowrap",
+            transition: "all 0.15s",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          <span style={{ fontSize: "0.65rem" }}>{strictEvidence ? "✓" : "✕"}</span>
+          <span>{strictEvidence ? "Chỉ bằng chứng" : "Tự do"}</span>
+        </button>
         <button
           className="chat-view-send-btn"
           onClick={() => isStreaming ? handleCancelStream() : handleSend()}

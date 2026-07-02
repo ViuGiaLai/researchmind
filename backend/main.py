@@ -242,7 +242,7 @@ async def lifespan(app: FastAPI):
         cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
         cerebras_api_key=settings.cerebras_api_key,
         cerebras_model=settings.cerebras_model,
-        cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.ai/v1"),
+        cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.net/v1"),
         mode=settings.llm_mode,
         task_provider_map=settings.task_provider_map,
         custom_cloud_provider=settings.custom_cloud_provider,

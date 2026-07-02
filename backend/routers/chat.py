@@ -274,14 +274,14 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-async def _stream_chat(req: Request, query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None):
+async def _stream_chat(req: Request, query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None, strict_evidence: bool = False):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
     first_token_at = None
     full_response = ""
     yield f"data: {json.dumps({'status': 'Dang ket noi model...'})}\n\n"
-    for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type):
+    for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type, strict_evidence=strict_evidence):
         if await req.is_disconnected():
             logger.info("CHAT_STREAM: client disconnected, aborting LLM generation")
             break
@@ -436,6 +436,7 @@ async def chat(req: Request, request: dict = Body(...)):
     session_id = request.get("session_id", "default")
     collection_id = request.get("collection_id")
     reasoning_mode = request.get("reasoning_mode", "fast")
+    strict_evidence = request.get("strict_evidence", False)
 
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
@@ -557,6 +558,7 @@ async def chat(req: Request, request: dict = Body(...)):
                 actual_task_type,
                 paper_title_map,
                 chunk_map,
+                strict_evidence,
             ),
             media_type="text/event-stream",
         )
@@ -567,6 +569,7 @@ async def chat(req: Request, request: dict = Body(...)):
         context_text=retrieval.context_text,
         reasoning_mode=reasoning_mode,
         task_type=actual_task_type,
+        strict_evidence=strict_evidence,
     )
     t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3-t2:.2f}s model={generation.model_used} total={t3-t0:.2f}s")
@@ -934,4 +937,77 @@ Viết tiếng Việt, chỉ dùng thông tin từ context. Giữ ngắn gọn, 
         "model_used": generation.model_used,
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
+    }
+
+
+# ─── Claim Analysis / Trust Report ───────────────────────────
+
+@router.post("/chat/analyze-claims")
+async def analyze_claims(body: dict = Body(...)):
+    """Analyze a chat response claim-by-claim for trust reporting."""
+    text = body.get("text", "")
+    citations = body.get("citations", [])
+
+    if not text.strip():
+        return {"analysis": None, "error": "No text to analyze."}
+
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
+
+    total_claims = len(sentences)
+    cited_claims = 0
+    uncited_claims = 0
+    direct_sources = 0
+    indirect_sources = 0
+    suspicious_citations = 0
+    uncited_texts = []
+    suspicious_texts = []
+
+    cite_pattern = re.compile(r'\[\d+\]|\[[\w\sÀ-ỹ\-]+(?:,\s*trang\s*\d+)?\]', re.UNICODE)
+
+    for sentence in sentences:
+        has_citation = bool(cite_pattern.search(sentence))
+        has_ref = bool(re.search(r'\[\d+\]', sentence))
+
+        if has_citation or has_ref:
+            cited_claims += 1
+            refs = re.findall(r'\[(\d+)\]', sentence)
+            for ref in refs:
+                ref_num = int(ref) - 1
+                if ref_num < len(citations):
+                    citation = citations[ref_num]
+                    if citation.get("paper_id"):
+                        direct_sources += 1
+                    else:
+                        indirect_sources += 1
+                else:
+                    suspicious_citations += 1
+                    if sentence not in suspicious_texts:
+                        suspicious_texts.append(sentence[:150])
+        else:
+            uncited_claims += 1
+            uncited_texts.append(sentence[:150])
+
+    if total_claims > 0:
+        citation_ratio = cited_claims / total_claims
+        source_quality = (direct_sources + indirect_sources * 0.5) / max(cited_claims, 1)
+        suspicious_penalty = 1.0 - min(suspicious_citations / max(total_claims, 1), 0.5)
+        confidence_score = round(
+            min(max((citation_ratio * 0.5 + source_quality * 0.3 + suspicious_penalty * 0.2) * 100, 0), 100)
+        )
+    else:
+        confidence_score = 0
+
+    return {
+        "analysis": {
+            "total_claims": total_claims,
+            "cited_claims": cited_claims,
+            "uncited_claims": uncited_claims,
+            "direct_sources": direct_sources,
+            "indirect_sources": indirect_sources,
+            "suspicious_citations": suspicious_citations,
+            "confidence_score": confidence_score,
+            "uncited_claim_texts": uncited_texts[:5],
+            "suspicious_citation_texts": suspicious_texts[:5],
+        }
     }

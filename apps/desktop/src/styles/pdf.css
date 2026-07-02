@@ -1,0 +1,42 @@
+/* PDF Viewer Panel */
+.pdf-viewer-panel {
+  animation: pdfSlideIn 0.2s ease-out;
+}
+
+@keyframes pdfSlideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.pdf-viewer-header {
+  user-select: none;
+}
+
+.pdf-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.pdf-nav-btn:active {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.pdf-nav-btn:disabled {
+  cursor: not-allowed;
+}
+
+.pdf-action-btn:hover {
+  background: rgba(99, 102, 241, 0.15) !important;
+}
+
+.pdf-highlight-banner {
+  animation: bannerFadeIn 0.3s ease-out;
+}
+
+@keyframes bannerFadeIn {
+  from { opacity: 0; height: 0; padding: 0 12px; }
+  to { opacity: 1; height: auto; padding: 8px 12px; }
+}
+
+.pdf-resize-handle:hover {
+  background: rgba(99, 102, 241, 0.3) !important;
+}

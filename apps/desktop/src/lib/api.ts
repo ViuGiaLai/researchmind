@@ -462,9 +462,10 @@ export const api = {
     sessionId: string = "default",
     collectionId?: string,
     reasoningMode?: string,
+    strictEvidence?: boolean,
   ) => {
     const url = `${BASE_URL}/api/chat`;
-    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId, collection_id: collectionId, reasoning_mode: reasoningMode });
+    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId, collection_id: collectionId, reasoning_mode: reasoningMode, strict_evidence: strictEvidence });
     const controller = new AbortController();
     const stream: {
       onChunk: ((text: string) => void) | null;
@@ -975,6 +976,17 @@ export const api = {
       sections,
     }),
 
+  generateEvidenceMatrix: (paperIds: string[]) =>
+    request<EvidenceMatrixResponse>("POST", "/api/review/builder/evidence-matrix", {
+      paper_ids: paperIds,
+    }),
+
+  analyzeClaims: (text: string, citations: any[]) =>
+    request<ClaimAnalysisResponse>("POST", "/api/chat/analyze-claims", {
+      text,
+      citations,
+    }),
+
   // ─── GraphRAG ───────────────────────────────────────────
 
   buildGraph: (paperIds?: string[], entityTypes?: string[], maxGleanings?: number) =>
@@ -1295,4 +1307,50 @@ export interface GraphEdge {
 export interface GraphVisualizationData {
   nodes: GraphNode[];
   edges: GraphEdge[];
+}
+
+// ─── Evidence Matrix Types ──────────────────────────────────
+
+export interface EvidenceCellData {
+  paper_id: string;
+  paper_title: string;
+  value: string;
+  quote: string;
+  page: number | null;
+  confidence: "high" | "medium" | "low";
+  status: "ai_extracted" | "user_verified";
+}
+
+export interface EvidenceMatrixRow {
+  criterion: string;
+  cells: EvidenceCellData[];
+}
+
+export interface EvidenceMatrixData {
+  columns: string[];
+  rows: EvidenceMatrixRow[];
+}
+
+export interface EvidenceMatrixResponse {
+  matrix: EvidenceMatrixData;
+  error?: string;
+}
+
+// ─── Claim Analysis Types ───────────────────────────────────
+
+export interface ClaimAnalysis {
+  total_claims: number;
+  cited_claims: number;
+  uncited_claims: number;
+  direct_sources: number;
+  indirect_sources: number;
+  suspicious_citations: number;
+  confidence_score: number;
+  uncited_claim_texts: string[];
+  suspicious_citation_texts: string[];
+}
+
+export interface ClaimAnalysisResponse {
+  analysis: ClaimAnalysis | null;
+  error?: string;
 }

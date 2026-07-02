@@ -208,7 +208,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
         const paper = await api.getPaper(paperId);
         if (activeAnalysisRunId.current !== runId) return;
         if (paper.auto_summary) {
-          setSteps((prev) => ({
+    setSteps((prev) => ({
             ...prev,
             summary: { status: "completed", content: paper.auto_summary, modelUsed: "Auto-ingested" },
           }));
@@ -257,7 +257,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     setRegeneratingAll(true);
 
     // Reset all steps to running
-    setSteps((prev) => ({
+    setSteps(() => ({
       summary: { status: "running", content: "" },
       critique: { status: "running", content: "" },
       conflict: { status: "running", content: "" },

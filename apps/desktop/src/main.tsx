@@ -7,6 +7,9 @@ import "./styles/daily-reader.css";
 import "./styles/cite-panel.css";
 import "./styles/debate.css";
 import "./styles/highlights.css";
+import "./styles/pdf.css";
+import "./styles/evidence-matrix.css";
+import "./styles/trust.css";
 
 // Apply saved theme before first render to prevent flash
 (function () {

@@ -97,7 +97,7 @@ class Settings(BaseSettings):
 
     # GitHub Models (Azure AI Foundry — OpenAI-compatible, free with GitHub PAT)
     github_api_key: str = ""
-    github_model: str = "Phi-4-mini-instruct"
+    github_model: str = "gpt-4o-mini"
     github_url: str = "https://models.inference.ai.azure.com"
 
     # GitHub Models — separate key for DeepSeek-V3-0324 (use different GH account to avoid rate limits)
@@ -132,7 +132,7 @@ class Settings(BaseSettings):
     # Cerebras (OpenAI-compatible — ultra-fast inference)
     cerebras_api_key: str = ""
     cerebras_model: str = "qwen-3-235b-a22b-instruct-2507"
-    cerebras_url: str = "https://api.cerebras.ai/v1"
+    cerebras_url: str = "https://api.cerebras.net/v1"
     
     # Reranking settings (BGE cross-encoder for improved relevance)
     enable_reranker: bool = True
@@ -181,7 +181,7 @@ class Settings(BaseSettings):
     custom_cloud_provider: str = "deepseek"
     
     # Per-task provider map (JSON string): task_type → provider name
-    # https://github.com/marketplace/models/azureml/Phi-4-mini-instruct
+    # https://github.com/marketplace/models/azureml/gpt-4o-mini
     task_provider_map: str = ""
 
     # Per-task fallback provider map (JSON string): task_type → fallback provider

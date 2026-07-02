@@ -49,7 +49,7 @@ export const SettingsView: React.FC = () => {
   const [freemodelApiKey, setFreemodelApiKey] = useState("");
   const [freemodelModel, setFreemodelModel] = useState("gpt-4o-mini");
   const [githubApiKey, setGithubApiKey] = useState("");
-  const [githubModel, setGithubModel] = useState("Phi-4-mini-instruct");
+  const [githubModel, setGithubModel] = useState("gpt-4o-mini");
 
   // ── Local (llama-server) ──────────────────────────────────
   const [llamaServerUrl, setLlamaServerUrl] = useState("http://127.0.0.1:8080");
@@ -180,7 +180,7 @@ export const SettingsView: React.FC = () => {
       setFreemodelApiKey((s as any).freemodel_api_key === "***" ? "" : (s as any).freemodel_api_key || "");
       setFreemodelModel((s as any).freemodel_model || "gpt-4o-mini");
       setGithubApiKey((s as any).github_api_key === "***" ? "" : (s as any).github_api_key || "");
-      setGithubModel((s as any).github_model || "Phi-4-mini-instruct");
+      setGithubModel((s as any).github_model || "gpt-4o-mini");
       setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "deepseek");
       setLlamaServerUrl((s as any).llama_server_url || "http://127.0.0.1:8080");
       setLocalModel((s as any).local_model || "Qwen3-4B-Q4_K_M.gguf");
@@ -974,8 +974,8 @@ export const SettingsView: React.FC = () => {
                 <div className="settings-field">
                   <label className="settings-label">GitHub Model</label>
                   <select className="settings-select" value={githubModel} onChange={(e) => setGithubModel(e.target.value)}>
-                    <option value="Phi-4-mini-instruct">Phi-4-mini-instruct (nhẹ, nhanh, miễn phí)</option>
-                    <option value="microsoft/Phi-4-mini-instruct">microsoft/Phi-4-mini-instruct (full path)</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini (nhẹ, nhanh, miễn phí)</option>
+                    <option value="microsoft/gpt-4o-mini">microsoft/gpt-4o-mini (full path)</option>
                   </select>
                 </div>
               </>

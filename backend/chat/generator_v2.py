@@ -61,7 +61,7 @@ class Generator(
         nvidia_deepseek_api_key: str = "",
         nvidia_deepseek_model: str = "deepseek-ai/deepseek-v4-pro",
         github_api_key: str = "",
-        github_model: str = "Phi-4-mini-instruct",
+        github_model: str = "gpt-4o-mini",
         github_url: str = "https://models.inference.ai.azure.com",
         github_deepseek_v3_api_key: str = "",
         github_deepseek_v3_model: str = "DeepSeek-V3-0324",
@@ -82,7 +82,7 @@ class Generator(
         cloudflare_url: str = "https://api.cloudflare.com/client/v4/accounts/YOUR_ACCOUNT_ID/ai/v1",
         cerebras_api_key: str = "",
         cerebras_model: str = "qwen-3-235b-a22b-instruct-2507",
-        cerebras_url: str = "https://api.cerebras.ai/v1",
+        cerebras_url: str = "https://api.cerebras.net/v1",
         mode: str = "cloud_free",
         task_provider_map: Optional[str] = None,
         custom_cloud_provider: str = "deepseek",
@@ -220,7 +220,7 @@ class Generator(
             logger.warning(f"No API key for {task_type}, falling back to task_provider_map")
 
         # Summary, review, & quality check → Groq (fastest inference)
-        # GitHub Phi-4-mini-instruct is too slow for these tasks
+        # GitHub gpt-4o-mini is too slow for these tasks
         if task_type in ("summary", "review", "quality_check"):
             if self.groq_api_key:
                 return "groq"
@@ -549,6 +549,18 @@ class Generator(
         if not is_fast:
             detail_rule = "4. Hãy giải thích chi tiết, đầy đủ và có chiều sâu dựa trên tài liệu được cung cấp. Phân tích cặn kẽ và trình bày mạch lạc bằng các đầu mục, bảng biểu hoặc so sánh để người đọc dễ hiểu."
 
+        strict_rule = ""
+        if getattr(self._local, 'strict_evidence', False):
+            strict_rule = (
+                "\n\n## CHẾ ĐỘ BẰNG CHỨNG NGHIÊM NGẶT (ĐANG BẬT):\n"
+                "⚠️ **QUAN TRỌNG**: Chế độ này yêu cầu MỌI thông tin bạn đưa ra PHẢI có bằng chứng từ context.\n"
+                "- Nếu context KHÔNG có thông tin cho câu hỏi, hãy trả lời: "
+                "\"❌ **Không đủ bằng chứng.** Context từ tài liệu không chứa thông tin để trả lời câu hỏi này.\"\n"
+                "- TUYỆT ĐỐI KHÔNG được dùng kiến thức chung hay tự bịa thông tin.\n"
+                "- KHÔNG trả lời nếu không có bằng chứng.\n"
+                "- Mỗi câu đều PHẢI kèm citation [N] hoặc [Tên Paper, trang X]."
+            )
+
         return (
             "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
             "## QUY TẮC NGÔN NGỮ (QUAN TRỌNG):\n"
@@ -564,8 +576,9 @@ class Generator(
             "## QUY TẮC NỘI DUNG:\n"
             "1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.\n"
             "2. Nếu thông tin trong context có liên quan, PHẢI trích dẫn nguồn: [Tên Paper] hoặc [Tên Paper, trang X].\n"
-            "3. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ \"(kiến thức chung)\" ở cuối.\n"
-            + detail_rule + fast_rule
+            "3. MỖI câu quan trọng trong câu trả lời PHẢI có citation. Nếu một câu không có citation, hãy thêm [cần nguồn] vào cuối câu.\n"
+            "4. Nếu context không có thông tin liên quan đến câu hỏi, bạn có thể dùng kiến thức chung của mình để trả lời và ghi rõ \"(kiến thức chung)\" ở cuối.\n"
+            + detail_rule + fast_rule + strict_rule
         )
 
     def _get_system_prompt_disabled(self) -> str:
@@ -677,8 +690,10 @@ class Generator(
         citations_meta: Optional[list[dict]] = None,
         reasoning_mode: str = "fast",
         task_type: str = "chat",
+        strict_evidence: bool = False,
     ) -> GenerationResult:
         self._local.reasoning_mode = reasoning_mode
+        self._local.strict_evidence = strict_evidence
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
@@ -1059,8 +1074,10 @@ class Generator(
         context_text: str,
         reasoning_mode: str = "fast",
         task_type: str = "chat",
+        strict_evidence: bool = False,
     ):
         self._local.reasoning_mode = reasoning_mode
+        self._local.strict_evidence = strict_evidence
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen, IconGraph, IconSpinner } from "./components/Icons";
+import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen, IconGraph, IconChart, IconSpinner } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
 import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
 import { SearchView } from "./components/search/SearchView";
@@ -13,10 +13,11 @@ import { WowAnalysisView } from "./components/insights/WowAnalysisView";
 import { ReviewBuilderView } from "./components/review/ReviewBuilderView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { GraphView } from "./components/graph/GraphView";
+import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
 import { ToastProvider } from "./components/shared/Toast";
 import { api } from "./lib/api";
 
-type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "graph" | "settings";
+type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -241,6 +242,7 @@ function App() {
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
             { tab: "insights" as Tab, icon: IconBulb, label: "Nhận định" },
             { tab: "review" as Tab, icon: IconBookOpen, label: "Đánh giá" },
+            { tab: "evidence" as Tab, icon: IconChart, label: "Bằng chứng" },
             { tab: "brain" as Tab, icon: IconBrain, label: "Bộ não" },
             { tab: "daily" as Tab, icon: IconCalendar, label: "Đọc hôm nay" },
             { tab: "graph" as Tab, icon: IconGraph, label: "Biểu đồ" },
@@ -323,6 +325,7 @@ function App() {
         {activeTab === "brain" && <PersonalBrainView />}
         {activeTab === "daily" && <DailyReaderView />}
         {activeTab === "graph" && <GraphView />}
+        {activeTab === "evidence" && <EvidenceMatrixView />}
         {activeTab === "settings" && <SettingsView />}
       </main>
     </div>

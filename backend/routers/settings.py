@@ -139,7 +139,7 @@ async def update_settings(new_settings: dict = Body(...)):
             cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
             cerebras_api_key=settings.cerebras_api_key,
             cerebras_model=settings.cerebras_model,
-            cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.ai/v1"),
+            cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.net/v1"),
             freemodel_api_key=settings.freemodel_api_key,
             freemodel_model=settings.freemodel_model,
             freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
@@ -313,7 +313,7 @@ async def validate_api_key(body: dict = Body(...)):
             elif provider == "github":
                 url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                model_name = model or "Phi-4-mini-instruct"
+                model_name = model or "gpt-4o-mini"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
                 res = await client.post(url, json=payload, headers=headers)
                 if res.status_code == 200:
@@ -401,7 +401,7 @@ async def validate_api_key(body: dict = Body(...)):
                     return {"valid": False, "error": f"Lỗi Cloudflare: {err_msg}"}
 
             elif provider == "cerebras":
-                url = getattr(settings, "cerebras_url", "https://api.cerebras.ai/v1").rstrip("/") + "/chat/completions"
+                url = getattr(settings, "cerebras_url", "https://api.cerebras.net/v1").rstrip("/") + "/chat/completions"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "qwen-3-235b-a22b-instruct-2507"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}

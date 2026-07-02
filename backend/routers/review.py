@@ -1392,3 +1392,145 @@ async def export_review(body: dict = Body(...)):
         media_type="text/html",
         headers={"Content-Disposition": f'attachment; filename="{safe_title}.html"'},
     )
+
+
+# ─── Evidence Matrix ──────────────────────────────────────────
+
+@router.post("/evidence-matrix")
+async def generate_evidence_matrix(body: dict = Body(...)):
+    """Generate an evidence matrix comparing papers across dimensions.
+    
+    Extracts: methodology, dataset, result, limitation, finding
+    Each cell includes: quote, page number, confidence score, extraction status.
+    """
+    paper_ids = body.get("paper_ids", [])
+
+    if not paper_ids or len(paper_ids) < 2:
+        return {
+            "error": "Vui lòng chọn ít nhất 2 tài liệu.",
+            "matrix": {"columns": [], "rows": []},
+        }
+
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return {"error": paper_error, "matrix": {"columns": [], "rows": []}}
+
+    session = get_session(state.engine)
+    try:
+        papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
+        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+    finally:
+        session.close()
+
+    if not paper_titles:
+        return {"error": "Không tìm thấy tài liệu.", "matrix": {"columns": [], "rows": []}}
+
+    dimensions = [
+        ("methodology", "phương pháp methodology approach method framework model architecture algorithm"),
+        ("dataset", "dữ liệu dataset data corpus benchmark collection"),
+        ("result", "kết quả result finding performance evaluation metric score accuracy"),
+        ("limitation", "hạn chế limitation weakness drawback challenge constraint"),
+        ("finding", "phát hiện chính key finding contribution insight discovery novelty"),
+    ]
+
+    async def extract_paper_dimensions(paper_id: str, title: str):
+        retrieval = await asyncio.to_thread(
+            state.retriever.retrieve,
+            query=" ".join([q for _, q in dimensions]),
+            paper_ids=[paper_id],
+            top_k=12,
+        )
+        if not retrieval.context_text.strip():
+            return {"id": paper_id, "title": title, "cells": {}}
+
+        prompt = f"""Bạn là chuyên gia trích xuất bằng chứng học thuật. Đọc đoạn trích từ bài nghiên cứu "{title}" và trích xuất thông tin.
+
+Với MỖI mục dưới đây, trả về:
+- "value": giá trị trích xuất (2-3 câu tiếng Việt)
+- "quote": câu trích dẫn gốc TIẾNG ANH từ paper (tối đa 200 ký tự)
+- "page": số trang (nếu có, để null nếu không)
+- "confidence": "high", "medium", hoặc "low" (dựa trên mức độ khớp)
+
+Các mục cần trích xuất:
+1. methodology — Phương pháp nghiên cứu chính
+2. dataset — Dữ liệu/mẫu sử dụng
+3. result — Kết quả chính
+4. limitation — Hạn chế được thảo luận
+5. finding — Phát hiện quan trọng nhất
+
+Trả về JSON đúng định dạng, không kèm văn bản khác:
+{{
+  "methodology": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}},
+  "dataset": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}},
+  "result": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}},
+  "limitation": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}},
+  "finding": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}}
+}}
+
+Đoạn trích:\n{retrieval.context_text}"""
+
+        generation = await asyncio.to_thread(
+            state.generator.generate, query=prompt, context_text=retrieval.context_text, task_type="review"
+        )
+
+        content = generation.content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+        cells = {}
+        try:
+            start = content.find("{")
+            end = content.rfind("}")
+            if start != -1 and end != -1:
+                raw = json.loads(content[start:end+1])
+                for dim_key, _ in dimensions:
+                    dim_data = raw.get(dim_key, {})
+                    cells[dim_key] = {
+                        "value": str(dim_data.get("value", "Không thể trích xuất.")),
+                        "quote": str(dim_data.get("quote", "")),
+                        "page": dim_data.get("page"),
+                        "confidence": dim_data.get("confidence", "low") if dim_data.get("confidence") in ("high", "medium", "low") else "low",
+                        "status": "ai_extracted",
+                    }
+        except Exception as e:
+            logger.warning(f"Evidence matrix JSON parse failed for {title}: {e}")
+            for dim_key, _ in dimensions:
+                cells[dim_key] = {
+                    "value": "Lỗi trích xuất.",
+                    "quote": "", "page": None, "confidence": "low", "status": "ai_extracted",
+                }
+
+        return {"id": paper_id, "title": title, "cells": cells}
+
+    tasks = [extract_paper_dimensions(pid, paper_titles.get(pid, f"Paper {pid[:6]}")) for pid in paper_ids]
+    results = await asyncio.gather(*tasks)
+
+    columns = [r["title"] for r in results]
+    dimension_labels = {
+        "methodology": "🔬 Phương pháp",
+        "dataset": "📊 Dữ liệu",
+        "result": "📈 Kết quả",
+        "limitation": "⚠️ Hạn chế",
+        "finding": "💡 Phát hiện chính",
+    }
+
+    rows = []
+    for dim_key, dim_label in dimension_labels.items():
+        cells = []
+        for r in results:
+            cell = r["cells"].get(dim_key, {
+                "value": "Không có dữ liệu.",
+                "quote": "", "page": None, "confidence": "low", "status": "ai_extracted",
+            })
+            cells.append({
+                "paper_id": r["id"],
+                "paper_title": r["title"],
+                "value": cell["value"],
+                "quote": cell["quote"],
+                "page": cell["page"],
+                "confidence": cell["confidence"],
+                "status": cell.get("status", "ai_extracted"),
+            })
+        rows.append({"criterion": dim_label, "cells": cells})
+
+    return {"matrix": {"columns": columns, "rows": rows}}

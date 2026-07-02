@@ -1,0 +1,51 @@
+/* Evidence Matrix View */
+.evidence-matrix-view {
+  height: 100%;
+}
+
+.evidence-matrix-table {
+  border-collapse: collapse;
+}
+
+.evidence-matrix-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.evidence-matrix-table tbody tr:hover td {
+  background: rgba(99, 102, 241, 0.03) !important;
+}
+
+.evidence-matrix-table tbody td:hover {
+  background: rgba(99, 102, 241, 0.06) !important;
+}
+
+/* Paper selection chips */
+.evidence-paper-selection button:hover {
+  border-color: var(--color-primary, #6366f1) !important;
+}
+
+.evidence-paper-selection button.selected {
+  border-color: var(--color-primary, #6366f1);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* PDF overlay */
+.evidence-pdf-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.evidence-pdf-overlay > div {
+  animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
