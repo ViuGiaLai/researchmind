@@ -84,6 +84,16 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     debate: { status: "pending", content: "" },
   });
 
+  // Per-step regeneration state
+  const [regeneratingSteps, setRegeneratingSteps] = useState<Record<string, boolean>>({
+    summary: false,
+    critique: false,
+    conflict: false,
+    gap: false,
+    debate: false,
+  });
+  const [regeneratingAll, setRegeneratingAll] = useState(false);
+
   const [activeStepMessage, setActiveStepMessage] = useState<Record<string, string>>({
     summary: LOADER_MESSAGES.summary[0],
     critique: LOADER_MESSAGES.critique[0],
@@ -171,6 +181,102 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     }
   };
 
+  // ── Central step prompts (shared by pipeline + regeneration) ─
+  const STEP_PROMPTS: Record<string, string> = {
+    summary: "Hãy tóm tắt paper này ngắn gọn: background, phương pháp, kết quả chính, kết luận. Trả lời tiếng Việt.",
+    critique: "Phân tích phản biện paper này: chỉ ra điểm mạnh, điểm yếu, hạn chế về phương pháp, và đề xuất cải thiện. Trả lời tiếng Việt.",
+    conflict: "Phân tích các mâu thuẫn (conflict) trong paper này: các kết quả trái ngược, quan điểm khác biệt với nghiên cứu trước. Trả lời tiếng Việt.",
+    gap: "Phân tích khoảng trống nghiên cứu (research gap) từ paper này: những vấn đề chưa được giải quyết, hướng nghiên cứu tương lai. Trả lời tiếng Việt.",
+    debate: "Tạo một cuộc tranh luận AI về paper này: góc nhìn ủng hộ vs góc nhìn phản biện, chỉ ra ưu điểm và hạn chế. Trả lời tiếng Việt.",
+  };
+
+  const runSingleStep = async (stepKey: string, paperId: string, runId: string) => {
+    const prompt = STEP_PROMPTS[stepKey];
+    if (!prompt) return;
+
+    if (activeAnalysisRunId.current !== runId) return;
+
+    setSteps((prev) => ({
+      ...prev,
+      [stepKey]: { ...(prev[stepKey] || { content: "" }), status: "running" },
+    }));
+    startLoadingMessages(stepKey);
+
+    // Special case for summary: check auto_summary first
+    if (stepKey === "summary") {
+      try {
+        const paper = await api.getPaper(paperId);
+        if (activeAnalysisRunId.current !== runId) return;
+        if (paper.auto_summary) {
+          setSteps((prev) => ({
+            ...prev,
+            summary: { status: "completed", content: paper.auto_summary, modelUsed: "Auto-ingested" },
+          }));
+          stopLoadingMessages(stepKey);
+          return;
+        }
+      } catch { /* ignore, fall back to chat */ }
+    }
+
+    try {
+      const res = await api.chat(prompt, [paperId], "current", undefined, "fast");
+      if (activeAnalysisRunId.current !== runId) return;
+      setSteps((prev) => ({
+        ...prev,
+        [stepKey]: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
+      }));
+    } catch (e: any) {
+      if (activeAnalysisRunId.current !== runId) return;
+      setSteps((prev) => ({
+        ...prev,
+        [stepKey]: { status: "error", content: "", error: e.message || `Không thể tạo ${stepKey}` },
+      }));
+    }
+    stopLoadingMessages(stepKey);
+  };
+
+  const handleRegenerateStep = async (stepKey: string) => {
+    if (!selectedPaper) return;
+    const subRunId = `regenerate-${stepKey}-${Date.now()}`;
+
+    setRegeneratingSteps((prev) => ({ ...prev, [stepKey]: true }));
+
+    // Reset the step to running
+    setSteps((prev) => ({
+      ...prev,
+      [stepKey]: { status: "running", content: "" },
+    }));
+
+    await runSingleStep(stepKey, selectedPaper.id, subRunId);
+
+    setRegeneratingSteps((prev) => ({ ...prev, [stepKey]: false }));
+  };
+
+  const handleRegenerateAll = async () => {
+    if (!selectedPaper) return;
+    setRegeneratingAll(true);
+
+    // Reset all steps to running
+    setSteps((prev) => ({
+      summary: { status: "running", content: "" },
+      critique: { status: "running", content: "" },
+      conflict: { status: "running", content: "" },
+      gap: { status: "running", content: "" },
+      debate: { status: "running", content: "" },
+    }));
+
+    // Run all regenerations concurrently
+    await Promise.all([
+      handleRegenerateStep("summary"),
+      handleRegenerateStep("critique"),
+      handleRegenerateStep("conflict"),
+      handleRegenerateStep("gap"),
+      handleRegenerateStep("debate"),
+    ]);
+
+    setRegeneratingAll(false);
+  };
+
   // Clear all timers on unmount
   useEffect(() => {
     return () => {
@@ -226,171 +332,13 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     }
     if (activeAnalysisRunId.current !== runId) return;
 
-    // 1. SUMMARY STEP
-    const runSummary = async () => {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        summary: { ...prev.summary, status: "running" },
-      }));
-      startLoadingMessages("summary");
-
-      let summaryCompleted = false;
-      try {
-        const paper = await api.getPaper(paperId);
-        if (activeAnalysisRunId.current !== runId) return;
-        if (paper.auto_summary) {
-          setSteps((prev) => ({
-            ...prev,
-            summary: { status: "completed", content: paper.auto_summary, modelUsed: "Auto-ingested" },
-          }));
-          summaryCompleted = true;
-        }
-      } catch (e) {
-        // ignore getPaper error, fall back to review
-      }
-
-      if (!summaryCompleted) {
-        try {
-          const res = await api.chat(
-            "Hãy tóm tắt paper này ngắn gọn: background, phương pháp, kết quả chính, kết luận. Trả lời tiếng Việt.",
-            [paperId], "current", undefined, "fast"
-          );
-          if (activeAnalysisRunId.current !== runId) return;
-          setSteps((prev) => ({
-            ...prev,
-            summary: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-          }));
-        } catch (e: any) {
-          if (activeAnalysisRunId.current !== runId) return;
-          setSteps((prev) => ({
-            ...prev,
-            summary: { status: "error", content: "", error: e.message || "Không thể tạo tóm tắt" },
-          }));
-        }
-      }
-      stopLoadingMessages("summary");
-    };
-
-    // 2. CRITIQUE STEP
-    const runCritique = async () => {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        critique: { ...prev.critique, status: "running" },
-      }));
-      startLoadingMessages("critique");
-      try {
-        const res = await api.chat(
-          "Phân tích phản biện paper này: chỉ ra điểm mạnh, điểm yếu, hạn chế về phương pháp, và đề xuất cải thiện. Trả lời tiếng Việt.",
-          [paperId], "current", undefined, "fast"
-        );
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          critique: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      } catch (e: any) {
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          critique: { status: "error", content: "", error: e.message || "Không thể phân tích phản biện" },
-        }));
-      }
-      stopLoadingMessages("critique");
-    };
-
-    // 3. CONFLICT STEP
-    const runConflict = async () => {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        conflict: { ...prev.conflict, status: "running" },
-      }));
-      startLoadingMessages("conflict");
-      try {
-        const res = await api.chat(
-          "Phân tích các mâu thuẫn (conflict) trong paper này: các kết quả trái ngược, quan điểm khác biệt với nghiên cứu trước. Trả lời tiếng Việt.",
-          [paperId], "current", undefined, "fast"
-        );
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          conflict: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      } catch (e: any) {
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          conflict: { status: "error", content: "", error: e.message || "Không thể phân tích mâu thuẫn" },
-        }));
-      }
-      stopLoadingMessages("conflict");
-    };
-
-    // 4. GAP STEP
-    const runGap = async () => {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        gap: { ...prev.gap, status: "running" },
-      }));
-      startLoadingMessages("gap");
-      try {
-        const res = await api.chat(
-          "Phân tích khoảng trống nghiên cứu (research gap) từ paper này: những vấn đề chưa được giải quyết, hướng nghiên cứu tương lai. Trả lời tiếng Việt.",
-          [paperId], "current", undefined, "fast"
-        );
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          gap: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      } catch (e: any) {
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          gap: { status: "error", content: "", error: e.message || "Không thể tìm khoảng trống nghiên cứu" },
-        }));
-      }
-      stopLoadingMessages("gap");
-    };
-
-    // 5. DEBATE STEP
-    const runDebate = async () => {
-      if (activeAnalysisRunId.current !== runId) return;
-      setSteps((prev) => ({
-        ...prev,
-        debate: { ...prev.debate, status: "running" },
-      }));
-      startLoadingMessages("debate");
-      try {
-        const res = await api.chat(
-          "Tạo một cuộc tranh luận AI về paper này: góc nhìn ủng hộ vs góc nhìn phản biện, chỉ ra ưu điểm và hạn chế. Trả lời tiếng Việt.",
-          [paperId], "current", undefined, "fast"
-        );
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          debate: { status: "completed", content: res.answer, citations: res.citations, modelUsed: res.model_used },
-        }));
-      } catch (e: any) {
-        if (activeAnalysisRunId.current !== runId) return;
-        setSteps((prev) => ({
-          ...prev,
-          debate: { status: "error", content: "", error: e.message || "Không thể tạo cuộc tranh luận AI" },
-        }));
-      }
-      stopLoadingMessages("debate");
-    };
-
-    // Run all steps concurrently
+    // Run all steps concurrently using the shared runSingleStep function
     await Promise.all([
-      runSummary(),
-      runCritique(),
-      runConflict(),
-      runGap(),
-      runDebate(),
+      runSingleStep("summary", paperId, runId),
+      runSingleStep("critique", paperId, runId),
+      runSingleStep("conflict", paperId, runId),
+      runSingleStep("gap", paperId, runId),
+      runSingleStep("debate", paperId, runId),
     ]);
   };
 
@@ -653,6 +601,17 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             </div>
             <div className="wow-report-header-right">
               <button
+                className="wow-action-btn-header wow-regenerate-all-btn"
+                onClick={handleRegenerateAll}
+                disabled={regeneratingAll || Object.values(regeneratingSteps).some(Boolean)}
+              >
+                {regeneratingAll ? (
+                  <><IconSpinner size={14} /> Đang tạo lại...</>
+                ) : (
+                  <><span>🔄</span> Tạo lại tất cả</>
+                )}
+              </button>
+              <button
                 className="wow-action-btn-header"
                 onClick={() => onStartChat([selectedPaper.id])}
               >
@@ -752,6 +711,17 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                   >
                     Sao chép tóm tắt
                   </button>
+                  <button
+                    className="wow-card-action-btn secondary"
+                    onClick={() => handleRegenerateStep("summary")}
+                    disabled={regeneratingSteps.summary}
+                  >
+                    {regeneratingSteps.summary ? (
+                      <><IconSpinner size={13} /> Đang tạo...</>
+                    ) : (
+                      <><span>🔄</span> Tạo lại</>
+                    )}
+                  </button>
                 </footer>
               )}
             </section>
@@ -806,6 +776,17 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     onClick={() => handleCopyText(steps.critique.content)}
                   >
                     Sao chép phản biện
+                  </button>
+                  <button
+                    className="wow-card-action-btn secondary"
+                    onClick={() => handleRegenerateStep("critique")}
+                    disabled={regeneratingSteps.critique}
+                  >
+                    {regeneratingSteps.critique ? (
+                      <><IconSpinner size={13} /> Đang tạo...</>
+                    ) : (
+                      <><span>🔄</span> Tạo lại</>
+                    )}
                   </button>
                 </footer>
               )}
@@ -862,6 +843,17 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                   >
                     Sao chép phân tích mâu thuẫn
                   </button>
+                  <button
+                    className="wow-card-action-btn secondary"
+                    onClick={() => handleRegenerateStep("conflict")}
+                    disabled={regeneratingSteps.conflict}
+                  >
+                    {regeneratingSteps.conflict ? (
+                      <><IconSpinner size={13} /> Đang tạo...</>
+                    ) : (
+                      <><span>🔄</span> Tạo lại</>
+                    )}
+                  </button>
                 </footer>
               )}
             </section>
@@ -917,6 +909,17 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                   >
                     Sao chép phân tích Research Gap
                   </button>
+                  <button
+                    className="wow-card-action-btn secondary"
+                    onClick={() => handleRegenerateStep("gap")}
+                    disabled={regeneratingSteps.gap}
+                  >
+                    {regeneratingSteps.gap ? (
+                      <><IconSpinner size={13} /> Đang tạo...</>
+                    ) : (
+                      <><span>🔄</span> Tạo lại</>
+                    )}
+                  </button>
                 </footer>
               )}
             </section>
@@ -971,6 +974,17 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     onClick={() => handleCopyText(steps.debate.content)}
                   >
                     Sao chép cuộc tranh luận
+                  </button>
+                  <button
+                    className="wow-card-action-btn secondary"
+                    onClick={() => handleRegenerateStep("debate")}
+                    disabled={regeneratingSteps.debate}
+                  >
+                    {regeneratingSteps.debate ? (
+                      <><IconSpinner size={13} /> Đang tạo...</>
+                    ) : (
+                      <><span>🔄</span> Tạo lại</>
+                    )}
                   </button>
                   {onStartDebate && (
                     <button

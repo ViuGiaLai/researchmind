@@ -209,11 +209,15 @@ class Generator(
             elif mode in ("deep_plus", "deep+"):
                 return "openrouter_r1"
 
-        # Heavy analytical tasks → DeepSeek-V3-0324 via GitHub Models
+        # Heavy analytical tasks → Groq (fastest) > GitHub > DeepSeek-V3-0324
         if task_type in ("critique", "debate", "insight", "gap"):
+            if self.groq_api_key:
+                return "groq"
+            if self.github_api_key:
+                return "github"
             if self.github_deepseek_v3_api_key:
                 return "github_deepseek_v3"
-            logger.warning(f"github_deepseek_v3_api_key empty, falling back to task_provider_map for {task_type}")
+            logger.warning(f"No API key for {task_type}, falling back to task_provider_map")
 
         # Summary, review, & quality check → Groq (fastest inference)
         # GitHub Phi-4-mini-instruct is too slow for these tasks
@@ -240,6 +244,17 @@ class Generator(
                 return "gemini"
             elif mode in ("deep_plus", "deep+"):
                 return "gemini"
+
+        # Analytical tasks: fallback chain for quality Vietnamese output
+        if task_type in ("critique", "debate", "insight", "gap"):
+            for provider, key_attr in [
+                ("gemini", "gemini_api_key"),
+                ("nvidia", "nvidia_api_key"),
+                ("freemodel", "freemodel_api_key"),
+                ("cerebras", "cerebras_api_key"),
+            ]:
+                if getattr(self, key_attr, None):
+                    return provider
                 
         return self.task_fallback_map.get(task_type)
 

@@ -491,6 +491,126 @@
 .insight-item-label { color: var(--color-primary-hover); font-size: .83rem; }
 .insights-citations, .insights-result-actions { padding: 16px 20px; background: rgba(255,255,255,.018); border-top: 1px solid rgba(255,255,255,.07); }
 .insights-comparison-table-wrapper { border-color: rgba(255,255,255,.09) !important; background: rgba(255,255,255,.03) !important; }
+/* ════════════════════════════════════════════════════════
+   LIGHT MODE OVERRIDES
+   ════════════════════════════════════════════════════════ */
+
+[data-theme="light"] .insight-type-card {
+  background: linear-gradient(145deg, rgba(0,0,0,.025), rgba(0,0,0,.01)), rgba(255,255,255,.85);
+  border-color: rgba(0,0,0,.06);
+  box-shadow: 0 20px 60px rgba(0,0,0,.04), inset 0 1px rgba(255,255,255,.8);
+}
+
+[data-theme="light"] .insight-type-card:hover {
+  border-color: rgba(var(--color-primary-rgb), .22);
+  background: linear-gradient(145deg, rgba(0,0,0,.035), rgba(0,0,0,.015)), rgba(255,255,255,.92);
+  box-shadow: 0 28px 78px rgba(0,0,0,.06);
+}
+
+[data-theme="light"] .insight-type-card::after {
+  background: radial-gradient(circle, rgba(var(--color-primary-rgb), .08), transparent 64%);
+}
+
+[data-theme="light"] .insights-header {
+  border-bottom-color: rgba(0,0,0,.06);
+}
+
+[data-theme="light"] .insights-back-btn,
+[data-theme="light"] .insights-select-all-btn,
+[data-theme="light"] .insights-action-btn,
+[data-theme="light"] .insights-error button {
+  background: rgba(0,0,0,.03);
+  border-color: rgba(0,0,0,.06);
+}
+
+[data-theme="light"] .insights-paper-select,
+[data-theme="light"] .insights-result {
+  background: rgba(255,255,255,.85);
+  border-color: rgba(0,0,0,.06);
+  box-shadow: 0 22px 70px rgba(0,0,0,.04), inset 0 1px rgba(255,255,255,.8);
+}
+
+[data-theme="light"] .insights-paper-chip {
+  background: rgba(0,0,0,.02);
+  border-color: rgba(0,0,0,.055);
+}
+
+[data-theme="light"] .insights-paper-chip:hover {
+  border-color: rgba(var(--color-primary-rgb), .18);
+  background: rgba(0,0,0,.035);
+}
+
+[data-theme="light"] .insights-paper-chip.selected {
+  color: var(--color-text, #09090b);
+  background: rgba(var(--color-primary-rgb), .08);
+  border-color: rgba(var(--color-primary-rgb), .22);
+}
+
+[data-theme="light"] .insights-paper-chip-check {
+  color: #fff;
+  background: rgba(0,0,0,.06);
+}
+
+[data-theme="light"] .insights-run-btn,
+[data-theme="light"] .insights-action-btn.primary {
+  color: #fff;
+  background: var(--color-primary, #0d9488);
+  border-color: var(--color-primary, #0d9488);
+  box-shadow: 0 16px 36px rgba(var(--color-primary-rgb), .15);
+}
+
+[data-theme="light"] .insights-run-btn:hover:not(:disabled),
+[data-theme="light"] .insights-action-btn.primary:hover {
+  color: #fff;
+  background: var(--color-primary-hover, #0f766e);
+  border-color: var(--color-primary-hover, #0f766e);
+  box-shadow: 0 20px 44px rgba(var(--color-primary-rgb), .2);
+}
+
+[data-theme="light"] .insights-loading-large,
+[data-theme="light"] .insights-empty {
+  background: rgba(255,255,255,.78);
+  border-color: rgba(0,0,0,.06);
+}
+
+[data-theme="light"] .insights-error {
+  background: rgba(220,38,38,.06);
+  border-color: rgba(220,38,38,.12);
+  color: var(--color-error, #dc2626);
+}
+
+[data-theme="light"] .insights-result-header {
+  background: rgba(0,0,0,.012);
+  border-bottom-color: rgba(0,0,0,.05);
+}
+
+[data-theme="light"] .insights-paper-tag,
+[data-theme="light"] .insights-citation-tag {
+  background: rgba(0,0,0,.025);
+  border-color: rgba(0,0,0,.05);
+}
+
+[data-theme="light"] .insight-item {
+  border-bottom-color: rgba(0,0,0,.04);
+}
+
+[data-theme="light"] .insight-item-label {
+  color: var(--color-primary, #0d9488);
+}
+
+[data-theme="light"] .insights-citations,
+[data-theme="light"] .insights-result-actions {
+  background: rgba(0,0,0,.01);
+  border-top-color: rgba(0,0,0,.05);
+}
+
+[data-theme="light"] .insights-comparison-table-wrapper {
+  border-color: rgba(0,0,0,.07) !important;
+  background: rgba(0,0,0,.02) !important;
+}
+
+/* ════════════════════════════════════════════════════════ */
+
 @media (max-width: 860px) { .insights-cards-grid { grid-template-columns: 1fr; } .insight-type-card, .insight-type-card:nth-child(5) { grid-column: auto; } .insights-header { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .insights-paper-list { grid-template-columns: 1fr; } .insight-item { grid-template-columns: 1fr; gap: 3px; } }
 /* Insights title scale hotfix */

@@ -248,7 +248,7 @@ function App() {
           ].map(({ tab, icon: Icon, label }) => (
             <button
               key={tab}
-              className={`sidebar-menu-btn ${activeTab === tab ? "active" : ""}`}
+              className={`sidebar-menu-btn ${tab === "wow" ? "sidebar-menu-btn-wow" : ""} ${activeTab === tab ? "active" : ""}`}
               onClick={() => {
                 if (activeTab !== tab) {
                   setInitialQuery(undefined);
