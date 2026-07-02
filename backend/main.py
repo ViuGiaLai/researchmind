@@ -247,6 +247,7 @@ async def lifespan(app: FastAPI):
         task_provider_map=settings.task_provider_map,
         custom_cloud_provider=settings.custom_cloud_provider,
         local_max_tokens=settings.local_max_tokens,
+        task_ultimate_fallback_chain=getattr(settings, "task_ultimate_fallback_chain", ""),
     )
     # Initialize knowledge graph store
     from graph.storage import GraphStore

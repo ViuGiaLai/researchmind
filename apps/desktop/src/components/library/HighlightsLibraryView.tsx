@@ -430,14 +430,12 @@ export const HighlightsLibraryView: React.FC<{
                   className={`hl-tab ${activeTab === cat.value ? "active" : ""}`}
                   onClick={() => setActiveTab(cat.value)}
                 >
-                              <span className="hl-tab-label">{cat.label}</span>
-                  {activeTab === cat.value && (
+                <span className="hl-tab-label">{cat.label}</span>
                     <span className="hl-tab-count">
                       {cat.value === "all"
                         ? highlights.length
                         : highlights.filter((h) => h.category === cat.value).length}
                     </span>
-                  )}
                 </button>
               ))}
             </div>

@@ -1012,6 +1012,12 @@ export const api = {
   getGraphVisualizationData: () =>
     request<GraphVisualizationData>("GET", "/api/graph/graph-data"),
 
+  getBuildProgress: () =>
+    request<{ phase: string; current: number; total: number; percent: number; message: string }>("GET", "/api/graph/build-progress"),
+
+  cancelBuild: () =>
+    request<{ status: string; message: string }>("POST", "/api/graph/build/cancel"),
+
   clearGraph: () =>
     request<{ status: string; message: string }>("POST", "/api/graph/clear"),
 };

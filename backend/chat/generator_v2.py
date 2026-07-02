@@ -87,6 +87,7 @@ class Generator(
         task_provider_map: Optional[str] = None,
         custom_cloud_provider: str = "deepseek",
         local_max_tokens: int = 160,
+        task_ultimate_fallback_chain: str = "",
     ):
         self.llama_server_url = llama_server_url.rstrip("/")
         self.local_model = local_model
@@ -136,6 +137,10 @@ class Generator(
         # Per-task fallback provider (Phase 4A)
         self.task_fallback_map: dict[str, str] = {}
         self._parse_task_fallback_map(settings.task_fallback_map)
+
+        # Ultimate fallback chain (Phase 4B) — comma-separated providers from best to worst
+        raw_chain = task_ultimate_fallback_chain or getattr(settings, "task_ultimate_fallback_chain", "")
+        self.ultimate_fallback_chain = [p.strip().lower() for p in raw_chain.split(",") if p.strip()] if raw_chain else []
 
         self.local_max_tokens = max(64, min(int(local_max_tokens or 160), 1024))
         self.current_model: str = ""
@@ -769,48 +774,32 @@ class Generator(
                 return routed
             logger.info(f"task_routing: {task_type} fallback to default chain")
 
-        # Default LLM Routing
+        # Default LLM Routing — use ultimate fallback chain from config
         if self.mode == "cloud_free":
-            if self.github_api_key:
-                logger.info("cloud_free: trying GitHub Models...")
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
+            chain = self.ultimate_fallback_chain or ["github", "gemini", "groq", "nvidia", "nvidia_deepseek", "local"]
+            for provider in chain:
+                if provider == "local":
+                    logger.warning("All cloud_free providers failed. Falling back to local model...")
+                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+
+                logger.info(f"cloud_free: trying {provider}...")
                 t0 = time.time()
-                result = self._call_with_retry(self._generate_github, user_prompt, self.github_api_key, self.github_model, max_tokens)
-                logger.info(f"TIMING: GitHub Models={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    fut = pool.submit(self._call_provider, provider, user_prompt, max_tokens)
+                    try:
+                        result = fut.result(timeout=8.0)
+                    except TimeoutError:
+                        logger.warning(f"{provider} timed out (>8s), trying next...")
+                        continue
+
+                elapsed = time.time() - t0
+                if result is not None and result.finish_reason != "error":
+                    logger.info(f"TIMING: {provider}={elapsed:.2f}s finish={result.finish_reason}")
                     return result
-                logger.warning(f"GitHub Models failed ({result.finish_reason}), trying Gemini...")
-            if self.gemini_api_key:
-                logger.info("cloud_free: trying Gemini...")
-                t0 = time.time()
-                result = self._call_with_retry(self._generate_gemini, user_prompt, self.gemini_api_key, max_tokens, is_free=True)
-                logger.info(f"TIMING: Gemini={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
-                    return result
-                logger.warning(f"Gemini failed ({result.finish_reason}), trying Groq...")
-            if self.groq_api_key:
-                logger.info("cloud_free: trying Groq...")
-                t0 = time.time()
-                result = self._call_with_retry(self._generate_groq, user_prompt, self.groq_api_key, self.groq_model, max_tokens)
-                logger.info(f"TIMING: Groq={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
-                    return result
-                logger.warning(f"Groq failed ({result.finish_reason}), trying NVIDIA NIM...")
-            if self.nvidia_api_key:
-                logger.info("cloud_free: trying NVIDIA NIM Kimi...")
-                t0 = time.time()
-                result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, max_retries=0)
-                logger.info(f"TIMING: NVIDIA Kimi={time.time()-t0:.2f}s finish={result.finish_reason}")
-                if result.finish_reason != "error":
-                    return result
-                logger.warning(f"NVIDIA Kimi failed ({result.finish_reason}), trying NVIDIA NIM DeepSeek...")
-                if self.nvidia_deepseek_api_key:
-                    logger.info("cloud_free: trying NVIDIA NIM DeepSeek...")
-                    t0 = time.time()
-                    result = self._call_with_retry(self._generate_nvidia, user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, max_retries=0)
-                    logger.info(f"TIMING: NVIDIA DeepSeek={time.time()-t0:.2f}s finish={result.finish_reason}")
-                    if result.finish_reason != "error":
-                        return result
-                logger.warning("NVIDIA failed.")
+                logger.warning(f"{provider} failed (elapsed={elapsed:.1f}s), trying next...")
+
             logger.warning("All cloud_free providers failed. Falling back to local model...")
             return self._generate_local(user_prompt, max_tokens=max_tokens)
 
@@ -1128,48 +1117,35 @@ class Generator(
                 logger.info(f"task_routing_stream: {task_type} fallback to default chain")
 
         if self.mode == "cloud_free":
-            if self.github_api_key:
-                self._set_model(f"github/{self.github_model}")
+            chain = self.ultimate_fallback_chain or ["github", "gemini", "groq", "nvidia", "nvidia_deepseek", "local"]
+            tried_any = False
+            for provider in chain:
+                if provider == "local":
+                    self._set_model(f"local/{self.local_model}")
+                    if tried_any:
+                        yield "\n⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
+                    for chunk in self._stream_local(user_prompt):
+                        yield chunk
+                    return
+
+                self._set_model(f"{provider}/...")
                 yielded = False
-                for chunk in self._stream_openai(user_prompt, self.github_api_key, self.github_model, self.github_url, max_tokens):
-                    yielded = True
+                t0 = time.time()
+                for chunk in self._stream_provider(provider, user_prompt, max_tokens):
+                    if not yielded:
+                        yielded = True
+                        tried_any = True
+                        elapsed = time.time() - t0
+                        if elapsed > 3.0:
+                            logger.warning(f"{provider} first chunk slow ({elapsed:.1f}s), but continuing")
                     yield chunk
                 if yielded:
                     return
-            if self.gemini_api_key:
-                self._set_model(f"gemini/{self.gemini_model}")
-                yielded = False
-                for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=True):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            if self.groq_api_key:
-                self._set_model(f"groq/{self.groq_model}")
-                yielded = False
-                for chunk in self._stream_openai(user_prompt, self.groq_api_key, self.groq_model, "https://api.groq.com/openai/v1", max_tokens):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            if self.nvidia_api_key:
-                self._set_model(f"nvidia/{self.nvidia_model}")
-                yielded = False
-                for chunk in self._stream_openai(user_prompt, self.nvidia_api_key, self.nvidia_model, self.nvidia_url, max_tokens):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            if self.nvidia_deepseek_api_key:
-                self._set_model(f"nvidia/{self.nvidia_deepseek_model}")
-                yielded = False
-                for chunk in self._stream_openai(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, self.nvidia_url, max_tokens):
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
+                logger.info(f"{provider} failed/skipped, trying next...")
+
+            # Last resort
             self._set_model(f"local/{self.local_model}")
-            yield "\u26a0\ufe0f T\u1ea5t c\u1ea3 cloud_free \u0111\u1ec1u l\u1ed7i. \u0110ang chuy\u1ec3n sang Local model...\n"
+            yield "\n⚠️ Không có provider nào hoạt động. Đang dùng Local model...\n"
             for chunk in self._stream_local(user_prompt):
                 yield chunk
 

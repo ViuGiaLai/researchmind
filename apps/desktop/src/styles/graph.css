@@ -652,3 +652,56 @@
   to { transform: translateY(-50%) rotate(360deg); }
 }
 
+/* Build progress bar */
+.graph-build-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-sm) 0;
+}
+
+.graph-progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: var(--color-surface);
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.graph-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), #a78bfa);
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.graph-progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.graph-progress-message {
+  flex: 1;
+}
+
+.graph-progress-pct {
+  font-weight: 700;
+  color: var(--color-primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Danger button */
+.graph-header-actions .btn-danger {
+  background: var(--color-error);
+  color: #fff;
+  border: none;
+}
+
+.graph-header-actions .btn-danger:hover:not(:disabled) {
+  opacity: 0.85;
+}
+

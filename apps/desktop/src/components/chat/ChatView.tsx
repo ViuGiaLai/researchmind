@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";

@@ -9,5 +9,13 @@ class AppState:
         self.embedder = None
         self.embedder_ready = False
         self.init_message = "Khởi động..."
+        self.build_progress: dict = {
+            "phase": "idle",
+            "current": 0,
+            "total": 0,
+            "percent": 0,
+            "message": "",
+        }
+        self.build_cancelled: bool = False
 
 state = AppState()

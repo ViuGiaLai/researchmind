@@ -19,6 +19,18 @@ from .storage import KnowledgeGraph, GraphStore
 from .extractor import extract_entities_and_relationships
 from .cluster import detect_communities
 from .summarizer import summarize_community
+from app_state import state
+
+
+def _set_progress(phase: str, current: int, total: int, message: str):
+    pct = int((current / total) * 100) if total > 0 else 0
+    state.build_progress = {
+        "phase": phase,
+        "current": current,
+        "total": total,
+        "percent": pct,
+        "message": message,
+    }
 
 
 def _deduplicate_entities_into_graph(
@@ -102,7 +114,7 @@ async def build_graph_from_chunks(
     total_chunks = len(chunks)
 
     # Phase 1: Extract entities and relationships from each chunk (parallel with semaphore)
-    sem = asyncio.Semaphore(4)  # Limit concurrent LLM calls
+    sem = asyncio.Semaphore(16)  # Limit concurrent LLM calls
 
     async def _extract_chunk(chunk: dict[str, Any]) -> None:
         chunk_id = chunk.get("id", str(uuid.uuid4()))
@@ -112,6 +124,9 @@ async def build_graph_from_chunks(
             return
 
         async with sem:
+            if state.build_cancelled:
+                return
+
             entities, relationships = await extract_entities_and_relationships(
                 text=text,
                 source_id=chunk_id,
@@ -133,20 +148,31 @@ async def build_graph_from_chunks(
         ))
 
     # Process chunks in parallel batches
-    batch_size = 8
+    batch_size = 32
     for i in range(0, total_chunks, batch_size):
+        if state.build_cancelled:
+            logger.warning("Graph build cancelled by user")
+            _set_progress("cancelled", 0, 0, "Cancelled")
+            graph_store.save()
+            return graph
+
         batch = chunks[i:i + batch_size]
-        logger.info(f"Extracting graph from chunks {i + 1}–{min(i + batch_size, total_chunks)}/{total_chunks}")
+        n_end = min(i + batch_size, total_chunks)
+        _set_progress("extract", n_end, total_chunks, f"Extracting entities: chunk {i + 1}–{n_end}/{total_chunks}")
+        logger.info(f"Extracting graph from chunks {i + 1}–{n_end}/{total_chunks}")
         await asyncio.gather(*[_extract_chunk(c) for c in batch])
 
     if not graph.entities:
         logger.warning("No entities extracted from any chunk")
+        _set_progress("done", 100, 100, "No entities found")
         graph_store.save()
         return graph
 
     # Phase 2: Detect communities
+    _set_progress("cluster", 90, 100, "Detecting communities...")
     logger.info("Detecting communities...")
     communities = detect_communities(graph.entities, graph.relationships)
+    n_communities = len(communities)
 
     for comm in communities:
         graph.add_community(comm)
@@ -163,12 +189,20 @@ async def build_graph_from_chunks(
     # Phase 3: Summarize communities
     if generator is not None:
         logger.info("Summarizing communities...")
-        for comm in graph.communities.values():
+        for idx, comm in enumerate(graph.communities.values()):
+            if state.build_cancelled:
+                logger.warning("Graph build cancelled during summarization")
+                _set_progress("cancelled", 0, 0, "Cancelled")
+                graph_store.save()
+                return graph
+            pct = 90 + int((idx + 1) / max(n_communities, 1) * 10)
+            _set_progress("summarize", idx + 1, n_communities, f"Summarizing community {idx + 1}/{n_communities}...")
             if comm.id not in graph.community_reports:
                 report = await summarize_community(comm, graph, generator)
                 if report:
                     graph.add_community_report(report)
 
+    _set_progress("done", 100, 100, "Complete")
     graph_store.save()
     logger.info(f"Graph build complete: {graph.stats()}")
     return graph

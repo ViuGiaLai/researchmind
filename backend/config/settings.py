@@ -143,7 +143,7 @@ class Settings(BaseSettings):
 
     # GraphRAG — knowledge graph entity extraction, community detection, structured search
     graph_enabled: bool = True
-    graph_max_gleanings: int = 2
+    graph_max_gleanings: int = 0
     graph_entity_types: str = "CONCEPT,METHOD,DATASET,METRIC,MODEL,ALGORITHM,ARCHITECTURE,TASK,DOMAIN"
     graph_max_cluster_size: int = 10
     graph_top_k_entities: int = 10
@@ -188,6 +188,10 @@ class Settings(BaseSettings):
     # Used when primary provider fails (no key, rate limit, error)
     # Format: {"summary":"cloudflare","daily_reader":"cohere",...}
     task_fallback_map: str = ""
+
+    # Ultimate fallback chain (comma-separated): tried in order when primary + fallback both fail
+    # Format: "cerebras,groq,gemini,github,local"
+    task_ultimate_fallback_chain: str = ""
     
     # Onboarding setup completed state
     setup_completed: bool = False

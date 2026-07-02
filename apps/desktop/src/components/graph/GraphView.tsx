@@ -18,9 +18,18 @@ const STRATEGY_DESCRIPTIONS: Record<Strategy, string> = {
   drift: "Iterative: start local → extract entities → explore → reduce",
 };
 
+interface BuildProgress {
+  phase: string;
+  current: number;
+  total: number;
+  percent: number;
+  message: string;
+}
+
 interface LoadingState {
   type: "build" | "query" | "general";
   message: string;
+  percent?: number;
 }
 
 export const GraphView: React.FC = () => {
@@ -28,6 +37,7 @@ export const GraphView: React.FC = () => {
   const [stats, setStats] = useState<GraphStats | null>(null);
   const [buildError, setBuildError] = useState<string | null>(null);
   const [loadingState, setLoadingState] = useState<LoadingState | null>(null);
+  const [buildProgress, setBuildProgress] = useState<BuildProgress | null>(null);
   const [entities, setEntities] = useState<GraphEntity[]>([]);
   const [communities, setCommunities] = useState<GraphCommunity[]>([]);
   const [graphData, setGraphData] = useState<GraphVisualizationData | null>(null);
@@ -35,6 +45,8 @@ export const GraphView: React.FC = () => {
   const [strategy, setStrategy] = useState<Strategy>("local");
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
+  const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const buildPromiseRef = React.useRef<Promise<void> | null>(null);
 
   const loadStats = useCallback(async () => {
     try {
@@ -83,24 +95,81 @@ export const GraphView: React.FC = () => {
     }
   }, [activeTab, loadStats, loadEntities, loadCommunities, loadGraphData]);
 
+  const startPolling = useCallback(() => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const p = await api.getBuildProgress();
+        setBuildProgress(p);
+        setLoadingState(prev => prev?.type === "build" ? { ...prev, percent: p.percent, message: p.message } : prev);
+      } catch {
+        // ignore poll errors
+      }
+    }, 500);
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setBuildProgress(null);
+  }, []);
+
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
+  // Auto-load explore data when switching tab with existing stats
+  useEffect(() => {
+    if (!stats || loadingState) return;
+    if (activeTab === "explore") {
+      loadEntities();
+      loadCommunities();
+    }
+    if (activeTab === "visualize") {
+      loadGraphData();
+    }
+  }, [activeTab, stats, loadingState]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
   const handleBuild = async () => {
-    setLoadingState({ type: "build", message: "Building knowledge graph from paper chunks..." });
+    setBuildProgress(null);
+    setLoadingState({ type: "build", message: "Starting..." });
     setError("");
     setBuildError(null);
+
+    startPolling();
+
+    buildPromiseRef.current = (async () => {
+      try {
+        const result = await api.buildGraph();
+        setStats(result.stats as unknown as GraphStats);
+        await refreshAll();
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Build failed";
+        if (msg.includes("cancelled") || msg.includes("Cancelled")) {
+          setBuildError("Build cancelled");
+        } else {
+          setBuildError(msg);
+          setError(msg);
+        }
+      } finally {
+        stopPolling();
+        setLoadingState(null);
+      }
+    })();
+  };
+
+  const handleCancel = async () => {
     try {
-      const result = await api.buildGraph();
-      setStats(result.stats as unknown as GraphStats);
-      await refreshAll();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Build failed";
-      setBuildError(msg);
-      setError(msg);
-    } finally {
-      setLoadingState(null);
+      await api.cancelBuild();
+      setBuildProgress(prev => prev ? { ...prev, phase: "cancelled", message: "Cancelling..." } : null);
+    } catch {
+      // ignore
     }
   };
 
@@ -152,6 +221,8 @@ export const GraphView: React.FC = () => {
     }
   };
 
+  const isBuilding = loadingState?.type === "build";
+
   return (
     <div className="graph-view">
       <div className="graph-header">
@@ -163,11 +234,16 @@ export const GraphView: React.FC = () => {
           <button
             className="btn btn-primary"
             onClick={handleBuild}
-            disabled={loadingState?.type === "build" || loadingState?.type === "general"}
+            disabled={isBuilding || loadingState?.type === "general"}
           >
-            {loadingState?.type === "build" ? <IconSpinner size={16} /> : <IconGraph size={16} />}
-            {loadingState?.type === "build" ? " Đang xây dựng..." : " Xây dựng Sơ đồ"}
+            {isBuilding ? <IconSpinner size={16} /> : <IconGraph size={16} />}
+            {isBuilding ? " Đang xây dựng..." : " Xây dựng Sơ đồ"}
           </button>
+          {isBuilding && (
+            <button className="btn btn-danger" onClick={handleCancel}>
+              Dừng
+            </button>
+          )}
           <button
             className="btn btn-secondary"
             onClick={handleClear}
@@ -179,18 +255,26 @@ export const GraphView: React.FC = () => {
         </div>
       </div>
 
-      {/* Loading banner */}
-      {loadingState && (
-        <div className="graph-loading-banner">
-          <IconSpinner size={16} />
-          <span>{loadingState.message}</span>
+      {/* Build progress bar */}
+      {isBuilding && buildProgress && (
+        <div className="graph-build-progress">
+          <div className="graph-progress-bar-container">
+            <div
+              className="graph-progress-bar"
+              style={{ width: `${Math.max(buildProgress.percent, 2)}%` }}
+            />
+          </div>
+          <div className="graph-progress-info">
+            <span className="graph-progress-message">{buildProgress.message}</span>
+            <span className="graph-progress-pct">{buildProgress.percent}%</span>
+          </div>
         </div>
       )}
 
       {/* Error banner (build-level) */}
       {buildError && (
         <div className="graph-error">
-          Build failed: {buildError}
+          {buildError}
         </div>
       )}
 
@@ -233,7 +317,7 @@ export const GraphView: React.FC = () => {
       )}
 
       {/* Tabs — only show when graph has data or is building */}
-      {(stats || loadingState?.type === "build") && (
+      {(stats || isBuilding) && (
         <>
           <div className="graph-tabs">
             {(["explore", "visualize", "query"] as Tab[]).map((tab) => (
@@ -241,7 +325,7 @@ export const GraphView: React.FC = () => {
                 key={tab}
                 className={`graph-tab ${activeTab === tab ? "active" : ""}`}
                 onClick={() => handleTabClick(tab)}
-                disabled={!stats}
+                disabled={!stats && !isBuilding}
               >
                 {tab === "explore" && "Explore"}
                 {tab === "visualize" && "Visualize"}

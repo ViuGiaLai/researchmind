@@ -13,6 +13,7 @@ from db.models import Chunk
 
 from .storage import GraphStore
 from .builder import build_graph_from_chunks
+from app_state import state
 from .local_search import local_search
 from .global_search import global_search
 from .drift_search import drift_search
@@ -96,6 +97,15 @@ async def build_graph(req: GraphBuildRequest):
     if generator is None:
         raise HTTPException(status_code=503, detail="Generator not initialized")
 
+    state.build_cancelled = False
+    state.build_progress = {
+        "phase": "extract",
+        "current": 0,
+        "total": len(chunk_dicts),
+        "percent": 0,
+        "message": f"Starting extraction on {len(chunk_dicts)} chunks...",
+    }
+
     try:
         graph = await build_graph_from_chunks(
             chunks=chunk_dicts,
@@ -106,8 +116,22 @@ async def build_graph(req: GraphBuildRequest):
         )
         return {"status": "ok", "stats": graph.stats()}
     except Exception as e:
+        state.build_progress = {"phase": "error", "current": 0, "total": 0, "percent": 0, "message": str(e)}
         logger.exception("Graph build failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/build-progress")
+async def build_progress():
+    """Get current build progress."""
+    return state.build_progress
+
+
+@router.post("/build/cancel")
+async def cancel_build():
+    """Cancel the current graph build."""
+    state.build_cancelled = True
+    return {"status": "ok", "message": "Build cancellation requested"}
 
 
 @router.post("/query")
