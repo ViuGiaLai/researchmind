@@ -297,6 +297,14 @@
   overflow: hidden;
 }
 
+/* Labs tabs: zero out top padding since LabsBar provides separation */
+.labs-content .wow-view,
+.labs-content .personal-brain-view,
+.labs-content .daily-reader-view,
+.labs-content .graph-view {
+  padding-top: 0 !important;
+}
+
 .app-loading {
   display: flex;
   align-items: center;

@@ -507,6 +507,49 @@ async def import_folder(
     }
 
 
+@router.post("/import/metadata")
+async def import_metadata(body: dict = Body(...)):
+    """Import a paper by metadata (no PDF). Creates a stub Paper record."""
+    from db.models import Paper as PaperModel
+    doi = (body.get("doi") or "").strip()
+    title = (body.get("title") or "Untitled").strip()
+    authors = body.get("authors", [])
+    year = body.get("year")
+    journal = (body.get("journal") or "").strip()
+    abstract = (body.get("abstract") or "").strip()
+
+    if not title:
+        raise HTTPException(status_code=400, detail="Missing required field: title")
+
+    session = get_session(state.engine)
+    try:
+        file_id = str(uuid.uuid4())
+        safe_name = re.sub(r'[^\w\- ]', '', title)[:60]
+        file_path = str(settings.papers_dir / f"metadata_{file_id}_{safe_name}.pdf")
+
+        paper = PaperModel(
+            id=file_id,
+            filename=f"{safe_name}.pdf",
+            title=title,
+            authors=json.dumps(authors, ensure_ascii=False),
+            year=year,
+            doi=doi,
+            abstract=abstract,
+            file_path=file_path,
+            status="metadata_only",
+        )
+        session.add(paper)
+        session.commit()
+        logger.info(f"IMPORT_METADATA created paper {file_id}: {title}")
+        return {"paper_id": file_id, "title": title, "status": "metadata_only"}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"IMPORT_METADATA failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
     """
     Extract top N keywords from a text locally.

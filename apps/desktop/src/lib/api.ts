@@ -621,6 +621,11 @@ export const api = {
     request<{ source: string; data: any }>("GET", `/api/academic/paper?doi=${encodeURIComponent(doi)}`),
   invalidateAcademicCache: (doi: string) =>
     request<{ status: string; doi: string; message: string }>("DELETE", `/api/academic/cache/${encodeURIComponent(doi)}`),
+  discoverPapers: (query: string, limit = 20) =>
+    request<{ results: DiscoveredPaper[] }>("POST", "/api/academic/discover", { query, limit }),
+  importPaperByMetadata: (meta: {
+    doi?: string; title: string; authors?: string[]; year?: number; journal?: string; abstract?: string
+  }) => request<{ paper_id: string; title: string; status: string }>("POST", "/api/papers/import/metadata", meta),
 
   // Collections / Projects
   listCollections: () =>
@@ -1334,6 +1339,19 @@ export interface EvidenceMatrixData {
 export interface EvidenceMatrixResponse {
   matrix: EvidenceMatrixData;
   error?: string;
+}
+
+// ─── Academic Discovery Types ──────────────────────────────
+
+export interface DiscoveredPaper {
+  source: "openalex" | "semantic_scholar";
+  doi: string;
+  title: string;
+  authors: string[];
+  year: number | null;
+  citation_count: number;
+  journal: string;
+  abstract: string;
 }
 
 // ─── Claim Analysis Types ───────────────────────────────────

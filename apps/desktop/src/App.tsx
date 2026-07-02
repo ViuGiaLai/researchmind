@@ -1,23 +1,64 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconSearch, IconLibrary, IconChat, IconSettings, IconLock, IconBulb, IconSparkle, IconCalendar, IconBookmark, IconBookOpen, IconGraph, IconChart, IconSpinner } from "./components/Icons";
-import { LibraryView } from "./components/library/LibraryView";
-import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
-import { SearchView } from "./components/search/SearchView";
+import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner } from "./components/Icons";
+import { LibraryHub } from "./components/hub/LibraryHub";
+import { ReviewHub } from "./components/hub/ReviewHub";
 import { ChatView } from "./components/chat/ChatView";
 import { SettingsView } from "./components/settings/SettingsView";
-import { InsightsView } from "./components/insights/InsightsView";
 import { PersonalBrainView } from "./components/personal/PersonalBrainView";
 import { DailyReaderView } from "./components/personal/DailyReaderView";
 import { WowAnalysisView } from "./components/insights/WowAnalysisView";
-import { ReviewBuilderView } from "./components/review/ReviewBuilderView";
-import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { GraphView } from "./components/graph/GraphView";
 import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
+import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { ToastProvider } from "./components/shared/Toast";
 import { api } from "./lib/api";
 
-type Tab = "wow" | "library" | "highlights" | "search" | "chat" | "insights" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
+type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
+
+const LABS_TABS: { tab: Tab; icon: React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>; label: string }[] = [
+  { tab: "wow", icon: IconSparkle, label: "Phân tích sâu" },
+  { tab: "brain", icon: IconBrain, label: "Bộ não" },
+  { tab: "daily", icon: IconCalendar, label: "Đọc hôm nay" },
+  { tab: "graph", icon: IconGraph, label: "Biểu đồ" },
+];
+
+function LabsBar({ activeTab, onTabChange }: { activeTab: Tab; onTabChange: (tab: Tab) => void }) {
+  return (
+    <div style={{
+      display: "flex", gap: "16px", padding: "16px 20px 12px",
+      borderBottom: "1px solid var(--color-border, #282828)",
+      flexShrink: 0, alignItems: "center",
+    }}>
+      <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--color-text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+        Phòng thí nghiệm
+      </span>
+      {LABS_TABS.map(({ tab, icon: LabIcon, label }) => (
+        <button
+          key={tab}
+          onClick={() => onTabChange(tab)}
+          style={{
+            padding: "6px 14px",
+            borderRadius: "6px",
+            border: "1px solid var(--color-border, #333)",
+            background: activeTab === tab ? "rgba(99, 102, 241, 0.08)" : "transparent",
+            color: activeTab === tab ? "var(--color-primary, #6366f1)" : "var(--color-text-muted, #94a3b8)",
+            cursor: "pointer",
+            fontSize: "0.8rem",
+            fontWeight: 500,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            transition: "all 0.15s",
+          }}
+        >
+          <LabIcon size={14} />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -235,22 +276,15 @@ function App() {
         
         <nav className="sidebar-menu">
           {[
-            { tab: "wow" as Tab, icon: IconSparkle, label: "Phân tích" },
             { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
-            { tab: "highlights" as Tab, icon: IconBookmark, label: "Đoạn trích" },
-            { tab: "search" as Tab, icon: IconSearch, label: "Tìm kiếm" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
-            { tab: "insights" as Tab, icon: IconBulb, label: "Nhận định" },
             { tab: "review" as Tab, icon: IconBookOpen, label: "Đánh giá" },
             { tab: "evidence" as Tab, icon: IconChart, label: "Bằng chứng" },
-            { tab: "brain" as Tab, icon: IconBrain, label: "Bộ não" },
-            { tab: "daily" as Tab, icon: IconCalendar, label: "Đọc hôm nay" },
-            { tab: "graph" as Tab, icon: IconGraph, label: "Biểu đồ" },
             { tab: "settings" as Tab, icon: IconSettings, label: "Cài đặt" },
           ].map(({ tab, icon: Icon, label }) => (
             <button
               key={tab}
-              className={`sidebar-menu-btn ${tab === "wow" ? "sidebar-menu-btn-wow" : ""} ${activeTab === tab ? "active" : ""}`}
+              className={`sidebar-menu-btn ${activeTab === tab ? "active" : ""}`}
               onClick={() => {
                 if (activeTab !== tab) {
                   setInitialQuery(undefined);
@@ -287,46 +321,53 @@ function App() {
 
       {/* Main content area */}
       <main className="main">
-        {activeTab === "wow" && (
-          <WowAnalysisView
-            onStartChat={handleStartChat}
-            onStartDebate={handleStartDebate}
-            initialPaperId={wowPaperId}
-            onClearInitialPaperId={() => setWowPaperId(null)}
-          />
+        {(["wow", "brain", "daily", "graph", "settings"] as Tab[]).includes(activeTab) ? (
+          <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+            <LabsBar activeTab={activeTab} onTabChange={setActiveTab} />
+            <div className="labs-content" style={{ flex: 1, overflow: "hidden" }}>
+              {activeTab === "wow" && (
+                <WowAnalysisView
+                  onStartChat={handleStartChat}
+                  onStartDebate={handleStartDebate}
+                  initialPaperId={wowPaperId}
+                  onClearInitialPaperId={() => setWowPaperId(null)}
+                />
+              )}
+              {activeTab === "brain" && <PersonalBrainView />}
+              {activeTab === "daily" && <DailyReaderView />}
+              {activeTab === "graph" && <GraphView />}
+              {activeTab === "settings" && <SettingsView />}
+            </div>
+          </div>
+        ) : (
+          <>
+            {activeTab === "library" && (
+              <LibraryHub
+                onStartChat={handleStartChat}
+                onStartReview={handleStartReview}
+                onStartCritique={handleStartCritique}
+                onStartDebate={handleStartDebate}
+                onStartVerify={handleStartVerify}
+                onStartWow={handleStartWow}
+              />
+            )}
+            {activeTab === "chat" && (
+              <ChatView
+                key={`${chatPaperIds.join(",")}-${initialQuery ?? ""}-${initialMode}-s${chatSessionKey}`}
+                initialPaperIds={chatPaperIds}
+                initialQuery={initialQuery}
+                initialMode={initialMode}
+                onGoToLibrary={() => {
+                  setActiveTab("library");
+                }}
+              />
+            )}
+            {activeTab === "review" && (
+              <ReviewHub onStartChat={handleStartChat} />
+            )}
+            {activeTab === "evidence" && <EvidenceMatrixView />}
+          </>
         )}
-        {activeTab === "search" && <SearchView onStartChat={handleStartChat} />}
-        {activeTab === "library" && (
-          <LibraryView
-            onStartChat={handleStartChat}
-            onStartReview={handleStartReview}
-            onStartCritique={handleStartCritique}
-            onStartDebate={handleStartDebate}
-            onStartVerify={handleStartVerify}
-            onStartWow={handleStartWow}
-          />
-        )}
-        {activeTab === "highlights" && (
-          <HighlightsLibraryView onStartChat={handleStartChat} />
-        )}
-        {activeTab === "chat" && (
-          <ChatView
-            key={`${chatPaperIds.join(",")}-${initialQuery ?? ""}-${initialMode}-s${chatSessionKey}`}
-            initialPaperIds={chatPaperIds}
-            initialQuery={initialQuery}
-            initialMode={initialMode}
-            onGoToLibrary={() => {
-              setActiveTab("library");
-            }}
-          />
-        )}
-        {activeTab === "insights" && <InsightsView onStartChat={handleStartChat} />}
-        {activeTab === "review" && <ReviewBuilderView />}
-        {activeTab === "brain" && <PersonalBrainView />}
-        {activeTab === "daily" && <DailyReaderView />}
-        {activeTab === "graph" && <GraphView />}
-        {activeTab === "evidence" && <EvidenceMatrixView />}
-        {activeTab === "settings" && <SettingsView />}
       </main>
     </div>
     </ToastProvider>

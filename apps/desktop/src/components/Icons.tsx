@@ -45,6 +45,8 @@ import {
   AlertTriangle,
   ChevronDown,
   ArrowLeft,
+  ListFilter,
+  Minus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -140,6 +142,8 @@ export const IconEdit = wrapIcon(Edit, "icon-edit");
 export const IconLink = wrapIcon(Link, "icon-link");
 export const IconChevronDown = wrapIcon(ChevronDown, "icon-chevron-down");
 export const IconArrowLeft = wrapIcon(ArrowLeft, "icon-arrow-left");
+export const IconFilter = wrapIcon(ListFilter, "icon-filter");
+export const IconMinus = wrapIcon(Minus, "icon-minus");
 
 
 

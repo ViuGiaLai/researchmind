@@ -1,14 +1,16 @@
 """
 GET  /api/academic/doi          → tra DOI nhanh qua Crossref
 GET  /api/academic/paper        → tra paper nhanh qua OpenAlex
+POST /api/academic/discover     → search query qua OpenAlex + Semantic Scholar, trả JSON deduped
 DELETE /api/academic/cache/{doi} → xoá cache cho DOI cụ thể
-Dùng cho LibraryView: hiển thị citation count bên cạnh paper.
 """
-from fastapi import APIRouter, Query
+import asyncio
+from fastapi import APIRouter, Body, Query
 from loguru import logger
 
-from academic.openalex import get_work_by_doi as oa_get
+from academic.openalex import get_work_by_doi as oa_get, search_works as oa_search
 from academic.crossref import get_work_by_doi as cr_get
+from academic.semantic_scholar import search_papers as s2_search
 from academic.cache import cache_get, cache_set, cache_invalidate_doi, TTL_OPENALEX, TTL_CROSSREF
 
 router = APIRouter(prefix="/api/academic", tags=["academic"])
@@ -61,6 +63,64 @@ async def lookup_paper(doi: str = Query(...)):
         cache_set(f"oa:{doi}", "openalex", data)
         return {"source": "openalex", "data": data}
     return {"source": "not_found", "data": None}
+
+
+@router.post("/discover")
+async def discover_papers(body: dict = Body(...)):
+    """Search papers from OpenAlex + Semantic Scholar, dedup by DOI."""
+    query = body.get("query", "").strip()
+    limit = min(body.get("limit", 10), 50)
+    if not query:
+        return {"results": []}
+
+    oa_results, s2_results = await asyncio.gather(
+        oa_search(query, limit=limit),
+        s2_search(query, limit=limit),
+    )
+
+    seen_dois: set[str] = set()
+    results: list[dict] = []
+    for r in oa_results:
+        doi = (r.get("doi") or "").replace("https://doi.org/", "").lower()
+        if doi and doi in seen_dois:
+            continue
+        if doi:
+            seen_dois.add(doi)
+        authors = [a.get("author", {}).get("display_name", "") for a in (r.get("authorships") or [])]
+        loc = r.get("primary_location") or {}
+        source = loc.get("source") or {}
+        results.append({
+            "source": "openalex",
+            "doi": doi or "",
+            "title": r.get("title", ""),
+            "authors": authors,
+            "year": r.get("publication_year"),
+            "citation_count": r.get("cited_by_count", 0),
+            "journal": source.get("display_name", ""),
+            "abstract": "",
+        })
+
+    for p in s2_results:
+        doi = ""
+        if p.external_ids:
+            doi = (p.external_ids.get("DOI") or "").lower()
+        if doi and doi in seen_dois:
+            continue
+        if doi:
+            seen_dois.add(doi)
+        results.append({
+            "source": "semantic_scholar",
+            "doi": doi,
+            "title": p.title,
+            "authors": p.authors,
+            "year": p.year,
+            "citation_count": p.citation_count,
+            "journal": p.venue or "",
+            "abstract": p.abstract or "",
+        })
+
+    results.sort(key=lambda x: x["citation_count"], reverse=True)
+    return {"results": results}
 
 
 @router.delete("/cache/{doi:path}")
