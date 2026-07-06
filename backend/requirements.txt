@@ -8,7 +8,7 @@ sqlalchemy==2.0.*
 aiosqlite==0.20.*
 
 # PDF Processing
-PyMuPDF==1.25.*
+PyMuPDF==1.28.*
 rapidocr_onnxruntime==1.4.*
 Pillow==11.*
 
