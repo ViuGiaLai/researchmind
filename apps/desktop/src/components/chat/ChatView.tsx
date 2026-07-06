@@ -325,6 +325,12 @@ export const ChatView: React.FC<{
     return () => questionsAbortRef.current?.abort();
   }, [fetchSuggestedQuestions]);
 
+  useEffect(() => {
+    return () => {
+      activeChatStreamRef.current?.abort();
+    };
+  }, []);
+
   const handleCancelStream = () => {
     activeChatStreamRef.current?.abort();
     activeChatStreamRef.current = null;
@@ -340,12 +346,13 @@ export const ChatView: React.FC<{
 
   const handleSend = async (overrideText?: string) => {
     const text = overrideText?.trim() ?? input.trim();
-    if (!text || loading) return;
+    if (!text || loading || isStreaming) return;
     setInput("");
 
     const userMsg: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
+    let streamHandlesLoading = false;
 
     // Phân biệt rõ các chế độ scope:
     // - current: chỉ tìm trong paper(s) đã chọn (yêu cầu phải có paperIds)
@@ -382,6 +389,7 @@ export const ChatView: React.FC<{
 
     try {
       if (stream && initialMode === "chat") {
+        streamHandlesLoading = true;
         const ids = effectiveIds;
         const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined, reasoningMode, strictEvidence);
         activeChatStreamRef.current = streamCtrl;
@@ -393,12 +401,16 @@ export const ChatView: React.FC<{
 
         let resolved = false;
 
+        const releaseLoading = () => {
+          setLoading(false);
+        };
+
         const finishWithError = (errMsg: string) => {
           if (resolved) return;
           resolved = true;
           activeChatStreamRef.current = null;
           setIsStreaming(false);
-          setLoading(false);
+          releaseLoading();
           const content = `❌ Lỗi: ${errMsg}`;
           setMessages((prev) => prev.map((m, i) =>
             i === assistantIdx ? { ...m, content } : m
@@ -427,37 +439,37 @@ export const ChatView: React.FC<{
           resolved = true;
           activeChatStreamRef.current = null;
           setIsStreaming(false);
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx
-              ? {
-                  ...m,
-                  model_used: model,
-                  citations,
-                  router_reason,
-                  token_count,
-                  content: modified_content || m.content,
+          releaseLoading();
+          setMessages((prev) => {
+            const updated = prev.map((m, i) =>
+              i === assistantIdx
+                ? {
+                    ...m,
+                    model_used: model,
+                    citations,
+                    router_reason,
+                    token_count,
+                    content: modified_content || m.content,
+                  }
+                : m
+            );
+            const finalContent = modified_content || updated[assistantIdx]?.content || "";
+            if (finalContent && citations && citations.length > 0) {
+              api.analyzeClaims(finalContent, citations).then((res) => {
+                if (res.analysis) {
+                  setClaimAnalyses((prevClaims) => ({ ...prevClaims, [assistantIdx]: res.analysis! }));
                 }
-              : m
-          ));
+              }).catch((err) => console.error("Claim analysis failed:", err));
+            }
+            return updated;
+          });
           loadUsage();
-          // Auto-analyze claims for trust report
-          const finalContent = modified_content || messages[assistantIdx]?.content || "";
-          if (finalContent && citations && citations.length > 0) {
-            api.analyzeClaims(finalContent, citations).then(res => {
-              if (res.analysis) {
-                setClaimAnalyses(prev => ({ ...prev, [assistantIdx]: res.analysis! }));
-              }
-            }).catch(() => {});
-          }
         };
 
         streamCtrl.onError = (err) => {
-          if (resolved) return;
-          resolved = true;
-          activeChatStreamRef.current = null;
-          setIsStreaming(false);
           finishWithError(err);
         };
+        return;
       } else {
         let res: ChatResponse;
         if (initialMode === "review") {
@@ -468,6 +480,7 @@ export const ChatView: React.FC<{
           res = await api.debate(text, effectiveIds, scope === "collection" ? activeCollectionId : undefined);
         } else if (initialMode === "verify") {
           if (stream) {
+            streamHandlesLoading = true;
             const ids = effectiveIds;
             const streamCtrl = api.verifyStream(text, ids, "verify", scope === "collection" ? activeCollectionId : undefined);
             activeChatStreamRef.current = streamCtrl;
@@ -475,6 +488,9 @@ export const ChatView: React.FC<{
 
             setMessages((prev) => [...prev, { role: "assistant", content: "Đang tra cứu tài liệu..." }]);
             setIsStreaming(true);
+
+            let resolved = false;
+            const releaseLoading = () => setLoading(false);
 
             streamCtrl.onAcademic = (data, status) => {
               setVerifyResult({
@@ -499,32 +515,40 @@ export const ChatView: React.FC<{
             };
 
             streamCtrl.onDone = (model, citations, externalSources, status) => {
+              if (resolved) return;
+              resolved = true;
               activeChatStreamRef.current = null;
               setIsStreaming(false);
-              setVerifyResult({
-                answer: messages[messages.length]?.content || "",
-                citations,
-                model_used: model,
-                papers_used: [],
-                external_sources: externalSources,
-                verify_status: status as "full" | "partial" | "local_only",
+              releaseLoading();
+              setMessages((prev) => {
+                const answer = prev[assistantIdx]?.content || "";
+                setVerifyResult({
+                  answer,
+                  citations,
+                  model_used: model,
+                  papers_used: [],
+                  external_sources: externalSources,
+                  verify_status: status as "full" | "partial" | "local_only",
+                });
+                return prev.map((m, i) =>
+                  i === assistantIdx ? { ...m, model_used: model, citations } : m
+                );
               });
-              setMessages((prev) => prev.map((m, i) =>
-                i === assistantIdx ? { ...m, model_used: model, citations } : m
-              ));
               loadUsage();
             };
 
             streamCtrl.onError = (err) => {
+              if (resolved) return;
+              resolved = true;
               activeChatStreamRef.current = null;
               setIsStreaming(false);
+              releaseLoading();
               const content = `❌ Lỗi: ${err}\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
               setMessages((prev) => prev.map((m, i) =>
                 i === assistantIdx ? { ...m, content } : m
               ));
             };
 
-            // Early return — skip the non-streaming res assignment below
             return;
           } else {
             const vres = await api.verify(text, effectiveIds, scope === "collection" ? activeCollectionId : undefined);
@@ -558,7 +582,9 @@ export const ChatView: React.FC<{
       };
       setMessages((prev) => [...prev, errMsg]);
     } finally {
-      setLoading(false);
+      if (!streamHandlesLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -601,20 +627,25 @@ export const ChatView: React.FC<{
     if (!act) return;
 
     // Kiểm tra scope trước khi xử lý quick action
-    const quickIds = (() => {
+    const collectionIdForApi = scope === "collection" ? activeCollectionId : undefined;
+    const quickIds = ((): string[] | undefined | "error" => {
       if (scope === "current") {
         if (paperIds.length === 0) return "error";
         return paperIds;
       }
-      return undefined; // library hoặc external → search tất cả
+      if (scope === "collection") {
+        if (!activeCollectionId) return "error";
+        return undefined;
+      }
+      return undefined;
     })();
 
     if (quickIds === "error") {
       setMessages((prev) => [...prev, { role: "user", content: act.query }]);
-      setMessages((prev) => [...prev, {
-        role: "assistant",
-        content: "❌ **Chưa chọn paper nào!**\n\nChế độ **📄 Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.",
-      }]);
+      const errContent = scope === "collection"
+        ? "❌ **Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước."
+        : "❌ **Chưa chọn paper nào!**\n\nChế độ **📄 Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.";
+      setMessages((prev) => [...prev, { role: "assistant", content: errContent }]);
       return;
     }
 
@@ -629,7 +660,7 @@ export const ChatView: React.FC<{
       setMessages((prev) => [...prev, { role: "user", content: act.query }]);
       setLoading(true);
       try {
-        const vres = await api.verify(act.query, quickIds, scope === "collection" ? activeCollectionId : undefined);
+        const vres = await api.verify(act.query, quickIds, collectionIdForApi);
         setVerifyResult(vres);
         setMessages((prev) => [...prev, {
           role: "assistant",
@@ -650,7 +681,27 @@ export const ChatView: React.FC<{
       setMessages((prev) => [...prev, { role: "user", content: act.query }]);
       setLoading(true);
       try {
-        const res = await api.findResearchGap(quickIds);
+        const res = await api.findResearchGap(quickIds, collectionIdForApi);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: res.answer,
+          citations: res.citations,
+          model_used: res.model_used,
+        }]);
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
+        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Lỗi: ${errMsg}` }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (act.mode === "debate") {
+      setMessages((prev) => [...prev, { role: "user", content: act.query }]);
+      setLoading(true);
+      try {
+        const res = await api.debate(act.query, quickIds, collectionIdForApi);
         setMessages((prev) => [...prev, {
           role: "assistant",
           content: res.answer,

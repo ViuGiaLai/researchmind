@@ -1,6 +1,4 @@
-use log::{error, info};
-#[cfg(unix)]
-use log::warn;
+use log::{error, info, warn};
 use serde::Serialize;
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
@@ -39,6 +37,15 @@ fn is_valid_executable(path: &Path) -> bool {
 fn is_backend_port_open() -> bool {
     let addr = SocketAddr::from(([127, 0, 0, 1], 8765));
     TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok()
+}
+
+fn is_researchmind_backend_healthy() -> bool {
+    reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .and_then(|client| client.get("http://127.0.0.1:8765/api/health").send())
+        .map(|response| response.status().is_success())
+        .unwrap_or(false)
 }
 
 fn use_external_backend() -> bool {
@@ -228,8 +235,11 @@ fn spawn_backend(app: &tauri::AppHandle, status: &BackendSpawnStatus) -> (Option
     }
 
     if is_backend_port_open() {
-        info!("Backend already running on http://127.0.0.1:8765; using existing process");
-        return (None, status);
+        if is_researchmind_backend_healthy() {
+            info!("ResearchMind backend already running on http://127.0.0.1:8765");
+            return (None, status);
+        }
+        warn!("Port 8765 is in use but /api/health did not respond — attempting to spawn bundled backend");
     }
 
     status.attempted = true;

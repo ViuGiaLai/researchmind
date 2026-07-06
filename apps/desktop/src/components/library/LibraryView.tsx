@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { api, Collection, Paper, RelatedPaper, Highlight } from "../../lib/api";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { api, Collection, Paper, RelatedPaper, Highlight, BASE_URL } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
@@ -115,10 +115,28 @@ export const LibraryView: React.FC<{
   const [loadingHighlights, setLoadingHighlights] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const [listScrollTop, setListScrollTop] = useState(0);
+  const searchDebounceReady = useRef(false);
+  const activePaperIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activePaperIdRef.current = activePaper?.id ?? null;
+  }, [activePaper?.id]);
 
   useEffect(() => {
     loadPapers();
   }, [page, filter, activeCollectionId]);
+
+  useEffect(() => {
+    if (!searchDebounceReady.current) {
+      searchDebounceReady.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPage(1);
+      loadPapers(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     const started = performance.now();
@@ -192,7 +210,8 @@ export const LibraryView: React.FC<{
     }
   }, [activePaper?.id]);
 
-  const loadPapers = async () => {
+  const loadPapers = async (forcedPage?: number) => {
+    const effectivePage = forcedPage ?? page;
     const started = performance.now();
     setLoading(true);
     try {
@@ -209,17 +228,25 @@ export const LibraryView: React.FC<{
         starredFilter = true;
       }
 
-      const res = await api.listPapers(page, PAGE_SIZE, statusFilter, readStatusFilter, starredFilter, {
+      const res = await api.listPapers(effectivePage, PAGE_SIZE, statusFilter, readStatusFilter, starredFilter, {
         collection_id: activeCollectionId || undefined,
+        q: searchQuery.trim() || undefined,
       });
 
       setPapers(res.papers);
       setTotal(res.total);
       console.info(`LIBRARY_LOAD_TIMING papers=${res.papers.length} total=${res.total} total_ms=${(performance.now() - started).toFixed(1)}`);
 
-      // Default active paper to the first one in the list if none selected
-      if (res.papers.length > 0 && !activePaper) {
-        setActivePaper(res.papers[0]);
+      if (res.papers.length === 0) {
+        setActivePaper(null);
+      } else {
+        setActivePaper((prev) => {
+          if (prev) {
+            const refreshed = res.papers.find((p) => p.id === prev.id);
+            return refreshed ?? res.papers[0];
+          }
+          return res.papers[0];
+        });
       }
     } catch (e) {
       console.error("Failed to load papers:", e);
@@ -394,22 +421,21 @@ export const LibraryView: React.FC<{
 
   const loadRelatedPapers = async (paperId: string) => {
     setLoadingRelated(true);
+    setRelatedPapers([]);
     try {
       const res = await api.findRelatedPapers(paperId, 5);
+      if (activePaperIdRef.current !== paperId) return;
       setRelatedPapers(res.related_papers);
     } catch (e) {
+      if (activePaperIdRef.current !== paperId) return;
       console.error("Failed to load related papers:", e);
       setRelatedPapers([]);
     } finally {
-      setLoadingRelated(false);
+      if (activePaperIdRef.current === paperId) setLoadingRelated(false);
     }
   };
 
-  const filteredPapersList = useMemo(() => {
-    return papers.filter((p) =>
-      (p.title || p.filename || "").toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [papers, searchQuery]);
+  const filteredPapersList = papers;
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const viewportHeight = listRef.current?.clientHeight || 520;
@@ -1326,7 +1352,7 @@ export const LibraryView: React.FC<{
             ) : (
               <div className="pdf-iframe-container">
                 <iframe
-                  src={`http://127.0.0.1:8765/api/papers/${activePaper.id}/file`}
+                  src={`${BASE_URL}/api/papers/${activePaper.id}/file`}
                   className="pdf-iframe"
                   title={activePaper.title || activePaper.filename}
                 />

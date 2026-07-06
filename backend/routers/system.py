@@ -1,3 +1,4 @@
+import asyncio
 import configparser
 import json
 import os
@@ -74,7 +75,7 @@ async def get_stats():
         total_size = session.query(Paper).with_entities(Paper.file_size).all()
         total_size_bytes = sum(s[0] or 0 for s in total_size)
 
-        chroma_count = state.vector.count()
+        chroma_count = state.vector.count() if state.vector is not None else 0
 
         return {
             "total_papers": total_papers,
@@ -97,25 +98,28 @@ async def detect_specs():
     """
     Detect machine specs (RAM, CPU) for auto-configuring model tier.
     """
-    total_ram_gb = 8
-
-    try:
-        import psutil
-        total_ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
-    except ImportError:
+    def _detect_ram_gb() -> float:
+        total_ram_gb = 8.0
+        try:
+            import psutil
+            return round(psutil.virtual_memory().total / (1024**3), 1)
+        except ImportError:
+            pass
         try:
             import subprocess
             result = subprocess.run(
                 ["wmic", "MemoryChip", "get", "Capacity"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True, text=True, timeout=5,
             )
             lines = result.stdout.strip().split("\n")[1:]
             total_bytes = sum(int(line.strip()) for line in lines if line.strip().isdigit())
             if total_bytes > 0:
-                total_ram_gb = round(total_bytes / (1024**3), 1)
+                return round(total_bytes / (1024**3), 1)
         except Exception:
             pass
+        return total_ram_gb
 
+    total_ram_gb = await asyncio.to_thread(_detect_ram_gb)
     cpu_cores = os.cpu_count() or 4
 
     if total_ram_gb < 8:

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { api, BASE_URL } from "../../lib/api";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
@@ -158,6 +158,7 @@ export const SettingsView: React.FC = () => {
     loadUsage();
     loadCacheStats();
     loadModelStatus();
+    checkHealth();
     
     const interval = setInterval(loadModelStatus, 5000); // refresh every 5s
     return () => clearInterval(interval);
@@ -186,8 +187,8 @@ export const SettingsView: React.FC = () => {
       setLocalModel((s as any).local_model || "Qwen3-4B-Q4_K_M.gguf");
       setEmbeddingModel(s.embedding_model);
       setEmbeddingMode(s.embedding_mode || "local");
-      setEmbeddingQueryInstruction((s as any).embedding_query_instruction || "");
-      setEmbeddingPassageInstruction((s as any).embedding_passage_instruction || "");
+      setEmbeddingQueryInstruction((s as any).embedding_query_instruction || (s as any).query_instruction || "");
+      setEmbeddingPassageInstruction((s as any).embedding_passage_instruction || (s as any).passage_instruction || "");
       setEnableReranker(!!s.enable_reranker);
       setMmrLambda((s as any).mmr_lambda != null ? String((s as any).mmr_lambda) : "");
       setEmbeddingPooling((s as any).embedding_pooling || "cls");
@@ -559,7 +560,7 @@ export const SettingsView: React.FC = () => {
               {healthStatus}
             </span>
             <span className="settings-health-hint">
-              FastAPI backend: http://127.0.0.1:8765
+              FastAPI backend: {BASE_URL}
             </span>
           </div>
           <button className="settings-health-btn" onClick={checkHealth} disabled={checking}>
@@ -860,7 +861,7 @@ export const SettingsView: React.FC = () => {
                   <label className="settings-label">Groq Model</label>
                   <select className="settings-select" value={groqModel} onChange={(e) => setGroqModel(e.target.value)}>
                     <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (cực nhanh, nhẹ)</option>
-                    <option value="llama-3.3-70b-versatile">llama-3.3-70b-specdec (mạnh mẽ, thông minh)</option>
+                    <option value="llama-3.3-70b-specdec">llama-3.3-70b-specdec (mạnh mẽ, thông minh)</option>
                     <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 (context lớn)</option>
                   </select>
                 </div>

@@ -334,7 +334,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content=json.dumps({
             "detail": "Internal Server Error",
-            "message": str(exc),
             "type": exc.__class__.__name__,
         }),
         media_type="application/json",

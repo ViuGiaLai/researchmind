@@ -23,6 +23,7 @@ from academic.crossref import CrossrefWork, get_work_by_doi as crossref_get_work
 from academic.semantic_scholar import S2Paper, get_paper_by_doi as s2_get_by_doi, get_citations as s2_get_citations, get_recommendations as s2_get_recommendations
 from academic.doi_extractor import extract_doi_from_paper, extract_multiple_dois
 from academic.paper_check import check_papers_ready
+from common.rag_ready import rag_unavailable_message
 from academic.context_builder import ExternalPaperData
 from academic.cache import cache_get, cache_set, TTL_OPENALEX, TTL_CROSSREF
 
@@ -60,7 +61,7 @@ async def verify_research(request: VerifyRequest = Body(...)):
     t0 = time_mod.time()
 
     if not request.message:
-        raise HTTPException(400, "message khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng")
+        raise HTTPException(400, "message không được để trống")
 
     query = request.message
     paper_ids = request.paper_ids
@@ -68,6 +69,10 @@ async def verify_research(request: VerifyRequest = Body(...)):
         paper_ids = _resolve_collection_paper_ids(request.collection_id)
     session_id = request.session_id or "verify"
     do_stream = request.stream
+
+    rag_error = rag_unavailable_message()
+    if rag_error:
+        return {"answer": rag_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0, "external_sources": [], "verify_status": "local_only"}
 
     paper_error = check_papers_ready(paper_ids)
     if paper_error:

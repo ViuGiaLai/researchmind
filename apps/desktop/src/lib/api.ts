@@ -7,6 +7,28 @@
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
 
+function parseApiError(status: number, text: string): string {
+  try {
+    const data = JSON.parse(text) as { detail?: unknown; message?: string; error?: string };
+    if (data.detail) {
+      if (typeof data.detail === "string") return data.detail;
+      if (Array.isArray(data.detail)) {
+        return data.detail
+          .map((d: { msg?: string }) => d.msg || JSON.stringify(d))
+          .join("; ");
+      }
+    }
+    if (data.message) return data.message;
+    if (data.error) return data.error;
+  } catch {
+    // not JSON
+  }
+  if (status === 429) {
+    return "Đã hết lượt dùng miễn phí hôm nay. Thử lại vào ngày mai hoặc cấu hình API key riêng.";
+  }
+  return text || `HTTP ${status}`;
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -24,9 +46,16 @@ async function request<T>(
     const res = await fetch(url, options);
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(err || `HTTP ${res.status}`);
+      throw new Error(parseApiError(res.status, err));
     }
-    return res.json();
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    const text = await res.text();
+    if (!text) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
   } catch (e) {
     if (e instanceof TypeError) {
       throw new Error("Không thể kết nối đến backend. Đảm bảo FastAPI đang chạy (cd backend && uvicorn main:app --reload --port 8765).");
@@ -233,6 +262,7 @@ export const api = {
     tag?: string;
     sort_by?: string;
     order?: string;
+    q?: string;
   }) => {
     const backendLimit = 100;
     const buildParams = (requestPage: number, requestLimit: number) => {
@@ -247,6 +277,7 @@ export const api = {
       if (extra?.tag) params.set("tag", extra.tag);
       if (extra?.sort_by) params.set("sort_by", extra.sort_by);
       if (extra?.order) params.set("order", extra.order);
+      if (extra?.q) params.set("q", extra.q);
       return params;
     };
 
@@ -543,7 +574,7 @@ export const api = {
   decomposeQuery: (query: string) =>
     request<DecomposeResponse>("POST", "/api/research/decompose", { query }),
   verify: (query: string, paperIds?: string[], collectionId?: string) =>
-    request<VerifyResponse>("POST", "/api/verify", { query, paper_ids: paperIds, collection_id: collectionId }),
+    request<VerifyResponse>("POST", "/api/verify", { message: query, paper_ids: paperIds, collection_id: collectionId }),
 
   verifyStream: (
     message: string,
@@ -762,8 +793,8 @@ export const api = {
     ),
 
   // Insights
-  findResearchGap: (paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/insights/gap", { paper_ids: paperIds }),
+  findResearchGap: (paperIds?: string[], collectionId?: string) =>
+    request<ChatResponse>("POST", "/api/insights/gap", { paper_ids: paperIds, collection_id: collectionId }),
 
   findConflicts: (paperIds?: string[]) =>
     request<ChatResponse>("POST", "/api/insights/conflict", { paper_ids: paperIds }),

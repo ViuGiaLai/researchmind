@@ -5,9 +5,49 @@ from loguru import logger
 
 from app_state import state
 from config.settings import settings
+from db.database import get_session
+from db.models import CollectionPaper
 from academic.paper_check import check_papers_ready
+from common.rag_ready import rag_unavailable_message
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
+
+
+def _empty_insight_answer(answer: str) -> dict:
+    return {
+        "answer": answer,
+        "citations": [],
+        "model_used": "",
+        "papers_used": [],
+        "chunks_used": 0,
+    }
+
+
+def _resolve_insight_paper_ids(body: dict) -> list[str] | None:
+    paper_ids = body.get("paper_ids")
+    collection_id = body.get("collection_id")
+    if collection_id and not paper_ids:
+        session = get_session(state.engine)
+        try:
+            paper_ids = [
+                row.paper_id
+                for row in session.query(CollectionPaper.paper_id)
+                .filter(CollectionPaper.collection_id == collection_id)
+                .all()
+            ]
+        finally:
+            session.close()
+    return paper_ids
+
+
+def _insight_preflight(paper_ids) -> dict | None:
+    rag_error = rag_unavailable_message()
+    if rag_error:
+        return _empty_insight_answer(rag_error)
+    paper_error = check_papers_ready(paper_ids)
+    if paper_error:
+        return _empty_insight_answer(paper_error)
+    return None
 
 
 @router.post("/gap")
@@ -16,17 +56,10 @@ async def find_research_gap(body: dict = Body(...)):
     Find research gaps across indexed papers.
     Uses RAG to retrieve relevant chunks, then LLM analyzes what's missing.
     """
-    paper_ids = body.get("paper_ids")
-
-    paper_error = check_papers_ready(paper_ids)
-    if paper_error:
-        return {
-            "answer": paper_error,
-            "citations": [],
-            "model_used": "",
-            "papers_used": [],
-            "chunks_used": 0,
-        }
+    paper_ids = _resolve_insight_paper_ids(body)
+    preflight = _insight_preflight(paper_ids)
+    if preflight:
+        return preflight
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -76,17 +109,10 @@ async def find_conflicts(body: dict = Body(...)):
     Find contradictions and conflicts between papers.
     Uses RAG to retrieve diverse chunks, then LLM compares claims.
     """
-    paper_ids = body.get("paper_ids")
-
-    paper_error = check_papers_ready(paper_ids)
-    if paper_error:
-        return {
-            "answer": paper_error,
-            "citations": [],
-            "model_used": "",
-            "papers_used": [],
-            "chunks_used": 0,
-        }
+    paper_ids = _resolve_insight_paper_ids(body)
+    preflight = _insight_preflight(paper_ids)
+    if preflight:
+        return preflight
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -137,17 +163,10 @@ async def suggest_topics(body: dict = Body(...)):
     Suggest research topics based on papers in the library.
     Uses RAG to retrieve diverse chunks, then LLM generates topic suggestions.
     """
-    paper_ids = body.get("paper_ids")
-
-    paper_error = check_papers_ready(paper_ids)
-    if paper_error:
-        return {
-            "answer": paper_error,
-            "citations": [],
-            "model_used": "",
-            "papers_used": [],
-            "chunks_used": 0,
-        }
+    paper_ids = _resolve_insight_paper_ids(body)
+    preflight = _insight_preflight(paper_ids)
+    if preflight:
+        return preflight
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -201,17 +220,10 @@ async def find_evolution_map(body: dict = Body(...)):
     Analyze research evolution across papers.
     Uses RAG to retrieve diverse chunks, then LLM maps the evolution of ideas.
     """
-    paper_ids = body.get("paper_ids")
-
-    paper_error = check_papers_ready(paper_ids)
-    if paper_error:
-        return {
-            "answer": paper_error,
-            "citations": [],
-            "model_used": "",
-            "papers_used": [],
-            "chunks_used": 0,
-        }
+    paper_ids = _resolve_insight_paper_ids(body)
+    preflight = _insight_preflight(paper_ids)
+    if preflight:
+        return preflight
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
@@ -262,7 +274,7 @@ async def compare_papers(body: dict = Body(...)):
     Compare multiple selected papers side-by-side.
     Uses concurrent LLM calls to extract Objective, Methodology, Dataset, Findings, and Limitations.
     """
-    paper_ids = body.get("paper_ids")
+    paper_ids = _resolve_insight_paper_ids(body)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
@@ -274,16 +286,10 @@ async def compare_papers(body: dict = Body(...)):
             "matrix": {"columns": [], "rows": []}
         }
 
-    paper_error = check_papers_ready(paper_ids)
-    if paper_error:
-        return {
-            "answer": paper_error,
-            "citations": [],
-            "model_used": "",
-            "papers_used": [],
-            "chunks_used": 0,
-            "matrix": {"columns": [], "rows": []}
-        }
+    preflight = _insight_preflight(paper_ids)
+    if preflight:
+        preflight["matrix"] = {"columns": [], "rows": []}
+        return preflight
 
     # Fetch paper titles from DB
     from db.database import get_session

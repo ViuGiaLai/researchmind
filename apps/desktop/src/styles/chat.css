@@ -284,7 +284,11 @@
   border-radius: var(--radius-md);
   padding: 4px;
   width: fit-content;
+  max-width: 100%;
   gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-view-scope-tab {
@@ -301,6 +305,8 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
 }
 
 .chat-view-scope-tab:hover {
@@ -343,6 +349,8 @@
   max-width: 280px;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-sm);
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .selected-paper-badge:hover {

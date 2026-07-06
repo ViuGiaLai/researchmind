@@ -7,11 +7,21 @@ from loguru import logger
 
 from app_state import state
 from config.settings import settings
-from db.database import get_session
 from db.models import Setting
-from chat.generator import Generator
+from db.database import get_session
+from chat.generator_factory import build_generator
 
 router = APIRouter(prefix="/api", tags=["Settings"])
+
+ENV_ONLY_KEYS = {
+    "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
+    "groq_api_key", "github_api_key", "freemodel_api_key",
+    "openrouter_api_key", "openrouter_api_deep_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key",
+    "nvidia_api_key", "nvidia_deepseek_api_key", "github_deepseek_v3_api_key",
+    "local_model", "claude_model", "deepseek_model", "gemini_model",
+    "groq_model", "github_model", "freemodel_model",
+    "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
+}
 
 
 # ─── Settings ────────────────────────────────────────────────────
@@ -58,8 +68,10 @@ async def get_settings():
         "similarity_cutoff": settings.similarity_cutoff,
         "response_mode": settings.response_mode,
         "normalize_embeddings": settings.normalize_embeddings,
-        "query_instruction": settings.query_instruction,
-        "passage_instruction": settings.passage_instruction,
+        "query_instruction": settings.query_instruction or settings.embedding_query_instruction,
+        "passage_instruction": settings.passage_instruction or getattr(settings, "embedding_passage_instruction", ""),
+        "embedding_query_instruction": settings.embedding_query_instruction or settings.query_instruction,
+        "embedding_passage_instruction": getattr(settings, "embedding_passage_instruction", "") or settings.passage_instruction,
         "large_context_threshold": settings.large_context_threshold,
         "large_context_model": settings.large_context_model,
         "large_context_provider": settings.large_context_provider,
@@ -69,6 +81,7 @@ async def get_settings():
         "enable_reranker": settings.enable_reranker,
         "task_provider_map": settings.task_provider_map,
         "task_fallback_map": settings.task_fallback_map,
+        "task_ultimate_fallback_chain": settings.task_ultimate_fallback_chain,
     }
 
 
@@ -79,15 +92,25 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "github_deepseek_v3_api_key", "freemodel_api_key", "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key"):
+                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "github_deepseek_v3_api_key", "freemodel_api_key", "openrouter_api_key", "openrouter_api_deep_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key", "nvidia_deepseek_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
-                if key in ("task_provider_map", "task_fallback_map"):
+                if key in ("task_provider_map", "task_fallback_map", "task_ultimate_fallback_chain"):
                     if isinstance(value, str):
-                        pass  # already JSON string
+                        pass
                     elif isinstance(value, dict):
                         value = json.dumps(value, ensure_ascii=False)
                 setattr(settings, key, value)
+                if key == "embedding_query_instruction":
+                    settings.query_instruction = value
+                elif key == "embedding_passage_instruction":
+                    settings.passage_instruction = value
+                elif key == "query_instruction":
+                    settings.embedding_query_instruction = value
+                elif key == "passage_instruction":
+                    settings.embedding_passage_instruction = value
+                if key in ENV_ONLY_KEYS:
+                    continue
                 db_value = "None" if value is None else str(value)
                 setting = session.query(Setting).filter(Setting.key == key).first()
                 if setting:
@@ -104,49 +127,7 @@ async def update_settings(new_settings: dict = Body(...)):
                 else:
                     logger.info("Embedding mode set to: {}", settings.embedding_mode)
 
-        state.generator = Generator(
-            llama_server_url=settings.llama_server_url,
-            local_model=settings.local_model,
-            claude_api_key=settings.claude_api_key,
-            claude_model=settings.claude_model,
-            deepseek_api_key=settings.deepseek_api_key,
-            deepseek_model=settings.deepseek_model,
-            gemini_api_key=settings.gemini_api_key,
-            gemini_model=settings.gemini_model,
-            groq_api_key=settings.groq_api_key,
-            groq_model=settings.groq_model,
-            nvidia_api_key=settings.nvidia_api_key,
-            nvidia_model=settings.nvidia_model,
-            nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
-            nvidia_deepseek_api_key=getattr(settings, "nvidia_deepseek_api_key", ""),
-            nvidia_deepseek_model=getattr(settings, "nvidia_deepseek_model", "deepseek-ai/deepseek-v4-pro"),
-            github_api_key=settings.github_api_key,
-            github_model=settings.github_model,
-            github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
-            github_deepseek_v3_api_key=settings.github_deepseek_v3_api_key,
-            github_deepseek_v3_model=settings.github_deepseek_v3_model,
-            openrouter_api_key=settings.openrouter_api_key,
-            openrouter_model=settings.openrouter_model,
-            openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),
-            openrouter_api_deep_key=settings.openrouter_api_deep_key,
-            openrouter_deep_model=settings.openrouter_deep_model,
-            openrouter_url_deep=getattr(settings, "openrouter_url_deep", "https://openrouter.ai/api/v1"),
-            cohere_api_key=settings.cohere_api_key,
-            cohere_model=settings.cohere_model,
-            cohere_url=getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1"),
-            cloudflare_api_key=settings.cloudflare_api_key,
-            cloudflare_model=settings.cloudflare_model,
-            cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
-            cerebras_api_key=settings.cerebras_api_key,
-            cerebras_model=settings.cerebras_model,
-            cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.net/v1"),
-            freemodel_api_key=settings.freemodel_api_key,
-            freemodel_model=settings.freemodel_model,
-            freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
-            mode=settings.llm_mode,
-            custom_cloud_provider=settings.custom_cloud_provider,
-            local_max_tokens=settings.local_max_tokens,
-        )
+        state.generator = build_generator()
 
         return {"status": "updated"}
     except Exception as e:

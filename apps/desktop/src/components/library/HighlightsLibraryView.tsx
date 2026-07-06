@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { api, Paper, Highlight, ChatResponse } from "../../lib/api";
+import { api, Paper, Highlight, ChatResponse, BASE_URL } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { HighlightListSkeleton } from "../shared/Skeleton";
 import {
@@ -60,7 +60,7 @@ const getCategoryIcon = (category: string, size = 12) => {
 };
 
 function getPdfPageUrl(paperId: string, pageNumber: number | null): string {
-  const base = `http://127.0.0.1:8765/api/papers/${paperId}/file`;
+  const base = `${BASE_URL}/api/papers/${paperId}/file`;
   if (pageNumber) {
     return `${base}#page=${pageNumber}`;
   }

@@ -25,7 +25,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [panelWidth, setPanelWidth] = useState(50);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{ startX: number; startWidth: number; pointerId: number } | null>(null);
   const pdfUrlRef = useRef("");
 
   const cacheBuster = Date.now();
@@ -80,36 +81,78 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     }
   };
 
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+  const endResize = useCallback(() => {
+    setIsResizing(false);
+    resizeRef.current = null;
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+  }, []);
+
+  const handleResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    const handle = e.currentTarget;
+    handle.setPointerCapture(e.pointerId);
     setIsResizing(true);
-    resizeRef.current = { startX: e.clientX, startWidth: panelWidth };
+    resizeRef.current = { startX: e.clientX, startWidth: panelWidth, pointerId: e.pointerId };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   }, [panelWidth]);
+
+  const handleResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current || resizeRef.current.pointerId !== e.pointerId) return;
+    const dx = e.clientX - resizeRef.current.startX;
+    const containerWidth = panelRef.current?.parentElement?.clientWidth ?? window.innerWidth;
+    const pct = resizeRef.current.startWidth + (dx / containerWidth) * 100;
+    setPanelWidth(Math.max(20, Math.min(80, pct)));
+  }, []);
+
+  const handleResizeEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current || resizeRef.current.pointerId !== e.pointerId) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // already released
+    }
+    endResize();
+  }, [endResize]);
 
   useEffect(() => {
     if (!isResizing) return;
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!resizeRef.current) return;
-      const dx = e.clientX - resizeRef.current.startX;
-      const containerWidth = window.innerWidth;
-      const pct = resizeRef.current.startWidth + (dx / containerWidth) * 100;
-      setPanelWidth(Math.max(20, Math.min(80, pct)));
+
+    const onWindowBlur = () => endResize();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") endResize();
     };
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      resizeRef.current = null;
-    };
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+
+    window.addEventListener("blur", onWindowBlur);
+    window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("blur", onWindowBlur);
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
-  }, [isResizing]);
+  }, [isResizing, endResize]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, []);
 
   return (
+    <>
+    {isResizing && (
+      <div
+        className="pdf-resize-overlay"
+        aria-hidden="true"
+      />
+    )}
     <div
-      className="pdf-viewer-panel"
+      ref={panelRef}
+      className={`pdf-viewer-panel${isResizing ? " pdf-viewer-panel--resizing" : ""}`}
       style={{
         width: `${panelWidth}%`,
         height: "100%",
@@ -286,25 +329,35 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             width: "100%",
             height: "100%",
             border: "none",
+            pointerEvents: isResizing ? "none" : "auto",
           }}
           title={`PDF - ${paperTitle}`}
         />
       </div>
 
-      {/* Resize Handle */}
+      {/* Resize Handle — pointer capture avoids iframe swallowing mouseup */}
       <div
         className="pdf-resize-handle"
-        onMouseDown={handleResizeStart}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Đổi kích thước panel PDF"
+        onPointerDown={handleResizeStart}
+        onPointerMove={handleResizeMove}
+        onPointerUp={handleResizeEnd}
+        onPointerCancel={handleResizeEnd}
+        onLostPointerCapture={handleResizeEnd}
         style={{
           position: "absolute",
           right: 0,
           top: 0,
           bottom: 0,
-          width: "4px",
+          width: "10px",
+          marginRight: "-3px",
           cursor: "col-resize",
           background: isResizing ? "var(--color-primary)" : "transparent",
-          transition: "background 0.15s",
-          zIndex: 10,
+          transition: isResizing ? "none" : "background 0.15s",
+          zIndex: 20,
+          touchAction: "none",
         }}
         onMouseEnter={(e) => {
           if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "rgba(var(--color-primary-rgb), 0.3)";
@@ -314,5 +367,6 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         }}
       />
     </div>
+    </>
   );
 };

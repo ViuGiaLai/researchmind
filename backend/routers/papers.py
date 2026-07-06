@@ -11,6 +11,8 @@ from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from sqlalchemy import or_
+
 from app_state import state
 from config.settings import settings
 from db.database import get_session
@@ -331,8 +333,9 @@ async def import_document(
         )
 
     file_id = str(uuid.uuid4())
-    save_path = settings.papers_dir / f"{file_id}_{file.filename}"
-    job_id = _create_import_job(file.filename or "untitled")
+    safe_name = Path(file.filename or "untitled").name
+    save_path = settings.papers_dir / f"{file_id}_{safe_name}"
+    job_id = _create_import_job(safe_name)
     _update_import_job(job_id, status="saved", stage="saved", progress=10, paper_id=file_id, file_path=str(save_path))
 
     with open(save_path, "wb") as f:
@@ -976,6 +979,7 @@ async def list_papers(
     year_from: int = Query(None),
     year_to: int = Query(None),
     tag: str = Query(None),
+    q: str = Query(None),
     sort_by: str = Query("created_at"),
     order: str = Query("desc"),
 ):
@@ -1007,6 +1011,15 @@ async def list_papers(
             query = query.filter(Paper.year <= year_to)
         if tag:
             query = query.filter(Paper.tags.ilike(f"%{tag}%"))
+        if q:
+            like = f"%{q}%"
+            query = query.filter(
+                or_(
+                    Paper.title.ilike(like),
+                    Paper.filename.ilike(like),
+                    Paper.authors.ilike(like),
+                )
+            )
 
         allowed_sort = {
             "created_at": Paper.created_at,

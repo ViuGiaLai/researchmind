@@ -40,3 +40,19 @@
 .pdf-resize-handle:hover {
   background: rgba(var(--color-primary-rgb), 0.3) !important;
 }
+
+.pdf-resize-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.pdf-viewer-panel--resizing {
+  user-select: none;
+}
+
+.pdf-viewer-panel--resizing iframe {
+  pointer-events: none;
+}

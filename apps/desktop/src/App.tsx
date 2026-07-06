@@ -13,7 +13,7 @@ import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { ToastProvider } from "./components/shared/Toast";
 import { SubTabBar } from "./components/shared/SubTabBar";
-import { api } from "./lib/api";
+import { api, BASE_URL } from "./lib/api";
 
 type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
 
@@ -49,6 +49,7 @@ function App() {
   const [backendUnavailable, setBackendUnavailable] = useState(false);
   const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
   const retryCountRef = React.useRef(0);
+  const mountedRef = React.useRef(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       const saved = localStorage.getItem("researchmind:sidebar-collapsed");
@@ -67,7 +68,11 @@ function App() {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     checkFirstRun();
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -109,14 +114,17 @@ function App() {
   const checkFirstRun = async () => {
     try {
       const h = await api.health();
+      if (!mountedRef.current) return;
       setBackendUnavailable(false);
       setInitMessage(h.init_message || "Đang khởi động...");
       const s = await api.getSettings();
+      if (!mountedRef.current) return;
       if (!s.setup_completed) {
         setShowSetup(true);
       }
       setCheckingSetup(false);
     } catch {
+      if (!mountedRef.current) return;
       retryCountRef.current += 1;
 
       // Surface Tauri spawn errors immediately (bundled backend missing / permission denied)
@@ -128,6 +136,7 @@ function App() {
           error?: string | null;
         }>("get_backend_spawn_status");
         if (spawn.error) {
+          if (!mountedRef.current) return;
           setCheckingSetup(false);
           setBackendUnavailable(true);
           setInitMessage(spawn.error);
@@ -141,8 +150,11 @@ function App() {
       setInitMessage(`Đang khởi động backend... (${waitSeconds}s)`);
 
       if (retryCountRef.current < 120) {
-        setTimeout(checkFirstRun, 2000);
+        setTimeout(() => {
+          if (mountedRef.current) checkFirstRun();
+        }, 2000);
       } else {
+        if (!mountedRef.current) return;
         setCheckingSetup(false);
         setBackendUnavailable(true);
         setInitMessage(
@@ -212,7 +224,7 @@ function App() {
         <div className="app-loading">
           <div className="app-loading-content">
             <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
-            <p>Không thể kết nối đến backend tại http://127.0.0.1:8765.</p>
+            <p>Không thể kết nối đến backend tại {BASE_URL}.</p>
             <p style={{ opacity: 0.72, fontSize: 14 }}>
               Nếu đang chạy bản web/dev, hãy khởi động FastAPI hoặc chạy ứng dụng qua Tauri.
             </p>

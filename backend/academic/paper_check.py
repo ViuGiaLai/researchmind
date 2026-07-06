@@ -20,6 +20,12 @@ def check_papers_ready(paper_ids: Optional[list[str]]) -> Optional[str]:
     session = get_session(state.engine)
     try:
         papers = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
+        found_ids = {p.id for p in papers}
+        missing = [pid for pid in paper_ids if pid not in found_ids]
+        if missing:
+            label = ", ".join(missing[:3])
+            suffix = f" (+{len(missing) - 3} nữa)" if len(missing) > 3 else ""
+            return f"⚠️ Không tìm thấy paper: {label}{suffix}. Vui lòng chọn lại từ thư viện."
         for p in papers:
             if p.status in ("indexing", "summarizing"):
                 logger.warning(f"Paper {p.id} ({p.filename}) still indexing")

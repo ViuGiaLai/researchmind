@@ -1,3 +1,4 @@
+import asyncio
 import json as _json
 import re
 from collections import Counter
@@ -10,6 +11,7 @@ from app_state import state
 from config.settings import settings
 from db.database import get_session
 from db.models import ChatHistory, Paper
+from common.rag_ready import rag_unavailable_message
 
 router = APIRouter(prefix="/api/personal", tags=["Personal"])
 
@@ -276,19 +278,27 @@ Với mỗi paper: giải thích tại sao phù hợp, giúp ích gì, nên đ�
 Nếu không có paper phù hợp: gợi ý import thêm chủ đề gì.
 Dùng markdown headings. Trả lời tiếng Việt."""
 
-                try:
-                    generation = state.generator.generate(
-                        query=daily_prompt,
-                        context_text=papers_context,
-                        task_type="chat",
-                    )
-                    if generation and generation.content and generation.finish_reason != "error":
-                        daily_suggestion = {
-                            "suggestion": generation.content,
-                            "model_used": generation.model_used,
-                        }
-                except Exception as e:
-                    logger.warning(f"Daily reader AI suggestion failed, using fallback: {e}")
+                rag_error = rag_unavailable_message()
+                if rag_error:
+                    daily_suggestion = {
+                        "suggestion": f"## Gợi ý đọc hôm nay\n\n{rag_error}",
+                        "model_used": "unavailable",
+                    }
+                else:
+                    try:
+                        generation = await asyncio.to_thread(
+                            state.generator.generate,
+                            query=daily_prompt,
+                            context_text=papers_context,
+                            task_type="chat",
+                        )
+                        if generation and generation.content and generation.finish_reason != "error":
+                            daily_suggestion = {
+                                "suggestion": generation.content,
+                                "model_used": generation.model_used,
+                            }
+                    except Exception as e:
+                        logger.warning(f"Daily reader AI suggestion failed, using fallback: {e}")
 
                 if daily_suggestion is None:
                     fallback_titles = [

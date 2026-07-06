@@ -297,48 +297,51 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
         yield f"data: {json.dumps({'chunk': chunk})}\n\n"
         await asyncio.sleep(0.001)  # Yield execution control back to the event loop so Starlette can check socket disconnect state
 
-    model_used = state.generator.current_model
-    router_reason = state.generator.current_router_reason
-    token_count = state.generator.current_token_count
-    db = get_session(state.engine)
-    try:
-        db.add(ChatHistory(
-            session_id=session_id,
-            role="user",
-            content=query,
-            context_papers=json.dumps(paper_ids or []),
-            citations="[]",
-            model_used="",
-        ))
+    model_used = getattr(state.generator, "current_model", "") if state.generator else ""
+    router_reason = getattr(state.generator, "current_router_reason", "") if state.generator else ""
+    token_count = getattr(state.generator, "current_token_count", 0) if state.generator else 0
+    processed_citations: list = []
+    modified_content = full_response
 
-        citations = []
-        pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
-        for match in re.finditer(pattern, full_response):
-            citations.append({
-                "source": match.group(1).strip(),
-                "page": int(match.group(2)) if match.group(2) else None,
-                "text": match.group(0),
-            })
+    if full_response:
+        db = get_session(state.engine)
+        try:
+            db.add(ChatHistory(
+                session_id=session_id,
+                role="user",
+                content=query,
+                context_papers=json.dumps(paper_ids or []),
+                citations="[]",
+                model_used="",
+            ))
 
-        # Process citations: number them, replace inline text, resolve paper_ids
-        modified_content, processed_citations = _process_citations(
-            full_response, citations, paper_title_map, chunk_map
-        )
+            citations = []
+            pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
+            for match in re.finditer(pattern, full_response):
+                citations.append({
+                    "source": match.group(1).strip(),
+                    "page": int(match.group(2)) if match.group(2) else None,
+                    "text": match.group(0),
+                })
 
-        db.add(ChatHistory(
-            session_id=session_id,
-            role="assistant",
-            content=full_response,
-            context_papers="[]",
-            citations=json.dumps(processed_citations),
-            model_used=model_used,
-        ))
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to save streamed chat history: {e}")
-    finally:
-        db.close()
+            modified_content, processed_citations = _process_citations(
+                full_response, citations, paper_title_map, chunk_map
+            )
+
+            db.add(ChatHistory(
+                session_id=session_id,
+                role="assistant",
+                content=full_response,
+                context_papers="[]",
+                citations=json.dumps(processed_citations),
+                model_used=model_used,
+            ))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to save streamed chat history: {e}")
+        finally:
+            db.close()
 
     yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content})}\n\n"
     if cache_key:
@@ -711,7 +714,7 @@ Lưu ý: chỉ dùng thông tin từ các đoạn đã cung cấp, nêu rõ trí
     if paper_error:
         return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
-    search_query = query[:200] if not request.get("query") else request.get("query", "")[:200]
+    search_query = query[:200]
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
         query=search_query or "literature review",
