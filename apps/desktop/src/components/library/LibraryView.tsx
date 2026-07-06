@@ -38,7 +38,7 @@ const renderStatusIcon = (status: string, size = 16) => {
   if (status === "reading") {
     return <IconBookOpen size={size} style={{ color: "var(--color-warning, #eab308)" }} />;
   }
-  return <IconFileText size={size} style={{ color: "var(--color-text-muted, #94a3b8)" }} />;
+  return <IconFileText size={size} style={{ color: "var(--color-text-muted)" }} />;
 };
 
 
@@ -1004,7 +1004,7 @@ export const LibraryView: React.FC<{
                   <div className="preview-summary-section">
                     <div className="preview-summary-header">
                       <span className="preview-summary-icon">
-                        <IconSparkle size={15} style={{ color: "var(--color-primary, #6366f1)" }} />
+                        <IconSparkle size={15} style={{ color: "var(--color-primary)" }} />
                       </span>
                       <span className="preview-summary-label">Tóm tắt tự động bởi ResearchMind</span>
                     </div>
@@ -1033,7 +1033,7 @@ export const LibraryView: React.FC<{
                 <div className="preview-user-notes-section">
                   <div className="preview-user-notes-header">
                     <span className="preview-user-notes-icon">
-                      <IconEdit size={15} style={{ color: "var(--color-primary, #6366f1)" }} />
+                      <IconEdit size={15} style={{ color: "var(--color-primary)" }} />
                     </span>
                     <span className="preview-user-notes-label">Ghi chú cá nhân</span>
                   </div>
@@ -1262,7 +1262,7 @@ export const LibraryView: React.FC<{
                           "{h.text}"
                         </blockquote>
                         <div className="highlight-note" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          <IconChat size={12} style={{ color: "var(--color-text-muted, #94a3b8)", flexShrink: 0 }} />
+                          <IconChat size={12} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
                           <span>{h.note}</span>
                         </div>
                       </div>

@@ -1,0 +1,4 @@
+# PyInstaller backend binary and .env are copied here during CI release builds.
+# Required files before `tauri build`:
+#   - backend (Linux/macOS) or backend.exe (Windows)
+#   - .env

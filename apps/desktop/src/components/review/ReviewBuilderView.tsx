@@ -520,7 +520,7 @@ export function ReviewBuilderView() {
                 Lỗi lưu
               </div>
             ) : saving ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "var(--color-text-muted, #94a3b8)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
                 <IconSpinner size={11} />
                 Đang lưu...
               </div>
@@ -535,9 +535,9 @@ export function ReviewBuilderView() {
               disabled={saving}
               style={{
                 padding: "4px 10px", borderRadius: 4,
-                border: "1px solid var(--color-primary, #6366f1)",
-                background: "rgba(99, 102, 241, 0.08)",
-                color: "var(--color-primary, #6366f1)",
+                border: "1px solid var(--color-primary)",
+                background: "rgba(var(--color-primary-rgb), 0.08)",
+                color: "var(--color-primary)",
                 cursor: "pointer", fontSize: "0.75rem", fontWeight: 500,
                 display: "flex", alignItems: "center", gap: 4,
               }}
@@ -555,8 +555,8 @@ export function ReviewBuilderView() {
                   style={{
                     padding: "4px 8px", borderRadius: 4,
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: showVersions ? "rgba(99, 102, 241, 0.08)" : "transparent",
-                    color: "var(--color-text-muted, #94a3b8)",
+                    background: showVersions ? "rgba(var(--color-primary-rgb), 0.08)" : "transparent",
+                    color: "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "0.72rem",
                     display: "flex", alignItems: "center", gap: 4,
                   }}
@@ -573,7 +573,7 @@ export function ReviewBuilderView() {
                     borderRadius: 8, boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
                     zIndex: 100, padding: 8,
                   }}>
-                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted, #94a3b8)", padding: "4px 8px 8px", borderBottom: "1px solid var(--color-border, rgba(148,163,184,0.08))", marginBottom: 4 }}>
+                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", padding: "4px 8px 8px", borderBottom: "1px solid var(--color-border, rgba(148,163,184,0.08))", marginBottom: 4 }}>
                       Version History ({versions.length})
                     </div>
                     {versionsLoading ? (
@@ -581,7 +581,7 @@ export function ReviewBuilderView() {
                         <IconSpinner size={14} />
                       </div>
                     ) : versions.length === 0 ? (
-                      <div style={{ padding: "12px 8px", textAlign: "center", fontSize: "0.72rem", color: "var(--color-text-muted, #94a3b8)" }}>
+                      <div style={{ padding: "12px 8px", textAlign: "center", fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
                         Chưa có phiên bản cũ
                       </div>
                     ) : (
@@ -599,7 +599,7 @@ export function ReviewBuilderView() {
                             <div style={{ color: "var(--color-text, #e2e8f0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                               {v.title}
                             </div>
-                            <div style={{ color: "var(--color-text-muted, #94a3b8)", fontSize: "0.65rem", marginTop: 1 }}>
+                            <div style={{ color: "var(--color-text-muted)", fontSize: "0.65rem", marginTop: 1 }}>
                               {v.saved_at ? new Date(v.saved_at).toLocaleString("vi-VN") : ""} · {v.section_count} sections
                             </div>
                           </div>
@@ -607,9 +607,9 @@ export function ReviewBuilderView() {
                             onClick={() => handleRestoreVersion(v.index)}
                             style={{
                               padding: "3px 8px", borderRadius: 3,
-                              border: "1px solid var(--color-primary, #6366f1)",
-                              background: "rgba(99, 102, 241, 0.08)",
-                              color: "var(--color-primary, #6366f1)",
+                              border: "1px solid var(--color-primary)",
+                              background: "rgba(var(--color-primary-rgb), 0.08)",
+                              color: "var(--color-primary)",
                               cursor: "pointer", fontSize: "0.65rem", fontWeight: 500,
                               flexShrink: 0,
                             }}
@@ -626,7 +626,7 @@ export function ReviewBuilderView() {
 
         {step !== "select" && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted, #94a3b8)" }}>
+            <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
               {selectedCount} papers
             </span>
             <button
@@ -635,7 +635,7 @@ export function ReviewBuilderView() {
                 padding: "4px 10px", borderRadius: 6,
                 border: "1px solid rgba(148, 163, 184, 0.2)",
                 background: "transparent",
-                color: "var(--color-text-muted, #94a3b8)",
+                color: "var(--color-text-muted)",
                 cursor: "pointer", fontSize: "0.72rem",
                 display: "flex", alignItems: "center", gap: 4,
               }}
@@ -668,14 +668,14 @@ export function ReviewBuilderView() {
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  background: isDone ? "var(--color-success, #22c55e)" : isActive ? "var(--color-primary, #6366f1)" : "var(--color-border, rgba(148,163,184,0.2))",
+                  background: isDone ? "var(--color-success, #22c55e)" : isActive ? "var(--color-primary)" : "var(--color-border, rgba(148,163,184,0.2))",
                   color: "#fff", fontSize: "0.65rem", fontWeight: 700,
                 }}>
                   {isDone ? <IconCheck size={12} /> : i + 1}
                 </div>
                 <span style={{
                   fontSize: "0.75rem", fontWeight: isActive ? 600 : 400,
-                  color: isActive ? "var(--color-text, #e2e8f0)" : "var(--color-text-muted, #94a3b8)",
+                  color: isActive ? "var(--color-text, #e2e8f0)" : "var(--color-text-muted)",
                 }}>
                   {s.label}
                 </span>
@@ -694,7 +694,7 @@ export function ReviewBuilderView() {
             <>
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <label style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)", marginBottom: 4 }}>
+                  <label style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 4 }}>
                     Tiêu đề Literature Review
                   </label>
                   <input
@@ -714,13 +714,13 @@ export function ReviewBuilderView() {
                   <button onClick={selectAllFiltered} style={{
                     padding: "6px 12px", borderRadius: 6,
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: "transparent", color: "var(--color-text-muted, #94a3b8)",
+                    background: "transparent", color: "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "0.78rem",
                   }}>Chọn tất cả</button>
                   <button onClick={deselectAll} style={{
                     padding: "6px 12px", borderRadius: 6,
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: "transparent", color: "var(--color-text-muted, #94a3b8)",
+                    background: "transparent", color: "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "0.78rem",
                   }}>Bỏ chọn</button>
                 </div>
@@ -738,28 +738,28 @@ export function ReviewBuilderView() {
                       onClick={() => togglePaper(p.id)}
                       style={{
                         padding: "8px 14px", borderRadius: 8,
-                        border: `1px solid ${selected ? "var(--color-primary, #6366f1)" : "var(--color-border, rgba(148, 163, 184, 0.15))"}`,
-                        background: selected ? "rgba(99, 102, 241, 0.08)" : "var(--color-surface, rgba(255, 255, 255, 0.02))",
+                        border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-border, rgba(148, 163, 184, 0.15))"}`,
+                        background: selected ? "rgba(var(--color-primary-rgb), 0.08)" : "var(--color-surface, rgba(255, 255, 255, 0.02))",
                         cursor: "pointer", fontSize: "0.82rem",
-                        color: selected ? "var(--color-primary, #6366f1)" : "var(--color-text, #e2e8f0)",
+                        color: selected ? "var(--color-primary)" : "var(--color-text, #e2e8f0)",
                         transition: "all 0.15s", userSelect: "none",
                         display: "flex", alignItems: "center", gap: 6,
                       }}
                     >
-                      {selected ? <IconCheck size={14} style={{ color: "var(--color-primary, #6366f1)" }} /> : <IconFileText size={14} />}
+                      {selected ? <IconCheck size={14} style={{ color: "var(--color-primary)" }} /> : <IconFileText size={14} />}
                       {p.title}
                     </div>
                   );
                 })}
                 {papers.length === 0 && (
-                  <div style={{ color: "var(--color-text-muted, #94a3b8)", fontSize: "0.85rem", padding: 20 }}>
+                  <div style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", padding: 20 }}>
                     Chưa có tài liệu nào trong thư viện.
                   </div>
                 )}
               </div>
 
               {selectedCount > 0 && (
-                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)", marginBottom: 12 }}>
+                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 12 }}>
                   Đã chọn <strong>{selectedCount}</strong> tài liệu
                 </div>
               )}
@@ -770,7 +770,7 @@ export function ReviewBuilderView() {
                   disabled={selectedCount === 0}
                   style={{
                     padding: "10px 24px", borderRadius: 8, border: "none",
-                    background: "var(--color-primary, #6366f1)", color: "#fff",
+                    background: "var(--color-primary)", color: "#fff",
                     cursor: "pointer", fontSize: "0.85rem", fontWeight: 600,
                     opacity: selectedCount === 0 ? 0.5 : 1,
                     display: "flex", alignItems: "center", gap: 6,
@@ -783,8 +783,8 @@ export function ReviewBuilderView() {
                   disabled={selectedCount < 2 || matrixLoading}
                   style={{
                     padding: "10px 20px", borderRadius: 8,
-                    border: "1px solid var(--color-primary, #6366f1)",
-                    background: "transparent", color: "var(--color-primary, #6366f1)",
+                    border: "1px solid var(--color-primary)",
+                    background: "transparent", color: "var(--color-primary)",
                     cursor: "pointer", fontSize: "0.85rem", fontWeight: 500,
                     opacity: selectedCount < 2 || matrixLoading ? 0.5 : 1,
                     display: "flex", alignItems: "center", gap: 6,
@@ -814,12 +814,12 @@ export function ReviewBuilderView() {
                         border: "1px solid var(--color-border, rgba(148, 163, 184, 0.12))",
                         background: "var(--color-surface, rgba(255,255,255,0.02))",
                       }}>
-                        <IconFileText size={16} style={{ color: "var(--color-primary, #6366f1)", flexShrink: 0 }} />
+                        <IconFileText size={16} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-text, #e2e8f0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {d.title}
                           </div>
-                          <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted, #94a3b8)", display: "flex", gap: 8, marginTop: 2 }}>
+                          <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", display: "flex", gap: 8, marginTop: 2 }}>
                             <span>{d.paper_count} papers</span>
                             <span>{d.section_count} sections</span>
                             <span>{d.updated_at ? new Date(d.updated_at).toLocaleDateString("vi-VN") : ""}</span>
@@ -829,9 +829,9 @@ export function ReviewBuilderView() {
                           onClick={() => handleLoadDraft(d.id)}
                           style={{
                             padding: "4px 10px", borderRadius: 4,
-                            border: "1px solid var(--color-primary, #6366f1)",
-                            background: "rgba(99, 102, 241, 0.08)",
-                            color: "var(--color-primary, #6366f1)",
+                            border: "1px solid var(--color-primary)",
+                            background: "rgba(var(--color-primary-rgb), 0.08)",
+                            color: "var(--color-primary)",
                             cursor: "pointer", fontSize: "0.72rem", fontWeight: 500,
                           }}
                         >
@@ -866,7 +866,7 @@ export function ReviewBuilderView() {
                   <IconBookOpen size={18} className="icon-gradient" />
                   Literature Review Outline
                 </h2>
-                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)", marginTop: 4 }}>
+                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4 }}>
                   {paperTitles.length} papers selected — outline generated by AI
                 </div>
               </div>
@@ -874,7 +874,7 @@ export function ReviewBuilderView() {
               {generatingOutline ? (
                 <div style={{
                   padding: "40px", textAlign: "center",
-                  color: "var(--color-text-muted, #94a3b8)", fontSize: "0.85rem",
+                  color: "var(--color-text-muted)", fontSize: "0.85rem",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}>
                   <IconSpinner size={18} />
@@ -904,7 +904,7 @@ export function ReviewBuilderView() {
                   disabled={generatingAll}
                   style={{
                     padding: "10px 24px", borderRadius: 8, border: "none",
-                    background: "var(--color-primary, #6366f1)", color: "#fff",
+                    background: "var(--color-primary)", color: "#fff",
                     cursor: "pointer", fontSize: "0.85rem", fontWeight: 600,
                     opacity: generatingAll ? 0.5 : 1,
                     display: "flex", alignItems: "center", gap: 6,
@@ -919,7 +919,7 @@ export function ReviewBuilderView() {
                   style={{
                     padding: "10px 20px", borderRadius: 8,
                     border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: "transparent", color: "var(--color-text-muted, #94a3b8)",
+                    background: "transparent", color: "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "0.85rem",
                     display: "flex", alignItems: "center", gap: 6,
                   }}
@@ -936,7 +936,7 @@ export function ReviewBuilderView() {
             <>
               <div style={{ marginBottom: 16 }}>
                 <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>{title}</h2>
-                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)", marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {paperTitles.map((t, i) => (
                     <span key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
                       <IconFileText size={12} />
@@ -998,9 +998,9 @@ export function ReviewBuilderView() {
                   disabled={qualityLoading}
                   style={{
                     padding: "8px 16px", borderRadius: 6,
-                    border: "1px solid var(--color-primary, #6366f1)",
-                    background: qualityLoading ? "rgba(99, 102, 241, 0.08)" : "rgba(99, 102, 241, 0.08)",
-                    color: "var(--color-primary, #6366f1)",
+                    border: "1px solid var(--color-primary)",
+                    background: qualityLoading ? "rgba(var(--color-primary-rgb), 0.08)" : "rgba(var(--color-primary-rgb), 0.08)",
+                    color: "var(--color-primary)",
                     cursor: qualityLoading ? "not-allowed" : "pointer",
                     fontSize: "0.82rem", fontWeight: 500,
                     opacity: qualityLoading ? 0.5 : 1,
@@ -1012,7 +1012,7 @@ export function ReviewBuilderView() {
                 </button>
                 {qualityIssues.length > 0 && (
                   <span style={{
-                    fontSize: "0.75rem", color: "var(--color-text-muted, #94a3b8)",
+                    fontSize: "0.75rem", color: "var(--color-text-muted)",
                     display: "flex", alignItems: "center", gap: 4,
                   }}>
                     {qualityIssues.filter((i) => i.severity === "high").length > 0 && (
@@ -1041,7 +1041,7 @@ export function ReviewBuilderView() {
               }}>
                 <span style={{
                   fontSize: "0.82rem", fontWeight: 600,
-                  color: "var(--color-text-muted, #94a3b8)",
+                  color: "var(--color-text-muted)",
                   display: "flex", alignItems: "center", gap: 6, marginRight: 8,
                 }}>
                   <IconDownload size={16} />
@@ -1054,8 +1054,8 @@ export function ReviewBuilderView() {
                     disabled={exporting}
                     style={{
                       padding: "8px 16px", borderRadius: 6,
-                      border: "1px solid var(--color-primary, #6366f1)",
-                      background: "transparent", color: "var(--color-primary, #6366f1)",
+                      border: "1px solid var(--color-primary)",
+                      background: "transparent", color: "var(--color-primary)",
                       cursor: exporting ? "not-allowed" : "pointer",
                       fontSize: "0.82rem", fontWeight: 500,
                       opacity: exporting ? 0.5 : 1,
@@ -1096,7 +1096,7 @@ export function ReviewBuilderView() {
                   borderLeft: "1px solid var(--color-border, rgba(148,163,184,0.1))",
                   background: "var(--color-surface, rgba(255,255,255,0.01))",
                   cursor: "pointer",
-                  color: "var(--color-text-muted, #94a3b8)",
+                  color: "var(--color-text-muted)",
                   fontSize: "0.7rem",
                   display: "flex",
                   alignItems: "center",

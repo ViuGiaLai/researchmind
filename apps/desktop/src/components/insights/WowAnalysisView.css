@@ -85,7 +85,7 @@
 }
 
 .wow-loading-card p {
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -124,7 +124,7 @@
   margin: 16px 0 0;
   font-size: clamp(0.9rem, 1.3vw, 1.05rem);
   line-height: 1.7;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   text-wrap: pretty;
 }
 
@@ -210,7 +210,7 @@
 }
 
 .wow-dropzone p {
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   margin-bottom: 14px;
 }
@@ -298,7 +298,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   margin-bottom: 14px;
 }
 
@@ -308,7 +308,7 @@
   background: rgba(255, 255, 255, 0.02);
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
@@ -398,7 +398,7 @@
 
 .wow-paper-meta-text {
   font-size: 0.78rem;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -473,7 +473,7 @@
 .wow-back-btn {
   background: transparent;
   border: none;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   font-size: 0.85rem;
   cursor: pointer;
   margin-bottom: 8px;
@@ -512,7 +512,7 @@
 
 .wow-report-paper-meta {
   font-size: 0.82rem;
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
@@ -634,7 +634,7 @@
   height: 24px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -821,7 +821,7 @@
 }
 
 .loading-msg {
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
   font-weight: 500;
   animation: wow-pulse-opacity 1.5s ease-in-out infinite alternate;
@@ -922,7 +922,7 @@
   border-radius: 9px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.035);
-  color: var(--color-text-secondary, #94a3b8);
+  color: var(--color-text-secondary);
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;

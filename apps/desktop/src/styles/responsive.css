@@ -1,0 +1,471 @@
+/* ═══════════════════════════════════════════════════════════
+   ResearchMind — Responsive layout system
+   Breakpoints: 1280 (lg) · 1100 (md) · 960 (sm) · 800 (xs)
+   App min-width: 800px (Tauri window)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Fluid spacing tokens ── */
+:root {
+  --page-pad-x: clamp(12px, 2.2vw, 28px);
+  --page-pad-y: clamp(12px, 1.8vw, 24px);
+  --content-readable: min(1120px, 100%);
+}
+
+/* ── App shell ── */
+@media (max-width: 1280px) {
+  .app-sidebar:not(.collapsed) {
+    width: 220px;
+  }
+
+  .sidebar-brand {
+    padding: var(--space-md) var(--space-sm);
+    min-height: 56px;
+  }
+
+  .sidebar-brand .brand-text {
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-sidebar:not(.collapsed) {
+    width: 200px;
+  }
+
+  .sidebar-menu-btn {
+    font-size: 0.84rem;
+    padding: 7px 10px;
+  }
+
+  .sidebar-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-sidebar:not(.collapsed) {
+    width: 72px;
+  }
+
+  .app-sidebar:not(.collapsed) .sidebar-label,
+  .app-sidebar:not(.collapsed) .sidebar-footer,
+  .app-sidebar:not(.collapsed) .brand-text {
+    display: none;
+  }
+
+  .app-sidebar:not(.collapsed) .sidebar-brand {
+    justify-content: center;
+    padding: var(--space-md) var(--space-xs);
+  }
+
+  .app-sidebar:not(.collapsed) .sidebar-menu-btn {
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .app-sidebar:not(.collapsed) .sidebar-collapse-btn {
+    display: none;
+  }
+}
+
+/* ── Sub-navigation tabs ── */
+.sub-tab-bar {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
+}
+
+.sub-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.sub-tab-bar__section-label {
+  flex-shrink: 0;
+}
+
+.sub-tab-bar__btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 960px) {
+  .sub-tab-bar--underline,
+  .sub-tab-bar--pills {
+    padding-left: var(--page-pad-x);
+    padding-right: var(--page-pad-x);
+  }
+
+  .sub-tab-bar--underline .sub-tab-bar__btn,
+  .sub-tab-bar--pills .sub-tab-bar__btn {
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 0.8rem;
+  }
+
+  .sub-tab-bar__section-label {
+    display: none;
+  }
+}
+
+/* ── Library split view ── */
+.library-split-view {
+  height: 100%;
+}
+
+@media (max-width: 1100px) {
+  .hub-shell__content > .library-split-view {
+    height: auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .library-split-view {
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .library-main-panel {
+    width: 100%;
+    max-height: min(42vh, 380px);
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .library-splitter {
+    display: none;
+  }
+
+  .library-preview-panel {
+    min-width: 0;
+    flex: 1;
+    min-height: 280px;
+    height: auto;
+  }
+}
+
+@media (max-width: 860px) {
+  .library-main-panel {
+    max-height: min(38vh, 320px);
+    padding: var(--space-sm);
+  }
+
+  .library-toolbar-row {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+}
+
+/* ── Highlights split ── */
+@media (max-width: 1024px) {
+  .hub-shell__content > .hl-view {
+    height: auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .hl-view {
+    flex-direction: column;
+  }
+
+  .hl-sidebar {
+    width: 100%;
+    max-height: min(40vh, 360px);
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .hl-content {
+    flex: 1;
+    min-height: 280px;
+    min-width: 0;
+  }
+}
+
+/* ── Personal Brain & Daily Reader ── */
+@media (max-width: 960px) {
+  .personal-brain-stats-grid,
+  .daily-reader-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .personal-brain-hero-title,
+  .daily-reader-hero-title {
+    font-size: clamp(1.35rem, 4vw, 1.8rem);
+  }
+
+  .personal-brain-view,
+  .daily-reader-view {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .personal-brain-stat-value,
+  .daily-reader-stat-value {
+    font-size: 1.5rem;
+  }
+
+  .daily-reader-hero-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+}
+
+@media (max-width: 800px) {
+  .personal-brain-stats-grid,
+  .daily-reader-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+  }
+
+  .personal-brain-stat-card,
+  .daily-reader-stat {
+    padding: var(--space-sm);
+  }
+
+  .personal-brain-progress-info {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+
+  .personal-brain-author-row,
+  .personal-brain-timeline-item {
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .personal-brain-author-bar {
+    width: 100%;
+    order: 3;
+  }
+}
+
+/* ── Chat ── */
+@media (max-width: 1100px) {
+  .chat-view {
+    max-width: none;
+    padding: 0 var(--page-pad-x);
+  }
+
+  .chat-view-suggestions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .chat-view-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .chat-view-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .chat-view-controls-bar {
+    padding: var(--space-sm) var(--page-pad-x);
+  }
+
+  .chat-view-scope-tabs {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .chat-view-scope-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chat-view-suggestions {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-view-mode-dropdown-menu {
+    width: min(320px, calc(100vw - 48px));
+  }
+
+  .chat-view-container {
+    flex-direction: column !important;
+  }
+
+  .chat-view-container > .pdf-viewer-panel,
+  .chat-view-container > [class*="pdf"] {
+    max-height: 45vh;
+    min-height: 240px;
+  }
+}
+
+/* ── Graph ── */
+@media (max-width: 1100px) {
+  .graph-view {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .graph-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .graph-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .graph-stats-bar {
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: var(--space-sm);
+  }
+
+  .graph-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+
+  .graph-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .graph-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .graph-visualizer-layout {
+    flex-direction: column;
+  }
+
+  .graph-detail-panel {
+    width: 100%;
+    max-height: 320px;
+  }
+
+  .graph-entity-grid,
+  .graph-community-grid,
+  .entity-list,
+  .community-list {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Discovery ── */
+@media (max-width: 960px) {
+  .discovery-view {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .discovery-search-row {
+    flex-direction: column;
+  }
+
+  .discovery-search-row .discovery-search-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── Insights / Review ── */
+@media (max-width: 1100px) {
+  .insights-view {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .insights-hero-title {
+    font-size: clamp(1.35rem, 4vw, 1.8rem);
+  }
+}
+
+/* ── Settings & shared rm-page ── */
+@media (max-width: 960px) {
+  .settings-view {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .rm-page {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .rm-page-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .rm-filter-row {
+    flex-wrap: wrap;
+  }
+
+  .rm-page-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .screening-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Evidence matrix ── */
+@media (max-width: 1100px) {
+  .evidence-matrix-view .rm-page-body {
+    overflow-x: auto;
+  }
+
+  .evidence-matrix-table {
+    min-width: 640px;
+  }
+
+  .evidence-paper-selection {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* ── Search (extend existing) ── */
+@media (max-width: 960px) {
+  .search-view-modern {
+    padding: var(--page-pad-y) var(--page-pad-x);
+  }
+
+  .search-hero-modern {
+    padding: 2rem 1rem;
+    border-radius: 20px;
+  }
+
+  .search-hero-title {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+  }
+}
+
+/* ── Wide screens: prevent over-stretching ── */
+@media (min-width: 1400px) {
+  .personal-brain-view,
+  .daily-reader-view,
+  .insights-view,
+  .settings-panel {
+    max-width: 880px;
+  }
+
+  .chat-view {
+    max-width: 860px;
+  }
+
+  .search-view-modern {
+    max-width: 1200px;
+  }
+}

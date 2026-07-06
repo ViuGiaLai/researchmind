@@ -1,4 +1,10 @@
 /* ============= Settings Panel ============= */
+.settings-view {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--space-lg);
+}
+
 .settings-panel {
   max-width: 640px;
   margin: 0 auto;

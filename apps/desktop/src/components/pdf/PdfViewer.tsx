@@ -115,8 +115,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "var(--color-surface, #141414)",
-        borderRight: "1px solid var(--color-border, #282828)",
+        background: "var(--color-surface)",
+        borderRight: "1px solid var(--color-border)",
         position: "relative",
         overflow: "hidden",
       }}
@@ -130,8 +130,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 12px",
-          borderBottom: "1px solid var(--color-border, #282828)",
-          background: "var(--color-surface, #141414)",
+          borderBottom: "1px solid var(--color-border)",
+          background: "var(--color-surface)",
           flexShrink: 0,
           gap: "8px",
         }}
@@ -150,7 +150,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
           >
             {paperTitle}
           </span>
-          <span style={{ color: "var(--color-text-muted, #94a3b8)", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
             Trang {currentPage}{totalPages ? ` / ${totalPages}` : ""}
           </span>
         </div>
@@ -165,7 +165,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               background: "transparent",
               border: "1px solid var(--color-border, #333)",
               borderRadius: "4px",
-              color: "var(--color-text, #e4e4e7)",
+              color: "var(--color-text)",
               cursor: "pointer",
               padding: "2px 8px",
               fontSize: "0.8rem",
@@ -185,7 +185,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               background: "rgba(255,255,255,0.05)",
               border: "1px solid var(--color-border, #333)",
               borderRadius: "4px",
-              color: "var(--color-text, #e4e4e7)",
+              color: "var(--color-text)",
               padding: "2px 4px",
               fontSize: "0.8rem",
               outline: "none",
@@ -199,7 +199,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               background: "transparent",
               border: "1px solid var(--color-border, #333)",
               borderRadius: "4px",
-              color: "var(--color-text, #e4e4e7)",
+              color: "var(--color-text)",
               cursor: "pointer",
               padding: "2px 8px",
               fontSize: "0.8rem",
@@ -215,10 +215,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             onClick={handleCopyQuote}
             title="Trích dẫn văn bản đã chọn"
             style={{
-              background: "rgba(99, 102, 241, 0.08)",
-              border: "1px solid rgba(99, 102, 241, 0.2)",
+              background: "rgba(var(--color-primary-rgb), 0.08)",
+              border: "1px solid rgba(var(--color-primary-rgb), 0.2)",
               borderRadius: "4px",
-              color: "var(--color-primary, #6366f1)",
+              color: "var(--color-primary)",
               cursor: "pointer",
               padding: "4px 8px",
               fontSize: "0.75rem",
@@ -235,7 +235,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             style={{
               background: "transparent",
               border: "none",
-              color: "var(--color-text-muted, #94a3b8)",
+              color: "var(--color-text-muted)",
               cursor: "pointer",
               fontSize: "1rem",
               padding: "4px",
@@ -302,12 +302,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
           bottom: 0,
           width: "4px",
           cursor: "col-resize",
-          background: isResizing ? "var(--color-primary, #6366f1)" : "transparent",
+          background: isResizing ? "var(--color-primary)" : "transparent",
           transition: "background 0.15s",
           zIndex: 10,
         }}
         onMouseEnter={(e) => {
-          if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "rgba(99, 102, 241, 0.3)";
+          if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "rgba(var(--color-primary-rgb), 0.3)";
         }}
         onMouseLeave={(e) => {
           if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "transparent";

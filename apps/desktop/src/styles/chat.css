@@ -205,7 +205,7 @@
   display: inline-block;
   animation: blink 0.8s step-end infinite;
   font-weight: bold;
-  color: var(--color-primary, #6366f1);
+  color: var(--color-primary);
   margin-left: 2px;
 }
 
@@ -247,7 +247,7 @@
 }
 
 .chat-view-footnote-entry:hover {
-  border-color: var(--color-primary, #6366f1) !important;
+  border-color: var(--color-primary) !important;
 }
 
 .chat-view-model {

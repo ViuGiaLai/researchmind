@@ -88,7 +88,7 @@ export const PersonalBrainView: React.FC = () => {
           <div className="personal-brain-stat-label">Chưa đọc</div>
         </div>
         <div className="personal-brain-stat-card">
-          <div className="personal-brain-stat-icon" style={{ color: "var(--color-primary, #6366f1)" }}>
+          <div className="personal-brain-stat-icon" style={{ color: "var(--color-primary)" }}>
             <IconStar size={22} />
           </div>
           <div className="personal-brain-stat-value">{reading_stats.starred_count}</div>

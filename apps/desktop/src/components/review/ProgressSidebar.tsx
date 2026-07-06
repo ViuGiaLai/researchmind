@@ -16,9 +16,9 @@ interface ProgressSidebarProps {
 
 const statusIcons: Record<string, { icon: any; color: string }> = {
   done: { icon: IconCheck, color: "#22c55e" },
-  generating: { icon: IconSpinner, color: "#6366f1" },
-  pending: { icon: null, color: "var(--color-text-muted, #94a3b8)" },
-  empty: { icon: null, color: "var(--color-text-muted, #94a3b8)" },
+  generating: { icon: IconSpinner, color: "var(--color-primary)" },
+  pending: { icon: null, color: "var(--color-text-muted)" },
+  empty: { icon: null, color: "var(--color-text-muted)" },
 };
 
 export function ProgressSidebar({
@@ -47,7 +47,7 @@ export function ProgressSidebar({
       }}>
         <span style={{
           fontSize: "0.72rem", fontWeight: 600,
-          color: "var(--color-text-muted, #94a3b8)",
+          color: "var(--color-text-muted)",
           textTransform: "uppercase", letterSpacing: 0.5,
         }}>
           Outline
@@ -58,7 +58,7 @@ export function ProgressSidebar({
             style={{
               padding: 2, borderRadius: 3,
               border: "none", background: "transparent",
-              color: "var(--color-text-muted, #94a3b8)",
+              color: "var(--color-text-muted)",
               cursor: "pointer", fontSize: "0.7rem",
               lineHeight: 1,
             }}
@@ -82,7 +82,7 @@ export function ProgressSidebar({
               padding: "6px 8px",
               borderRadius: 6,
               cursor: "pointer",
-              background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
+              background: isActive ? "rgba(var(--color-primary-rgb), 0.08)" : "transparent",
               transition: "all 0.15s",
               opacity: isDone ? 1 : 0.65,
             }}

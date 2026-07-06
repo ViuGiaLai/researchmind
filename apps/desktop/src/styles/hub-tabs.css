@@ -1,0 +1,123 @@
+/* Shared sub-navigation for hubs and labs */
+
+.sub-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.sub-tab-bar--underline {
+  padding: var(--space-sm) var(--space-md) 0;
+  gap: 4px;
+}
+
+.sub-tab-bar--pills {
+  padding: var(--space-sm) var(--space-md);
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sub-tab-bar__section-label {
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: var(--space-sm);
+  white-space: nowrap;
+}
+
+.sub-tab-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+}
+
+.sub-tab-bar__btn:hover {
+  color: var(--color-text);
+}
+
+.sub-tab-bar__btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.sub-tab-bar__btn:active {
+  transform: scale(0.98);
+}
+
+/* Underline variant */
+.sub-tab-bar--underline .sub-tab-bar__btn {
+  padding: 8px 16px;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  margin-bottom: -1px;
+}
+
+.sub-tab-bar--underline .sub-tab-bar__btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Pills variant */
+.sub-tab-bar--pills .sub-tab-bar__btn {
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+}
+
+.sub-tab-bar--pills .sub-tab-bar__btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border);
+}
+
+.sub-tab-bar--pills .sub-tab-bar__btn.active {
+  background: var(--color-highlight);
+  border-color: rgba(var(--color-primary-rgb), 0.35);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.hub-shell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.hub-shell__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Full-height views manage their own internal scroll */
+.hub-shell__content > .library-split-view,
+.hub-shell__content > .hl-view,
+.hub-shell__content > .discovery-view,
+.hub-shell__content > .review-builder,
+.hub-shell__content > .rm-page {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* These fill the slot but scroll inside themselves */
+.hub-shell__content > .wow-view,
+.hub-shell__content > .graph-view {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}

@@ -56,7 +56,7 @@
 }
 .import-format-badge:hover {
   border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.06);
+  background: rgba(var(--color-primary-rgb), 0.06);
 }
 
 .import-actions {
@@ -184,8 +184,8 @@
 
 .import-retry-btn:hover,
 .metadata-inline-btn:hover {
-  border-color: var(--color-primary, #6366f1);
-  color: var(--color-primary, #6366f1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 

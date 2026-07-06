@@ -416,12 +416,12 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           style={{
             flex: 1, padding: "8px 12px", border: "none", borderRadius: 6, cursor: "pointer",
             fontSize: 13, fontWeight: tab === "pdf" ? 600 : 400,
-            background: tab === "pdf" ? "var(--color-primary, #6366f1)" : "transparent",
+            background: tab === "pdf" ? "var(--color-primary)" : "transparent",
             color: tab === "pdf" ? "#fff" : "var(--color-text, #1a1a1a)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "rgba(99, 102, 241, 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(99, 102, 241, 0.2)"; } }}
+          onMouseEnter={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "rgba(var(--color-primary-rgb), 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2)"; } }}
           onMouseLeave={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
           <IconUpload size={14} /> Tài liệu
@@ -432,12 +432,12 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           style={{
             flex: 1, padding: "8px 12px", border: "none", borderRadius: 6, cursor: "pointer",
             fontSize: 13, fontWeight: tab === "bibtex" ? 600 : 400,
-            background: tab === "bibtex" ? "var(--color-primary, #6366f1)" : "transparent",
+            background: tab === "bibtex" ? "var(--color-primary)" : "transparent",
             color: tab === "bibtex" ? "#fff" : "var(--color-text, #1a1a1a)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "rgba(99, 102, 241, 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(99, 102, 241, 0.2)"; } }}
+          onMouseEnter={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "rgba(var(--color-primary-rgb), 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2)"; } }}
           onMouseLeave={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
           <IconBook size={14} /> BibTeX
@@ -448,12 +448,12 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           style={{
             flex: 1, padding: "8px 12px", border: "none", borderRadius: 6, cursor: "pointer",
             fontSize: 13, fontWeight: tab === "zotero" ? 600 : 400,
-            background: tab === "zotero" ? "var(--color-primary, #6366f1)" : "transparent",
+            background: tab === "zotero" ? "var(--color-primary)" : "transparent",
             color: tab === "zotero" ? "#fff" : "var(--color-text, #1a1a1a)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all 0.15s ease",
           }}
-          onMouseEnter={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "rgba(99, 102, 241, 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(99, 102, 241, 0.2)"; } }}
+          onMouseEnter={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "rgba(var(--color-primary-rgb), 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2)"; } }}
           onMouseLeave={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
           <IconLibrary size={14} /> Zotero CSV
@@ -536,7 +536,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               Chọn file .bib
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
             ℹ️ Dữ liệu sẽ được import dưới dạng metadata (không có file PDF kèm theo).
           </p>
           <input
@@ -563,7 +563,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text, #1a1a1a)", display: "block", marginBottom: 4 }}>
               Thư mục Zotero data:
               {detecting && (
-                <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-muted, #94a3b8)", marginLeft: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-muted)", marginLeft: 6 }}>
                   <IconSpinner size={10} style={{ verticalAlign: "middle", marginRight: 3 }} />
                   Đang phát hiện...
                 </span>
@@ -606,7 +606,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               <IconFolderOpen size={16} />
               </button>
             </div>
-            <p style={{ fontSize: 11, color: "var(--color-text-muted, #94a3b8)", marginTop: 4 }}>
+            <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
               Đường dẫn đến thư mục Zotero (thường có chứa thư mục <code>storage</code>)
             </p>
           </div>
@@ -621,7 +621,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                 type="checkbox"
                 checked={findPdfs}
                 onChange={(e) => setFindPdfs(e.target.checked)}
-                style={{ accentColor: "var(--color-primary, #6366f1)" }}
+                style={{ accentColor: "var(--color-primary)" }}
               />
               Tự động tìm và import file PDF từ Zotero storage
             </label>
@@ -639,7 +639,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               Chọn file CSV
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
             ℹ️ Cách export: Zotero → Chọn collection → File → Export Library... → Format: CSV
             {findPdfs && zoteroDataDir.trim() ? " • PDF sẽ được tự động tìm và index" : ""}
           </p>
@@ -689,7 +689,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                 iconColor = "var(--color-warning, #f59e0b)";
                 rowClass = "import-duplicate";
               } else if (r.status === "duplicate") {
-                iconColor = "var(--color-text-muted, #94a3b8)";
+                iconColor = "var(--color-text-muted)";
                 rowClass = "import-duplicate";
               } else if (isProcessing) {
                 iconColor = "var(--color-primary, #2dd4bf)";
@@ -726,7 +726,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       autoFocus
                       style={{
                         flex: 1, minWidth: 0, padding: "2px 6px", borderRadius: 4,
-                        border: "1px solid var(--color-primary, #6366f1)",
+                        border: "1px solid var(--color-primary)",
                         background: "var(--color-bg, #f9fafb)",
                         color: "var(--color-text, #1a1a1a)", fontSize: 13, outline: "none",
                       }}
@@ -748,7 +748,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                   {isProcessing && <span className="import-result-pages">{r.stage || r.status} {typeof r.progress === "number" ? `${r.progress}%` : ""}</span>}
                   {["indexed", "ready"].includes(r.status) && <span className="import-result-pages">sẵn sàng</span>}
                   {r.status === "needs_ocr" && <span className="import-result-pages" style={{ color: "var(--color-warning, #f59e0b)" }}>cần OCR</span>}
-                  {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted, #94a3b8)" }}>đã có</span>}
+                  {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted)" }}>đã có</span>}
                   {r.isScanned && (
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,

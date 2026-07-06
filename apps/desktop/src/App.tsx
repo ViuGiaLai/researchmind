@@ -12,52 +12,23 @@ import { GraphView } from "./components/graph/GraphView";
 import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { ToastProvider } from "./components/shared/Toast";
+import { SubTabBar } from "./components/shared/SubTabBar";
 import { api } from "./lib/api";
 
 type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
 
-const LABS_TABS: { tab: Tab; icon: React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>; label: string }[] = [
+const LABS_TABS = ["wow", "brain", "daily", "graph"] as const;
+type LabsTab = (typeof LABS_TABS)[number];
+
+const LABS_TAB_ITEMS: { tab: LabsTab; icon: React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>; label: string }[] = [
   { tab: "wow", icon: IconSparkle, label: "Phân tích sâu" },
   { tab: "brain", icon: IconBrain, label: "Bộ não" },
   { tab: "daily", icon: IconCalendar, label: "Đọc hôm nay" },
   { tab: "graph", icon: IconGraph, label: "Biểu đồ" },
 ];
 
-function LabsBar({ activeTab, onTabChange }: { activeTab: Tab; onTabChange: (tab: Tab) => void }) {
-  return (
-    <div style={{
-      display: "flex", gap: "16px", padding: "16px 20px 12px",
-      borderBottom: "1px solid var(--color-border, #282828)",
-      flexShrink: 0, alignItems: "center",
-    }}>
-      <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--color-text-muted, #94a3b8)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-        Phòng thí nghiệm
-      </span>
-      {LABS_TABS.map(({ tab, icon: LabIcon, label }) => (
-        <button
-          key={tab}
-          onClick={() => onTabChange(tab)}
-          style={{
-            padding: "6px 14px",
-            borderRadius: "6px",
-            border: "1px solid var(--color-border, #333)",
-            background: activeTab === tab ? "rgba(99, 102, 241, 0.08)" : "transparent",
-            color: activeTab === tab ? "var(--color-primary, #6366f1)" : "var(--color-text-muted, #94a3b8)",
-            cursor: "pointer",
-            fontSize: "0.8rem",
-            fontWeight: 500,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            transition: "all 0.15s",
-          }}
-        >
-          <LabIcon size={14} />
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+function isLabsTab(tab: Tab): tab is LabsTab {
+  return (LABS_TABS as readonly string[]).includes(tab);
 }
 
 function App() {
@@ -79,7 +50,13 @@ function App() {
   const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
   const retryCountRef = React.useRef(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem("researchmind:sidebar-collapsed") === "true"; } catch { return false; }
+    try {
+      const saved = localStorage.getItem("researchmind:sidebar-collapsed");
+      if (saved !== null) return saved === "true";
+      return window.innerWidth < 1024;
+    } catch {
+      return false;
+    }
   });
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
@@ -91,6 +68,20 @@ function App() {
 
   useEffect(() => {
     checkFirstRun();
+  }, []);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const w = window.innerWidth;
+      const level =
+        w >= 1400 ? "wide" :
+        w >= 1100 ? "comfortable" :
+        w >= 960 ? "compact" : "tight";
+      document.documentElement.setAttribute("data-viewport", level);
+    };
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
   useEffect(() => {
@@ -127,11 +118,36 @@ function App() {
       setCheckingSetup(false);
     } catch {
       retryCountRef.current += 1;
-      if (retryCountRef.current < 30) {
+
+      // Surface Tauri spawn errors immediately (bundled backend missing / permission denied)
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const spawn = await invoke<{
+          attempted: boolean;
+          spawned: boolean;
+          error?: string | null;
+        }>("get_backend_spawn_status");
+        if (spawn.error) {
+          setCheckingSetup(false);
+          setBackendUnavailable(true);
+          setInitMessage(spawn.error);
+          return;
+        }
+      } catch {
+        // Not running inside Tauri (web dev) — keep polling health
+      }
+
+      const waitSeconds = retryCountRef.current * 2;
+      setInitMessage(`Đang khởi động backend... (${waitSeconds}s)`);
+
+      if (retryCountRef.current < 120) {
         setTimeout(checkFirstRun, 2000);
       } else {
         setCheckingSetup(false);
         setBackendUnavailable(true);
+        setInitMessage(
+          "Backend không phản hồi sau 4 phút. Lần đầu mở app có thể cần 1–3 phút để giải nén AI engine."
+        );
       }
     }
   };
@@ -202,16 +218,7 @@ function App() {
             </p>
             <button
               onClick={retryBackendConnection}
-              style={{
-                marginTop: 12,
-                padding: "10px 16px",
-                borderRadius: 8,
-                border: "none",
-                background: "var(--color-primary)",
-                color: "white",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
+              className="app-retry-btn"
             >
               Thử kết nối lại
             </button>
@@ -246,6 +253,9 @@ function App() {
                 <div className="app-loading-content">
                   <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
                   <p>{initMessage}</p>
+                  <div className="app-loading-bar-track">
+                    <div className="app-loading-bar-fill" />
+                  </div>
                 </div>
               </div>
             </main>
@@ -280,7 +290,6 @@ function App() {
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
             { tab: "review" as Tab, icon: IconBookOpen, label: "Đánh giá" },
             { tab: "evidence" as Tab, icon: IconChart, label: "Bằng chứng" },
-            { tab: "settings" as Tab, icon: IconSettings, label: "Cài đặt" },
           ].map(({ tab, icon: Icon, label }) => (
             <button
               key={tab}
@@ -304,6 +313,26 @@ function App() {
               <span className="sidebar-label">{label}</span>
             </button>
           ))}
+
+          <div className="sidebar-divider" role="separator" />
+
+          <button
+            className={`sidebar-menu-btn sidebar-menu-btn-labs ${isLabsTab(activeTab) ? "active" : ""}`}
+            onClick={() => setActiveTab(isLabsTab(activeTab) ? activeTab : "wow")}
+            title={sidebarCollapsed ? "Thí nghiệm" : undefined}
+          >
+            <IconSparkle size={20} />
+            <span className="sidebar-label">Thí nghiệm</span>
+          </button>
+
+          <button
+            className={`sidebar-menu-btn ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => setActiveTab("settings")}
+            title={sidebarCollapsed ? "Cài đặt" : undefined}
+          >
+            <IconSettings size={20} />
+            <span className="sidebar-label">Cài đặt</span>
+          </button>
         </nav>
 
         {!sidebarCollapsed && (
@@ -321,10 +350,16 @@ function App() {
 
       {/* Main content area */}
       <main className="main">
-        {(["wow", "brain", "daily", "graph", "settings"] as Tab[]).includes(activeTab) ? (
-          <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-            <LabsBar activeTab={activeTab} onTabChange={setActiveTab} />
-            <div className="labs-content" style={{ flex: 1, overflow: "hidden" }}>
+        {isLabsTab(activeTab) ? (
+          <div className="hub-shell">
+            <SubTabBar
+              tabs={LABS_TAB_ITEMS.map(({ tab, icon, label }) => ({ key: tab, icon, label }))}
+              active={activeTab}
+              onChange={setActiveTab}
+              variant="pills"
+              label="Phòng thí nghiệm"
+            />
+            <div className="hub-shell__content labs-content">
               {activeTab === "wow" && (
                 <WowAnalysisView
                   onStartChat={handleStartChat}
@@ -336,9 +371,10 @@ function App() {
               {activeTab === "brain" && <PersonalBrainView />}
               {activeTab === "daily" && <DailyReaderView />}
               {activeTab === "graph" && <GraphView />}
-              {activeTab === "settings" && <SettingsView />}
             </div>
           </div>
+        ) : activeTab === "settings" ? (
+          <SettingsView />
         ) : (
           <>
             {activeTab === "library" && (

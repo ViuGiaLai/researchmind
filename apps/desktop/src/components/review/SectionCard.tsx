@@ -30,12 +30,12 @@ const sectionCardStyles = `
   align-items: center;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--color-primary, #6366f1);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
   font-size: 0.75em;
   font-weight: 600;
   margin: 0 1px;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
 }
 `;
 
@@ -79,7 +79,7 @@ export function SectionCard({
           {status === "done" ? (
             <IconCheck size={16} style={{ color: "var(--color-success, #22c55e)" }} />
           ) : status === "generating" ? (
-            <IconSpinner size={16} style={{ color: "var(--color-primary, #6366f1)" }} />
+            <IconSpinner size={16} style={{ color: "var(--color-primary)" }} />
           ) : (
             <div style={{
               width: 16, height: 16, borderRadius: "50%",
@@ -93,8 +93,8 @@ export function SectionCard({
             <div style={{
               display: "flex", alignItems: "center", gap: 4,
               padding: "2px 8px", borderRadius: 4,
-              background: "rgba(99, 102, 241, 0.08)",
-              color: "var(--color-primary, #6366f1)",
+              background: "rgba(var(--color-primary-rgb), 0.08)",
+              color: "var(--color-primary)",
               fontSize: "0.72rem", fontWeight: 500,
             }}>
               <IconFileText size={11} />
@@ -128,7 +128,7 @@ export function SectionCard({
                   display: "flex", alignItems: "center", gap: 3,
                   padding: "2px 7px", borderRadius: 4,
                   background: "rgba(148, 163, 184, 0.1)",
-                  color: "var(--color-text-muted, #94a3b8)",
+                  color: "var(--color-text-muted)",
                   fontSize: "0.68rem", fontWeight: 600,
                 }}>
                   {issues.length}
@@ -143,7 +143,7 @@ export function SectionCard({
                 padding: "4px 10px", borderRadius: 4,
                 border: "1px solid rgba(148, 163, 184, 0.2)",
                 background: "transparent",
-                color: "var(--color-text-muted, #94a3b8)",
+                color: "var(--color-text-muted)",
                 cursor: "pointer", fontSize: "0.75rem",
               }}
             >
@@ -155,9 +155,9 @@ export function SectionCard({
             disabled={loading}
             style={{
               padding: "4px 12px", borderRadius: 4,
-              border: "1px solid var(--color-primary, #6366f1)",
-              background: loading ? "rgba(99, 102, 241, 0.08)" : "rgba(99, 102, 241, 0.08)",
-              color: "var(--color-primary, #6366f1)",
+              border: "1px solid var(--color-primary)",
+              background: loading ? "rgba(var(--color-primary-rgb), 0.08)" : "rgba(var(--color-primary-rgb), 0.08)",
+              color: "var(--color-primary)",
               cursor: loading ? "not-allowed" : "pointer",
               fontSize: "0.75rem", fontWeight: 500,
               opacity: loading ? 0.5 : 1,
@@ -211,11 +211,11 @@ export function SectionCard({
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flex: 1, minWidth: 0 }}>
                     <span style={{
                       fontWeight: 700, flexShrink: 0,
-                      color: iss.severity === "high" ? "#ef4444" : iss.severity === "medium" ? "#f59e0b" : "var(--color-text-muted, #94a3b8)",
+                      color: iss.severity === "high" ? "#ef4444" : iss.severity === "medium" ? "#f59e0b" : "var(--color-text-muted)",
                     }}>
                       {iss.severity === "high" ? "!" : iss.severity === "medium" ? "?" : "·"}
                     </span>
-                    <span style={{ color: "var(--color-text-muted, #94a3b8)" }}>
+                    <span style={{ color: "var(--color-text-muted)" }}>
                       {iss.message}
                     </span>
                   </div>
@@ -224,9 +224,9 @@ export function SectionCard({
                       onClick={() => onIssueAction?.(section, iss.action, iss.type)}
                       style={{
                         padding: "2px 8px", borderRadius: 3,
-                        border: "1px solid var(--color-primary, #6366f1)",
-                        background: "rgba(99, 102, 241, 0.06)",
-                        color: "var(--color-primary, #6366f1)",
+                        border: "1px solid var(--color-primary)",
+                        background: "rgba(var(--color-primary-rgb), 0.06)",
+                        color: "var(--color-primary)",
                         cursor: "pointer", fontSize: "0.65rem", fontWeight: 500,
                         flexShrink: 0,
                       }}
@@ -242,7 +242,7 @@ export function SectionCard({
       ) : status === "generating" ? (
         <div style={{
           padding: "20px", textAlign: "center",
-          color: "var(--color-text-muted, #94a3b8)",
+          color: "var(--color-text-muted)",
           fontSize: "0.82rem",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         }}>
@@ -253,7 +253,7 @@ export function SectionCard({
         <div style={{
           padding: "12px 16px",
           fontSize: "0.78rem",
-          color: "var(--color-text-muted, #94a3b8)",
+          color: "var(--color-text-muted)",
           fontStyle: "italic",
         }}>
           {description}

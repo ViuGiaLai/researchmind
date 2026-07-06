@@ -69,7 +69,7 @@ Mỗi provider thử lần lượt, nếu lỗi (finish_reason="error") thì chu
 ## 2. Cấu trúc thư mục
 
 ```
-memoryOS/
+ResearchMind/
 ├── apps/
 │   └── desktop/                        # Tauri + React frontend
 │       ├── src-tauri/                  # Rust shell (Tauri v2)
@@ -458,7 +458,7 @@ API keys được lưu trong `.env` và **không bao giờ** trả về qua API:
 ### Backend
 
 ```powershell
-cd D:\all_my_project\memoryOS\backend
+cd D:\all_my_project\ResearchMind\backend
 .venv\Scripts\Activate.ps1
 uvicorn main:app --reload --port 8765
 # → http://localhost:8765/docs (Swagger UI)
@@ -467,7 +467,7 @@ uvicorn main:app --reload --port 8765
 ### Frontend (phát triển)
 
 ```powershell
-cd D:\all_my_project\memoryOS\apps\desktop
+cd D:\all_my_project\ResearchMind\apps\desktop
 pnpm install
 pnpm tauri dev
 ```
@@ -475,7 +475,7 @@ pnpm tauri dev
 ### Frontend (web-only, không cần Tauri)
 
 ```powershell
-cd D:\all_my_project\memoryOS\apps\desktop
+cd D:\all_my_project\ResearchMind\apps\desktop
 pnpm dev
 # → http://localhost:5173
 ```
@@ -483,7 +483,7 @@ pnpm dev
 ### Test API bằng CLI
 
 ```powershell
-cd D:\all_my_project\memoryOS\backend
+cd D:\all_my_project\ResearchMind\backend
 python test_chat.py               # Test chat API
 python test_freemodel.py          # Test FreeModel provider
 ```

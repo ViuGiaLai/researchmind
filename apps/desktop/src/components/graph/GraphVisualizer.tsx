@@ -7,7 +7,7 @@ import { IconClose, IconSpinner } from "../Icons";
 const COMMUNITY_COLORS = [
   "#2dd4bf", "#f59e0b", "#8b5cf6", "#ef4444",
   "#3b82f6", "#ec4899", "#14b8a6", "#f97316",
-  "#6366f1", "#84cc16", "#06b6d4", "#d946ef",
+  "#14b8a6", "#84cc16", "#06b6d4", "#d946ef",
 ];
 
 function getCommunityColor(communityId: string | null): string {

@@ -25,7 +25,7 @@
 }
 
 .pdf-action-btn:hover {
-  background: rgba(99, 102, 241, 0.15) !important;
+  background: rgba(var(--color-primary-rgb), 0.15) !important;
 }
 
 .pdf-highlight-banner {
@@ -38,5 +38,5 @@
 }
 
 .pdf-resize-handle:hover {
-  background: rgba(99, 102, 241, 0.3) !important;
+  background: rgba(var(--color-primary-rgb), 0.3) !important;
 }

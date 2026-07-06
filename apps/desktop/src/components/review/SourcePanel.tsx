@@ -59,7 +59,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
             borderRadius: 4,
             border: "none",
             background: "transparent",
-            color: "var(--color-text-muted, #94a3b8)",
+            color: "var(--color-text-muted)",
             cursor: "pointer",
             display: "flex",
           }}
@@ -71,7 +71,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
       <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
         {citations.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted, #94a3b8)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Citations
             </div>
             {citations.map((c, i) => (
@@ -85,10 +85,10 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
                   borderRadius: 4,
                   fontSize: "0.75rem",
                   marginBottom: 4,
-                  background: "rgba(99, 102, 241, 0.06)",
+                  background: "rgba(var(--color-primary-rgb), 0.06)",
                 }}
               >
-                <span style={{ fontWeight: 700, color: "var(--color-primary, #6366f1)" }}>
+                <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>
                   [{i + 1}]
                 </span>
                 <span style={{ color: "var(--color-text, #e2e8f0)" }}>
@@ -101,7 +101,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
 
         {evidence.length > 0 && (
           <div>
-            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted, #94a3b8)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
               Evidence Chunks
             </div>
             {Array.from(papers.entries()).map(([paperId, paper]) => (
@@ -129,8 +129,8 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
                         background: "var(--color-bg, rgba(0,0,0,0.03))",
                         fontSize: "0.7rem",
                         lineHeight: 1.5,
-                        color: "var(--color-text-muted, #94a3b8)",
-                        borderLeft: "2px solid var(--color-primary, #6366f1)",
+                        color: "var(--color-text-muted)",
+                        borderLeft: "2px solid var(--color-primary)",
                         display: "flex",
                         flexDirection: "column",
                       }}
@@ -138,7 +138,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         {ev.content.length > 120 ? ev.content.slice(0, 120) + "..." : ev.content}
                       </div>
-                      <div style={{ marginTop: 3, fontSize: "0.6rem", color: "var(--color-text-muted, #94a3b8)", display: "flex", gap: 4 }}>
+                      <div style={{ marginTop: 3, fontSize: "0.6rem", color: "var(--color-text-muted)", display: "flex", gap: 4 }}>
                         <span>Score: {ev.score.toFixed(2)}</span>
                         {ev.page_number ? <span>· p.{ev.page_number}</span> : null}
                       </div>
@@ -154,7 +154,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
           <div style={{
             padding: 20,
             textAlign: "center",
-            color: "var(--color-text-muted, #94a3b8)",
+            color: "var(--color-text-muted)",
             fontSize: "0.78rem",
           }}>
             Generate a section to see sources

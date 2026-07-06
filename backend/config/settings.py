@@ -1,7 +1,43 @@
 import os
+import sys
 import json
 from pathlib import Path
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def resolve_env_files() -> tuple[str, ...]:
+    """Locate .env for dev and PyInstaller bundles."""
+    candidates: list[Path] = []
+
+    explicit = os.environ.get("RESEARCHMIND_ENV_FILE")
+    if explicit:
+        candidates.append(Path(explicit))
+
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).parent
+        candidates.extend([
+            exe_dir / ".env",
+            exe_dir / "resources" / ".env",
+        ])
+        resource_dir = os.environ.get("RESEARCHMIND_RESOURCE_DIR")
+        if resource_dir:
+            candidates.append(Path(resource_dir) / ".env")
+
+    candidates.extend([
+        Path(".env"),
+        Path(__file__).resolve().parent.parent / ".env",
+    ])
+
+    seen: set[str] = set()
+    files: list[str] = []
+    for path in candidates:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        if path.exists():
+            files.append(key)
+    return tuple(files) if files else (".env",)
 
 
 def get_fixed_default_dir() -> Path:
@@ -203,9 +239,11 @@ class Settings(BaseSettings):
     # Zotero data directory (persisted)
     zotero_data_dir: str = ""
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file=resolve_env_files(),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 settings = Settings()

@@ -17,19 +17,19 @@
 .icon-brain { color: var(--color-primary); }
 .icon-brain-img {
   transition: all var(--transition-fast);
-  filter: drop-shadow(0 1px 3px rgba(99, 102, 241, 0.3));
+  filter: drop-shadow(0 1px 3px rgba(var(--color-primary-rgb), 0.3));
   animation: brainGlow 3s ease-in-out infinite;
 }
 .icon-brain-img:hover {
   transform: scale(1.1);
-  filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.5));
+  filter: drop-shadow(0 2px 8px rgba(var(--color-primary-rgb), 0.5));
 }
 .brain-icon-loading {
   animation: iconSpin 1s linear infinite, brainGlow 2s ease-in-out infinite;
 }
 @keyframes brainGlow {
-  0%, 100% { filter: drop-shadow(0 1px 3px rgba(99, 102, 241, 0.3)) brightness(1); }
-  50% { filter: drop-shadow(0 2px 10px rgba(99, 102, 241, 0.6)) brightness(1.08); }
+  0%, 100% { filter: drop-shadow(0 1px 3px rgba(var(--color-primary-rgb), 0.3)) brightness(1); }
+  50% { filter: drop-shadow(0 2px 10px rgba(var(--color-primary-rgb), 0.6)) brightness(1.08); }
 }
 .icon-search { color: var(--color-text-secondary); }
 .icon-chat { color: #14b8a6; }

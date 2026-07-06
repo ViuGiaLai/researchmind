@@ -8,6 +8,7 @@ class AppState:
         self.generator = None
         self.embedder = None
         self.embedder_ready = False
+        self.backend_ready = False
         self.init_message = "Khởi động..."
         self.build_progress: dict = {
             "phase": "idle",

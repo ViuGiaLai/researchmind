@@ -52,9 +52,9 @@ function EditorToolbar({ editor }: { editor: any }) {
   const btnStyle = (active: boolean, disabled = false): React.CSSProperties => ({
     padding: "4px 8px",
     borderRadius: 4,
-    border: active ? "1px solid var(--color-primary, #6366f1)" : "1px solid transparent",
-    background: active ? "rgba(99, 102, 241, 0.12)" : "transparent",
-    color: disabled ? "var(--color-border, rgba(148,163,184,0.3))" : active ? "var(--color-primary, #6366f1)" : "var(--color-text-muted, #94a3b8)",
+    border: active ? "1px solid var(--color-primary)" : "1px solid transparent",
+    background: active ? "rgba(var(--color-primary-rgb), 0.12)" : "transparent",
+    color: disabled ? "var(--color-border, rgba(148,163,184,0.3))" : active ? "var(--color-primary)" : "var(--color-text-muted)",
     cursor: disabled ? "not-allowed" : "pointer",
     fontSize: "0.72rem",
     fontWeight: active ? 700 : 500,
@@ -215,7 +215,7 @@ export function ReviewSectionEditor({
     <div
       style={{
         border: isEditing
-          ? "1px solid var(--color-primary, #6366f1)"
+          ? "1px solid var(--color-primary)"
           : "1px solid var(--color-border, rgba(148, 163, 184, 0.15))",
         borderRadius: 8,
         marginBottom: 12,
@@ -227,7 +227,7 @@ export function ReviewSectionEditor({
         .ProseMirror p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
-          color: var(--color-text-muted, #94a3b8);
+          color: var(--color-text-muted);
           pointer-events: none;
           height: 0;
           opacity: 0.5;
@@ -239,14 +239,14 @@ export function ReviewSectionEditor({
         .ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin: 0.3em 0; }
         .ProseMirror li { margin: 0.15em 0; }
         .ProseMirror blockquote {
-          border-left: 3px solid var(--color-primary, #6366f1);
+          border-left: 3px solid var(--color-primary);
           margin: 0.5em 0;
           padding: 0.3em 1em;
-          color: var(--color-text-muted, #94a3b8);
+          color: var(--color-text-muted);
           font-style: italic;
         }
         .ProseMirror code {
-          background: rgba(99, 102, 241, 0.1);
+          background: rgba(var(--color-primary-rgb), 0.1);
           border-radius: 3px;
           padding: 1px 4px;
           font-size: 0.8em;
@@ -266,15 +266,15 @@ export function ReviewSectionEditor({
           align-items: center;
           padding: 1px 6px;
           border-radius: 3px;
-          background: rgba(99, 102, 241, 0.1);
-          color: var(--color-primary, #6366f1);
+          background: rgba(var(--color-primary-rgb), 0.1);
+          color: var(--color-primary);
           font-size: 0.75em;
           font-weight: 600;
           margin: 0 1px;
-          border: 1px solid rgba(99, 102, 241, 0.2);
+          border: 1px solid rgba(var(--color-primary-rgb), 0.2);
         }
         .review-editor-citation:hover {
-          background: rgba(99, 102, 241, 0.18);
+          background: rgba(var(--color-primary-rgb), 0.18);
         }
       `}</style>
       <div
@@ -292,8 +292,8 @@ export function ReviewSectionEditor({
             <div style={{
               display: "flex", alignItems: "center", gap: 3,
               padding: "2px 6px", borderRadius: 4,
-              background: "rgba(99, 102, 241, 0.08)",
-              color: "var(--color-primary, #6366f1)",
+              background: "rgba(var(--color-primary-rgb), 0.08)",
+              color: "var(--color-primary)",
               fontSize: "0.68rem", fontWeight: 500,
             }}>
               <IconFileText size={10} />
@@ -309,8 +309,8 @@ export function ReviewSectionEditor({
                 onClick={handleSave}
                 style={{
                   padding: "4px 10px", borderRadius: 4,
-                  border: "1px solid var(--color-primary, #6366f1)",
-                  background: "var(--color-primary, #6366f1)", color: "#fff",
+                  border: "1px solid var(--color-primary)",
+                  background: "var(--color-primary)", color: "#fff",
                   cursor: "pointer", fontSize: "0.75rem", fontWeight: 500,
                 }}
               >
@@ -321,7 +321,7 @@ export function ReviewSectionEditor({
                 style={{
                   padding: "4px 10px", borderRadius: 4,
                   border: "1px solid rgba(148, 163, 184, 0.2)",
-                  background: "transparent", color: "var(--color-text-muted, #94a3b8)",
+                  background: "transparent", color: "var(--color-text-muted)",
                   cursor: "pointer", fontSize: "0.75rem",
                 }}
               >
@@ -336,7 +336,7 @@ export function ReviewSectionEditor({
                 style={{
                   padding: "4px 10px", borderRadius: 4,
                   border: "1px solid rgba(148, 163, 184, 0.2)",
-                  background: "transparent", color: "var(--color-text-muted, #94a3b8)",
+                  background: "transparent", color: "var(--color-text-muted)",
                   cursor: "pointer", fontSize: "0.75rem",
                   opacity: loading ? 0.5 : 1,
                 }}
@@ -348,9 +348,9 @@ export function ReviewSectionEditor({
                 disabled={loading}
                 style={{
                   padding: "4px 10px", borderRadius: 4,
-                  border: "1px solid var(--color-primary, #6366f1)",
-                  background: "rgba(99, 102, 241, 0.08)",
-                  color: "var(--color-primary, #6366f1)",
+                  border: "1px solid var(--color-primary)",
+                  background: "rgba(var(--color-primary-rgb), 0.08)",
+                  color: "var(--color-primary)",
                   cursor: "pointer", fontSize: "0.75rem", fontWeight: 500,
                   opacity: loading ? 0.5 : 1,
                   display: "flex", alignItems: "center", gap: 4,
@@ -375,7 +375,7 @@ export function ReviewSectionEditor({
       ) : loading ? (
         <div style={{
           padding: "20px 0", textAlign: "center",
-          color: "var(--color-text-muted, #94a3b8)", fontSize: "0.85rem",
+          color: "var(--color-text-muted)", fontSize: "0.85rem",
           display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         }}>
           <IconSpinner size={14} />
@@ -392,7 +392,7 @@ export function ReviewSectionEditor({
           />
         </div>
       ) : (
-        <div style={{ padding: "20px 0", textAlign: "center", color: "var(--color-text-muted, #94a3b8)", fontSize: "0.85rem" }}>
+        <div style={{ padding: "20px 0", textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
           Nhấn "Tạo lại" để tạo nội dung cho phần này
         </div>
       )}
@@ -405,7 +405,7 @@ export function ReviewSectionEditor({
         }}>
           <div style={{
             fontSize: "0.7rem", fontWeight: 600,
-            color: "var(--color-text-muted, #94a3b8)",
+            color: "var(--color-text-muted)",
             textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6,
             display: "flex", alignItems: "center", gap: 4,
           }}>
@@ -417,8 +417,8 @@ export function ReviewSectionEditor({
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 4,
                 padding: "2px 8px", borderRadius: 4,
-                background: "rgba(99, 102, 241, 0.06)",
-                fontSize: "0.72rem", color: "var(--color-primary, #6366f1)",
+                background: "rgba(var(--color-primary-rgb), 0.06)",
+                fontSize: "0.72rem", color: "var(--color-primary)",
               }}>
                 <span style={{ fontWeight: 700 }}>[{i + 1}]</span>
                 {c.paper_title}

@@ -44,8 +44,8 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
       style={{
         marginTop: "16px",
         borderRadius: "8px",
-        border: "1px solid var(--color-border, #282828)",
-        background: "var(--color-surface, #141414)",
+        border: "1px solid var(--color-border)",
+        background: "var(--color-surface)",
         overflow: "hidden",
       }}
     >
@@ -57,8 +57,8 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "10px 14px",
-          borderBottom: "1px solid var(--color-border, #282828)",
-          background: "rgba(99, 102, 241, 0.04)",
+          borderBottom: "1px solid var(--color-border)",
+          background: "rgba(var(--color-primary-rgb), 0.04)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -90,7 +90,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
           gap: "1px",
-          background: "var(--color-border, #282828)",
+          background: "var(--color-border)",
         }}
       >
         {[
@@ -106,7 +106,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
             className="trust-panel-stat"
             style={{
               padding: "8px 12px",
-              background: "var(--color-surface, #141414)",
+              background: "var(--color-surface)",
               display: "flex",
               alignItems: "center",
               gap: "8px",
@@ -117,7 +117,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               <div
                 style={{
                   fontSize: "0.75rem",
-                  color: "var(--color-text-muted, #94a3b8)",
+                  color: "var(--color-text-muted)",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -127,7 +127,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
                 style={{
                   fontSize: "0.95rem",
                   fontWeight: 700,
-                  color: stat.color || "var(--color-text, #e4e4e7)",
+                  color: stat.color || "var(--color-text)",
                 }}
               >
                 {stat.value}
@@ -139,7 +139,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
 
       {/* Uncited claims list */}
       {analysis.uncited_claim_texts.length > 0 && (
-        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border, #282828)" }}>
+        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border)" }}>
           <div
             style={{
               fontSize: "0.75rem",
@@ -171,7 +171,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
 
       {/* Suspicious citations */}
       {analysis.suspicious_citation_texts.length > 0 && (
-        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border, #282828)" }}>
+        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border)" }}>
           <div
             style={{
               fontSize: "0.75rem",
@@ -207,7 +207,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
           display: "flex",
           gap: "6px",
           padding: "8px 14px",
-          borderTop: "1px solid var(--color-border, #282828)",
+          borderTop: "1px solid var(--color-border)",
           flexWrap: "wrap",
         }}
       >

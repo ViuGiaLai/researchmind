@@ -14,21 +14,21 @@
 }
 
 .evidence-matrix-table tbody tr:hover td {
-  background: rgba(99, 102, 241, 0.03) !important;
+  background: rgba(var(--color-primary-rgb), 0.04) !important;
 }
 
 .evidence-matrix-table tbody td:hover {
-  background: rgba(99, 102, 241, 0.06) !important;
+  background: rgba(var(--color-primary-rgb), 0.07) !important;
 }
 
 /* Paper selection chips */
 .evidence-paper-selection button:hover {
-  border-color: var(--color-primary, #6366f1) !important;
+  border-color: var(--color-primary) !important;
 }
 
 .evidence-paper-selection button.selected {
-  border-color: var(--color-primary, #6366f1);
-  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.1);
 }
 
 /* PDF overlay */

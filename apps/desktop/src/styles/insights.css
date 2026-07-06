@@ -1,7 +1,21 @@
+.insights-comparison-table-wrapper {
+  overflow-x: auto;
+  margin: 20px 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.insights-comparison-table {
+  font-size: 0.88rem;
+}
+
 .insights-view {
   max-width: 800px;
   margin: 0 auto;
-  padding: var(--space-lg) 0;
+  padding: var(--space-lg) var(--space-md);
+  height: 100%;
+  overflow-y: auto;
 }
 
 .insights-hero {
@@ -38,6 +52,7 @@
   padding: var(--space-xl, 32px) var(--space-lg);
   background: var(--color-surface);
   border: 2px solid var(--color-border);
+  border-top: 3px solid var(--insight-accent, var(--color-primary));
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);

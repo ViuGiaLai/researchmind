@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "tauri": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tauri.ps1",
     "tauri:external": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:RESEARCHMIND_EXTERNAL_BACKEND='1'; pnpm tauri dev\""
   },
   "dependencies": {

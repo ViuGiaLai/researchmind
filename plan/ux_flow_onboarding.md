@@ -46,7 +46,7 @@ graph TD
 ### 🟢 Màn hình 1: Chào mừng & Auto-Detect Specs
 * **Mục tiêu:** Tạo ấn tượng đầu tiên đáng tin cậy (premium, bảo mật) và ngầm kiểm tra cấu hình phần cứng của user để đưa ra gợi ý phù hợp nhất.
 * **UX Copy & UI Layout:**
-  * **Logo:** Biểu tượng não bộ sáng rực bằng Gradient ánh tím/xanh dương ([IconBrain](file:///d:/all_my_project/memoryOS/apps/desktop/src/components/Icons.tsx)).
+  * **Logo:** Biểu tượng não bộ sáng rực bằng Gradient ánh tím/xanh dương ([IconBrain](file:///d:/all_my_project/ResearchMind/apps/desktop/src/components/Icons.tsx)).
   * **Tiêu đề:** `Chào mừng đến với ResearchMind VN`
   * **Mô tả:** `Trợ lý AI giúp bạn tìm kiếm và phân tích tài liệu nghiên cứu. Mọi dữ liệu đều ở trên máy bạn. 🔒`
   * **Bảng thông số (Tự động phát hiện):**

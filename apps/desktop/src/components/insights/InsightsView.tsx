@@ -58,7 +58,7 @@ const INSIGHT_CARDS = [
     icon: <IconChart size={22} />,
     title: "Literature Matrix",
     description: "So sánh đối chiếu mục tiêu, phương pháp, kết quả, hạn chế giữa các bài báo",
-    color: "#6366f1",
+    color: "var(--color-primary)",
   },
 ];
 
@@ -232,6 +232,7 @@ export const InsightsView: React.FC<{
             <button
               key={card.id}
               className="insight-type-card"
+              style={{ "--insight-accent": card.color } as React.CSSProperties}
               onClick={() => setActiveInsight(card.id)}
             >
               <span className="insight-type-icon">{card.icon}</span>
@@ -388,12 +389,12 @@ export const InsightsView: React.FC<{
 
           <div className="insights-result-content">
             {result.matrix ? (
-              <div className="insights-comparison-table-wrapper" style={{ overflowX: "auto", margin: "20px 0", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-                <table className="insights-comparison-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem", textAlign: "left" }}>
+              <div className="insights-comparison-table-wrapper">
+                <table className="insights-comparison-table rm-table">
                   <thead>
-                    <tr style={{ background: "rgba(99, 102, 241, 0.08)", borderBottom: "2px solid var(--color-border)" }}>
+                    <tr>
                       {result.matrix.columns.map((col, idx) => (
-                        <th key={idx} style={{ padding: "12px 16px", fontWeight: "bold", borderRight: "1px solid var(--color-border)", minWidth: idx === 0 ? "160px" : "260px", verticalAlign: "top", color: "var(--color-text)" }}>
+                        <th key={idx} className={idx === 0 ? "" : "rm-table-th--primary"} style={{ minWidth: idx === 0 ? 160 : 260 }}>
                           {col}
                         </th>
                       ))}
@@ -401,9 +402,9 @@ export const InsightsView: React.FC<{
                   </thead>
                   <tbody>
                     {result.matrix.rows.map((row, rowIdx) => (
-                      <tr key={rowIdx} style={{ background: rowIdx % 2 === 1 ? "var(--color-bg-hover, #f8fafc)" : "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
+                      <tr key={rowIdx}>
                         {row.map((cell, cellIdx) => (
-                          <td key={cellIdx} style={{ padding: "12px 16px", borderRight: "1px solid var(--color-border)", lineHeight: "1.5", color: cellIdx === 0 ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: cellIdx === 0 ? "bold" : "normal", verticalAlign: "top" }}>
+                          <td key={cellIdx} className={cellIdx === 0 ? "rm-table-td--criterion" : ""}>
                             {cell}
                           </td>
                         ))}

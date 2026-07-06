@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MemoryOS OCR Pipeline
+ResearchMind OCR Pipeline
 Uses PaddleOCR to extract text from images.
 
 Usage:
@@ -14,7 +14,7 @@ import sys
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MemoryOS OCR Pipeline")
+    parser = argparse.ArgumentParser(description="ResearchMind OCR Pipeline")
     parser.add_argument("--input", required=True, help="Input image path or directory")
     parser.add_argument("--output", required=True, help="Output JSON file path")
     args = parser.parse_args()

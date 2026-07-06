@@ -30,7 +30,7 @@ const CATEGORIES = [
 
 const CATEGORY_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   key_finding: { bg: "rgba(16, 185, 129, 0.08)", color: "#34d399", border: "rgba(16, 185, 129, 0.2)" },
-  methodology: { bg: "rgba(99, 102, 241, 0.08)", color: "#818cf8", border: "rgba(99, 102, 241, 0.2)" },
+  methodology: { bg: "rgba(var(--color-primary-rgb), 0.08)", color: "#818cf8", border: "rgba(var(--color-primary-rgb), 0.2)" },
   conclusion: { bg: "rgba(168, 85, 247, 0.08)", color: "#c084fc", border: "rgba(168, 85, 247, 0.2)" },
   novel_contribution: { bg: "rgba(236, 72, 153, 0.08)", color: "#f472b6", border: "rgba(236, 72, 153, 0.2)" },
   limitation: { bg: "rgba(239, 68, 68, 0.08)", color: "#f87171", border: "rgba(239, 68, 68, 0.2)" },
@@ -684,7 +684,7 @@ export const HighlightsLibraryView: React.FC<{
                              {/* AI Insight */}
                              {h.note && (
                                <div className="hl-evidence-note" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                 <IconChat size={12} style={{ color: "var(--color-text-muted, #94a3b8)", flexShrink: 0 }} />
+                                 <IconChat size={12} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
                                  <span><strong>Phân tích:</strong> {h.note}</span>
                                </div>
                              )}

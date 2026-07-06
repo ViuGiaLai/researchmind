@@ -19,8 +19,8 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
       className="thinking-block"
       style={{
         borderLeft: "3px solid var(--color-primary, #2dd4bf)",
-        background: "var(--color-surface, #141414)",
-        border: "1px solid var(--color-border, #282828)",
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
         borderLeftColor: "var(--color-primary, #2dd4bf)",
         padding: "10px 14px",
         borderRadius: "var(--radius-sm, 6px)",
@@ -63,7 +63,7 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
           style={{
             marginTop: 8,
             paddingTop: 8,
-            borderTop: "1px solid var(--color-border, #282828)",
+            borderTop: "1px solid var(--color-border)",
             whiteSpace: "pre-wrap",
             fontFamily: "var(--font-mono, monospace)",
             fontSize: "0.9em",
@@ -173,7 +173,7 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
         {
           key: i,
           style: {
-            background: "rgba(99, 102, 241, 0.1)",
+            background: "rgba(var(--color-primary-rgb), 0.1)",
             padding: "2px 6px",
             borderRadius: 4,
             fontSize: "0.85em",
@@ -198,7 +198,7 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
           onClick: () => onCitationClick?.(seg.refId!),
           title: tooltipLines || `Nguồn ${seg.refId}`,
           style: {
-            color: "var(--color-primary, #6366f1)",
+            color: "var(--color-primary)",
             fontWeight: 600,
             fontSize: "0.78em",
             cursor: "pointer",
@@ -214,7 +214,7 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
         {
           key: i,
           style: {
-            color: "var(--color-primary, #6366f1)",
+            color: "var(--color-primary)",
             fontWeight: 500,
             fontSize: "0.85em",
           },
@@ -436,9 +436,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCita
           fontSize: "0.9em",
           textAlign: "left",
           fontWeight: isHeader ? 600 : 400,
-          color: isHeader ? "var(--color-primary, #6366f1)" : undefined,
+          color: isHeader ? "var(--color-primary)" : undefined,
           borderBottom: isHeader
-            ? "2px solid rgba(99, 102, 241, 0.3)"
+            ? "2px solid rgba(var(--color-primary-rgb), 0.3)"
             : "1px solid rgba(255,255,255,0.06)",
           verticalAlign: "top",
         },

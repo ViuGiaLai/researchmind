@@ -531,6 +531,7 @@ export const SettingsView: React.FC = () => {
     : [];
 
   return (
+    <div className="settings-view">
     <div className="settings-panel">
       <div className="settings-header">
         <h2 className="settings-title">
@@ -660,7 +661,7 @@ export const SettingsView: React.FC = () => {
         {/* Cloud Free stats */}
         {llmMode === "cloud_free" && (
           <div className="settings-mode-detail" style={{ marginTop: 16 }}>
-            <div style={{ background: "rgba(99, 102, 241, 0.05)", border: "1px solid rgba(99, 102, 241, 0.15)", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ background: "rgba(var(--color-primary-rgb), 0.05)", border: "1px solid rgba(var(--color-primary-rgb), 0.15)", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <span style={{ fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                   <IconZap size={16} /> Lượt sử dụng miễn phí
@@ -703,9 +704,9 @@ export const SettingsView: React.FC = () => {
                     onClick={() => setCustomCloudProvider(provider as any)}
                     style={{
                       flex: "1 1 30%", padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
-                      background: isActive ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                      borderColor: isActive ? "var(--color-primary, #6366f1)" : "var(--border-color)",
-                      color: isActive ? "var(--color-primary, #6366f1)" : "var(--color-text)",
+                      background: isActive ? "rgba(var(--color-primary-rgb), 0.1)" : "transparent",
+                      borderColor: isActive ? "var(--color-primary)" : "var(--border-color)",
+                      color: isActive ? "var(--color-primary)" : "var(--color-text)",
                       cursor: "pointer", fontWeight: "bold", minWidth: "100px", fontSize: "0.85rem"
                     }}
                   >
@@ -1579,6 +1580,7 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

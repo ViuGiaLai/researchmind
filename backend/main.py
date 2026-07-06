@@ -155,6 +155,7 @@ async def lifespan(app: FastAPI):
     """Initialize app state on startup, cleanup on shutdown."""
     startup_t0 = time.time()
     logger.info("Starting ResearchMind VN backend...")
+    state.init_message = "Đang khởi động cơ sở dữ liệu..."
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.papers_dir.mkdir(parents=True, exist_ok=True)
@@ -167,105 +168,114 @@ async def lifespan(app: FastAPI):
     _migrate_review_draft_versions(state.engine)
 
     logger.info("Database initialized")
-
     load_persisted_settings()
-
-    state.embedder = get_embedder(settings.embedding_model)
-    state.init_message = "Sẵn sàng"
-    state.embedder_ready = True
-    logger.info(f"Cloud embedding ready: {settings.embedding_model} (Gemini API)")
-
-    db_session = get_session(state.engine)
-    state.bm25 = BM25Search(db_session)
-    state.bm25.ensure_fts_table()
-    state.vector = VectorSearch(settings.chroma_dir)
-    state.hybrid = HybridSearch(
-        bm25_search=state.bm25,
-        vector_search=state.vector,
-        embedder=state.embedder,
-        rrf_k=settings.rrf_k,
-        top_k_final=settings.top_k_final,
-    )
-    logger.info("Search engines initialized")
-
-    def _warmup_reranker():
-        time.sleep(float(os.environ.get("RESEARCHMIND_RERANKER_WARMUP_DELAY", "10")))
-        warmup_t0 = time.time()
-        try:
-            logger.info(f"Warming up BGE-Reranker model: {settings.reranker_model}...")
-            state.hybrid._get_reranker()
-            logger.info(f"BGE-Reranker model ready in {time.time() - warmup_t0:.2f}s")
-        except Exception as e:
-            logger.error(f"Failed to load BGE-Reranker: {e}")
-
-    if os.environ.get("RESEARCHMIND_DISABLE_RERANKER_IDLE_WARMUP", "0").lower() not in ("1", "true", "yes"):
-        threading.Thread(target=_warmup_reranker, daemon=True).start()
-
     app.state.engine = state.engine
 
-    state.retriever = Retriever(state.hybrid)
-    state.generator = Generator(
-        llama_server_url=settings.llama_server_url,
-        local_model=settings.local_model,
-        claude_api_key=settings.claude_api_key,
-        claude_model=settings.claude_model,
-        deepseek_api_key=settings.deepseek_api_key,
-        deepseek_model=settings.deepseek_model,
-        gemini_api_key=settings.gemini_api_key,
-        gemini_model=settings.gemini_model,
-        groq_api_key=settings.groq_api_key,
-        groq_model=settings.groq_model,
-        nvidia_api_key=settings.nvidia_api_key,
-        nvidia_model=settings.nvidia_model,
-        nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
-        nvidia_deepseek_api_key=getattr(settings, "nvidia_deepseek_api_key", ""),
-        nvidia_deepseek_model=getattr(settings, "nvidia_deepseek_model", "deepseek-ai/deepseek-v4-pro"),
-        freemodel_api_key=settings.freemodel_api_key,
-        freemodel_model=settings.freemodel_model,
-        freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
-        github_api_key=settings.github_api_key,
-        github_model=settings.github_model,
-        github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
-        github_deepseek_v3_api_key=settings.github_deepseek_v3_api_key,
-        github_deepseek_v3_model=settings.github_deepseek_v3_model,
-        openrouter_api_key=settings.openrouter_api_key,
-        openrouter_model=settings.openrouter_model,
-        openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),
-        openrouter_api_deep_key=settings.openrouter_api_deep_key,
-        openrouter_deep_model=settings.openrouter_deep_model,
-        openrouter_url_deep=getattr(settings, "openrouter_url_deep", "https://openrouter.ai/api/v1"),
-        cohere_api_key=settings.cohere_api_key,
-        cohere_model=settings.cohere_model,
-        cohere_url=getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1"),
-        cloudflare_api_key=settings.cloudflare_api_key,
-        cloudflare_model=settings.cloudflare_model,
-        cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
-        cerebras_api_key=settings.cerebras_api_key,
-        cerebras_model=settings.cerebras_model,
-        cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.net/v1"),
-        mode=settings.llm_mode,
-        task_provider_map=settings.task_provider_map,
-        custom_cloud_provider=settings.custom_cloud_provider,
-        local_max_tokens=settings.local_max_tokens,
-        task_ultimate_fallback_chain=getattr(settings, "task_ultimate_fallback_chain", ""),
-    )
-    # Initialize knowledge graph store
-    from graph.storage import GraphStore
-    graph_path = settings.data_dir / "graph" / "knowledge_graph.json"
-    state._graph_store = GraphStore(path=graph_path)
-    state._graph_store.load()
-    logger.info(f"Knowledge graph store initialized: {state._graph_store.graph.stats()}")
+    state.init_message = "Đang tải module AI (có thể mất 1–2 phút lần đầu)..."
 
-    logger.info("RAG pipeline initialized")
-    logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
+    def _background_startup():
+        try:
+            state.embedder = get_embedder(settings.embedding_model)
+            state.embedder_ready = True
+            logger.info(f"Cloud embedding ready: {settings.embedding_model} (Gemini API)")
 
-    import httpx
-    try:
-        resp = httpx.get(f"{settings.llama_server_url}/health", timeout=3.0)
-        if resp.status_code == 200:
-            logger.info(f"llama-server ready at {settings.llama_server_url}")
-    except Exception:
-        logger.warning(f"llama-server not detected at {settings.llama_server_url}")
+            db_session = get_session(state.engine)
+            state.bm25 = BM25Search(db_session)
+            state.bm25.ensure_fts_table()
+            state.vector = VectorSearch(settings.chroma_dir)
+            state.hybrid = HybridSearch(
+                bm25_search=state.bm25,
+                vector_search=state.vector,
+                embedder=state.embedder,
+                rrf_k=settings.rrf_k,
+                top_k_final=settings.top_k_final,
+            )
+            logger.info("Search engines initialized")
+
+            def _warmup_reranker():
+                time.sleep(float(os.environ.get("RESEARCHMIND_RERANKER_WARMUP_DELAY", "10")))
+                warmup_t0 = time.time()
+                try:
+                    logger.info(f"Warming up BGE-Reranker model: {settings.reranker_model}...")
+                    state.hybrid._get_reranker()
+                    logger.info(f"BGE-Reranker model ready in {time.time() - warmup_t0:.2f}s")
+                except Exception as e:
+                    logger.error(f"Failed to load BGE-Reranker: {e}")
+
+            if os.environ.get("RESEARCHMIND_DISABLE_RERANKER_IDLE_WARMUP", "0").lower() not in ("1", "true", "yes"):
+                threading.Thread(target=_warmup_reranker, daemon=True).start()
+
+            state.retriever = Retriever(state.hybrid)
+            state.generator = Generator(
+                llama_server_url=settings.llama_server_url,
+                local_model=settings.local_model,
+                claude_api_key=settings.claude_api_key,
+                claude_model=settings.claude_model,
+                deepseek_api_key=settings.deepseek_api_key,
+                deepseek_model=settings.deepseek_model,
+                gemini_api_key=settings.gemini_api_key,
+                gemini_model=settings.gemini_model,
+                groq_api_key=settings.groq_api_key,
+                groq_model=settings.groq_model,
+                nvidia_api_key=settings.nvidia_api_key,
+                nvidia_model=settings.nvidia_model,
+                nvidia_url=getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1"),
+                nvidia_deepseek_api_key=getattr(settings, "nvidia_deepseek_api_key", ""),
+                nvidia_deepseek_model=getattr(settings, "nvidia_deepseek_model", "deepseek-ai/deepseek-v4-pro"),
+                freemodel_api_key=settings.freemodel_api_key,
+                freemodel_model=settings.freemodel_model,
+                freemodel_url=getattr(settings, "freemodel_url", "https://freemodel.dev/v1"),
+                github_api_key=settings.github_api_key,
+                github_model=settings.github_model,
+                github_url=getattr(settings, "github_url", "https://models.inference.ai.azure.com"),
+                github_deepseek_v3_api_key=settings.github_deepseek_v3_api_key,
+                github_deepseek_v3_model=settings.github_deepseek_v3_model,
+                openrouter_api_key=settings.openrouter_api_key,
+                openrouter_model=settings.openrouter_model,
+                openrouter_url=getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1"),
+                openrouter_api_deep_key=settings.openrouter_api_deep_key,
+                openrouter_deep_model=settings.openrouter_deep_model,
+                openrouter_url_deep=getattr(settings, "openrouter_url_deep", "https://openrouter.ai/api/v1"),
+                cohere_api_key=settings.cohere_api_key,
+                cohere_model=settings.cohere_model,
+                cohere_url=getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1"),
+                cloudflare_api_key=settings.cloudflare_api_key,
+                cloudflare_model=settings.cloudflare_model,
+                cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
+                cerebras_api_key=settings.cerebras_api_key,
+                cerebras_model=settings.cerebras_model,
+                cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.net/v1"),
+                mode=settings.llm_mode,
+                task_provider_map=settings.task_provider_map,
+                custom_cloud_provider=settings.custom_cloud_provider,
+                local_max_tokens=settings.local_max_tokens,
+                task_ultimate_fallback_chain=getattr(settings, "task_ultimate_fallback_chain", ""),
+            )
+
+            from graph.storage import GraphStore
+            graph_path = settings.data_dir / "graph" / "knowledge_graph.json"
+            state._graph_store = GraphStore(path=graph_path)
+            state._graph_store.load()
+            logger.info(f"Knowledge graph store initialized: {state._graph_store.graph.stats()}")
+
+            logger.info("RAG pipeline initialized")
+            state.backend_ready = True
+            state.init_message = "Sẵn sàng"
+            logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
+
+            import httpx
+            try:
+                resp = httpx.get(f"{settings.llama_server_url}/health", timeout=3.0)
+                if resp.status_code == 200:
+                    logger.info(f"llama-server ready at {settings.llama_server_url}")
+            except Exception:
+                logger.warning(f"llama-server not detected at {settings.llama_server_url}")
+        except Exception as e:
+            state.init_message = f"Lỗi khởi động backend: {e}"
+            logger.exception("Background startup failed")
+
+    threading.Thread(target=_background_startup, daemon=True).start()
+    logger.info(f"PYTHON_STARTUP_TIMING http_ready={time.time() - startup_t0:.2f}s")
 
     yield
 

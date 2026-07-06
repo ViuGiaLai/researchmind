@@ -66,17 +66,35 @@ jobs:
         shell: bash
         run: |
           mkdir -p apps/desktop/src-tauri/resources
+          BACKEND_BIN=""
           if [ "${{ runner.os }}" == "Windows" ]; then
-            cp dist/backend.exe apps/desktop/src-tauri/resources/backend.exe
-            cp dist/backend.exe apps/desktop/src-tauri/resources/backend
+            if [ -f dist/backend.exe ]; then
+              BACKEND_BIN="dist/backend.exe"
+            fi
           elif [ -f dist/backend ]; then
-            cp dist/backend apps/desktop/src-tauri/resources/backend
-            cp dist/backend apps/desktop/src-tauri/resources/backend.exe
-          elif [ -d dist/backend ]; then
-            cp dist/backend/backend apps/desktop/src-tauri/resources/backend
-            cp dist/backend/backend apps/desktop/src-tauri/resources/backend.exe
+            BACKEND_BIN="dist/backend"
+          elif [ -f dist/backend/backend ]; then
+            BACKEND_BIN="dist/backend/backend"
           fi
+
+          if [ -z "$BACKEND_BIN" ]; then
+            echo "❌ PyInstaller backend binary not found in dist/"
+            ls -la dist/ || true
+            exit 1
+          fi
+
+          SIZE=$(wc -c < "$BACKEND_BIN")
+          echo "Backend binary size: $SIZE bytes"
+          if [ "$SIZE" -lt 5000000 ]; then
+            echo "❌ Backend binary too small ($SIZE bytes) — build likely failed"
+            exit 1
+          fi
+
+          cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend
+          cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend.exe
+          chmod +x apps/desktop/src-tauri/resources/backend || true
           cp backend/.env apps/desktop/src-tauri/resources/.env
+          ls -la apps/desktop/src-tauri/resources/
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

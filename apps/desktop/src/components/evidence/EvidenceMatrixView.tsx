@@ -52,6 +52,18 @@ function formatDate(ts: number) {
     d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
+const CONFIDENCE_BADGE: Record<EvidenceCell["confidence"], string> = {
+  high: "rm-badge--success",
+  medium: "rm-badge--warning",
+  low: "rm-badge--error",
+};
+
+const CONFIDENCE_LABEL: Record<EvidenceCell["confidence"], string> = {
+  high: "✅ Chắc chắn",
+  medium: "⚠️ Trung bình",
+  low: "❌ Thấp",
+};
+
 export const EvidenceMatrixView: React.FC = () => {
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -68,13 +80,8 @@ export const EvidenceMatrixView: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  const selectAll = () => {
-    setSelectedIds(papers.map(p => p.id));
-  };
-
-  const deselectAll = () => {
-    setSelectedIds([]);
-  };
+  const selectAll = () => setSelectedIds(papers.map(p => p.id));
+  const deselectAll = () => setSelectedIds([]);
 
   const togglePaper = (id: string) => {
     setSelectedIds(prev =>
@@ -110,7 +117,7 @@ export const EvidenceMatrixView: React.FC = () => {
       const updated = [entry, ...history].slice(0, 20);
       setHistory(updated);
       saveHistory(updated);
-    } catch (e) {
+    } catch {
       toast.addToast("error", "Không thể tạo ma trận so sánh");
     } finally {
       setGenerating(false);
@@ -159,31 +166,22 @@ export const EvidenceMatrixView: React.FC = () => {
     setActivePdf({ paperId, page, quote });
   };
 
+  const allSelected = selectedIds.length === papers.length && papers.length > 0;
+
   return (
-    <div className="evidence-matrix-view" style={{ height: "100%", display: "flex", flexDirection: "column", padding: "20px", overflow: "hidden" }}>
-      {/* Header row: title + new button */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-        <div>
-          <h2 style={{ margin: 0, fontWeight: 700, fontSize: "1.2rem", display: "flex", alignItems: "center", gap: "8px" }}>
+    <div className="rm-page evidence-matrix-view">
+      <div className="rm-page-actions">
+        <div className="rm-page-header" style={{ marginBottom: 0 }}>
+          <h2>
             <IconBrain size={22} className="icon-gradient" />
             Ma trận so sánh
           </h2>
         </div>
         {matrix && (
           <button
+            type="button"
+            className="rm-btn rm-btn--sm"
             onClick={() => { setMatrix(null); setExpandedCell(null); }}
-            style={{
-              padding: "6px 14px",
-              borderRadius: "6px",
-              border: "1px solid var(--color-border, #333)",
-              background: "transparent",
-              color: "var(--color-text-muted, #94a3b8)",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
           >
             <IconClose size={14} /> Tạo mới
           </button>
@@ -192,92 +190,46 @@ export const EvidenceMatrixView: React.FC = () => {
 
       {!matrix && (
         <>
-          {/* Paper Selection */}
-          <div className="evidence-paper-selection" style={{ marginBottom: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div className="evidence-paper-selection" style={{ marginBottom: 12 }}>
+            <div className="rm-page-actions">
+              <div className="rm-section-label" style={{ marginBottom: 0 }}>
                 <IconFileText size={16} />
-                <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                  Bài báo ({selectedIds.length}/{papers.length})
-                </span>
+                <span>Bài báo ({selectedIds.length}/{papers.length})</span>
               </div>
-              <div style={{ display: "flex", gap: "4px" }}>
-                <button onClick={selectAll} style={chipBtnStyle(selectedIds.length === papers.length && papers.length > 0)}>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button type="button" className={`rm-btn rm-btn--xs rm-btn--chip${allSelected ? " active" : ""}`} onClick={selectAll}>
                   Chọn tất cả
                 </button>
-                <button onClick={deselectAll} style={chipBtnStyle(false)}>
+                <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={deselectAll}>
                   Bỏ chọn
                 </button>
               </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "6px",
-                maxHeight: "100px",
-                overflowY: "auto",
-                padding: "8px",
-                background: "var(--color-surface, #141414)",
-                borderRadius: "6px",
-                border: "1px solid var(--color-border, #282828)",
-              }}
-            >
+            <div className="rm-chip-group">
               {papers.length === 0 ? (
-                <span style={{ color: "var(--color-text-muted, #94a3b8)", fontSize: "0.8rem", padding: "4px" }}>
-                  Chưa có bài báo trong thư viện...
-                </span>
+                <span className="rm-card-meta" style={{ padding: 4 }}>Chưa có bài báo trong thư viện...</span>
               ) : (
-                papers.map(p => {
-                  const selected = selectedIds.includes(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => togglePaper(p.id)}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: "14px",
-                        border: selected ? "1px solid var(--color-primary, #6366f1)" : "1px solid var(--color-border, #333)",
-                        background: selected ? "rgba(99, 102, 241, 0.1)" : "transparent",
-                        color: selected ? "var(--color-primary, #6366f1)" : "var(--color-text-secondary, #a3a3a3)",
-                        cursor: "pointer",
-                        fontSize: "0.78rem",
-                        fontWeight: selected ? 600 : 400,
-                        transition: "all 0.15s",
-                        whiteSpace: "nowrap",
-                        maxWidth: "200px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                      title={p.title}
-                    >
-                      {p.title.length > 35 ? p.title.slice(0, 35) + "..." : p.title}
-                    </button>
-                  );
-                })
+                papers.map(p => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`rm-chip${selectedIds.includes(p.id) ? " selected" : ""}`}
+                    onClick={() => togglePaper(p.id)}
+                    title={p.title}
+                  >
+                    {p.title.length > 35 ? p.title.slice(0, 35) + "..." : p.title}
+                  </button>
+                ))
               )}
             </div>
           </div>
 
-          {/* Generate Button */}
-          <div style={{ marginBottom: "16px" }}>
+          <div style={{ marginBottom: 16 }}>
             <button
+              type="button"
+              className="rm-btn rm-btn--primary"
               onClick={generateMatrix}
               disabled={generating || selectedIds.length < 2}
-              style={{
-                padding: "8px 24px",
-                borderRadius: "6px",
-                border: "none",
-                background: generating ? "var(--color-border, #333)" : "var(--color-primary, #6366f1)",
-                color: "#fff",
-                fontWeight: 600,
-                cursor: generating || selectedIds.length < 2 ? "not-allowed" : "pointer",
-                fontSize: "0.85rem",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                opacity: selectedIds.length < 2 ? 0.5 : 1,
-              }}
             >
               {generating ? <IconSpinner size={14} /> : <IconSearch size={14} />}
               {generating ? "Đang phân tích..." : "Tạo ma trận so sánh"}
@@ -286,52 +238,59 @@ export const EvidenceMatrixView: React.FC = () => {
         </>
       )}
 
-      {/* Matrix Table */}
       {matrix && (
-        <div style={{ flex: 1, overflow: "auto", marginBottom: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
-            <button onClick={exportCsv} style={{ padding: "4px 12px", borderRadius: "4px", border: "1px solid var(--color-border, #333)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+        <div className="rm-table-wrap">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+            <button type="button" className="rm-btn rm-btn--xs" onClick={exportCsv}>
               <IconDownload size={12} /> Xuất CSV
             </button>
           </div>
-          <table className="evidence-matrix-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+          <table className="rm-table evidence-matrix-table">
             <thead>
               <tr>
-                <th style={thStyle("Tiêu chí")}>Tiêu chí</th>
+                <th style={{ minWidth: 120 }}>Tiêu chí</th>
                 {matrix.columns.map((col, i) => (
-                  <th key={i} style={thStyle("primary")}>{col.length > 50 ? col.slice(0, 50) + "..." : col}</th>
+                  <th key={i} className="rm-table-th--primary" style={{ minWidth: 200 }}>
+                    {col.length > 50 ? col.slice(0, 50) + "..." : col}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {matrix.rows.map((row, ri) => (
                 <tr key={ri}>
-                  <td style={{ padding: "10px 12px", fontWeight: 600, fontSize: "0.8rem", color: "var(--color-text, #e4e4e7)", borderBottom: "1px solid var(--color-border, #282828)", background: "rgba(99, 102, 241, 0.03)", verticalAlign: "top" }}>
-                    {row.criterion}
-                  </td>
+                  <td className="rm-table-td--criterion">{row.criterion}</td>
                   {row.cells.map((cell, ci) => {
                     const isExpanded = expandedCell?.row === ri && expandedCell?.col === ci;
                     return (
-                      <td key={ci} onClick={() => { if (isExpanded) setExpandedCell(null); else setExpandedCell({ row: ri, col: ci }); }} style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border, #282828)", verticalAlign: "top", cursor: "pointer", background: isExpanded ? "rgba(99, 102, 241, 0.06)" : "transparent", transition: "background 0.15s" }}>
-                        <div style={{ marginBottom: "6px", lineHeight: 1.5, color: "var(--color-text, #e4e4e7)" }}>
+                      <td
+                        key={ci}
+                        className={`rm-table-td--clickable${isExpanded ? " rm-table-td--expanded" : ""}`}
+                        onClick={() => setExpandedCell(isExpanded ? null : { row: ri, col: ci })}
+                      >
+                        <div style={{ marginBottom: 6 }}>
                           {isExpanded ? cell.value : cell.value.length > 120 ? cell.value.slice(0, 120) + "..." : cell.value}
                         </div>
                         {cell.quote && (
-                          <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted, #94a3b8)", fontStyle: "italic", marginBottom: "4px", padding: "4px 6px", borderLeft: "2px solid var(--color-primary, #6366f1)", background: "rgba(99, 102, 241, 0.04)", borderRadius: "0 4px 4px 0" }}>
+                          <div className="rm-quote">
                             &ldquo;{cell.quote.length > 100 ? cell.quote.slice(0, 100) + "..." : cell.quote}&rdquo;
-                            {cell.page && <span style={{ display: "block", marginTop: "2px", fontSize: "0.7rem" }}>Trang {cell.page}</span>}
+                            {cell.page && <span style={{ display: "block", marginTop: 2, fontSize: "0.7rem" }}>Trang {cell.page}</span>}
                           </div>
                         )}
-                        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
                           {cell.page && (
-                            <button onClick={(e) => { e.stopPropagation(); openPdf(cell.paper_id, cell.page, cell.quote); }} style={{ background: "rgba(99, 102, 241, 0.08)", border: "1px solid rgba(99, 102, 241, 0.2)", borderRadius: "4px", color: "var(--color-primary, #6366f1)", cursor: "pointer", padding: "2px 6px", fontSize: "0.68rem", fontWeight: 500 }}>
+                            <button
+                              type="button"
+                              className="rm-btn rm-btn--xs"
+                              onClick={(e) => { e.stopPropagation(); openPdf(cell.paper_id, cell.page, cell.quote); }}
+                            >
                               📄 Mở PDF (tr.{cell.page})
                             </button>
                           )}
-                          <span style={{ fontSize: "0.65rem", padding: "1px 5px", borderRadius: "3px", fontWeight: 500, background: cell.confidence === "high" ? "rgba(16, 185, 129, 0.1)" : cell.confidence === "medium" ? "rgba(251, 191, 36, 0.1)" : "rgba(239, 68, 68, 0.1)", color: cell.confidence === "high" ? "#10b981" : cell.confidence === "medium" ? "#f59e0b" : "#ef4444" }}>
-                            {cell.confidence === "high" ? "✅ Chắc chắn" : cell.confidence === "medium" ? "⚠️ Trung bình" : "❌ Thấp"}
+                          <span className={`rm-badge ${CONFIDENCE_BADGE[cell.confidence]}`}>
+                            {CONFIDENCE_LABEL[cell.confidence]}
                           </span>
-                          <span style={{ fontSize: "0.65rem", padding: "1px 5px", borderRadius: "3px", fontWeight: 500, background: cell.status === "user_verified" ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)", color: cell.status === "user_verified" ? "#10b981" : "#94a3b8" }}>
+                          <span className={`rm-badge ${cell.status === "user_verified" ? "rm-badge--success" : "rm-badge--muted"}`}>
                             {cell.status === "user_verified" ? "✅ Đã xác nhận" : "🤖 AI trích xuất"}
                           </span>
                         </div>
@@ -345,64 +304,31 @@ export const EvidenceMatrixView: React.FC = () => {
         </div>
       )}
 
-      {/* Drafts section — luôn hiển thị */}
       <div style={{ flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-          <IconClock size={14} style={{ color: "var(--color-text-muted)" }} />
-          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-text-muted, #94a3b8)" }}>
-            Bản nháp đã lưu ({history.length})
-          </span>
+        <div className="rm-section-label">
+          <IconClock size={14} />
+          <span>Bản nháp đã lưu ({history.length})</span>
         </div>
         {history.length === 0 ? (
-          <div style={{ padding: "12px 0", fontSize: "0.8rem", color: "var(--color-text-muted, #555)", fontStyle: "italic" }}>
-            Chưa có bản nháp nào. Tạo ma trận so sánh để bắt đầu.
-          </div>
+          <div className="rm-section-hint">Chưa có bản nháp nào. Tạo ma trận so sánh để bắt đầu.</div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "200px", overflowY: "auto" }}>
+          <div className="rm-history-list">
             {history.map(entry => (
-              <div
-                key={entry.id}
-                onClick={() => loadFromHistory(entry)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--color-border, #282828)",
-                  background: "var(--color-surface, #141414)",
-                  cursor: "pointer",
-                  transition: "background 0.1s, border-color 0.1s",
-                }}
-                onMouseEnter={(e) => { const el = e.currentTarget; el.style.borderColor = "var(--color-primary, #6366f1)"; el.style.background = "rgba(99, 102, 241, 0.04)"; }}
-                onMouseLeave={(e) => { const el = e.currentTarget; el.style.borderColor = "var(--color-border, #282828)"; el.style.background = "var(--color-surface, #141414)"; }}
-              >
+              <div key={entry.id} className="rm-history-item" onClick={() => loadFromHistory(entry)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--color-text, #e4e4e7)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div className="rm-history-item-title">
                     {entry.title || entry.paperNames.join(" • ")}
                   </div>
-                  <div style={{ display: "flex", gap: "12px", marginTop: "4px", fontSize: "0.75rem", color: "var(--color-text-muted, #94a3b8)" }}>
+                  <div className="rm-history-item-meta">
                     <span>{entry.paperNames.length} bài báo</span>
                     <span>{entry.matrix.rows.length} tiêu chí</span>
                     <span>{formatDate(entry.timestamp)}</span>
                   </div>
                 </div>
                 <button
+                  type="button"
+                  className="rm-history-delete"
                   onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--color-text-muted, #555)",
-                    cursor: "pointer",
-                    padding: "4px",
-                    fontSize: "0.9rem",
-                    lineHeight: 1,
-                    flexShrink: 0,
-                    borderRadius: "4px",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                   title="Xóa"
                 >
                   ✕
@@ -413,49 +339,28 @@ export const EvidenceMatrixView: React.FC = () => {
         )}
       </div>
 
-      {/* PDF Quick View */}
       {activePdf && (
-        <div className="evidence-pdf-overlay" onClick={() => setActivePdf(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "80%", height: "85%", background: "var(--color-surface, #141414)", borderRadius: "8px", border: "1px solid var(--color-border, #282828)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--color-border, #282828)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+        <div className="rm-overlay evidence-pdf-overlay" onClick={() => setActivePdf(null)}>
+          <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="rm-modal-header">
+              <span className="rm-modal-title">
                 PDF — Trang {activePdf.page}
-                {activePdf.quote && <span style={{ fontWeight: 400, color: "var(--color-text-muted)", marginLeft: "8px", fontSize: "0.78rem" }}>&ldquo;{activePdf.quote.slice(0, 60)}...&rdquo;</span>}
+                {activePdf.quote && (
+                  <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", marginLeft: 8, fontSize: "0.78rem" }}>
+                    &ldquo;{activePdf.quote.slice(0, 60)}...&rdquo;
+                  </span>
+                )}
               </span>
-              <button onClick={() => setActivePdf(null)} style={{ background: "none", border: "none", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "1.2rem" }}>✕</button>
+              <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
             </div>
-            <iframe src={`${BASE_URL}/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`} style={{ flex: 1, border: "none" }} title="PDF Preview" />
+            <iframe
+              src={`${BASE_URL}/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`}
+              style={{ flex: 1, border: "none" }}
+              title="PDF Preview"
+            />
           </div>
         </div>
       )}
     </div>
   );
 };
-
-const thStyle = (type: "Tiêu chí" | "primary") => ({
-  padding: "8px 12px",
-  textAlign: "left" as const,
-  fontWeight: 600,
-  fontSize: "0.78rem",
-  color: type === "Tiêu chí" ? "var(--color-text-muted, #94a3b8)" : "var(--color-primary, #6366f1)",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.5px",
-  borderBottom: "2px solid var(--color-primary, #6366f1)",
-  position: "sticky" as const,
-  top: 0,
-  background: "var(--color-bg, #0a0a0a)",
-  zIndex: 1,
-  minWidth: type === "Tiêu chí" ? "120px" : "200px",
-});
-
-const chipBtnStyle = (isActive: boolean) => ({
-  padding: "3px 10px",
-  borderRadius: "4px",
-  border: "1px solid var(--color-border, #333)",
-  background: isActive ? "rgba(99, 102, 241, 0.1)" : "transparent",
-  color: isActive ? "var(--color-primary, #6366f1)" : "var(--color-text-muted, #94a3b8)",
-  cursor: "pointer",
-  fontSize: "0.75rem",
-  fontWeight: isActive ? 600 : 400,
-  transition: "all 0.15s",
-});

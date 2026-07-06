@@ -36,6 +36,7 @@ async def health():
         "total_papers": _count_papers(),
         "total_chunks": _count_chunks(),
         "embedder_ready": state.embedder_ready,
+        "backend_ready": state.backend_ready,
         "init_message": state.init_message,
     }
 
