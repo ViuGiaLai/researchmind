@@ -182,7 +182,12 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
                 logger.warning(f"OCR failed for page {page_num + 1}: {e}")
 
         # OCR embedded figures/charts even when the page already has extractable text
-        image_snippets = extract_pdf_page_image_text(page, doc)
+        image_snippets = extract_pdf_page_image_text(
+            page,
+            doc,
+            page_num=page_num + 1,
+            page_text=text,
+        )
         if image_snippets:
             text = (text.rstrip() + "\n\n" + "\n".join(image_snippets)).strip()
         doc.close()

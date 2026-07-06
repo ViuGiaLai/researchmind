@@ -1023,7 +1023,10 @@ export const ChatView: React.FC<{
   };
 
   return (
-    <div className="chat-view-container" style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}>
+    <div
+      className={`chat-view-container${showPdfViewer && pdfPaperId ? " chat-view-container--split" : ""}`}
+      style={{ display: "flex", width: "100%", height: "100%", overflow: "hidden" }}
+    >
       {showPdfViewer && pdfPaperId && (
         <PdfViewer
           key={`${pdfPaperId}-${pdfInitialPage}-${pdfRefreshKey}`}
@@ -1039,136 +1042,104 @@ export const ChatView: React.FC<{
           }}
         />
       )}
-      <div className="chat-view" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <div className="chat-view-header">
-          <h2 className="chat-view-title" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {/* <IconBrain
-              size={22}
-              className="icon-gradient"
-              style={{ verticalAlign: "middle", marginRight: 8 }}
-            />
-            Chat Nghiên Cứu */}
+      <div className="chat-view chat-view--compact" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <div className="chat-view-controls-bar">
+        <div className="chat-view-controls-top">
+          <div className="chat-view-scope-tabs">
+            <button
+              type="button"
+              className={`chat-view-scope-tab ${scope === "current" ? "active" : ""}`}
+              onClick={() => setScope("current")}
+              title="Paper hiện tại"
+            >
+              <IconFileText size={13} /> Paper
+            </button>
+            <button
+              type="button"
+              className={`chat-view-scope-tab ${scope === "library" ? "active" : ""}`}
+              onClick={() => setScope("library")}
+              title="Toàn bộ thư viện"
+            >
+              <IconLibrary size={13} /> Thư viện
+            </button>
+            <button
+              type="button"
+              className={`chat-view-scope-tab ${scope === "collection" ? "active" : ""}`}
+              onClick={() => setScope("collection")}
+              title="Collection"
+            >
+              <IconBook size={13} /> Collection
+            </button>
+            <button
+              type="button"
+              className={`chat-view-scope-tab ${scope === "external" ? "active" : ""}`}
+              onClick={() => setScope("external")}
+              title="Nghiên cứu bên ngoài"
+            >
+              <IconSearch size={13} /> Bên ngoài
+            </button>
+          </div>
+          <div className="chat-view-header-actions">
             {paperIds.length === 1 && pdfPaperUrl && !showPdfViewer && (
               <button
+                type="button"
+                className="chat-view-open-pdf-btn"
                 onClick={() => setShowPdfViewer(true)}
-                style={{
-                  background: "rgba(99, 102, 241, 0.08)",
-                  color: "var(--color-primary, #6366f1)",
-                  border: "1px solid rgba(99, 102, 241, 0.2)",
-                  borderRadius: "var(--radius-sm, 4px)",
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  marginLeft: "12px",
-                  whiteSpace: "nowrap"
-                }}
                 title="Mở trình xem PDF song song"
               >
-                📖 Xem PDF
+                📖 PDF
               </button>
             )}
-          </h2>
-        <div className="chat-view-header-actions">
-          {/* Auto-Cite button */}
-          {paperIds.length > 0 && (
-            <button
-              className="chat-view-cite-btn"
-              onClick={generateCitations}
-              disabled={citeLoading}
-              title="Tạo citation từ papers đã chọn"
-            >
-              {citeLoading ? (
-                <IconSpinner size={14} />
-              ) : (
-                <IconStar size={14} />
-              )}
-              Citation
-            </button>
-          )}
-          
-          {/* {usage && usage.mode === "cloud_free" && (
-            <span
-              className="chat-view-papers-badge"
-              style={{
-                background: "rgba(99, 102, 241, 0.08)",
-                color: "var(--color-primary, #6366f1)",
-                border: "1px solid rgba(99, 102, 241, 0.2)",
-              }}
-            >
-              <IconZap size={14} /> Free Cloud: {usage.used}/{usage.limit} câu
-            </span>
-          )} */}
-          {paperIds.length > 0 && (
-            <span className="chat-view-papers-badge">
-              <IconFileText size={14} /> {paperIds.length} papers
-            </span>
-          )}
-          {initialMode === "review" && (
-            <span
-              className="chat-view-papers-badge"
-              style={{
-                background: "rgba(16, 185, 129, 0.08)",
-                color: "var(--color-success, #10b981)",
-                border: "1px solid rgba(16, 185, 129, 0.2)",
-              }}
-            >
-              <IconCheck size={14} /> Review tự động
-            </span>
-          )}
-          {initialMode === "verify" && (
-            <span
-              className="chat-view-papers-badge"
-              style={{
-                background: "rgba(245, 158, 11, 0.08)",
-                color: "var(--color-warning, #f59e0b)",
-                border: "1px solid rgba(245, 158, 11, 0.2)",
-              }}
-            >
-              <IconSearch size={14} /> Xác thực nghiên cứu
-            </span>
-          )}
-          {messages.length > 0 && (
-            <button className="chat-view-clear-btn" onClick={clearChat}>
-              <IconTrash size={16} /> Xoá
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="chat-view-controls-bar">
-        <div className="chat-view-scope-tabs">
-          <button
-            type="button"
-            className={`chat-view-scope-tab ${scope === "current" ? "active" : ""}`}
-            onClick={() => setScope("current")}
-          >
-            <IconFileText size={14} /> Paper hiện tại
-          </button>
-          <button
-            type="button"
-            className={`chat-view-scope-tab ${scope === "library" ? "active" : ""}`}
-            onClick={() => setScope("library")}
-          >
-            <IconLibrary size={14} /> Toàn bộ thư viện
-          </button>
-          <button
-            type="button"
-            className={`chat-view-scope-tab ${scope === "collection" ? "active" : ""}`}
-            onClick={() => setScope("collection")}
-          >
-            <IconBook size={14} /> Collection
-          </button>
-          <button
-            type="button"
-            className={`chat-view-scope-tab ${scope === "external" ? "active" : ""}`}
-            onClick={() => setScope("external")}
-          >
-            <IconSearch size={14} /> Nghiên cứu bên ngoài
-          </button>
+            {paperIds.length > 0 && (
+              <button
+                className="chat-view-cite-btn"
+                onClick={generateCitations}
+                disabled={citeLoading}
+                title="Tạo citation từ papers đã chọn"
+              >
+                {citeLoading ? (
+                  <IconSpinner size={13} />
+                ) : (
+                  <IconStar size={13} />
+                )}
+                Citation
+              </button>
+            )}
+            {paperIds.length > 0 && (
+              <span className="chat-view-papers-badge">
+                <IconFileText size={13} /> {paperIds.length}
+              </span>
+            )}
+            {initialMode === "review" && (
+              <span
+                className="chat-view-papers-badge"
+                style={{
+                  background: "rgba(16, 185, 129, 0.08)",
+                  color: "var(--color-success, #10b981)",
+                  border: "1px solid rgba(16, 185, 129, 0.2)",
+                }}
+              >
+                <IconCheck size={13} /> Review
+              </span>
+            )}
+            {initialMode === "verify" && (
+              <span
+                className="chat-view-papers-badge"
+                style={{
+                  background: "rgba(245, 158, 11, 0.08)",
+                  color: "var(--color-warning, #f59e0b)",
+                  border: "1px solid rgba(245, 158, 11, 0.2)",
+                }}
+              >
+                <IconSearch size={13} /> Xác thực
+              </span>
+            )}
+            {messages.length > 0 && (
+              <button type="button" className="chat-view-clear-btn" onClick={clearChat} title="Xoá cuộc trò chuyện">
+                <IconTrash size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {scope === "collection" && (
@@ -1392,11 +1363,11 @@ export const ChatView: React.FC<{
                       )}
                     </div>
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="chat-view-footnotes" style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                        <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--color-text-muted, #94a3b8)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      <div className="chat-view-footnotes">
+                        <div className="chat-view-footnotes-title">
                           Nguồn tham khảo
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <div className="chat-view-footnotes-list">
                           {msg.citations.map((c, j) => (
                             <div
                               key={j}
@@ -1425,38 +1396,8 @@ export const ChatView: React.FC<{
                                 setPdfRefreshKey(k => k + 1);
                                 // toast.addToast("success", `Đã mở PDF trang ${page}`);
                               }}
-                              style={{
-                                display: "flex",
-                                alignItems: "flex-start",
-                                gap: "8px",
-                                padding: "8px 10px",
-                                borderRadius: "6px",
-                                background: "rgba(99, 102, 241, 0.04)",
-                                border: "1px solid rgba(99, 102, 241, 0.08)",
-                                cursor: c.paper_id ? "pointer" : "default",
-                                transition: "background 0.15s",
-                                fontSize: "0.82rem",
-                                lineHeight: 1.4,
-                              }}
-                              onMouseEnter={(e) => { if (c.paper_id) (e.currentTarget as HTMLDivElement).style.background = "rgba(99, 102, 241, 0.1)"; }}
-                              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "rgba(99, 102, 241, 0.04)"; }}
                             >
-                              <span
-                                style={{
-                                  flexShrink: 0,
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  width: "22px",
-                                  height: "22px",
-                                  borderRadius: "4px",
-                                  background: "var(--color-primary, #6366f1)",
-                                  color: "#fff",
-                                  fontSize: "0.7rem",
-                                  fontWeight: 700,
-                                  marginTop: "2px",
-                                }}
-                              >
+                              <span className="chat-view-footnote-ref">
                                 {c.ref_id || j + 1}
                               </span>
                               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1464,29 +1405,17 @@ export const ChatView: React.FC<{
                                   {c.paper_title || c.source}
                                 </div>
                                 {c.page && (
-                                  <div style={{ color: "var(--color-text-muted, #94a3b8)", fontSize: "0.78rem", marginBottom: "4px" }}>
+                                  <div className="chat-view-footnote-meta">
                                     Trang {c.page}
                                   </div>
                                 )}
                                 {c.text_snippet && (
-                                  <div
-                                    style={{
-                                      color: "var(--color-text-secondary, #a3a3a3)",
-                                      fontSize: "0.78rem",
-                                      fontStyle: "italic",
-                                      marginBottom: "4px",
-                                      display: "-webkit-box",
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: "vertical",
-                                      overflow: "hidden",
-                                      lineHeight: 1.4,
-                                    }}
-                                  >
+                                  <div className="chat-view-footnote-snippet">
                                     &ldquo;{c.text_snippet}&rdquo;
                                   </div>
                                 )}
                                 {c.paper_id && (
-                                  <div style={{ color: "var(--color-primary, #6366f1)", fontSize: "0.75rem", fontWeight: 500 }}>
+                                  <div className="chat-view-footnote-link">
                                     📄 Mở PDF →
                                   </div>
                                 )}
@@ -1531,7 +1460,7 @@ export const ChatView: React.FC<{
               )}
 
               {msg.role === "assistant" && (
-                <div className="chat-view-model-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.05)", paddingTop: "8px", fontSize: "0.78rem", color: "var(--color-text-muted, #94a3b8)" }}>
+                <div className="chat-view-model-footer">
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {msg.model_used ? (() => {
                       const slashIdx = msg.model_used.indexOf("/");
@@ -1549,13 +1478,13 @@ export const ChatView: React.FC<{
                       const pc = providerColors[provider] || { bg: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" };
                       return (
                         <>
-                          <span style={{ background: pc.bg, color: pc.color, padding: "1px 6px", borderRadius: "4px", fontWeight: 600, fontSize: "0.7rem" }}>
+                          <span className="chat-view-model-provider" style={{ background: pc.bg, color: pc.color }}>
                             {provider || "?"}
                           </span>
-                          <span style={{ fontSize: "0.78rem" }} title={`${msg.model_used}${msg.router_reason ? `\n${msg.router_reason}` : ""}${msg.token_count ? `\n${msg.token_count} tokens` : ""}`}>
+                          <span className="chat-view-model-name" title={`${msg.model_used}${msg.router_reason ? `\n${msg.router_reason}` : ""}${msg.token_count ? `\n${msg.token_count} tokens` : ""}`}>
                             {modelName}
                             {msg.router_reason && (
-                              <span style={{ fontSize: "0.65rem", color: "var(--color-text-muted)", marginLeft: 4, opacity: 0.6 }}>
+                              <span className="chat-view-model-reason">
                                 · {msg.router_reason}
                               </span>
                             )}
@@ -1568,8 +1497,9 @@ export const ChatView: React.FC<{
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
                     <button
+                      type="button"
+                      className="chat-view-copy-btn"
                       onClick={() => copyToClipboard(msg.content)}
-                      style={{ background: "transparent", border: "none", color: "var(--color-text-muted, #94a3b8)", cursor: "pointer", fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
                       title="Sao chép nội dung"
                     >
                       Sao chép
@@ -1717,21 +1647,9 @@ export const ChatView: React.FC<{
       </div>
 
       <div className="chat-view-input">
-        <textarea
-          className="chat-view-textarea"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
-            scope === "external"
-              ? "Hỏi về nghiên cứu bên ngoài thư viện..."
-              : "Hỏi về research của bạn..."
-          }
-          rows={2}
-          disabled={loading}
-        />
         <div className="chat-view-mode-container">
           <button
+            type="button"
             className="chat-view-mode-select-trigger"
             onClick={() => setShowModeDropdown(!showModeDropdown)}
             title="Chọn chế độ suy luận"
@@ -1787,30 +1705,29 @@ export const ChatView: React.FC<{
             </>
           )}
         </div>
+        <textarea
+          className="chat-view-textarea"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            scope === "external"
+              ? "Hỏi về nghiên cứu bên ngoài thư viện..."
+              : "Hỏi về research của bạn..."
+          }
+          disabled={loading}
+        />
         <button
-          className="chat-view-strict-evidence-toggle"
+          type="button"
+          className={`chat-view-strict-evidence-toggle${strictEvidence ? " is-active" : ""}`}
           onClick={() => setStrictEvidence(!strictEvidence)}
           title={strictEvidence ? "ĐANG BẬT: Model chỉ trả lời khi có bằng chứng trong tài liệu" : "ĐANG TẮT: Model có thể dùng kiến thức chung để trả lời"}
-          style={{
-            background: strictEvidence ? "rgba(99, 102, 241, 0.12)" : "transparent",
-            border: strictEvidence ? "1px solid rgba(99, 102, 241, 0.3)" : "1px solid var(--color-border, #333)",
-            borderRadius: "6px",
-            color: strictEvidence ? "var(--color-primary, #6366f1)" : "var(--color-text-muted, #94a3b8)",
-            cursor: "pointer",
-            padding: "4px 8px",
-            fontSize: "0.75rem",
-            fontWeight: strictEvidence ? 600 : 400,
-            whiteSpace: "nowrap",
-            transition: "all 0.15s",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
         >
-          <span style={{ fontSize: "0.65rem" }}>{strictEvidence ? "✓" : "✕"}</span>
+          <span className="chat-view-strict-evidence-icon">{strictEvidence ? "✓" : "✕"}</span>
           <span>{strictEvidence ? "Chỉ bằng chứng" : "Tự do"}</span>
         </button>
         <button
+          type="button"
           className="chat-view-send-btn"
           onClick={() => isStreaming ? handleCancelStream() : handleSend()}
           disabled={!isStreaming && (loading || !input.trim())}

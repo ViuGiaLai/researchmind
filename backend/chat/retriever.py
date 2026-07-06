@@ -163,6 +163,9 @@ class Retriever:
             "hiệu quả": ["effectiveness", "efficiency", "performance", "efficacy"],
             "ứng dụng": ["application", "implementation", "deployment", "áp dụng"],
             "đánh giá": ["evaluation", "assessment", "analysis", "review"],
+            "hình": ["figure", "diagram", "flowchart", "chart", "image", "illustration"],
+            "lưu đồ": ["flowchart", "flow chart", "diagram", "algorithm chart"],
+            "biểu đồ": ["chart", "graph", "diagram", "plot"],
             "khác nhau": ["differences", "different", "distinctions", "khác biệt"],
             "tương tự": ["similar", "similarities", "comparable", "tương đồng"],
             "cải tiến": ["improvement", "enhancement", "innovation", "cải thiện"],
@@ -189,6 +192,10 @@ class Retriever:
             "result": ["kết quả", "result", "finding", "outcome", "hiệu quả"],
             "method": ["phương pháp", "method", "approach", "technique", "cách tiếp cận", "giải pháp"],
             "evaluation": ["đánh giá", "evaluation", "assessment", "hiệu quả", "performance", "effectiveness"],
+            "figure": [
+                "hình ", "hình 1", "hình 2", "figure", "fig.", "lưu đồ", "sơ đồ",
+                "biểu đồ", "chart", "diagram", "flowchart", "trong hình", "trong ảnh",
+            ],
         }
         for intent, keywords in intent_keywords.items():
             if any(kw in query_lower for kw in keywords):
@@ -203,6 +210,13 @@ class Retriever:
             "result": [r"(kết quả|result|finding)", r"(bàn luận|discussion)", r"(thảo luận)"],
             "method": [r"(phương pháp|method|approach)", r"(giới thiệu|introduction)"],
             "evaluation": [r"(đánh giá|evaluation|assessment)", r"(kết quả|result)"],
+            "figure": [
+                r"\[Nội dung hình",
+                r"\[Hình ",
+                r"\[Hình ảnh",
+                r"(Hình|Figure|Fig\.)\s*\d+",
+                r"(lưu đồ|flowchart|biểu đồ|diagram)",
+            ],
         }
 
         patterns = section_patterns.get(intent, [])

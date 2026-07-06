@@ -36,6 +36,15 @@ def count_tokens(text: str) -> int:
     return len(text) // 4
 
 
+# Image OCR blocks — kept as dedicated RAG chunks (not merged into long text chunks)
+IMAGE_BLOCK_PREFIXES = ("[Nội dung hình", "[Nội dung Hình", "[Hình ảnh", "[Hình ")
+
+
+def _is_image_block(paragraph: str) -> bool:
+    stripped = paragraph.strip()
+    return stripped.startswith(IMAGE_BLOCK_PREFIXES)
+
+
 class SentenceSplitter:
     """Split text into chunks at sentence/paragraph boundaries.
 
@@ -74,12 +83,22 @@ class SentenceSplitter:
 
         for page_num in sorted(text_by_page.keys()):
             page_text = text_by_page[page_num]
-
             paragraphs = self._split_paragraphs(page_text)
 
             for para in paragraphs:
                 para = para.strip()
                 if not para:
+                    continue
+
+                if _is_image_block(para):
+                    fig_header = para.split("\n", 1)[0][:120]
+                    chunks.append(Chunk(
+                        index=len(chunks),
+                        text=para,
+                        page_number=page_num,
+                        section_header=fig_header or "Hình/Biểu đồ",
+                        token_count=count_tokens(para),
+                    ))
                     continue
 
                 section = _detect_section_header(para)

@@ -246,8 +246,8 @@ function renderLine(line: string, i: number, onCitationClick?: (refId: number) =
       {
         key: i,
         style: {
-          margin: "8px 0 4px",
-          fontSize: level === 1 ? "1.2em" : level === 2 ? "1.1em" : "1em",
+          margin: "0.4em 0 0.25em",
+          fontSize: level === 1 ? "1.12em" : level === 2 ? "1.06em" : "1em",
           fontWeight: 600,
         },
       },
@@ -301,7 +301,7 @@ function renderLine(line: string, i: number, onCitationClick?: (refId: number) =
   // normal paragraph
   if (line.trim()) {
     const inner = parseInline(line).map((s, j) => renderSegment(s, j, onCitationClick, allCitations));
-    return React.createElement("p", { key: i, style: { margin: "4px 0" } }, ...inner);
+    return React.createElement("p", { key: i, style: { margin: "0.2em 0" } }, ...inner);
   }
 
   return null;

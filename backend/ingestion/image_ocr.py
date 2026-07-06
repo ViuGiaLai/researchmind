@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import threading
 from io import BytesIO
 from typing import Optional
@@ -15,6 +16,12 @@ MIN_IMAGE_DIM = 80
 MIN_IMAGE_BYTES = 4096
 MAX_IMAGES_PER_PAGE = 8
 MAX_IMAGES_PER_DOC = 40
+OCR_MIN_EDGE = 1200  # upscale small diagrams/flowcharts for better OCR
+
+FIGURE_CAPTION_RE = re.compile(
+    r"(?:Hình|HÌNH|Figure|Fig\.?)\s*(\d+)\s*[.:]\s*([^\n]+)",
+    re.IGNORECASE,
+)
 
 
 def get_ocr_engine():
@@ -35,6 +42,39 @@ def _image_dimensions(image_bytes: bytes) -> Optional[tuple[int, int]]:
             return img.size
     except Exception:
         return None
+
+
+def _find_figure_captions(page_text: str) -> dict[int, str]:
+    captions: dict[int, str] = {}
+    for match in FIGURE_CAPTION_RE.finditer(page_text or ""):
+        try:
+            captions[int(match.group(1))] = match.group(2).strip()
+        except ValueError:
+            continue
+    return captions
+
+
+def _prepare_image_for_ocr(image_bytes: bytes) -> bytes:
+    """Upscale small embedded figures so OCR reads flowchart labels better."""
+    try:
+        from PIL import Image
+
+        with Image.open(BytesIO(image_bytes)) as img:
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            width, height = img.size
+            min_edge = min(width, height)
+            if min_edge < OCR_MIN_EDGE:
+                scale = OCR_MIN_EDGE / min_edge
+                img = img.resize(
+                    (int(width * scale), int(height * scale)),
+                    Image.Resampling.LANCZOS,
+                )
+            buf = BytesIO()
+            img.save(buf, format="PNG")
+            return buf.getvalue()
+    except Exception:
+        return image_bytes
 
 
 def ocr_image_bytes(
@@ -58,9 +98,10 @@ def ocr_image_bytes(
         return None
 
     try:
+        prepared = _prepare_image_for_ocr(image_bytes)
         with _ocr_lock:
             engine = get_ocr_engine()
-            results, _ = engine(image_bytes)
+            results, _ = engine(prepared)
         if not results:
             return None
         lines = [
@@ -75,9 +116,17 @@ def ocr_image_bytes(
         return None
 
 
-def extract_pdf_page_image_text(page, doc, max_images: int = MAX_IMAGES_PER_PAGE) -> list[str]:
+def extract_pdf_page_image_text(
+    page,
+    doc,
+    *,
+    page_num: int = 0,
+    page_text: str = "",
+    max_images: int = MAX_IMAGES_PER_PAGE,
+) -> list[str]:
     """OCR embedded images on a PDF page (figures, charts, scanned snippets)."""
     snippets: list[str] = []
+    captions = _find_figure_captions(page_text)
     try:
         images = page.get_images(full=True)
     except Exception:
@@ -95,8 +144,20 @@ def extract_pdf_page_image_text(page, doc, max_images: int = MAX_IMAGES_PER_PAGE
             if not img_bytes:
                 continue
             ocr_text = ocr_image_bytes(img_bytes, skip_byte_size_check=True)
-            if ocr_text:
-                snippets.append(f"[Nội dung hình ảnh {idx + 1}]: {ocr_text}")
+            if not ocr_text:
+                continue
+
+            fig_num = idx + 1
+            caption = captions.get(fig_num, "")
+            if not caption and len(captions) == 1:
+                caption = next(iter(captions.values()), "")
+
+            label = f"Hình {fig_num}" if fig_num in captions or caption else f"Hình ảnh {fig_num}"
+            page_label = f" trang {page_num}" if page_num else ""
+            header = f"[Nội dung {label}{page_label}]"
+            if caption:
+                header += f": {caption}"
+            snippets.append(f"{header}\n{ocr_text}")
         except Exception as exc:
             logger.debug(f"Skip PDF image xref={xref}: {exc}")
     return snippets
