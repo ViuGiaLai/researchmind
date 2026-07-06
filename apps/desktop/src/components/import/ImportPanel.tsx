@@ -20,6 +20,10 @@ const SUPPORTED_FORMATS = [
   { ext: ".html", label: "HTML", icon: "🌐" },
   { ext: ".htm", label: "HTML", icon: "🌐" },
   { ext: ".epub", label: "EPUB", icon: "📖" },
+  { ext: ".png", label: "PNG", icon: "🖼️" },
+  { ext: ".jpg", label: "JPG", icon: "🖼️" },
+  { ext: ".jpeg", label: "JPEG", icon: "🖼️" },
+  { ext: ".webp", label: "WebP", icon: "🖼️" },
 ];
 
 const SUPPORTED_ACCEPT = SUPPORTED_FORMATS.map(f => f.ext).join(",");
@@ -398,7 +402,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
   };
 
   const successCount = results.filter(r => ["success", "imported", "indexed", "ready"].includes(r.status)).length;
-  const processingCount = results.filter(r => ["queued", "saved", "parsing", "importing", "indexing", "summarizing", "enriching", "pending"].includes(r.status)).length;
+  const processingCount = results.filter(r => ["queued", "saved", "parsing", "importing", "indexing", "summarizing", "enriching", "pending"].includes(r.status) || r.stage === "ocr").length;
   const needsOcrCount = results.filter(r => r.status === "needs_ocr").length;
   const failedCount = results.filter(r => r.status === "failed").length;
   const duplicateCount = results.filter(r => r.status === "duplicate").length;
@@ -657,7 +661,18 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       {importing && (
         <div className="import-progress">
           <IconSpinner size={20} />
-          <span>Đang import...</span>
+          <span>Đang tải file lên...</span>
+        </div>
+      )}
+
+      {results.length > 0 && !importing && processingCount > 0 && (
+        <div className="import-progress">
+          <IconSpinner size={20} />
+          <span>
+            {results.some((r) => r.stage === "ocr")
+              ? "Đang OCR hình ảnh (lần đầu có thể mất vài phút)..."
+              : "Đang lập chỉ mục..."}
+          </span>
         </div>
       )}
 
@@ -681,7 +696,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             {results.map((r, i) => {
               let iconColor: string;
               let rowClass: string;
-              const isProcessing = ["queued", "saved", "parsing", "importing", "indexing", "summarizing", "enriching", "pending"].includes(r.status);
+              const isProcessing = ["queued", "saved", "parsing", "importing", "indexing", "summarizing", "enriching", "pending"].includes(r.status) || r.stage === "ocr";
               if (r.status === "error" || r.status === "failed") {
                 iconColor = "var(--color-error, #ef4444)";
                 rowClass = "import-error";

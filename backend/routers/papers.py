@@ -17,7 +17,12 @@ from app_state import state
 from config.settings import settings
 from db.database import get_session
 from db.models import Paper, Chunk, Setting, ImportJob, CollectionPaper
-from ingestion.parser import extract_document, SUPPORTED_EXTENSIONS
+from ingestion.parser import (
+    extract_document,
+    SUPPORTED_EXTENSIONS,
+    IMAGE_EXTENSIONS,
+    create_image_stub_document,
+)
 from ingestion.chunker import SentenceSplitter
 
 router = APIRouter(prefix="/api/papers", tags=["Papers"])
@@ -342,10 +347,18 @@ async def import_document(
         shutil.copyfileobj(file.file, f)
 
     _update_import_job(job_id, status="parsing", stage="parsing", progress=25)
-    doc = await asyncio.to_thread(extract_document, str(save_path))
+
+    is_image = ext in IMAGE_EXTENSIONS
+    if is_image:
+        # Return immediately — RapidOCR model load can take minutes on first run
+        doc = create_image_stub_document(str(save_path), file.filename)
+    else:
+        doc = await asyncio.to_thread(extract_document, str(save_path))
     if doc is None:
-        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=f"Cannot parse file: {file.filename}")
-        raise HTTPException(status_code=400, detail=f"Cannot parse file: {file.filename}")
+        err = f"Cannot parse file: {file.filename}"
+        logger.warning(f"Import failed for {file.filename} (ext={ext}): parser returned no content")
+        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=err)
+        raise HTTPException(status_code=400, detail=err)
 
     paper_title = getattr(doc, "suggested_title", None) or doc.title
 
@@ -377,15 +390,23 @@ async def import_document(
     finally:
         session.close()
 
-    background_tasks.add_task(_index_paper, file_id, doc, job_id)
-
-    background_tasks.add_task(
-        _enrich_paper_background,
-        paper_id=file_id,
-        file_path=str(save_path),
-        title=paper_title or file.filename,
-        authors=doc.authors.split(",") if doc.authors else []
-    )
+    if is_image:
+        background_tasks.add_task(
+            _parse_and_index_image_paper,
+            file_id,
+            str(save_path),
+            job_id,
+            file.filename or safe_name,
+        )
+    else:
+        background_tasks.add_task(_index_paper, file_id, doc, job_id)
+        background_tasks.add_task(
+            _enrich_paper_background,
+            paper_id=file_id,
+            file_path=str(save_path),
+            title=paper_title or file.filename,
+            authors=doc.authors.split(",") if doc.authors else [],
+        )
 
     return {
         "paper_id": file_id,
@@ -394,7 +415,7 @@ async def import_document(
         "title": paper_title,
         "page_count": doc.page_count,
         "language": doc.language,
-        "status": "indexing",
+        "status": "parsing" if is_image else "indexing",
         "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
         "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
         "is_scanned": bool(getattr(doc, "is_scanned", False)),
@@ -615,6 +636,77 @@ def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
         extracted.append(capitalized)
         
     return extracted
+
+
+def _parse_and_index_image_paper(
+    file_id: str,
+    file_path: str,
+    job_id: str | None,
+    filename: str,
+):
+    """OCR + index image files in background (RapidOCR cold start can take minutes)."""
+    logger.info(f"Background OCR/index for image: {filename}")
+    _update_import_job(job_id, status="parsing", stage="ocr", progress=30)
+
+    try:
+        doc = extract_document(file_path)
+    except Exception as exc:
+        logger.exception(f"Image OCR failed for {filename}: {exc}")
+        doc = None
+
+    if doc is None:
+        _update_import_job(
+            job_id,
+            status="failed",
+            stage="ocr",
+            progress=100,
+            error="Không thể OCR hình ảnh.",
+        )
+        session = get_session(state.engine)
+        try:
+            session.query(Paper).filter(Paper.id == file_id).update({"status": "failed"})
+            session.commit()
+        finally:
+            session.close()
+        return
+
+    paper_title = getattr(doc, "suggested_title", None) or doc.title
+    session = get_session(state.engine)
+    try:
+        session.query(Paper).filter(Paper.id == file_id).update({
+            "title": paper_title,
+            "page_count": doc.page_count,
+            "file_size": doc.file_size,
+            "language": doc.language,
+            "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
+            "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
+            "is_scanned": 1 if getattr(doc, "is_scanned", False) else 0,
+            "status": "indexing",
+        })
+        session.commit()
+    finally:
+        session.close()
+
+    _index_paper(file_id, doc, job_id)
+
+    authors: list[str] = []
+    if doc.authors:
+        try:
+            parsed = json.loads(doc.authors)
+            if isinstance(parsed, list):
+                authors = parsed
+        except (json.JSONDecodeError, TypeError):
+            authors = [a.strip() for a in doc.authors.split(",") if a.strip()]
+
+    try:
+        asyncio.run(_enrich_paper_background(
+            paper_id=file_id,
+            file_path=file_path,
+            title=paper_title or filename,
+            authors=authors,
+        ))
+    except Exception:
+        pass
 
 
 def _index_paper(file_id: str, doc, job_id: str | None = None):
@@ -1146,8 +1238,25 @@ async def retry_paper_ocr(paper_id: str, background_tasks: BackgroundTasks):
 
 @router.get("/{paper_id}/file")
 async def get_paper_file(paper_id: str):
-    """Retrieve the raw PDF file for a paper."""
+    """Retrieve the raw document file for a paper (PDF, image, etc.)."""
     from fastapi.responses import FileResponse
+
+    _MEDIA_TYPES = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".html": "text/html",
+        ".htm": "text/html",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+        ".epub": "application/epub+zip",
+    }
 
     session = get_session(state.engine)
     try:
@@ -1156,8 +1265,9 @@ async def get_paper_file(paper_id: str):
             raise HTTPException(status_code=404, detail="Paper not found")
         path = Path(paper.file_path)
         if not path.exists():
-            raise HTTPException(status_code=404, detail="PDF file not found on disk")
-        return FileResponse(path, media_type="application/pdf")
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        media_type = _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
+        return FileResponse(path, media_type=media_type)
     finally:
         session.close()
 

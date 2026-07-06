@@ -25,17 +25,41 @@ router = APIRouter(prefix="/api", tags=["System"])
 
 # ─── Health ──────────────────────────────────────────────────────
 
+@router.get("/ping")
+async def ping():
+    """Instant liveness probe — no DB, safe during uvicorn reload."""
+    return {
+        "status": "ok",
+        "backend_ready": state.backend_ready,
+        "init_message": state.init_message,
+    }
+
+
 @router.get("/health")
 async def health():
     """Health check endpoint."""
+    total_papers = 0
+    total_chunks = 0
+    if state.engine is not None:
+        try:
+            total_papers, total_chunks = await asyncio.wait_for(
+                asyncio.gather(
+                    asyncio.to_thread(_count_papers),
+                    asyncio.to_thread(_count_chunks),
+                ),
+                timeout=1.5,
+            )
+        except Exception:
+            pass
+
     return {
         "status": "ok",
         "version": "0.6.0",
         "embedding_model": settings.embedding_model,
         "llm_mode": settings.llm_mode,
         "local_model": settings.local_model,
-        "total_papers": _count_papers(),
-        "total_chunks": _count_chunks(),
+        "total_papers": total_papers,
+        "total_chunks": total_chunks,
         "embedder_ready": state.embedder_ready,
         "backend_ready": state.backend_ready,
         "init_message": state.init_message,

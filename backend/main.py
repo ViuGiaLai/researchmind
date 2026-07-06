@@ -171,7 +171,7 @@ async def lifespan(app: FastAPI):
     load_persisted_settings()
     app.state.engine = state.engine
 
-    state.init_message = "Đang tải module AI (có thể mất 1–2 phút lần đầu)..."
+    state.init_message = "Đang khởi tạo search & AI engine..."
 
     def _background_startup():
         try:
@@ -193,12 +193,18 @@ async def lifespan(app: FastAPI):
             logger.info("Search engines initialized")
 
             def _warmup_reranker():
+                if not settings.enable_reranker:
+                    logger.info("BGE-Reranker warmup skipped (enable_reranker=false)")
+                    return
                 time.sleep(float(os.environ.get("RESEARCHMIND_RERANKER_WARMUP_DELAY", "10")))
                 warmup_t0 = time.time()
                 try:
                     logger.info(f"Warming up BGE-Reranker model: {settings.reranker_model}...")
-                    state.hybrid._get_reranker()
-                    logger.info(f"BGE-Reranker model ready in {time.time() - warmup_t0:.2f}s")
+                    reranker = state.hybrid._get_reranker()
+                    if reranker is None:
+                        logger.info("BGE-Reranker not available (optional — install sentence-transformers to enable)")
+                    else:
+                        logger.info(f"BGE-Reranker model ready in {time.time() - warmup_t0:.2f}s")
                 except Exception as e:
                     logger.error(f"Failed to load BGE-Reranker: {e}")
 

@@ -1581,7 +1581,7 @@ export const ChatView: React.FC<{
           </div>
         ))}
 
-        {loading && (
+        {loading && !isStreaming && (
           <div className="chat-view-msg msg-assistant">
             <div className="chat-view-avatar">
               <IconBrain size={18} />

@@ -145,6 +145,7 @@ export interface HealthResponse {
   total_papers: number;
   total_chunks: number;
   embedder_ready?: boolean;
+  backend_ready?: boolean;
   init_message?: string;
 }
 
@@ -253,6 +254,8 @@ export const api = {
   // Health
   health: () => request<HealthResponse>("GET", "/api/health"),
 
+  ping: () => request<{ status: string; backend_ready?: boolean; init_message?: string }>("GET", "/api/ping"),
+
   // Papers
   listPapers: async (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean, extra?: {
     collection_id?: string;
@@ -324,7 +327,10 @@ export const api = {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch(`${BASE_URL}/api/papers/import`, { method: "POST", body: formData });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(parseApiError(res.status, err));
+    }
     return res.json();
   },
 

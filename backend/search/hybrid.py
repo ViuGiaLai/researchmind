@@ -250,6 +250,6 @@ class HybridSearch:
                 self._cross_encoder = CrossEncoder(model_name)
                 logger.info(f"BGE-Reranker model loaded: {model_name}")
             except Exception as e:
-                logger.warning(f"Failed to load BGE-Reranker: {e}")
+                logger.debug(f"Failed to load BGE-Reranker: {e}")
                 return None
         return self._cross_encoder

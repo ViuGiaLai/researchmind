@@ -113,16 +113,41 @@ function App() {
 
   const checkFirstRun = async () => {
     try {
-      const h = await api.health();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      let h: { status: string; backend_ready?: boolean; init_message?: string };
+      try {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765"}/api/ping`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        h = await res.json();
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        throw fetchErr;
+      }
+
       if (!mountedRef.current) return;
       setBackendUnavailable(false);
-      setInitMessage(h.init_message || "Đang khởi động...");
-      const s = await api.getSettings();
-      if (!mountedRef.current) return;
-      if (!s.setup_completed) {
-        setShowSetup(true);
-      }
+      setInitMessage(
+        h.backend_ready
+          ? "Sẵn sàng"
+          : (h.init_message || "Đang khởi tạo AI engine...")
+      );
+
+      // Backend HTTP is up — enter app immediately (RAG may still warm up ~1s)
       setCheckingSetup(false);
+
+      try {
+        const s = await api.getSettings();
+        if (!mountedRef.current) return;
+        if (!s.setup_completed) {
+          setShowSetup(true);
+        }
+      } catch (settingsErr) {
+        console.warn("Settings load during startup:", settingsErr);
+      }
     } catch {
       if (!mountedRef.current) return;
       retryCountRef.current += 1;
@@ -146,13 +171,18 @@ function App() {
         // Not running inside Tauri (web dev) — keep polling health
       }
 
-      const waitSeconds = retryCountRef.current * 2;
-      setInitMessage(`Đang khởi động backend... (${waitSeconds}s)`);
+      const waitSeconds = Math.min(120, retryCountRef.current * 2);
+      setInitMessage(
+        retryCountRef.current <= 3
+          ? "Đang kết nối backend... (chạy `uvicorn main:app --port 8765` hoặc `pnpm tauri:external`)"
+          : `Đang khởi động backend... (${waitSeconds}s)`
+      );
 
+      const delayMs = retryCountRef.current <= 5 ? 500 : 2000;
       if (retryCountRef.current < 120) {
         setTimeout(() => {
           if (mountedRef.current) checkFirstRun();
-        }, 2000);
+        }, delayMs);
       } else {
         if (!mountedRef.current) return;
         setCheckingSetup(false);

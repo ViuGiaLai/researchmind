@@ -8,11 +8,21 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 from .layout_parser import reorder_page_text, detect_layout_stats
+from .image_ocr import (
+    get_ocr_engine,
+    ocr_image_bytes,
+    extract_pdf_page_image_text,
+    extract_docx_image_text,
+    extract_docx_table_text,
+)
 
 _ocr_lock = threading.Lock()
-_global_ocr_engine = None
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".epub"}
+SUPPORTED_EXTENSIONS = {
+    ".pdf", ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".epub",
+    ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff",
+}
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 
 
 @dataclass
@@ -33,6 +43,31 @@ class ExtractedDocument:
     is_scanned: bool = False
     layout_stats: Optional[dict] = None
     suggested_title: Optional[str] = None
+
+
+def create_image_stub_document(file_path: str, original_filename: str | None = None) -> ExtractedDocument:
+    """Fast metadata-only stub for image imports; OCR runs in background."""
+    path = Path(file_path)
+    name = original_filename or path.name
+    title = path.stem.replace("_", " ").replace("-", " ").strip() or name
+    stub_text = f"[Hình ảnh: {name}]\n(Đang OCR và lập chỉ mục...)"
+    return ExtractedDocument(
+        path=str(path.absolute()),
+        filename=name,
+        title=title,
+        authors="[]",
+        year=None,
+        doi="",
+        page_count=1,
+        file_size=path.stat().st_size,
+        language="vi",
+        text_by_page={1: stub_text},
+        full_text=stub_text,
+        ocr_pages_count=0,
+        ocr_pages_failed=0,
+        is_scanned=True,
+        suggested_title=title,
+    )
 
 
 def _extract_title_from_text(text: str, fallback: str, max_chars: int = 150) -> str:
@@ -70,6 +105,8 @@ def extract_document(file_path: str) -> Optional[ExtractedDocument]:
         return _extract_html(file_path)
     elif ext == ".epub":
         return _extract_epub(file_path)
+    elif ext in IMAGE_EXTENSIONS:
+        return _extract_image(file_path)
     return None
 
 
@@ -125,20 +162,14 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
         if is_garbled or len(text.strip()) < 40:
             ocr_attempted = True
             try:
-                with _ocr_lock:
-                    global _global_ocr_engine
-                    if _global_ocr_engine is None:
-                        from rapidocr_onnxruntime import RapidOCR
-                        _global_ocr_engine = RapidOCR()
-                    ocr_engine = _global_ocr_engine
-                
+                ocr_engine = get_ocr_engine()
                 logger.info(f"Page {page_num + 1} appears to be a scanned page (text length: {len(text.strip())}). Running OCR...")
                 pix = page.get_pixmap(dpi=150)
                 img_bytes = pix.tobytes("png")
-                
+
                 with _ocr_lock:
                     ocr_results, elapse = ocr_engine(img_bytes)
-                    
+
                 if ocr_results:
                     ocr_text_list = [res[1] for res in ocr_results if res and len(res) > 1]
                     ocr_text = "\n".join(ocr_text_list)
@@ -149,6 +180,11 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
                         logger.info(f"Page {page_num + 1} OCR completed in {total_elapse:.2f}s")
             except Exception as e:
                 logger.warning(f"OCR failed for page {page_num + 1}: {e}")
+
+        # OCR embedded figures/charts even when the page already has extractable text
+        image_snippets = extract_pdf_page_image_text(page, doc)
+        if image_snippets:
+            text = (text.rstrip() + "\n\n" + "\n".join(image_snippets)).strip()
         doc.close()
     except Exception as e:
         logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
@@ -310,7 +346,11 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
         if text:
             paragraphs.append(text)
 
-    full_text = "\n".join(paragraphs)
+    table_parts = extract_docx_table_text(doc)
+    image_parts = extract_docx_image_text(doc)
+
+    full_text_parts = paragraphs + table_parts + image_parts
+    full_text = "\n\n".join(full_text_parts)
     if not full_text.strip():
         return None
 
@@ -336,6 +376,7 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
     language = _detect_language(full_text[:2000])
 
     suggested = _extract_title_from_text(full_text, path.stem)
+    has_image_ocr = bool(image_parts)
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=path.name,
@@ -348,9 +389,9 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
         language=language,
         text_by_page={1: full_text},
         full_text=full_text,
-        ocr_pages_count=0,
+        ocr_pages_count=1 if has_image_ocr else 0,
         ocr_pages_failed=0,
-        is_scanned=False,
+        is_scanned=has_image_ocr,
         suggested_title=suggested,
     )
 
@@ -422,12 +463,41 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
                     elif key == "author" or key == "authors":
                         authors_list = [a.strip() for a in val.split(",") if a.strip()]
 
-    # Remove markdown syntax for clean plain text
-    clean = re.sub(r'!?\[([^\]]*)\]\([^)]+\)', r'\1', text)
+    # Remove markdown syntax for clean plain text; keep image alt text
+    clean = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'[Hình ảnh: \1]', text)
+    clean = re.sub(r'\[([^\]]*)\]\([^)]+\)', r'\1', clean)
     clean = re.sub(r'#{1,6}\s+', '', clean)
     clean = re.sub(r'[*_~`]', '', clean)
     clean = re.sub(r'^\s*[-*+]\s+', '', clean, flags=re.MULTILINE)
     clean = re.sub(r'^\s*\d+\.\s+', '', clean, flags=re.MULTILINE)
+
+    # OCR local images referenced in markdown (same folder as the .md file)
+    md_images = re.findall(r'!\[([^\]]*)\]\(([^)]+)\)', text)
+    image_ocr_parts: list[str] = []
+    for alt, src in md_images:
+        src = src.strip().split()[0]  # drop optional title after space
+        if src.startswith(("http://", "https://", "data:")):
+            if alt.strip():
+                image_ocr_parts.append(f"[Hình ảnh: {alt.strip()}]")
+            continue
+        img_path = (path.parent / src).resolve()
+        if not img_path.exists() or img_path.suffix.lower() not in IMAGE_EXTENSIONS:
+            if alt.strip():
+                image_ocr_parts.append(f"[Hình ảnh: {alt.strip()}]")
+            continue
+        try:
+            img_bytes = img_path.read_bytes()
+            ocr_text = ocr_image_bytes(img_bytes, skip_byte_size_check=True)
+            label = alt.strip() or img_path.name
+            if ocr_text:
+                image_ocr_parts.append(f"[Nội dung hình ảnh {label}]: {ocr_text}")
+            elif label:
+                image_ocr_parts.append(f"[Hình ảnh: {label}]")
+        except Exception as exc:
+            logger.debug(f"Skip markdown image {img_path}: {exc}")
+
+    if image_ocr_parts:
+        clean = clean.rstrip() + "\n\n" + "\n".join(image_ocr_parts)
 
     language = _detect_language(clean[:2000])
 
@@ -471,8 +541,32 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
     body = doc.find(".//body")
     full_text = body.text_content().strip() if body is not None else doc.text_content().strip()
 
-    if not full_text:
+    image_notes: list[str] = []
+    for img in doc.xpath("//img"):
+        alt = (img.get("alt") or "").strip()
+        title = (img.get("title") or "").strip()
+        src = (img.get("src") or "").strip()
+        if alt or title:
+            image_notes.append(f"[Hình ảnh: {alt or title}]")
+        elif src:
+            image_notes.append(f"[Hình ảnh: {Path(src).name}]")
+
+        if src and not src.startswith(("http://", "https://", "data:")):
+            img_path = (path.parent / src).resolve()
+            if img_path.exists() and img_path.suffix.lower() in IMAGE_EXTENSIONS:
+                try:
+                    ocr_text = ocr_image_bytes(img_path.read_bytes(), skip_byte_size_check=True)
+                    if ocr_text:
+                        label = alt or title or img_path.name
+                        image_notes.append(f"[Nội dung hình ảnh {label}]: {ocr_text}")
+                except Exception as exc:
+                    logger.debug(f"Skip HTML image {img_path}: {exc}")
+
+    if not full_text and not image_notes:
         return None
+
+    if image_notes:
+        full_text = (full_text.rstrip() + "\n\n" + "\n".join(image_notes)).strip() if full_text else "\n".join(image_notes)
 
     # Collapse whitespace
     full_text = re.sub(r'\s+', '\n', full_text).strip()
@@ -564,6 +658,47 @@ def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_failed=0,
         is_scanned=False,
         suggested_title=suggested,
+    )
+
+
+def _extract_image(file_path: str) -> Optional[ExtractedDocument]:
+    """Import a standalone image file via OCR."""
+    path = Path(file_path)
+    try:
+        img_bytes = path.read_bytes()
+    except Exception as exc:
+        logger.error(f"Failed to read image {file_path}: {exc}")
+        return None
+
+    ocr_text = ocr_image_bytes(img_bytes, skip_byte_size_check=True)
+    ocr_failed = 0
+    if not ocr_text:
+        logger.warning(f"No OCR text extracted from image: {file_path}")
+        ocr_text = (
+            f"[Hình ảnh: {path.name}]\n"
+            "(Chưa trích xuất được văn bản tự động. Dùng «Chạy OCR lại» trong thư viện để thử lại.)"
+        )
+        ocr_failed = 1
+
+    title = path.stem.replace("_", " ").replace("-", " ").strip() or path.name
+    language = _detect_language(ocr_text[:2000])
+
+    return ExtractedDocument(
+        path=str(path.absolute()),
+        filename=path.name,
+        title=title,
+        authors="[]",
+        year=None,
+        doi="",
+        page_count=1,
+        file_size=path.stat().st_size,
+        language=language,
+        text_by_page={1: ocr_text},
+        full_text=ocr_text,
+        ocr_pages_count=0 if ocr_failed else 1,
+        ocr_pages_failed=ocr_failed,
+        is_scanned=True,
+        suggested_title=title,
     )
 
 

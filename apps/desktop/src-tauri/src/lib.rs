@@ -43,7 +43,7 @@ fn is_researchmind_backend_healthy() -> bool {
     reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()
-        .and_then(|client| client.get("http://127.0.0.1:8765/api/health").send())
+        .and_then(|client| client.get("http://127.0.0.1:8765/api/ping").send())
         .map(|response| response.status().is_success())
         .unwrap_or(false)
 }
@@ -239,7 +239,7 @@ fn spawn_backend(app: &tauri::AppHandle, status: &BackendSpawnStatus) -> (Option
             info!("ResearchMind backend already running on http://127.0.0.1:8765");
             return (None, status);
         }
-        warn!("Port 8765 is in use but /api/health did not respond — attempting to spawn bundled backend");
+        warn!("Port 8765 is in use but /api/ping did not respond — attempting to spawn bundled backend");
     }
 
     status.attempted = true;
@@ -293,7 +293,7 @@ fn select_folder(app_handle: tauri::AppHandle) -> Result<Option<String>, String>
 /// Check if the Python backend is running by hitting the health endpoint.
 #[tauri::command]
 async fn check_backend_health() -> Result<bool, String> {
-    match reqwest::get("http://127.0.0.1:8765/api/health").await {
+    match reqwest::get("http://127.0.0.1:8765/api/ping").await {
         Ok(resp) => Ok(resp.status().is_success()),
         Err(_) => Ok(false),
     }
