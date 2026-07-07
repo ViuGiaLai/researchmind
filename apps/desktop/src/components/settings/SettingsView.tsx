@@ -3,7 +3,6 @@ import { api, BASE_URL } from "../../lib/api";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
-  IconSettings,
   IconCheck,
   IconError,
   IconSearch,
@@ -18,6 +17,7 @@ import {
   IconRefresh,
   IconTrash,
 } from "../Icons";
+import { SubTabBar } from "../shared/SubTabBar";
 
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
@@ -531,17 +531,69 @@ export const SettingsView: React.FC = () => {
       ]
     : [];
 
+  type SettingsSection = "general" | "ai" | "data" | "advanced";
+  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+
+  const settingsTabs = [
+    { key: "general" as const, label: "Tổng quan", icon: IconMonitor },
+    { key: "ai" as const, label: "Chế độ AI", icon: IconBrain },
+    { key: "data" as const, label: "Dữ liệu", icon: IconFolder },
+    { key: "advanced" as const, label: "Nâng cao", icon: IconZap },
+  ];
+
+  const sectionMeta: Record<SettingsSection, { desc: string }> = {
+    general: {
+      desc: "Kiểm tra backend, chủ đề giao diện và thông số máy.",
+    },
+    ai: {
+      desc: "Chọn Cloud Free, API riêng hoặc chạy local với llama-server.",
+    },
+    data: {
+      desc: "Thư mục lưu trữ, Zotero, bộ nhớ đệm và tài nguyên hệ thống.",
+    },
+    advanced: {
+      desc: "Định tuyến provider theo tác vụ, embedding, reranker và thống kê.",
+    },
+  };
+
   return (
     <div className="settings-view">
-    <div className="settings-panel">
-      <div className="settings-header">
-        <h2 className="settings-title">
-          <IconSettings size={22} style={{ verticalAlign: "middle", marginRight: 8 }} />
-          Cài đặt
-        </h2>
-      </div>
+      <div className="settings-shell">
+        <header className="settings-toolbar">
+          <div className="settings-toolbar-text">
+            <h2 className="settings-page-title">Cài đặt</h2>
+            <p className="settings-page-desc">{sectionMeta[activeSection].desc}</p>
+          </div>
+          <div className="settings-toolbar-meta">
+            {stats && (
+              <span className="settings-meta-chip">{stats.total_papers} papers</span>
+            )}
+            <span className="settings-meta-chip">v0.6.0</span>
+            {activeSection === "ai" && (
+              <button
+                type="button"
+                className="settings-save-btn settings-save-btn--header"
+                onClick={saveSettings}
+                disabled={saving}
+              >
+                {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
+                <span>{saving ? "Đang lưu..." : "Lưu"}</span>
+              </button>
+            )}
+          </div>
+        </header>
 
-      <div className="settings-section">
+        <SubTabBar
+          tabs={settingsTabs}
+          active={activeSection}
+          onChange={setActiveSection}
+          variant="underline"
+        />
+
+        <div className="settings-content">
+            {activeSection === "general" && (
+              <div className="settings-general-grid">
+      <div className="settings-section settings-section--span">
         <h3 className="settings-section-title">
           <IconBrain size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
           Backend
@@ -576,22 +628,16 @@ export const SettingsView: React.FC = () => {
           Giao diện
         </h3>
         <div className="settings-field">
-          <label className="settings-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+          <label className="settings-label settings-label--row">
             <span>Chế độ sáng / tối</span>
-            <div
+            <button
+              type="button"
+              className={`settings-theme-toggle${theme === "light" ? " is-light" : ""}`}
               onClick={toggleTheme}
-              style={{
-                width: 48, height: 26, borderRadius: 13, padding: 3, cursor: "pointer", display: "flex", alignItems: "center",
-                background: theme === "dark" ? "var(--color-primary)" : "var(--color-border)", transition: "background 0.3s ease", flexShrink: 0,
-              }}
+              aria-label="Đổi chế độ sáng tối"
             >
-              <div
-                style={{
-                  width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "transform 0.3s ease",
-                  transform: theme === "dark" ? "translateX(0)" : "translateX(22px)", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-                }}
-              />
-            </div>
+              <span className="settings-theme-knob" />
+            </button>
           </label>
         </div>
       </div>
@@ -623,8 +669,12 @@ export const SettingsView: React.FC = () => {
           <p className="settings-desc">Không thể phát hiện cấu hình máy.</p>
         )}
       </div>
+              </div>
+            )}
 
-      <div className="settings-section">
+            {activeSection === "ai" && (
+              <>
+      <div className="settings-section settings-section--flat">
         <h3 className="settings-section-title">
           <IconSparkle size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
           Chế độ AI
@@ -661,19 +711,18 @@ export const SettingsView: React.FC = () => {
 
         {/* Cloud Free stats */}
         {llmMode === "cloud_free" && (
-          <div className="settings-mode-detail" style={{ marginTop: 16 }}>
-            <div style={{ background: "rgba(var(--color-primary-rgb), 0.05)", border: "1px solid rgba(var(--color-primary-rgb), 0.15)", borderRadius: "8px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="settings-mode-detail settings-usage-banner">
+            <div className="settings-usage-banner-inner">
               <div>
-                <span style={{ fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                <span className="settings-usage-title">
                   <IconZap size={16} /> Lượt sử dụng miễn phí
                 </span>
-                {/* <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>Hạn mức hệ thống tự động đặt lại mỗi ngày</span> */}
               </div>
-              <div style={{ textAlign: "right" }}>
+              <div className="settings-usage-count">
                 {usage ? (
                   <>
-                    <strong style={{ fontSize: "1.2rem", color: "var(--color-primary)" }}>{usage.used} / {usage.limit}</strong>
-                    <span style={{ display: "block", fontSize: "0.85rem", color: "var(--color-text-muted)" }}>câu hỏi đã dùng</span>
+                    <strong>{usage.used} / {usage.limit}</strong>
+                    <span>câu hỏi đã dùng</span>
                   </>
                 ) : (
                   <span>Đang tải...</span>
@@ -686,9 +735,8 @@ export const SettingsView: React.FC = () => {
         {/* Custom Cloud settings */}
         {llmMode === "cloud_custom" && (
           <div className="settings-mode-detail" style={{ marginTop: 16 }}>
-            <div className="provider-tabs" style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "16px" }}>
-              {["deepseek", "gemini", "claude", "groq", "nvidia", "github", "freemodel"].map((provider) => {
-                const isActive = customCloudProvider === provider;
+            <div className="settings-provider-tabs">
+              {(["deepseek", "gemini", "claude", "groq", "nvidia", "github", "freemodel"] as const).map((provider) => {
                 const labels: Record<string, string> = {
                   deepseek: "DeepSeek",
                   gemini: "Gemini",
@@ -696,20 +744,14 @@ export const SettingsView: React.FC = () => {
                   groq: "Groq",
                   nvidia: "Nvidia NIM",
                   github: "GitHub Models",
-                  freemodel: "FreeModel"
+                  freemodel: "FreeModel",
                 };
                 return (
                   <button
                     key={provider}
-                    className="provider-tab-btn"
-                    onClick={() => setCustomCloudProvider(provider as any)}
-                    style={{
-                      flex: "1 1 30%", padding: "8px 12px", borderRadius: "6px", border: "1px solid var(--border-color, #e2e8f0)",
-                      background: isActive ? "rgba(var(--color-primary-rgb), 0.1)" : "transparent",
-                      borderColor: isActive ? "var(--color-primary)" : "var(--border-color)",
-                      color: isActive ? "var(--color-primary)" : "var(--color-text)",
-                      cursor: "pointer", fontWeight: "bold", minWidth: "100px", fontSize: "0.85rem"
-                    }}
+                    type="button"
+                    className={`settings-provider-tab${customCloudProvider === provider ? " active" : ""}`}
+                    onClick={() => setCustomCloudProvider(provider)}
                   >
                     {labels[provider]}
                   </button>
@@ -1020,13 +1062,13 @@ export const SettingsView: React.FC = () => {
           </div>
         )}
 
-        <div className="settings-actions" style={{ marginTop: 16 }}>
-          <button className="settings-save-btn" onClick={saveSettings} disabled={saving}>
+        <div className="settings-actions settings-actions--sticky">
+          <button type="button" className="settings-save-btn" onClick={saveSettings} disabled={saving}>
             {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
-            <span>{saving ? "Đang lưu..." : "Lưu cấu hình"}</span>
+            <span>{saving ? "Đang lưu..." : "Lưu cấu hình AI"}</span>
           </button>
           {saveMsg && (
-            <span className="settings-save-msg" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: saveMsg.type === "success" ? "var(--color-success)" : "var(--color-error)" }}>
+            <span className={`settings-save-msg settings-save-msg--${saveMsg.type}`}>
               {saveMsg.type === "success" ? (
                 saveMsg.text.includes("Đang kiểm tra") ? <IconSpinner size={14} /> : <IconCheck size={14} />
               ) : (
@@ -1037,14 +1079,13 @@ export const SettingsView: React.FC = () => {
           )}
         </div>
       </div>
+              </>
+            )}
 
+            {activeSection === "data" && (
+              <>
       {/* ── Data Management ────────────────────────────────── */}
-      <div className="settings-section">
-        <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <IconFolder size={18} className="icon-gradient" />
-          Quản lý dữ liệu
-        </h3>
-        
+      <div className="settings-section settings-section--flat">
         <div className="settings-storage-box">
           <div className="settings-storage-info">
             <span className="settings-storage-label">Thư mục lưu trữ:</span>
@@ -1189,7 +1230,11 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       </div>
+              </>
+            )}
 
+            {activeSection === "advanced" && (
+              <>
       {/* ── Provider Routing ────────────────────────────────── */}
       <div className="settings-section">
         <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -1270,10 +1315,8 @@ export const SettingsView: React.FC = () => {
           </table>
         </div>
 
-        <details style={{ marginTop: 12, fontSize: "0.78rem", color: "var(--color-text-muted)" }}>
-          <summary style={{ cursor: "pointer", userSelect: "none" }}>
-            Xem JSON gốc
-          </summary>
+        <details className="settings-advanced-details">
+          <summary>Xem JSON gốc (task_provider_map)</summary>
           <div style={{ marginTop: 8 }}>
             <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>task_provider_map</label>
             <textarea
@@ -1573,15 +1616,18 @@ export const SettingsView: React.FC = () => {
             <IconLock size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
             Dữ liệu hoàn toàn trên máy bạn. Không gửi ra ngoài nếu không được phép.
           </p>
-          <div className="settings-about-links">
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><IconLock size={12} /> Local First</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><IconSparkle size={12} /> Cho nghiên cứu sinh</span>
-            <span>Tiếng Việt</span>
-            <span>PDF</span>
+          <div className="settings-actions settings-actions--footer">
+            <button type="button" className="settings-save-btn" onClick={saveSettings} disabled={saving}>
+              {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
+              <span>{saving ? "Đang lưu..." : "Lưu cấu hình nâng cao"}</span>
+            </button>
           </div>
         </div>
       </div>
-    </div>
+              </>
+            )}
+          </div>
+        </div>
     </div>
   );
 };
