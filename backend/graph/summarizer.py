@@ -12,6 +12,7 @@ from loguru import logger
 
 from .models import GraphCommunity, GraphCommunityReport, GraphEntity, GraphRelationship
 from .storage import KnowledgeGraph
+from .errors import GraphBuildCancelled
 
 COMMUNITY_REPORT_PROMPT = """You are a research analyst. You are given a community of related entities from academic papers.
 
@@ -67,11 +68,16 @@ async def summarize_community(
     )
 
     try:
+        from app_state import state
+        if state.build_cancelled:
+            raise GraphBuildCancelled("Build cancelled by user")
         response = await generator.generate_direct_async(
             user_prompt=prompt,
             system_prompt="You are a research analyst generating community reports.",
             task_type="summary",
         )
+    except GraphBuildCancelled:
+        raise
     except Exception as e:
         logger.error(f"Community summarization failed for {community.id}: {e}")
         return None

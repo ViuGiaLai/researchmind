@@ -1,6 +1,7 @@
 """GraphRAG API endpoints — build, query, visualize, manage."""
 
 from __future__ import annotations
+import asyncio
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel
 from typing import Any
@@ -13,7 +14,7 @@ from db.models import Chunk
 
 from .storage import GraphStore
 from .builder import build_graph_from_chunks
-from app_state import state
+from .errors import GraphBuildCancelled
 from .local_search import local_search
 from .global_search import global_search
 from .drift_search import drift_search
@@ -65,12 +66,63 @@ def _get_graph_store() -> GraphStore:
 
 # ─── Endpoints ───────────────────────────────────────────────────
 
+async def _run_graph_build(
+    chunk_dicts: list[dict[str, Any]],
+    store: GraphStore,
+    generator: Any,
+    entity_types: list[str] | None,
+    max_gleanings: int,
+) -> None:
+    try:
+        graph = await build_graph_from_chunks(
+            chunks=chunk_dicts,
+            graph_store=store,
+            generator=generator,
+            entity_types=entity_types,
+            max_gleanings=max_gleanings,
+        )
+        if not state.build_cancelled:
+            stats = graph.stats()
+            state.build_progress = {
+                "phase": "done",
+                "current": stats.get("text_units", 0),
+                "total": stats.get("text_units", 0),
+                "percent": 100,
+                "message": "Hoàn tất",
+                "stats": stats,
+            }
+    except GraphBuildCancelled:
+        stats = store.graph.stats()
+        state.build_progress = {
+            "phase": "cancelled",
+            "current": stats.get("text_units", 0),
+            "total": len(chunk_dicts),
+            "percent": state.build_progress.get("percent", 0),
+            "message": "Đã hủy xây dựng sơ đồ",
+            "stats": stats,
+        }
+    except Exception as e:
+        logger.exception("Graph build failed")
+        state.build_progress = {
+            "phase": "error",
+            "current": 0,
+            "total": len(chunk_dicts),
+            "percent": 0,
+            "message": str(e),
+        }
+    finally:
+        state.build_running = False
+        state.build_tasks = []
+
+
 @router.post("/build")
 async def build_graph(req: GraphBuildRequest):
-    """Build knowledge graph from paper chunks."""
+    """Start knowledge graph build in the background."""
+    if getattr(state, "build_running", False):
+        raise HTTPException(status_code=409, detail="Đang xây dựng sơ đồ — vui lòng đợi hoặc bấm Dừng.")
+
     store = _get_graph_store()
 
-    # Fetch chunks
     session = get_session(state.engine)
     try:
         query = session.query(Chunk)
@@ -98,27 +150,31 @@ async def build_graph(req: GraphBuildRequest):
         raise HTTPException(status_code=503, detail="Generator not initialized")
 
     state.build_cancelled = False
+    state.build_running = True
+    state.build_tasks = []
     state.build_progress = {
         "phase": "extract",
         "current": 0,
         "total": len(chunk_dicts),
         "percent": 0,
-        "message": f"Starting extraction on {len(chunk_dicts)} chunks...",
+        "message": f"Bắt đầu trích xuất {len(chunk_dicts)} chunks...",
     }
 
-    try:
-        graph = await build_graph_from_chunks(
-            chunks=chunk_dicts,
-            graph_store=store,
-            generator=generator,
-            entity_types=req.entity_types,
-            max_gleanings=req.max_gleanings,
+    asyncio.create_task(
+        _run_graph_build(
+            chunk_dicts,
+            store,
+            generator,
+            req.entity_types,
+            req.max_gleanings,
         )
-        return {"status": "ok", "stats": graph.stats()}
-    except Exception as e:
-        state.build_progress = {"phase": "error", "current": 0, "total": 0, "percent": 0, "message": str(e)}
-        logger.exception("Graph build failed")
-        raise HTTPException(status_code=500, detail=str(e))
+    )
+
+    return {
+        "status": "started",
+        "message": f"Đang xây dựng sơ đồ từ {len(chunk_dicts)} chunks",
+        "total_chunks": len(chunk_dicts),
+    }
 
 
 @router.get("/build-progress")
@@ -130,7 +186,21 @@ async def build_progress():
 @router.post("/build/cancel")
 async def cancel_build():
     """Cancel the current graph build."""
+    if not getattr(state, "build_running", False):
+        return {"status": "ok", "message": "Không có tiến trình build đang chạy"}
+
     state.build_cancelled = True
+    state.build_progress = {
+        **state.build_progress,
+        "phase": "cancelling",
+        "message": "Đang hủy — dừng các chunk đang xử lý...",
+    }
+
+    tasks = list(getattr(state, "build_tasks", []))
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+
     return {"status": "ok", "message": "Build cancellation requested"}
 
 

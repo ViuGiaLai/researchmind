@@ -18,5 +18,7 @@ class AppState:
             "message": "",
         }
         self.build_cancelled: bool = False
+        self.build_running: bool = False
+        self.build_tasks: list = []  # active asyncio.Task refs for cancellation
 
 state = AppState()

@@ -10,6 +10,8 @@ from typing import Any
 
 from loguru import logger
 
+from app_state import state
+from .errors import GraphBuildCancelled
 from .models import (
     GraphEntity,
     GraphRelationship,
@@ -19,7 +21,6 @@ from .storage import KnowledgeGraph, GraphStore
 from .extractor import extract_entities_and_relationships
 from .cluster import detect_communities
 from .summarizer import summarize_community
-from app_state import state
 
 
 def _set_progress(phase: str, current: int, total: int, message: str):
@@ -31,6 +32,21 @@ def _set_progress(phase: str, current: int, total: int, message: str):
         "percent": pct,
         "message": message,
     }
+
+
+def _ensure_not_cancelled() -> None:
+    if state.build_cancelled:
+        raise GraphBuildCancelled("Build cancelled by user")
+
+
+async def _cancel_active_tasks() -> None:
+    tasks = list(getattr(state, "build_tasks", []))
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    state.build_tasks = []
 
 
 def _deduplicate_entities_into_graph(
@@ -62,7 +78,6 @@ def _deduplicate_relationships_into_graph(
         if key in seen:
             continue
         seen.add(key)
-        # Check if reverse exists
         reverse_key = (nr.target, nr.source)
         if reverse_key in seen:
             continue
@@ -91,18 +106,7 @@ async def build_graph_from_chunks(
     entity_types: list[str] | None = None,
     max_gleanings: int = 2,
 ) -> KnowledgeGraph:
-    """Build knowledge graph from paper chunks.
-
-    Args:
-        chunks: List of dicts with 'id', 'text', 'paper_id', 'chunk_index' keys.
-        graph_store: GraphStore instance to populate.
-        generator: Generator instance for LLM calls.
-        entity_types: Entity types to extract (default academic types).
-        max_gleanings: Number of gleaning rounds per chunk.
-
-    Returns:
-        Populated KnowledgeGraph.
-    """
+    """Build knowledge graph from paper chunks."""
     if entity_types is None:
         entity_types = [
             "CONCEPT", "METHOD", "DATASET", "METRIC",
@@ -113,10 +117,11 @@ async def build_graph_from_chunks(
     graph = graph_store.graph
     total_chunks = len(chunks)
 
-    # Phase 1: Extract entities and relationships from each chunk (parallel with semaphore)
-    sem = asyncio.Semaphore(16)  # Limit concurrent LLM calls
+    sem = asyncio.Semaphore(6)
 
     async def _extract_chunk(chunk: dict[str, Any]) -> None:
+        _ensure_not_cancelled()
+
         chunk_id = chunk.get("id", str(uuid.uuid4()))
         text = chunk.get("text", "")
         paper_id = chunk.get("paper_id", "unknown")
@@ -124,9 +129,7 @@ async def build_graph_from_chunks(
             return
 
         async with sem:
-            if state.build_cancelled:
-                return
-
+            _ensure_not_cancelled()
             entities, relationships = await extract_entities_and_relationships(
                 text=text,
                 source_id=chunk_id,
@@ -135,6 +138,7 @@ async def build_graph_from_chunks(
                 max_gleanings=max_gleanings,
             )
 
+        _ensure_not_cancelled()
         _deduplicate_entities_into_graph(graph, entities)
         _deduplicate_relationships_into_graph(graph, relationships)
 
@@ -147,36 +151,61 @@ async def build_graph_from_chunks(
             chunk_index=chunk.get("chunk_index"),
         ))
 
-    # Process chunks in parallel batches
-    batch_size = 32
-    for i in range(0, total_chunks, batch_size):
-        if state.build_cancelled:
-            logger.warning("Graph build cancelled by user")
-            _set_progress("cancelled", 0, 0, "Cancelled")
-            graph_store.save()
-            return graph
+    batch_size = 8
+    processed = 0
+    try:
+        for i in range(0, total_chunks, batch_size):
+            _ensure_not_cancelled()
 
-        batch = chunks[i:i + batch_size]
-        n_end = min(i + batch_size, total_chunks)
-        _set_progress("extract", n_end, total_chunks, f"Extracting entities: chunk {i + 1}–{n_end}/{total_chunks}")
-        logger.info(f"Extracting graph from chunks {i + 1}–{n_end}/{total_chunks}")
-        await asyncio.gather(*[_extract_chunk(c) for c in batch])
+            batch = chunks[i:i + batch_size]
+            n_end = min(i + batch_size, total_chunks)
+            _set_progress(
+                "extract",
+                n_end,
+                total_chunks,
+                f"Trích xuất thực thể: chunk {i + 1}–{n_end}/{total_chunks}",
+            )
+            logger.info(f"Extracting graph from chunks {i + 1}–{n_end}/{total_chunks}")
+
+            tasks = [asyncio.create_task(_extract_chunk(c)) for c in batch]
+            state.build_tasks = tasks
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+            finally:
+                state.build_tasks = []
+
+            for result in results:
+                if isinstance(result, GraphBuildCancelled):
+                    raise result
+                if isinstance(result, asyncio.CancelledError):
+                    raise GraphBuildCancelled("Build cancelled by user")
+                if isinstance(result, Exception):
+                    logger.warning(f"Chunk extraction failed: {result}")
+
+            processed = n_end
+            if state.build_cancelled:
+                raise GraphBuildCancelled("Build cancelled by user")
+
+    except GraphBuildCancelled:
+        await _cancel_active_tasks()
+        logger.warning("Graph build cancelled by user")
+        _set_progress("cancelled", processed, total_chunks, "Đã hủy xây dựng sơ đồ")
+        graph_store.save()
+        raise
 
     if not graph.entities:
         logger.warning("No entities extracted from any chunk")
-        _set_progress("done", 100, 100, "No entities found")
+        _set_progress("done", 100, 100, "Không tìm thấy thực thể")
         graph_store.save()
         return graph
 
-    # Phase 2: Detect communities
-    _set_progress("cluster", 90, 100, "Detecting communities...")
+    _set_progress("cluster", 90, 100, "Đang phát hiện cộng đồng...")
     logger.info("Detecting communities...")
     communities = detect_communities(graph.entities, graph.relationships)
     n_communities = len(communities)
 
     for comm in communities:
         graph.add_community(comm)
-        # Assign community IDs to entities
         entity_ids = comm.entity_ids or []
         for eid in entity_ids:
             entity = graph.entities.get(eid)
@@ -186,23 +215,23 @@ async def build_graph_from_chunks(
                 if comm.id not in entity.community_ids:
                     entity.community_ids.append(comm.id)
 
-    # Phase 3: Summarize communities
     if generator is not None:
         logger.info("Summarizing communities...")
         for idx, comm in enumerate(graph.communities.values()):
-            if state.build_cancelled:
-                logger.warning("Graph build cancelled during summarization")
-                _set_progress("cancelled", 0, 0, "Cancelled")
-                graph_store.save()
-                return graph
+            _ensure_not_cancelled()
             pct = 90 + int((idx + 1) / max(n_communities, 1) * 10)
-            _set_progress("summarize", idx + 1, n_communities, f"Summarizing community {idx + 1}/{n_communities}...")
+            _set_progress(
+                "summarize",
+                idx + 1,
+                n_communities,
+                f"Tóm tắt cộng đồng {idx + 1}/{n_communities}...",
+            )
             if comm.id not in graph.community_reports:
                 report = await summarize_community(comm, graph, generator)
                 if report:
                     graph.add_community_report(report)
 
-    _set_progress("done", 100, 100, "Complete")
+    _set_progress("done", 100, 100, "Hoàn tất")
     graph_store.save()
     logger.info(f"Graph build complete: {graph.stats()}")
     return graph

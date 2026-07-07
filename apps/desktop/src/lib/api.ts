@@ -1132,10 +1132,10 @@ export const api = {
   // ─── GraphRAG ───────────────────────────────────────────
 
   buildGraph: (paperIds?: string[], entityTypes?: string[], maxGleanings?: number) =>
-    request<{ status: string; stats: Record<string, number> }>("POST", "/api/graph/build", {
+    request<{ status: string; message: string; total_chunks?: number }>("POST", "/api/graph/build", {
       paper_ids: paperIds,
       entity_types: entityTypes,
-      max_gleanings: maxGleanings ?? 2,
+      max_gleanings: maxGleanings ?? 1,
     }),
 
   queryGraph: (query: string, strategy: string = "local", opts?: {

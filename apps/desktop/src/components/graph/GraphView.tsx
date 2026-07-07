@@ -46,7 +46,14 @@ export const GraphView: React.FC = () => {
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
   const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  const buildPromiseRef = React.useRef<Promise<void> | null>(null);
+  const buildFinishedRef = React.useRef(false);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
   const loadStats = useCallback(async () => {
     try {
@@ -95,29 +102,74 @@ export const GraphView: React.FC = () => {
     }
   }, [activeTab, loadStats, loadEntities, loadCommunities, loadGraphData]);
 
+  const finishBuildUi = useCallback(async (phase: string, message?: string) => {
+    if (buildFinishedRef.current) return;
+    buildFinishedRef.current = true;
+    stopPolling();
+    setLoadingState(null);
+
+    if (phase === "done") {
+      setBuildError(null);
+      try {
+        const s = await api.getGraphStats();
+        setStats(s);
+        await refreshAll();
+      } catch {
+        // ignore
+      }
+    } else if (phase === "cancelled") {
+      setBuildError(message || "Đã hủy xây dựng sơ đồ");
+      try {
+        const s = await api.getGraphStats();
+        if (s.entities > 0) {
+          setStats(s);
+          await refreshAll();
+        }
+      } catch {
+        // ignore
+      }
+    } else if (phase === "error") {
+      setBuildError(message || "Xây dựng sơ đồ thất bại");
+      setError(message || "Xây dựng sơ đồ thất bại");
+    }
+  }, [refreshAll, stopPolling]);
+
   const startPolling = useCallback(() => {
+    buildFinishedRef.current = false;
     pollRef.current = setInterval(async () => {
       try {
         const p = await api.getBuildProgress();
         setBuildProgress(p);
-        setLoadingState(prev => prev?.type === "build" ? { ...prev, percent: p.percent, message: p.message } : prev);
+        setLoadingState((prev) =>
+          prev?.type === "build"
+            ? { ...prev, percent: p.percent, message: p.message }
+            : prev,
+        );
+
+        if (p.phase === "done" || p.phase === "cancelled" || p.phase === "error") {
+          await finishBuildUi(p.phase, p.message);
+        }
       } catch {
         // ignore poll errors
       }
     }, 500);
-  }, []);
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    setBuildProgress(null);
-  }, []);
+  }, [finishBuildUi]);
 
   useEffect(() => {
     loadStats();
-  }, [loadStats]);
+    (async () => {
+      try {
+        const p = await api.getBuildProgress();
+        if (p.phase === "extract" || p.phase === "cluster" || p.phase === "summarize" || p.phase === "cancelling") {
+          setBuildProgress(p);
+          setLoadingState({ type: "build", message: p.message, percent: p.percent });
+          startPolling();
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [loadStats, startPolling]);
 
   // Auto-load explore data when switching tab with existing stats
   useEffect(() => {
@@ -138,36 +190,38 @@ export const GraphView: React.FC = () => {
 
   const handleBuild = async () => {
     setBuildProgress(null);
-    setLoadingState({ type: "build", message: "Starting..." });
+    setLoadingState({ type: "build", message: "Đang khởi động..." });
     setError("");
     setBuildError(null);
 
     startPolling();
 
-    buildPromiseRef.current = (async () => {
-      try {
-        const result = await api.buildGraph();
-        setStats(result.stats as unknown as GraphStats);
-        await refreshAll();
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Build failed";
-        if (msg.includes("cancelled") || msg.includes("Cancelled")) {
-          setBuildError("Build cancelled");
-        } else {
-          setBuildError(msg);
-          setError(msg);
-        }
-      } finally {
-        stopPolling();
-        setLoadingState(null);
-      }
-    })();
+    try {
+      const started = await api.buildGraph();
+      setBuildProgress({
+        phase: "extract",
+        current: 0,
+        total: started.total_chunks ?? 0,
+        percent: 0,
+        message: started.message,
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Không thể bắt đầu xây dựng sơ đồ";
+      stopPolling();
+      setLoadingState(null);
+      setBuildError(msg);
+      setError(msg);
+    }
   };
 
   const handleCancel = async () => {
     try {
       await api.cancelBuild();
-      setBuildProgress(prev => prev ? { ...prev, phase: "cancelled", message: "Cancelling..." } : null);
+      setBuildProgress((prev) =>
+        prev
+          ? { ...prev, phase: "cancelling", message: "Đang hủy — dừng các chunk đang xử lý..." }
+          : { phase: "cancelling", current: 0, total: 0, percent: 0, message: "Đang hủy..." },
+      );
     } catch {
       // ignore
     }

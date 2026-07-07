@@ -11,7 +11,9 @@ from typing import Any
 
 from loguru import logger
 
+from app_state import state
 from .models import GraphEntity, GraphRelationship
+from .errors import GraphBuildCancelled
 
 # ── Prompts ──────────────────────────────────────────────────────
 
@@ -142,6 +144,11 @@ def _deduplicate_relationships(
     return result
 
 
+def _ensure_not_cancelled() -> None:
+    if state.build_cancelled:
+        raise GraphBuildCancelled("Build cancelled by user")
+
+
 # ── Main Extraction Function ─────────────────────────────────────
 
 async def extract_entities_and_relationships(
@@ -182,12 +189,15 @@ async def extract_entities_and_relationships(
         input_text=_truncate_to_tokens(text_stripped, MAX_EXTRACTION_CHARS),
     )
 
+    _ensure_not_cancelled()
     try:
         response = await generator.generate_direct_async(
             user_prompt=prompt,
             system_prompt="You are a precise entity extractor. Output only the structured format.",
             task_type="entity",
         )
+    except GraphBuildCancelled:
+        raise
     except Exception as e:
         logger.error(f"Entity extraction LLM call failed: {e}")
         return [], []
@@ -198,18 +208,21 @@ async def extract_entities_and_relationships(
     results = response
     total_chars = len(results)
 
-    # Gleaning: multi-round with total char cap
     if max_gleanings > 0:
         for glean_round in range(max_gleanings):
+            _ensure_not_cancelled()
             if total_chars > MAX_GLEAN_TOTAL_CHARS:
                 logger.warning(f"Gleaning stopped: accumulated {total_chars} chars (limit {MAX_GLEAN_TOTAL_CHARS})")
                 break
 
-            try:                    cont = await generator.generate_direct_async(
-                        user_prompt=f"{CONTINUE_PROMPT}\n\nCurrent extraction:\n{results[-2000:]}",
-                        system_prompt="Continue extracting. Only output new entities/relationships.",
-                        task_type="entity",
-                    )
+            try:
+                cont = await generator.generate_direct_async(
+                    user_prompt=f"{CONTINUE_PROMPT}\n\nCurrent extraction:\n{results[-2000:]}",
+                    system_prompt="Continue extracting. Only output new entities/relationships.",
+                    task_type="entity",
+                )
+            except GraphBuildCancelled:
+                raise
             except Exception:
                 break
 
@@ -219,14 +232,16 @@ async def extract_entities_and_relationships(
             results += "\n" + cont
             total_chars += len(cont)
 
-            # Check loop condition only on non-final rounds
             if glean_round < max_gleanings - 1:
+                _ensure_not_cancelled()
                 try:
                     loop_resp = await generator.generate_direct_async(
                         user_prompt=f"Are there still unextracted entities or relationships?\n{LOOP_PROMPT}",
                         system_prompt="Answer Y or N only.",
                         task_type="entity",
                     )
+                except GraphBuildCancelled:
+                    raise
                 except Exception:
                     break
 
