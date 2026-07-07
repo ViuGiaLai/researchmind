@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     import anthropic
 
 from .types import GenerationResult
+from .prompt_budget import fit_prompt_for_provider, get_provider_input_budget, trim_context_text
 from .providers.openai_provider import OpenAIProviderMixin
 from .providers.gemini_provider import GeminiProviderMixin
 from .providers.claude_provider import ClaudeProviderMixin
@@ -289,6 +290,42 @@ class Generator(
 
     # ── Non-streaming provider dispatch ────────────────────────
 
+    def _fit_prompt(self, user_prompt: str, provider: str, max_tokens: int, system_prompt_override: str | None = None) -> str:
+        sp = system_prompt_override or self._get_system_prompt()
+        fitted, _ = fit_prompt_for_provider(user_prompt, sp, provider, max_tokens or 1024)
+        return fitted
+
+    def _get_context_budget_provider(self, task_type: str) -> str:
+        """Pick provider with the largest input budget among primary + fallbacks."""
+        providers: list[str] = []
+        primary = self._get_provider_for_task(task_type)
+        if primary:
+            providers.append(primary)
+        for fb in self._get_fallback_chain(task_type):
+            if fb not in providers:
+                providers.append(fb)
+        if not providers:
+            return "groq"
+        return max(providers, key=get_provider_input_budget)
+
+    def _trim_review_context(
+        self,
+        context_text: str,
+        query: str,
+        task_type: str,
+        max_tokens: int,
+    ) -> str:
+        if task_type != "review" or not context_text or context_text == "__EXTERNAL_KNOWLEDGE__":
+            return context_text
+        provider = self._get_context_budget_provider(task_type)
+        return trim_context_text(
+            context_text,
+            query,
+            provider,
+            max_tokens or 1024,
+            self._get_system_prompt(),
+        )
+
     def _call_provider(
         self,
         provider: str,
@@ -299,6 +336,7 @@ class Generator(
         """Try a single provider by name.
         Returns GenerationResult on success, None if no key or error.
         """
+        user_prompt = self._fit_prompt(user_prompt, provider, max_tokens, system_prompt_override)
         try:
             if provider == "github":
                 if not self.github_api_key:
@@ -405,6 +443,7 @@ class Generator(
         """Stream from a single provider by name.
         Yields chunks if provider works, otherwise returns (no yield = fallback).
         """
+        user_prompt = self._fit_prompt(user_prompt, provider, max_tokens)
         try:
             if provider == "github":
                 if not self.github_api_key:
@@ -698,6 +737,9 @@ class Generator(
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
 
+        if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
+            context_text = self._trim_review_context(context_text, query, task_type, max_tokens)
+
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query
@@ -783,6 +825,10 @@ class Generator(
         max_tokens: Optional[int] = None,
         task_type: str = "",
     ) -> GenerationResult:
+        max_out = max_tokens or 1024
+        if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
+            context_text = self._trim_review_context(context_text, query, task_type, max_out)
+
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             user_prompt = query
         elif not context_text.strip():
@@ -831,10 +877,15 @@ class Generator(
                 logger.warning(f"{provider} failed (elapsed={elapsed:.1f}s), trying next...")
 
             logger.warning("All cloud_free providers failed. Falling back to local model...")
-            return self._generate_local(user_prompt, max_tokens=max_tokens)
+            return self._generate_local(
+                self._fit_prompt(user_prompt, "local", max_tokens or 1024),
+                max_tokens=max_tokens,
+            )
 
         elif self.mode == "cloud_custom":
-            if self.custom_cloud_provider == "deepseek":
+            provider = self.custom_cloud_provider
+            user_prompt = self._fit_prompt(user_prompt, provider, max_tokens or 1024)
+            if provider == "deepseek":
                 if not self.deepseek_api_key:
                     return GenerationResult(
                         content="\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp DeepSeek API Key. H\u00e3y m\u1edf ph\u1ea7n C\u00e0i \u0111\u1eb7t v\u00e0 c\u1eadp nh\u1eadt API Key \u0111\u1ec3 s\u1eed d\u1ee5ng.",
@@ -845,7 +896,7 @@ class Generator(
                     logger.warning("Custom DeepSeek failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
-            elif self.custom_cloud_provider == "gemini":
+            elif provider == "gemini":
                 if not self.gemini_api_key:
                     return GenerationResult(
                         content="\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Gemini API Key.",
@@ -856,7 +907,7 @@ class Generator(
                     logger.warning("Custom Gemini failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
-            elif self.custom_cloud_provider == "claude":
+            elif provider == "claude":
                 if not self.claude_api_key:
                     return GenerationResult(
                         content="\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Claude API Key.",
@@ -867,7 +918,7 @@ class Generator(
                     logger.warning("Custom Claude failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
-            elif self.custom_cloud_provider == "groq":
+            elif provider == "groq":
                 if not self.groq_api_key:
                     return GenerationResult(
                         content="\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Groq API Key.",
@@ -878,7 +929,7 @@ class Generator(
                     logger.warning("Custom Groq failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
-            elif self.custom_cloud_provider == "nvidia":
+            elif provider == "nvidia":
                 if not self.nvidia_api_key:
                     return GenerationResult(
                         content="\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Nvidia API Key.",
@@ -889,7 +940,7 @@ class Generator(
                     logger.warning("Custom Nvidia failed. Falling back to local model...")
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
-            elif self.custom_cloud_provider == "freemodel":
+            elif provider == "freemodel":
                 if not self.freemodel_api_key:
                     return GenerationResult(
                         content="\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp FreeModel API Key.",
@@ -901,7 +952,10 @@ class Generator(
                     return self._generate_local(user_prompt, max_tokens=max_tokens)
                 return result
 
-        return self._generate_local(user_prompt, max_tokens=max_tokens)
+        return self._generate_local(
+            self._fit_prompt(user_prompt, "local", max_tokens or 1024),
+            max_tokens=max_tokens,
+        )
 
     def generate_direct(
         self,
@@ -1082,6 +1136,9 @@ class Generator(
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
 
+        if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
+            context_text = self._trim_review_context(context_text, query, task_type, max_tokens)
+
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = f"Câu hỏi: {query}\n\nHãy trả lời câu hỏi trên bằng kiến thức sẵn có của bạn một cách tự nhiên và thoải mái."
@@ -1156,7 +1213,8 @@ class Generator(
                     self._set_model(f"local/{self.local_model}")
                     if tried_any:
                         yield "\n⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
-                    for chunk in self._stream_local(user_prompt):
+                    fitted = self._fit_prompt(user_prompt, "local", max_tokens)
+                    for chunk in self._stream_local(fitted):
                         yield chunk
                     return
 
@@ -1178,11 +1236,14 @@ class Generator(
             # Last resort
             self._set_model(f"local/{self.local_model}")
             yield "\n⚠️ Không có provider nào hoạt động. Đang dùng Local model...\n"
-            for chunk in self._stream_local(user_prompt):
+            fitted = self._fit_prompt(user_prompt, "local", max_tokens)
+            for chunk in self._stream_local(fitted):
                 yield chunk
 
         elif self.mode == "cloud_custom":
-            if self.custom_cloud_provider == "deepseek":
+            provider = self.custom_cloud_provider
+            user_prompt = self._fit_prompt(user_prompt, provider, max_tokens)
+            if provider == "deepseek":
                 if not self.deepseek_api_key:
                     self._set_model("deepseek/no_key")
                     yield "\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp DeepSeek API Key."
@@ -1190,7 +1251,7 @@ class Generator(
                 self._set_model(f"deepseek/{self.deepseek_model}")
                 for chunk in self._stream_deepseek(user_prompt, self.deepseek_api_key, max_tokens, is_free=False):
                     yield chunk
-            elif self.custom_cloud_provider == "gemini":
+            elif provider == "gemini":
                 if not self.gemini_api_key:
                     self._set_model("gemini/no_key")
                     yield "\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Gemini API Key."
@@ -1198,7 +1259,7 @@ class Generator(
                 self._set_model(f"gemini/{self.gemini_model}")
                 for chunk in self._stream_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False):
                     yield chunk
-            elif self.custom_cloud_provider == "claude":
+            elif provider == "claude":
                 if not self.claude_api_key:
                     self._set_model("claude/no_key")
                     yield "\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Claude API Key."
@@ -1219,7 +1280,7 @@ class Generator(
                     yield f"\n\u26a0\ufe0f Claude stream g\u1eb7p s\u1ef1 c\u1ed1: {str(e)}. \u0110ang chuy\u1ec3n sang Local model..."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
-            elif self.custom_cloud_provider == "groq":
+            elif provider == "groq":
                 if not self.groq_api_key:
                     self._set_model("groq/no_key")
                     yield "\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Groq API Key."
@@ -1232,7 +1293,7 @@ class Generator(
                     yield f"\n\u26a0\ufe0f Groq stream g\u1eb7p s\u1ef1 c\u1ed1: {str(e)}."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
-            elif self.custom_cloud_provider == "nvidia":
+            elif provider == "nvidia":
                 if not self.nvidia_api_key:
                     self._set_model("nvidia/no_key")
                     yield "\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp Nvidia API Key."
@@ -1245,7 +1306,7 @@ class Generator(
                     yield f"\n\u26a0\ufe0f Nvidia stream g\u1eb7p s\u1ef1 c\u1ed1: {str(e)}."
                     for chunk in self._stream_local(user_prompt):
                         yield chunk
-            elif self.custom_cloud_provider == "freemodel":
+            elif provider == "freemodel":
                 if not self.freemodel_api_key:
                     self._set_model("freemodel/no_key")
                     yield "\u26a0\ufe0f B\u1ea1n ch\u01b0a nh\u1eadp FreeModel API Key."
@@ -1264,5 +1325,6 @@ class Generator(
 
         else:
             self._set_model(f"local/{self.local_model}")
-            for chunk in self._stream_local(user_prompt):
+            fitted = self._fit_prompt(user_prompt, "local", max_tokens)
+            for chunk in self._stream_local(fitted):
                 yield chunk

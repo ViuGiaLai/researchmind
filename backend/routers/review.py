@@ -675,11 +675,14 @@ Trả về đúng JSON sau, không kèm văn bản khác:
   "dataset": "Dữ liệu",
   "findings": "Kết quả",
   "limitations": "Hạn chế"
-}}
+}}"""
 
-Đoạn trích:\n{retrieval.context_text}"""
-
-        generation = await asyncio.to_thread(state.generator.generate, query=prompt, context_text=retrieval.context_text, task_type="review")
+        generation = await asyncio.to_thread(
+            state.generator.generate,
+            query=prompt,
+            context_text=retrieval.context_text,
+            task_type="review",
+        )
         content = generation.content.strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -1438,7 +1441,7 @@ async def generate_evidence_matrix(body: dict = Body(...)):
             state.retriever.retrieve,
             query=" ".join([q for _, q in dimensions]),
             paper_ids=[paper_id],
-            top_k=12,
+            top_k=8,
         )
         if not retrieval.context_text.strip():
             return {"id": paper_id, "title": title, "cells": {}}
@@ -1465,12 +1468,13 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
   "result": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}},
   "limitation": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}},
   "finding": {{"value": "...", "quote": "...", "page": null, "confidence": "high"}}
-}}
-
-Đoạn trích:\n{retrieval.context_text}"""
+}}"""
 
         generation = await asyncio.to_thread(
-            state.generator.generate, query=prompt, context_text=retrieval.context_text, task_type="review"
+            state.generator.generate,
+            query=prompt,
+            context_text=retrieval.context_text,
+            task_type="review",
         )
 
         content = generation.content.strip()
