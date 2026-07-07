@@ -175,7 +175,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
   const loadLibrary = async () => {
     setLoadingLibrary(true);
     try {
-      const res = await api.listPapers(1, 20, "indexed");
+      const res = await api.listPapers(1, 1000, "indexed");
       setLibraryPapers(res.papers);
     } catch (e) {
       console.error("Failed to load library in WOW view:", e);
@@ -572,7 +572,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               </div>
             ) : (
               <div className="wow-papers-grid">
-                {libraryPapers.slice(0, 6).map((paper) => (
+                {libraryPapers.map((paper) => (
                   <button
                     key={paper.id}
                     className="wow-paper-card-select"
