@@ -40,7 +40,7 @@ const WOW_STEP_META = {
   summary: { label: "Tóm tắt ngay", Icon: IconSparkle },
   critique: { label: "Điểm yếu", Icon: IconWarning },
   conflict: { label: "Mâu thuẫn", Icon: IconSwords },
-  gap: { label: "Research Gap", Icon: IconCircleDot },
+  gap: { label: "Khoảng trống", Icon: IconCircleDot },
   debate: { label: "Tranh luận AI", Icon: IconBrainAi },
 } as const;
 
@@ -892,7 +892,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               <header className="wow-card-header">
                 <div className="wow-card-title">
                   <span className="wow-card-icon-badge"><IconCircleDot size={16} /></span>
-                  <h3>Lỗ hổng nghiên cứu (Research Gap)</h3>
+                  <h3>Lỗ hổng nghiên cứu</h3>
                 </div>
                 <div className="wow-card-status-label">
                   {steps.gap.status === "running" && <span className="loader-span"><IconSpinner size={14} /> Đang tìm lỗ hổng...</span>}
@@ -933,7 +933,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     className="wow-card-action-btn"
                     onClick={() => handleCopyText(steps.gap.content)}
                   >
-                    Sao chép phân tích Research Gap
+                    Sao chép phân tích khoảng trống
                   </button>
                   <button
                     className="wow-card-action-btn secondary"

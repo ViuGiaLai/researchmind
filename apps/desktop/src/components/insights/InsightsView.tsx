@@ -28,35 +28,35 @@ const INSIGHT_CARDS = [
   {
     id: "gap",
     icon: <IconSearch size={22} />,
-    title: "Research Gap Finder",
+    title: "Phát hiện khoảng trống",
     description: "Tìm lỗ hổng nghiên cứu — chỗ nào chưa ai làm tốt",
     color: "var(--color-success, #10b981)",
   },
   {
     id: "conflict",
     icon: <IconWarning size={22} />,
-    title: "Conflict Finder",
+    title: "Phát hiện mâu thuẫn",
     description: "Phát hiện mâu thuẫn giữa các paper trong thư viện",
     color: "var(--color-warning, #f59e0b)",
   },
   {
     id: "topic",
     icon: <IconBulb size={22} />,
-    title: "Topic Generator",
+    title: "Đề xuất đề tài",
     description: "AI đề xuất đề tài nghiên cứu dựa trên thư viện của bạn",
     color: "var(--color-primary, #14b8a6)",
   },
   {
     id: "evolution",
     icon: <IconSparkle size={22} />,
-    title: "Evolution Map",
+    title: "Bản đồ tiến hóa",
     description: "Xem sự phát triển của các ý tưởng nghiên cứu qua thời gian",
     color: "#06b6d4",
   },
   {
     id: "compare",
     icon: <IconChart size={22} />,
-    title: "Literature Matrix",
+    title: "Ma trận tài liệu",
     description: "So sánh đối chiếu mục tiêu, phương pháp, kết quả, hạn chế giữa các bài báo",
     color: "var(--color-primary)",
   },
@@ -213,7 +213,7 @@ export const InsightsView: React.FC<{
   if (!activeInsight) {
     return (
       <div className="insights-view">
-        <div className="insights-hero">
+        {/* <div className="insights-hero">
           <h2 className="insights-hero-title">
             <IconBrain
               size={28}
@@ -225,7 +225,7 @@ export const InsightsView: React.FC<{
           <p className="insights-hero-desc">
             Phân tích thông minh từ thư viện nghiên cứu của bạn
           </p>
-        </div>
+        </div> */}
 
         <div className="insights-cards-grid">
           {INSIGHT_CARDS.map((card) => (
@@ -331,13 +331,13 @@ export const InsightsView: React.FC<{
                 <IconSearch size={18} />
                 <span>
                   {activeInsight === "gap"
-                    ? "Tìm Research Gaps"
+                    ? "Tìm khoảng trống"
                     : activeInsight === "conflict"
-                    ? "Tìm Mâu Thuẫn"
+                    ? "Tìm mâu thuẫn"
                     : activeInsight === "topic"
                     ? "Đề xuất đề tài"
                     : activeInsight === "evolution"
-                    ? "Phân tích Evolution Map"
+                    ? "Phân tích tiến hóa"
                     : "Lập ma trận so sánh"}
                 </span>
               </>
