@@ -7,7 +7,7 @@
   position: fixed;
   top: 12px;
   right: 16px;
-  z-index: 900;
+  z-index: 950;
 }
 
 .app-help-btn {
@@ -22,6 +22,27 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   box-shadow: var(--shadow-card);
+  position: relative;
+}
+
+/* Tooltip below — top bar has no room above the button */
+.app-help-btn[data-tooltip]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.app-help-btn[data-tooltip]:hover::after,
+.app-help-btn[data-tooltip]:focus-visible::after {
+  transform: none;
+}
+
+.app-help-btn[aria-expanded="true"][data-tooltip]::after,
+.app-help-btn[aria-expanded="true"][data-tooltip]:hover::after,
+.app-help-btn[aria-expanded="true"][data-tooltip]:focus-visible::after {
+  opacity: 0;
 }
 
 .app-help-btn:hover {

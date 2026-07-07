@@ -283,6 +283,8 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--space-lg);
+  --app-help-reserve: 52px;
+  padding-right: calc(var(--space-lg) + var(--app-help-reserve));
 }
 
 /* Fix double scrollbar / layout shift for full-height split, search, and chat views */
@@ -295,6 +297,7 @@
 .main:has(.hub-shell),
 .main:has(.settings-view) {
   padding: 0;
+  padding-right: var(--app-help-reserve);
   overflow: hidden;
 }
 
