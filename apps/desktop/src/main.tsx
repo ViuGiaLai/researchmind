@@ -15,6 +15,7 @@ import "./styles/trust.css";
 import "./styles/soft-modern.css";
 import "./styles/ai-workspace-primitives.css";
 import "./styles/theme-fixes.css";
+import "./styles/help.css";
 
 initTheme();
 

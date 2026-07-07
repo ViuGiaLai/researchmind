@@ -33,8 +33,16 @@ import {
   IconCircle,
   IconPauseCircle,
   IconWithText,
+  IconBookOpen,
+  IconHelp,
+  IconInfo,
 } from "../Icons";
 import { SubTabBar } from "../shared/SubTabBar";
+import type { HelpSectionId } from "../help/helpContent";
+
+interface SettingsViewProps {
+  onOpenHelp?: (section: HelpSectionId) => void;
+}
 
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
@@ -46,7 +54,7 @@ interface SpecsResult {
   suggested_model: string;
 }
 
-export const SettingsView: React.FC = () => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
   // ── LLM Mode ────────────────────────────────────────────────
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
@@ -673,6 +681,36 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {onOpenHelp && (
+        <div className="settings-section">
+          <h3 className="settings-section-title">
+            <IconHelp size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+            Trợ giúp & Tài liệu
+          </h3>
+          <p className="settings-desc" style={{ marginBottom: 10 }}>
+            Tài liệu chi tiết nằm trong Help Center — không chiếm sidebar chính.
+          </p>
+          <div className="settings-help-links">
+            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("user-guide")}>
+              <IconBookOpen size={16} />
+              Tài liệu hướng dẫn
+            </button>
+            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("faq")}>
+              <IconHelp size={16} />
+              FAQ
+            </button>
+            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("release-notes")}>
+              <IconSparkle size={16} />
+              Có gì mới
+            </button>
+            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("about")}>
+              <IconInfo size={16} />
+              Về ResearchMind
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="settings-section">
         <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>

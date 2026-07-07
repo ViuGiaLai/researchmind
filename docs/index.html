@@ -3,45 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ResearchMind VN - Trợ Lý AI Cá Nhân Cho Nghiên Cứu Khoa Học</title>
-  <meta name="description" content="Nâng tầm nghiên cứu với ResearchMind. Phân tích tài liệu AI, phản biện khoa học chuyên sâu và tìm kiếm ngữ nghĩa cục bộ an toàn tuyệt đối.">
-  
-  <!-- Favicon -->
+  <title>ResearchMind — Trợ lý AI nghiên cứu học thuật (Desktop)</title>
+  <meta name="description" content="ResearchMind v0.6 — Quản lý thư viện paper, chat RAG có trích dẫn, đánh giá, ma trận bằng chứng và phân tích sâu. Dữ liệu lưu cục bộ, hỗ trợ AI cloud hoặc offline.">
+
   <link rel="icon" type="image/x-icon" href="icon.ico">
-  
-  <!-- Google Fonts -->
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-  
-  <!-- CSS Stylesheet -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Ambient background glow points -->
   <div class="glow-bg glow-1"></div>
   <div class="glow-bg glow-2"></div>
   <div class="glow-bg glow-3"></div>
 
-  <!-- Header Navigation -->
   <header class="navbar">
     <div class="container navbar-container">
       <div class="logo">
         <div class="logo-brand">
-          <img src="icon.ico" alt="ResearchMind Logo" class="logo-img">
-          <span class="logo-text">ResearchMind <span class="badge-vn">VN</span></span>
+          <img src="icon.ico" alt="ResearchMind" class="logo-img">
+          <span class="logo-text">ResearchMind</span>
         </div>
-        <span class="logo-sub">by Viu</span>
+        <span class="logo-sub">v0.6.0 · Desktop</span>
       </div>
-      
+
       <nav class="nav-menu">
         <a href="#welcome" class="nav-link">Giới thiệu</a>
-        <a href="#demo" class="nav-link">Trải nghiệm Demo</a>
+        <a href="#demo" class="nav-link">Giao diện</a>
         <a href="#features" class="nav-link">Tính năng</a>
         <a href="#download" class="btn btn-outline nav-btn">Tải xuống</a>
       </nav>
 
-      <button class="mobile-menu-toggle" aria-label="Toggle Menu">
+      <button class="mobile-menu-toggle" aria-label="Mở menu">
         <span class="bar bar-1"></span>
         <span class="bar bar-2"></span>
         <span class="bar bar-3"></span>
@@ -49,57 +44,56 @@
     </div>
   </header>
 
-  <!-- Section 1: Hero / Giới thiệu (Split Layout) -->
+  <!-- Hero -->
   <section id="welcome" class="hero-section">
     <div class="container hero-container">
       <div class="hero-grid">
-        <!-- Hero Text Content -->
         <div class="hero-content">
           <div class="promo-badge">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: #10b981; margin-right: 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-accent); margin-right: 6px;">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span>Dữ liệu lưu trữ cục bộ bảo mật 100%</span>
+            <span>Local-first · Index &amp; chat trên máy bạn</span>
           </div>
-          
+
           <h1 class="hero-title">
-            Nâng tầm nghiên cứu với <span class="text-gradient">AI chuyên sâu</span>
+            Nghiên cứu học thuật với <span class="text-gradient">AI Workspace</span>
           </h1>
-          
+
           <p class="hero-desc">
-            Trợ lý AI cá nhân giúp đọc hiểu siêu tốc, tóm tắt khoa học, phản biện luận điểm và tra cứu ngữ nghĩa toàn bộ thư viện tài liệu của bạn. Chạy offline an toàn tuyệt đối.
+            Ứng dụng desktop (Tauri) giúp quản lý thư viện PDF, tìm kiếm ngữ nghĩa, chat có trích dẫn,
+            đánh giá paper, ma trận bằng chứng và phân tích sâu — chọn Cloud Free, API riêng hoặc chạy local offline.
           </p>
-          
+
           <div class="hero-actions">
-            <a href="#demo" class="btn btn-primary">Trải nghiệm ngay</a>
-            <a href="#download" class="btn btn-secondary">Tải phiên bản Desktop</a>
+            <a href="#demo" class="btn btn-primary">Xem giao diện</a>
+            <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-secondary" target="_blank" rel="noopener">GitHub</a>
           </div>
-          
+
           <div class="hero-stats-panel">
             <div class="stat-item">
-              <strong>01-Click</strong>
-              <span>Lập chỉ mục PDF</span>
+              <strong>Hybrid</strong>
+              <span>FTS5 + Vector + Rerank</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-              <strong>100%</strong>
-              <span>Offline Cục Bộ</span>
+              <strong>RAG</strong>
+              <span>Chat · Critique · Debate</span>
             </div>
             <div class="stat-divider"></div>
             <div class="stat-item">
-              <strong>4x</strong>
-              <span>Tốc độ đọc hiểu</span>
+              <strong>?</strong>
+              <span>Help Center tích hợp</span>
             </div>
           </div>
         </div>
 
-        <!-- Hero Graphic Visual (Orbital Glowing Logo) -->
         <div class="hero-visual">
           <div class="hero-logo-wrapper">
             <div class="logo-orbit orbit-1"></div>
             <div class="logo-orbit orbit-2"></div>
-            <img src="icon.ico" alt="ResearchMind App Core" class="hero-main-logo">
+            <img src="icon.ico" alt="ResearchMind" class="hero-main-logo">
             <div class="logo-glow-aura"></div>
           </div>
         </div>
@@ -107,165 +101,194 @@
     </div>
   </section>
 
-  <!-- Section 2: Interactive Demo Mockup -->
+  <!-- Interactive mockup -->
   <section id="demo" class="demo-section">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">Trải nghiệm tương tác trên trình duyệt</h2>
-        <p class="section-subtitle">Nhấp chọn các tab trong thanh sidebar bên trái để khám phá cách hệ thống hoạt động.</p>
+        <h2 class="section-title">Giao diện ứng dụng thực tế</h2>
+        <p class="section-subtitle">Sidebar và module chính khớp với ResearchMind Desktop v0.6 — bấm tab để xem từng khu vực.</p>
       </div>
 
-      <!-- Desktop App Mockup Frame -->
       <div class="app-mockup-frame">
-        <!-- Window Controls -->
         <div class="app-window-header">
           <div class="window-dots">
             <span class="dot red"></span>
             <span class="dot yellow"></span>
             <span class="dot green"></span>
           </div>
-          <div class="window-title-bar">ResearchMind VN Desktop v0.1.0</div>
+          <div class="window-title-bar">ResearchMind Desktop v0.6.0</div>
+          <div class="window-help-dot" title="Help Center">?</div>
         </div>
 
-        <!-- App Container Layout -->
         <div class="app-mockup-body">
-          <!-- App Sidebar -->
           <aside class="mock-sidebar">
             <div class="sidebar-brand-wrapper">
-              <img src="icon.ico" alt="Mini Logo" class="mini-logo">
+              <img src="icon.ico" alt="" class="mini-logo">
               <span>ResearchMind</span>
             </div>
-            
+
             <nav class="mock-nav">
-              <button class="mock-nav-btn active" data-target="wow-tab">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                <span>Phân tích tài liệu AI</span>
-              </button>
-              <button class="mock-nav-btn" data-target="library-tab">
+              <button class="mock-nav-btn active" data-target="library-tab">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z"/></svg>
                 <span>Thư viện</span>
               </button>
               <button class="mock-nav-btn" data-target="chat-tab">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                <span>Chat AI Phản biện</span>
+                <span>Chat AI</span>
+              </button>
+              <button class="mock-nav-btn" data-target="review-tab">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                <span>Đánh giá</span>
+              </button>
+              <button class="mock-nav-btn" data-target="evidence-tab">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
+                <span>Bằng chứng</span>
+              </button>
+              <div class="mock-nav-divider"></div>
+              <button class="mock-nav-btn mock-nav-labs" data-target="wow-tab">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+                <span>Thí nghiệm</span>
               </button>
             </nav>
 
             <div class="sidebar-footer">
               <div class="local-badge">
                 <span class="badge-dot"></span>
-                <span>Cục bộ an toàn</span>
+                <span>Dữ liệu cục bộ</span>
               </div>
             </div>
           </aside>
 
-          <!-- Content View Area -->
           <main class="mock-main-view">
-            <!-- VIEW 1: WOW ANALYSIS -->
-            <div id="wow-tab" class="tab-content active">
-              <div class="paper-header-box">
-                <div class="paper-badge">AI & NLP</div>
-                <h3 class="paper-title">Attention Is All You Need (Vaswani et al.)</h3>
-                <p class="paper-meta">Trích dẫn: 120,400+ | Năm: 2017 | Độ tin cậy phương pháp: Rất cao</p>
+            <!-- Library -->
+            <div id="library-tab" class="tab-content active">
+              <div class="mock-subtabs">
+                <span class="mock-subtab active">Thư viện</span>
+                <span class="mock-subtab">Highlights</span>
+                <span class="mock-subtab">Tìm kiếm</span>
+                <span class="mock-subtab">Discovery</span>
               </div>
-
-              <div class="wow-insights-grid">
-                <!-- Core Claim -->
-                <div class="wow-card green">
-                  <div class="wow-card-header">
-                    <span class="wow-label">💡 Đóng góp cốt lõi (Core claims)</span>
-                    <span class="wow-val">10/10</span>
-                  </div>
-                  <p class="wow-text">Đề xuất kiến trúc mạng nơ-ron mới mang tên <strong>Transformer</strong> loại bỏ hoàn toàn các cấu trúc lặp (RNN) và tích chập (CNN). Thay vào đó, nó dựa hoàn toàn vào cơ chế <strong>Self-Attention</strong> để thiết lập các mối quan hệ ngữ nghĩa toàn cục giữa đầu vào và đầu ra.</p>
-                </div>
-
-                <!-- Methods -->
-                <div class="wow-card blue">
-                  <div class="wow-card-header">
-                    <span class="wow-label">🔬 Phương pháp đề xuất (Methods)</span>
-                    <span class="wow-val">9/10</span>
-                  </div>
-                  <p class="wow-text">Sử dụng cơ chế <strong>Multi-Head Attention</strong> cho phép mô hình liên kết song song các thông tin từ các không gian biểu diễn khác nhau. Kiến trúc chồng (stacking) gồm 6 tầng Encoder giống nhau liên kết với 6 tầng Decoder giống nhau.</p>
-                </div>
-
-                <!-- Limitations -->
-                <div class="wow-card red">
-                  <div class="wow-card-header">
-                    <span class="wow-label">⚠️ Hạn chế / Điểm yếu (Limitations)</span>
-                    <span class="wow-val">Khách quan</span>
-                  </div>
-                  <p class="wow-text">Độ phức tạp tính toán của cơ chế Self-Attention là <strong>O(N²)</strong> đối với độ dài chuỗi đầu vào. Điều này gây quá tải bộ nhớ và suy giảm hiệu năng nghiêm trọng khi phân tích các tài liệu có ngữ cảnh quá dài.</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- VIEW 2: LIBRARY / DRAG DROP -->
-            <div id="library-tab" class="tab-content">
               <div class="library-dropzone">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" class="drop-icon">
+                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" class="drop-icon">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                 </svg>
-                <h4>Kéo thả PDF nghiên cứu của bạn vào đây</h4>
-                <p>Hệ thống tự động phân tách cấu trúc khoa học cục bộ</p>
+                <h4>Quét thư mục hoặc import PDF</h4>
+                <p>Parse · chunk · embedding · OCR cho PDF scan</p>
               </div>
-
               <div class="library-list-box">
-                <h4 class="list-title">Tài liệu đã lập chỉ mục (3 bài viết)</h4>
-                
+                <h4 class="list-title">Thư viện đã index (ví dụ)</h4>
                 <div class="list-item">
                   <div class="item-info">
-                    <span class="item-name">Deepseek-R1_Incentivizing_Reasoning.pdf</span>
-                    <span class="item-size">1.4 MB | 34 trang</span>
+                    <span class="item-name">systematic_review_methods_2024.pdf</span>
+                    <span class="item-size">2.1 MB · 48 trang · Đã đọc</span>
                   </div>
-                  <span class="item-tag success">Đã lập chỉ mục</span>
+                  <span class="item-tag success">Ready</span>
                 </div>
-
                 <div class="list-item">
                   <div class="item-info">
-                    <span class="item-name">Llama3-Model_Architecture_Tech_Report.pdf</span>
-                    <span class="item-size">4.2 MB | 98 trang</span>
+                    <span class="item-name">transformer_survey.pdf</span>
+                    <span class="item-size">1.2 MB · 22 trang</span>
                   </div>
-                  <span class="item-tag success">Đã lập chỉ mục</span>
-                </div>
-
-                <div class="list-item">
-                  <div class="item-info">
-                    <span class="item-name">Attention_Is_All_You_Need.pdf</span>
-                    <span class="item-size">0.8 MB | 15 trang</span>
-                  </div>
-                  <span class="item-tag success">Đã lập chỉ mục</span>
+                  <span class="item-tag success">Ready</span>
                 </div>
               </div>
             </div>
 
-            <!-- VIEW 3: CHAT AI DEBATE -->
+            <!-- Chat -->
             <div id="chat-tab" class="tab-content">
               <div class="chat-viewport">
-                <!-- Message 1 (User) -->
                 <div class="chat-msg user">
                   <div class="avatar">U</div>
-                  <div class="msg-bubble">
-                    Hãy chỉ ra 3 điểm hạn chế lớn nhất về phương pháp thực nghiệm trong paper DeepSeek-R1.
-                  </div>
+                  <div class="msg-bubble">So sánh phương pháp giữa 2 paper đã chọn và trích dẫn trang cụ thể.</div>
                 </div>
-
-                <!-- Message 2 (AI) -->
                 <div class="chat-msg ai">
-                  <div class="avatar-ai"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v12M6 12h12"/></svg></div>
+                  <div class="avatar-ai">AI</div>
                   <div class="msg-bubble">
-                    Dựa trên phân tích nội dung thực nghiệm của paper <strong>DeepSeek-R1 (2025)</strong>, đây là 3 điểm hạn chế đáng lưu ý:
-                    <ol style="margin: 8px 0 0 16px; padding: 0; display: flex; flex-direction: column; gap: 6px;">
-                      <li><strong>Thiếu chi tiết về dữ liệu Cold-Start:</strong> Quá trình fine-tuning ban đầu chỉ được mô tả sơ lược, thiếu bộ tiêu chí phân loại cụ thể cho hàng nghìn dữ liệu mẫu.</li>
-                      <li><strong>Đánh giá định lượng về suy luận đa bước còn mỏng:</strong> Chủ yếu dựa trên kết quả Benchmark tiêu chuẩn như MATH/AIME mà thiếu phân tích hành vi giải quyết nhiệm vụ mở.</li>
-                      <li><strong>Tốn tài nguyên học tăng cường:</strong> Pha tối ưu hóa PPO có chi phí phần cứng khổng lồ, khó tái lập ở quy mô nhóm nghiên cứu nhỏ.</li>
-                    </ol>
+                    Paper A dùng <strong>randomized controlled trial</strong> (n=240), trong khi Paper B là <strong>observational cohort</strong>.
+                    <br><br>
+                    <span class="cite-chip">[1] p.12</span>
+                    <span class="cite-chip">[2] p.8–9</span>
+                    <br><small style="opacity:.75">Chế độ: Chỉ bằng chứng · Trust panel hiển thị độ tin cậy claim</small>
                   </div>
                 </div>
               </div>
-              
               <div class="chat-input-wrapper">
-                <input type="text" class="chat-input-field" placeholder="Nhập câu hỏi học thuật tại đây..." disabled>
-                <button class="chat-send-btn" disabled>Gửi</button>
+                <span class="mock-mode-pill">Tự do</span>
+                <input type="text" class="chat-input-field" placeholder="Hỏi về research của bạn..." disabled>
+                <button class="chat-send-btn" disabled aria-label="Gửi">↑</button>
+              </div>
+            </div>
+
+            <!-- Review -->
+            <div id="review-tab" class="tab-content">
+              <div class="mock-subtabs">
+                <span class="mock-subtab active">Review</span>
+                <span class="mock-subtab">Insights</span>
+                <span class="mock-subtab">Screening</span>
+              </div>
+              <div class="wow-insights-grid" style="grid-template-columns: 1fr;">
+                <div class="wow-card green">
+                  <div class="wow-card-header">
+                    <span class="wow-label">Literature Review Builder</span>
+                    <span class="wow-val">7 sections</span>
+                  </div>
+                  <p class="wow-text">Background → Methods → Results → Discussion → Gap → Future — chỉnh sửa inline, regenerate từng phần, export DOCX / Markdown.</p>
+                </div>
+                <div class="wow-card blue">
+                  <div class="wow-card-header">
+                    <span class="wow-label">Screening board</span>
+                    <span class="wow-val">Include / Exclude</span>
+                  </div>
+                  <p class="wow-text">Lọc paper theo tiêu chí systematic review với trạng thái maybe, ghi chú và thống kê nhanh.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Evidence -->
+            <div id="evidence-tab" class="tab-content">
+              <div class="paper-header-box">
+                <div class="paper-badge">Evidence Matrix</div>
+                <h3 class="paper-title">Ma trận bằng chứng theo tiêu chí</h3>
+                <p class="paper-meta">Hàng = tiêu chí · Cột = paper · Ô = quote có nguồn trích dẫn</p>
+              </div>
+              <div class="evidence-matrix-mock">
+                <div class="matrix-row matrix-head"><span>Tiêu chí</span><span>Paper A</span><span>Paper B</span></div>
+                <div class="matrix-row"><span>Sample size</span><span class="cell yes">n=240</span><span class="cell yes">n=1.2k</span></div>
+                <div class="matrix-row"><span>Blinding</span><span class="cell yes">Có</span><span class="cell no">Không</span></div>
+                <div class="matrix-row"><span>Limitation</span><span class="cell partial">Ngắn hạn</span><span class="cell partial">Selection bias</span></div>
+              </div>
+            </div>
+
+            <!-- Wow / Labs -->
+            <div id="wow-tab" class="tab-content">
+              <div class="mock-subtabs">
+                <span class="mock-subtab active">Phân tích sâu</span>
+                <span class="mock-subtab">Bộ não</span>
+                <span class="mock-subtab">Đọc hôm nay</span>
+                <span class="mock-subtab">Biểu đồ</span>
+              </div>
+              <div class="wow-insights-grid">
+                <div class="wow-card green">
+                  <div class="wow-card-header">
+                    <span class="wow-label">Core claims</span>
+                    <span class="wow-val">Done</span>
+                  </div>
+                  <p class="wow-text">Pipeline đa bước: tóm tắt, phương pháp, hạn chế, đóng góp, hướng tiếp theo — từng section có badge trạng thái.</p>
+                </div>
+                <div class="wow-card blue">
+                  <div class="wow-card-header">
+                    <span class="wow-label">Critique &amp; Debate</span>
+                    <span class="wow-val">AI</span>
+                  </div>
+                  <p class="wow-text">Phản biện học thuật và tranh luận đa persona trực tiếp từ paper trong thư viện.</p>
+                </div>
+                <div class="wow-card red">
+                  <div class="wow-card-header">
+                    <span class="wow-label">Graph &amp; Brain</span>
+                    <span class="wow-val">Labs</span>
+                  </div>
+                  <p class="wow-text">Đồ thị quan hệ paper và bộ não cá nhân — gợi ý đọc, tag, thống kê theo thời gian.</p>
+                </div>
               </div>
             </div>
           </main>
@@ -274,127 +297,158 @@
     </div>
   </section>
 
-  <!-- Section 3: Features / Tính năng -->
+  <!-- Features -->
   <section id="features" class="features-section">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">Các tính năng cốt lõi</h2>
-        <p class="section-subtitle">Được thiết kế riêng để tối ưu hóa năng suất cho Nghiên cứu sinh, Học giả và Nhà phát triển.</p>
+        <h2 class="section-title">Tính năng v0.6</h2>
+        <p class="section-subtitle">Dành cho nghiên cứu sinh, học giả và nhóm systematic review — chạy trên Tauri + FastAPI backend.</p>
       </div>
 
-      <div class="features-grid">
-        <!-- Feature 1 -->
+      <div class="features-grid features-grid-6">
         <div class="feature-card">
           <div class="feature-icon-box">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
           </div>
-          <h3>Phân tích tài liệu AI đa chiều</h3>
-          <p>Tự động tổng hợp và phân loại bài báo khoa học dựa trên: Giả thuyết cốt lõi, Phương pháp tiếp cận mới, Điểm yếu trong phản biện, Đề xuất kiểm chứng.</p>
+          <h3>Import &amp; Index</h3>
+          <p>PDF, DOCX, EPUB, BibTeX, RIS, Zotero. Queue trạng thái, OCR PDF scan, embedding bge-m3 + ChromaDB.</p>
         </div>
 
-        <!-- Feature 2 -->
         <div class="feature-card">
           <div class="feature-icon-box">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           </div>
-          <h3>Tìm kiếm ngữ nghĩa (Semantic)</h3>
-          <p>Tìm kiếm dựa trên ý nghĩa khoa học. AI hiểu các khái niệm phức tạp để tìm các paper liên quan ngay cả khi chúng không trùng khớp từ khóa.</p>
+          <h3>Hybrid Search</h3>
+          <p>BM25 (SQLite FTS5) + vector semantic + cross-encoder rerank. Saved search, filter collection/tag/năm.</p>
         </div>
 
-        <!-- Feature 3 -->
         <div class="feature-card">
           <div class="feature-icon-box">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" class="text-accent"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
-          <h3>Bảo mật Offline 100%</h3>
-          <p>Hỗ trợ chạy mô hình ngôn ngữ lớn (LLM) cục bộ thông qua llama-server (llama.cpp). Không một trang PDF hay đoạn hội thoại nào bị truyền ra ngoài internet.</p>
+          <h3>Chat RAG</h3>
+          <p>Streaming, multi-paper, chế độ Chỉ bằng chứng, citation panel, verify DOI, trust panel.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+          </div>
+          <h3>Review &amp; Screening</h3>
+          <p>Insights, screening board, review builder 7 phần, comparison matrix, export DOCX/Markdown.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
+          </div>
+          <h3>Evidence Matrix</h3>
+          <p>Trích xuất claim theo tiêu chí, quote có nguồn, bảng so sánh trực quan giữa các paper.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-box">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          </div>
+          <h3>Help Center</h3>
+          <p>Tài liệu, FAQ, phím tắt, release notes — nút ? góc phải, không làm rối sidebar chính.</p>
+        </div>
+      </div>
+
+      <div class="ai-modes-panel">
+        <h4 class="specs-panel-title">Chế độ AI (Cài đặt)</h4>
+        <div class="ai-modes-grid">
+          <div class="ai-mode-chip"><strong>Cloud Free</strong><span>Dùng ngay</span></div>
+          <div class="ai-mode-chip"><strong>Custom API</strong><span>Gemini · DeepSeek · Claude · Groq</span></div>
+          <div class="ai-mode-chip"><strong>Local</strong><span>llama-server · GGUF offline</span></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Section 4: Download -->
+  <!-- Download -->
   <section id="download" class="download-section">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">Sẵn sàng nâng tầm tri thức của bạn?</h2>
-        <p class="section-subtitle">Tải xuống ResearchMind phiên bản Desktop miễn phí cho hệ điều hành của bạn.</p>
+        <h2 class="section-title">Tải ResearchMind Desktop</h2>
+        <p class="section-subtitle">Build Tauri v2 · Phiên bản hiện tại <strong>v0.6.0</strong>. Yêu cầu backend Python chạy kèm (tự khởi động khi dev/build).</p>
       </div>
 
       <div class="download-grid">
-        <!-- Windows Card -->
         <div class="download-card">
           <div class="platform-icon">
             <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.45H0V3.449zM0 12.45h9.75v9.45L0 20.551v-8.101zM11.25 1.9L24 0v11.55H11.25V1.9zm12.75 10.55V24l-12.75-1.9v-9.65H24z"/></svg>
           </div>
           <h3>Windows</h3>
-          <p class="plat-desc">Windows 10, 11 (64-bit)</p>
-          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-primary btn-full" target="_blank">Tải xuống Installer (.exe)</a>
-          <span class="plat-meta">Kích thước: ~84 MB | Phiên bản v0.1.0</span>
+          <p class="plat-desc">Windows 10 / 11 (64-bit)</p>
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-primary btn-full" target="_blank" rel="noopener">Tải từ GitHub Releases</a>
+          <span class="plat-meta">v0.6.0 · Installer / portable</span>
         </div>
 
-        <!-- macOS Card -->
         <div class="download-card">
           <div class="platform-icon">
             <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.029-3.91 1.183-4.961 3.014-2.117 3.675-.54 9.102 1.51 12.067 1.007 1.452 2.2 3.076 3.774 3.02 1.524-.059 2.098-.98 3.938-.98 1.829 0 2.365.98 3.96.95 1.624-.03 2.661-1.47 3.661-2.93 1.154-1.69 1.632-3.32 1.66-3.4-.03-.01-3.18-1.22-3.21-4.82-.03-3.02 2.48-4.47 2.58-4.53-1.42-2.08-3.62-2.3-4.4-2.36-2.035-.17-3.325 1.04-4.262 1.04zm3.09-4.556c.846-1.025 1.411-2.454 1.253-3.877-1.22.049-2.697.817-3.57 1.839-.77.889-1.442 2.338-1.262 3.738 1.353.104 2.733-.675 3.579-1.7z"/></svg>
           </div>
           <h3>macOS</h3>
-          <p class="plat-desc">Apple Silicon (M1/M2/M3) & Intel</p>
-          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-secondary btn-full" target="_blank">Tải xuống Disk Image (.dmg)</a>
-          <span class="plat-meta">Kích thước: ~79 MB | Phiên bản v0.1.0</span>
+          <p class="plat-desc">Apple Silicon &amp; Intel</p>
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-secondary btn-full" target="_blank" rel="noopener">Tải từ GitHub Releases</a>
+          <span class="plat-meta">v0.6.0 · .dmg</span>
         </div>
 
-        <!-- Linux Card -->
         <div class="download-card">
           <div class="platform-icon">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M11.966 0c-.571 0-1.127.098-1.57.282-.572.238-1.06.666-1.309 1.257l-.027.067c-.201.5-.181 1.15.097 1.833.01.026.021.052.032.078-.567.432-1.096.985-1.539 1.623l-.004.004-.002.004c-.604.887-.935 1.944-.932 3.018v.032c-.085.127-.145.281-.173.456l-.004.023-.004.024c-.05.352.035.7.234.965.176.236.438.384.717.434l.057.01c.217.518.513 1 .884 1.436.476.561 1.074.992 1.745 1.26l.006.002.004.002c.28.113.568.204.862.274l-.004.084c-.015.344.02.68.106.993v.002c.153.56.495.962.915 1.16.488.228 1.054.218 1.58-.046l.03-.016.027-.019c.355-.262.593-.654.678-1.12l.004-.022.002-.023c.046-.25.048-.508.014-.766.452-.163.869-.4 1.238-.7l.002-.002.002-.002c.498-.403.9-.903 1.196-1.47l.002-.006c.162-.315.228-.68.188-1.05v-.006c-.035-.326-.179-.619-.395-.828l-.014-.014c.054-.347.072-.7.054-1.052-.046-1.057-.42-2.078-1.057-2.923v-.002c-.52-.693-1.168-1.266-1.898-1.69-.034-.548-.035-1.098-.106-1.597l-.002-.016c-.078-.544-.332-.977-.714-1.226C13.253.111 12.624 0 11.966 0zm.014.998c.414 0 .783.076 1.002.219.166.108.283.276.33.58.058.375.074.887.098 1.393-.541-.157-1.111-.24-1.698-.242a7.712 7.712 0 0 0-1.418.136c-.144-.45-.198-.9-.138-1.285.068-.432.261-.734.545-.851.258-.107.643-.17 1.279-.17zM7.551 16.416c-.504 0-.877.408-.828 1.127.053.774.453 1.173.957 1.173.504 0 .872-.424.828-1.127-.044-.755-.453-1.173-.957-1.173zm8.938 0c-.504 0-.913.418-.957 1.173-.044.703.324 1.127.828 1.127.504 0 .904-.399.957-1.173.049-.719-.324-1.127-.828-1.127z"/></svg>
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
           </div>
           <h3>Linux</h3>
-          <p class="plat-desc">Ubuntu, Debian, Fedora (64-bit)</p>
-          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-outline btn-full" target="_blank">Tải xuống AppImage (.AppImage)</a>
-          <span class="plat-meta">Kích thước: ~92 MB | Phiên bản v0.1.0</span>
+          <p class="plat-desc">Ubuntu · Debian · Fedora</p>
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-outline btn-full" target="_blank" rel="noopener">Tải từ GitHub Releases</a>
+          <span class="plat-meta">v0.6.0 · AppImage / deb</span>
         </div>
       </div>
 
-      <!-- Specs Requirements (HUD look) -->
       <div class="specs-panel">
-        <h4 class="specs-panel-title">🖥️ YÊU CẦU CẤU HÌNH HỆ THỐNG</h4>
+        <h4 class="specs-panel-title">Yêu cầu hệ thống</h4>
         <div class="specs-panel-grid">
           <div class="spec-col">
-            <span class="spec-label">Bộ vi xử lý:</span>
-            <strong class="spec-val">Intel Core i5 / AMD Ryzen 5 trở lên (Hỗ trợ tập lệnh AVX2)</strong>
+            <span class="spec-label">Dev stack</span>
+            <strong class="spec-val">Node 22+, pnpm, Python 3.11+, Rust, Tauri CLI</strong>
           </div>
           <div class="spec-col">
-            <span class="spec-label">Bộ nhớ RAM:</span>
-            <strong class="spec-val">8 GB RAM khả dụng (16 GB nếu chạy Offline Cục bộ với model 7B)</strong>
+            <span class="spec-label">RAM</span>
+            <strong class="spec-val">8 GB tối thiểu · 16 GB khuyến nghị (local LLM 7B)</strong>
           </div>
           <div class="spec-col">
-            <span class="spec-label">Lưu trữ:</span>
-            <strong class="spec-val">Trống tối thiểu 500 MB (Trống 10 GB nếu lưu trữ model GGUF cục bộ)</strong>
+            <span class="spec-label">Lưu trữ</span>
+            <strong class="spec-val">~500 MB app · thêm dung lượng cho index, cache và model GGUF (nếu dùng local)</strong>
           </div>
         </div>
+        <p class="dev-hint">Từ source: <code class="inline-code">pnpm install</code> → <code class="inline-code">cd backend && pip install -r requirements.txt</code> → <code class="inline-code">pnpm tauri dev</code></p>
       </div>
     </div>
   </section>
 
-  <!-- Footer -->
   <footer class="footer">
     <div class="container footer-container">
       <div class="footer-logo">
         <div class="footer-logo-brand">
-          <img src="icon.ico" alt="ResearchMind Logo" class="footer-logo-img">
-          <span class="footer-logo-text">ResearchMind VN</span>
+          <img src="icon.ico" alt="" class="footer-logo-img">
+          <span class="footer-logo-text">ResearchMind</span>
         </div>
-        <span class="footer-logo-sub">by Viu Gia Lai</span>
+        <span class="footer-logo-sub">MIT License · Local-first research AI</span>
       </div>
-      
+
+      <div class="footer-links">
+        <a href="https://github.com/ViuGiaLai/researchmind" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/ViuGiaLai/researchmind/issues" target="_blank" rel="noopener">Báo lỗi</a>
+        <a href="https://github.com/ViuGiaLai/researchmind/releases" target="_blank" rel="noopener">Releases</a>
+      </div>
+
       <p class="footer-copyright">
-        &copy; 2026 ResearchMind VN — by Viu Gia Lai. Bảo mật, an toàn và tối ưu cho nghiên cứu khoa học.
+        &copy; 2026 ResearchMind — Dữ liệu nghiên cứu trên máy bạn. AI cloud là tùy chọn.
       </p>
     </div>
   </footer>
 
-  <!-- JS Interactions -->
   <script src="script.js"></script>
 </body>
 </html>

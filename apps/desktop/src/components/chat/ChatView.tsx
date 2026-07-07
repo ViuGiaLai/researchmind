@@ -1821,19 +1821,26 @@ export const ChatView: React.FC<{
                     <div
                       key={p.id}
                       className={`paper-picker-item ${isSelected ? "selected" : ""}`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => {
                         setTempPaperIds(prev =>
                           prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
                         );
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setTempPaperIds(prev =>
+                            prev.includes(p.id) ? prev.filter(x => x !== p.id) : [...prev, p.id]
+                          );
+                        }
+                      }}
                     >
-                      <div className="paper-picker-checkbox-wrapper">
-                        <input
-                          type="checkbox"
-                          className="paper-picker-checkbox"
-                          checked={isSelected}
-                          readOnly
-                        />
+                      <div className="paper-picker-checkbox-wrapper" aria-hidden>
+                        <span className={`paper-picker-checkbox${isSelected ? " is-checked" : ""}`}>
+                          {isSelected && <IconCheck size={12} />}
+                        </span>
                       </div>
                       <div className="paper-picker-item-icon">
                         <IconFileText size={16} />

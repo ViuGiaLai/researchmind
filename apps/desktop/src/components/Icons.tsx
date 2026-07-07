@@ -76,6 +76,11 @@ import {
   ArrowDown,
   ArrowRight,
   Microscope,
+  HelpCircle,
+  Rocket,
+  Keyboard,
+  Bug,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 
@@ -202,6 +207,11 @@ export const IconFileCode = wrapIcon(FileCode, "icon-file-code");
 export const IconArrowDown = wrapIcon(ArrowDown, "icon-arrow-down");
 export const IconArrowRight = wrapIcon(ArrowRight, "icon-arrow-right");
 export const IconMicroscope = wrapIcon(Microscope, "icon-microscope");
+export const IconHelp = wrapIcon(HelpCircle, "icon-help");
+export const IconRocket = wrapIcon(Rocket, "icon-rocket");
+export const IconKeyboard = wrapIcon(Keyboard, "icon-keyboard");
+export const IconBug = wrapIcon(Bug, "icon-bug");
+export const IconMail = wrapIcon(Mail, "icon-mail");
 
 /** Inline icon + text label */
 export const IconWithText: React.FC<{

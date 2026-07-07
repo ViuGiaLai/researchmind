@@ -11,6 +11,10 @@ import { WowAnalysisView } from "./components/insights/WowAnalysisView";
 import { GraphView } from "./components/graph/GraphView";
 import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
+import { HelpMenu } from "./components/help/HelpMenu";
+import { HelpCenterView } from "./components/help/HelpCenterView";
+import { WelcomeTour, hasSeenWelcomeTour } from "./components/help/WelcomeTour";
+import type { HelpSectionId } from "./components/help/helpContent";
 import { ToastProvider } from "./components/shared/Toast";
 import { SubTabBar } from "./components/shared/SubTabBar";
 import { api, BASE_URL } from "./lib/api";
@@ -59,6 +63,10 @@ function App() {
       return false;
     }
   });
+  const [helpSection, setHelpSection] = useState<HelpSectionId | null>(null);
+  const [showWelcomeTour, setShowWelcomeTour] = useState(false);
+  const [welcomeTourKey, setWelcomeTourKey] = useState(0);
+  const setupJustCompletedRef = React.useRef(false);
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
       const next = !prev;
@@ -96,6 +104,41 @@ function App() {
       // ignore storage errors
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && helpSection) {
+        setHelpSection(null);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        setActiveTab("settings");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [helpSection]);
+
+  const openWelcomeTour = useCallback(() => {
+    setWelcomeTourKey((k) => k + 1);
+    setShowWelcomeTour(true);
+  }, []);
+
+  useEffect(() => {
+    if (!checkingSetup && !showSetup && !hasSeenWelcomeTour() && !setupJustCompletedRef.current) {
+      const t = window.setTimeout(() => openWelcomeTour(), 600);
+      return () => window.clearTimeout(t);
+    }
+  }, [checkingSetup, showSetup, openWelcomeTour]);
+
+  const handleSetupComplete = useCallback(() => {
+    setupJustCompletedRef.current = true;
+    setShowSetup(false);
+    if (!hasSeenWelcomeTour()) {
+      window.setTimeout(() => openWelcomeTour(), 400);
+    }
+  }, [openWelcomeTour]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -136,9 +179,6 @@ function App() {
           : (h.init_message || "Đang khởi tạo AI engine...")
       );
 
-      // Backend HTTP is up — enter app immediately (RAG may still warm up ~1s)
-      setCheckingSetup(false);
-
       try {
         const s = await api.getSettings();
         if (!mountedRef.current) return;
@@ -148,6 +188,10 @@ function App() {
       } catch (settingsErr) {
         console.warn("Settings load during startup:", settingsErr);
       }
+
+      if (!mountedRef.current) return;
+      // Only leave the loading screen after setup state is known
+      setCheckingSetup(false);
     } catch {
       if (!mountedRef.current) return;
       retryCountRef.current += 1;
@@ -273,7 +317,7 @@ function App() {
   if (showSetup || checkingSetup) {
     return (
       <div className="app">
-        {showSetup && <AISetupWizard onComplete={() => setShowSetup(false)} />}
+        {showSetup && <AISetupWizard onComplete={handleSetupComplete} />}
         {checkingSetup && !showSetup && (
           <div className="app-container">
             <aside className="app-sidebar">
@@ -335,6 +379,7 @@ function App() {
           ].map(({ tab, icon: Icon, label }) => (
             <button
               key={tab}
+              id={tab === "library" ? "sidebar-library" : tab === "chat" ? "sidebar-chat" : tab === "review" ? "sidebar-review" : undefined}
               className={`sidebar-menu-btn ${activeTab === tab ? "active" : ""}`}
               onClick={() => {
                 if (activeTab !== tab) {
@@ -359,6 +404,7 @@ function App() {
           <div className="sidebar-divider" role="separator" />
 
           <button
+            id="sidebar-labs"
             className={`sidebar-menu-btn sidebar-menu-btn-labs ${isLabsTab(activeTab) ? "active" : ""}`}
             onClick={() => setActiveTab(isLabsTab(activeTab) ? activeTab : "wow")}
             title={sidebarCollapsed ? "Thí nghiệm" : undefined}
@@ -392,6 +438,10 @@ function App() {
 
       {/* Main content area */}
       <main className="main">
+        <HelpMenu
+          onOpenSection={(id) => setHelpSection(id)}
+          onStartTour={openWelcomeTour}
+        />
         {isLabsTab(activeTab) ? (
           <div className="hub-shell">
             <SubTabBar
@@ -416,7 +466,7 @@ function App() {
             </div>
           </div>
         ) : activeTab === "settings" ? (
-          <SettingsView />
+          <SettingsView onOpenHelp={(id) => setHelpSection(id)} />
         ) : (
           <>
             {activeTab === "library" && (
@@ -447,6 +497,31 @@ function App() {
           </>
         )}
       </main>
+
+      {helpSection && (
+        <HelpCenterView
+          sectionId={helpSection}
+          onClose={() => setHelpSection(null)}
+          onNavigate={setHelpSection}
+        />
+      )}
+
+      {showWelcomeTour && (
+        <WelcomeTour
+          key={welcomeTourKey}
+          onPrepareStep={(targetId) => {
+            if (targetId.startsWith("sidebar-") && sidebarCollapsed) {
+              setSidebarCollapsed(false);
+              try { localStorage.setItem("researchmind:sidebar-collapsed", "false"); } catch {}
+            }
+          }}
+          onComplete={() => setShowWelcomeTour(false)}
+          onOpenHelp={() => {
+            setShowWelcomeTour(false);
+            setHelpSection("getting-started");
+          }}
+        />
+      )}
     </div>
     </ToastProvider>
   );
