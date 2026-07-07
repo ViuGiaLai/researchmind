@@ -794,7 +794,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       className="import-retry-btn"
                       onClick={() => retryJob(r.job_id as string)}
                     >
-                      Retry
+                      Thử lại
                     </button>
                   )}
                   {/* PDF status badge */}

@@ -176,6 +176,9 @@ export const EvidenceMatrixView: React.FC = () => {
             <IconBrain size={22} className="icon-gradient" />
             Ma trận so sánh
           </h2>
+          <p className="rm-page-subtitle" style={{ margin: "6px 0 0", color: "var(--color-text-secondary)", fontSize: "0.86rem" }}>
+            So sánh bằng chứng theo từng paper để xác minh claim, quote và mức độ tin cậy.
+          </p>
         </div>
         {matrix && (
           <button
@@ -364,7 +367,7 @@ export const EvidenceMatrixView: React.FC = () => {
             <iframe
               src={`${BASE_URL}/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`}
               style={{ flex: 1, border: "none" }}
-              title="PDF Preview"
+              title="Xem trước PDF"
             />
           </div>
         </div>

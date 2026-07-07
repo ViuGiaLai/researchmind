@@ -221,7 +221,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                   {embeddingInfo?.mode === "cloud" ? <IconCloud size={22} /> : <IconLaptop size={22} />}
                 </span>
                 <span className="hero-stat-label">
-                  {embeddingInfo?.mode === "cloud" ? "Cloud" : "Local"}
+                  {embeddingInfo?.mode === "cloud" ? "Đám mây" : "Cục bộ"}
                 </span>
               </div>
             </div>
@@ -489,7 +489,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                 {embeddingInfo && (
                   <span className="embedding-badge-modern">
                     <IconSparkle size={12} />
-                    {embeddingInfo.mode === "cloud" ? "Cloud AI" : "Local Model"}
+                    {embeddingInfo.mode === "cloud" ? "AI Đám mây" : "Mô hình cục bộ"}
                   </span>
                 )}
               </div>

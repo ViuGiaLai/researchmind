@@ -54,9 +54,9 @@ export const HELP_NAV: HelpNavItem[] = [
   { id: "getting-started", label: "Bắt đầu", group: "Tổng quan" },
   { id: "user-guide", label: "Hướng dẫn sử dụng", group: "Tài liệu" },
   { id: "ai-features", label: "Tính năng AI", group: "Tài liệu" },
-  { id: "import-export", label: "Import & Export", group: "Tài liệu" },
+  { id: "import-export", label: "Nhập & Xuất", group: "Tài liệu" },
   { id: "settings-help", label: "Cài đặt", group: "Tài liệu" },
-  { id: "faq", label: "FAQ", group: "Hỗ trợ" },
+  { id: "faq", label: "Câu hỏi thường gặp", group: "Hỗ trợ" },
   { id: "shortcuts", label: "Phím tắt", group: "Hỗ trợ" },
   { id: "release-notes", label: "Có gì mới", group: "Hỗ trợ" },
   { id: "troubleshooting", label: "Xử lý sự cố", group: "Hỗ trợ" },
@@ -72,9 +72,9 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
   home: {
     id: "home",
     title: "Trung tâm trợ giúp",
-    subtitle: "Tài liệu, FAQ và hướng dẫn nhanh cho ResearchMind",
+    subtitle: "Nền tảng nghiên cứu ưu tiên bằng chứng: tài liệu, FAQ và hướng dẫn nhanh",
     blocks: [
-      { type: "p", text: "Chào mừng bạn đến với ResearchMind — nền tảng nghiên cứu học thuật với AI, chạy cục bộ và bảo vệ dữ liệu của bạn." },
+      { type: "p", text: "Chào mừng bạn đến với ResearchMind — nền tảng nghiên cứu ưu tiên bằng chứng giúp bạn tạo kết luận có thể kiểm chứng từ chính bộ paper của mình." },
       { type: "h3", text: "Bắt đầu nhanh" },
       { type: "ul", items: [
         "Mở Thư viện → chọn thư mục PDF hoặc import tài liệu",
@@ -87,7 +87,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
         "Bắt đầu — giới thiệu và thư viện đầu tiên",
         "Hướng dẫn sử dụng — từng module chính",
         "Tính năng AI — chat, review, debate, citation…",
-        "Import & Export — PDF, BibTeX, Zotero…",
+        "Nhập / Xuất — PDF, BibTeX, Zotero…",
         "FAQ & Xử lý sự cố — câu hỏi thường gặp",
       ]},
     ],
@@ -99,7 +99,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
     subtitle: "Giới thiệu ResearchMind và các bước đầu tiên",
     blocks: [
       { type: "h3", text: "ResearchMind là gì?" },
-      { type: "p", text: "Ứng dụng desktop giúp quản lý thư viện paper, chat với AI có trích dẫn, đánh giá bài báo, trích xuất bằng chứng và xây dựng review — dữ liệu lưu trên máy bạn." },
+      { type: "p", text: "Ứng dụng desktop giúp bạn chuyển paper thành câu trả lời, bằng chứng và review có thể kiểm chứng — dữ liệu lưu trên máy bạn." },
       { type: "h3", text: "Tính năng chính" },
       { type: "ul", items: [
         "Thư viện — quét thư mục, tìm kiếm, highlight, PDF viewer",
@@ -162,15 +162,15 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
     title: "Tính năng AI",
     subtitle: "Các khả năng AI trong ResearchMind",
     blocks: [
-      { type: "h3", text: "AI Summary & Chat" },
-      { type: "p", text: "Tóm tắt paper, hỏi đáp đa lượt với streaming, hiển thị citation và trust panel." },
-      { type: "h3", text: "AI Review & Critique" },
-      { type: "p", text: "Phân tích phương pháp, điểm mạnh/yếu, đề xuất cải thiện theo khung học thuật." },
-      { type: "h3", text: "AI Debate" },
+      { type: "h3", text: "Tóm tắt & Chat AI" },
+      { type: "p", text: "Tóm tắt paper, hỏi đáp đa lượt với streaming, hiển thị citation và trust panel để bạn kiểm chứng từng kết luận." },
+      { type: "h3", text: "Đánh giá & Phê bình AI" },
+      { type: "p", text: "Phân tích phương pháp, điểm mạnh/yếu và đề xuất cải thiện dựa trên bằng chứng từ tài liệu." },
+      { type: "h3", text: "Tranh luận AI" },
       { type: "p", text: "Mô phỏng tranh luận giữa các quan điểm về một paper hoặc chủ đề." },
-      { type: "h3", text: "Gap Analysis" },
+      { type: "h3", text: "Phân tích khoảng trống" },
       { type: "p", text: "Xác định khoảng trống nghiên cứu từ tập paper đã chọn." },
-      { type: "h3", text: "Citation & Search" },
+      { type: "h3", text: "Trích dẫn & Tìm kiếm" },
       { type: "ul", items: [
         "Citation panel — APA, IEEE, BibTeX…",
         "Semantic search — tìm theo ý nghĩa, không chỉ từ khóa",
@@ -183,17 +183,17 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
 
   "import-export": {
     id: "import-export",
-    title: "Import & Export",
+    title: "Nhập & Xuất",
     subtitle: "Đưa dữ liệu vào và xuất ra ngoài",
     blocks: [
-      { type: "h3", text: "Import" },
+      { type: "h3", text: "Nhập" },
       { type: "ul", items: [
         "PDF — quét thư mục hoặc kéo thả từng file",
         "BibTeX / RIS — import metadata batch",
         "Zotero — chỉ đường dẫn thư mục data Zotero trong Cài đặt",
         "Word — hỗ trợ qua pipeline extract (nếu bật trong phiên bản của bạn)",
       ]},
-      { type: "h3", text: "Export" },
+      { type: "h3", text: "Xuất" },
       { type: "ul", items: [
         "BibTeX — toàn bộ hoặc paper đã chọn",
         "Citation copy — nhiều style học thuật",
@@ -208,7 +208,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
     title: "Cài đặt",
     subtitle: "AI Provider, giao diện, lưu trữ và bảo mật",
     blocks: [
-      { type: "h3", text: "AI Provider" },
+      { type: "h3", text: "Nhà cung cấp AI" },
       { type: "ul", items: [
         "Cloud Free — dùng ngay, không cần API key",
         "Custom API — Gemini, DeepSeek, Claude… nhập key trong Cài đặt",
@@ -217,7 +217,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
       { type: "h3", text: "Giao diện" },
       { type: "ul", items: [
         "Chế độ Sáng / Tối / Hệ thống",
-        "AI Workspace Theme — teal accent, đọc rõ dark & light",
+        "Giao diện AI Workspace — accent teal, rõ ràng ở cả chế độ sáng và tối",
       ]},
       { type: "h3", text: "Ngôn ngữ & API Keys" },
       { type: "p", text: "API keys lưu cục bộ. Không gửi paper ra ngoài khi dùng chế độ Local." },
@@ -242,7 +242,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
           { q: "Tại sao PDF không đọc được?", a: "File có thể scan ảnh (cần OCR), bị mã hóa, hoặc đường dẫn đã đổi. Kiểm tra file mở được bằng reader khác và re-scan thư viện." },
           { q: "Tại sao Citation sai?", a: "Metadata thiếu tác giả/năm — sửa metadata paper hoặc chọn style citation phù hợp trong Cite panel." },
           { q: "Model nào nên dùng?", a: "Cloud Free cho bắt đầu; API riêng cho chất lượng cao; Local khi cần riêng tư tuyệt đối và có GPU/RAM đủ." },
-          { q: "Dữ liệu có lên cloud không?", a: "Chế độ Local: không. Cloud modes chỉ gửi prompt cần thiết tới provider bạn chọn — paper index vẫn ở máy bạn." },
+          { q: "Dữ liệu có lên cloud không?", a: "Chế độ Local: không. Các chế độ Cloud chỉ gửi prompt cần thiết tới nhà cung cấp bạn chọn — paper index vẫn ở máy bạn." },
         ],
       },
     ],
@@ -251,7 +251,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
   shortcuts: {
     id: "shortcuts",
     title: "Phím tắt",
-    subtitle: "Keyboard shortcuts",
+    subtitle: "Phím tắt bàn phím",
     blocks: [
       {
         type: "shortcuts",
@@ -271,7 +271,7 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
   "release-notes": {
     id: "release-notes",
     title: "Có gì mới",
-    subtitle: "Release notes",
+    subtitle: "Ghi chú phát hành",
     blocks: [
       {
         type: "releases",
@@ -279,10 +279,10 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
           {
             version: "v0.6.0",
             items: [
-              "AI Workspace Theme — teal, dark/light/system",
-              "Help Center & Welcome Tour",
-              "Cải thiện Chat streaming và dark mode",
-              "Settings tabs ngang, icon Lucide thống nhất",
+              "Giao diện AI Workspace — teal, tối/sáng/hệ thống",
+              "Trung tâm trợ giúp & Tour giới thiệu",
+              "Cải thiện streaming Chat và chế độ tối",
+              "Tabs Cài đặt ngang, icon Lucide thống nhất",
             ],
           },
           {
@@ -301,9 +301,9 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
   troubleshooting: {
     id: "troubleshooting",
     title: "Xử lý sự cố",
-    subtitle: "Troubleshooting",
+    subtitle: "Khắc phục sự cố",
     blocks: [
-      { type: "h3", text: "AI Error" },
+      { type: "h3", text: "Lỗi AI" },
       { type: "ul", items: [
         "Kiểm tra backend: Cài đặt → Kiểm tra health",
         "Xác minh API key hoặc llama-server đang chạy (local)",
@@ -330,9 +330,9 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
   about: {
     id: "about",
     title: "Về ResearchMind",
-    subtitle: "Version, license & links",
+    subtitle: "Phiên bản, giấy phép và liên kết",
     blocks: [
-      { type: "p", text: `ResearchMind v${APP_VERSION} — Nền tảng nghiên cứu học thuật với AI, ưu tiên quyền riêng tư và dữ liệu cục bộ.` },
+      { type: "p", text: `ResearchMind v${APP_VERSION} — nền tảng nghiên cứu ưu tiên bằng chứng, ưu tiên nghiên cứu có thể kiểm chứng và dữ liệu cục bộ.` },
       { type: "h3", text: "Thông tin" },
       { type: "ul", items: [
         `Phiên bản: ${APP_VERSION}`,
@@ -361,13 +361,13 @@ export const WELCOME_TOUR_STEPS = [
   {
     id: "chat",
     title: "Chat AI",
-    body: "Hỏi đáp với AI có trích dẫn từ paper bạn chọn. Bật Chỉ bằng chứng khi cần độ tin cậy cao.",
+    body: "Hỏi đáp với AI dựa trên paper bạn chọn. Mỗi kết luận quan trọng nên có citation để kiểm chứng nhanh.",
     target: "sidebar-chat",
   },
   {
     id: "review",
     title: "Đánh giá & Bằng chứng",
-    body: "Insights, screening, review builder và ma trận evidence cho systematic review.",
+    body: "Insights, screening, review builder và ma trận evidence để biến paper thành kết quả có thể kiểm chứng.",
     target: "sidebar-review",
   },
   {

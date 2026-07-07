@@ -112,7 +112,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
       <div className="help-center-panel aw-fade-up" role="dialog" aria-labelledby="help-center-title">
         <aside className="help-center-nav">
           <div className="help-center-nav-header">
-            <span className="help-center-nav-brand">Help Center</span>
+            <span className="help-center-nav-brand">Trung tâm trợ giúp</span>
           </div>
           <nav className="help-center-nav-list">
             {groups.map((group) => (

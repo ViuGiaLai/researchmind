@@ -15,7 +15,7 @@ const STRATEGY_LABELS: Record<Strategy, string> = {
 const STRATEGY_DESCRIPTIONS: Record<Strategy, string> = {
   local: "Dựa trên thực thể: truy vấn → thực thể → hàng xóm → ngữ cảnh → LLM",
   global: "Map-reduce: báo cáo cộng đồng → câu trả lời cục bộ → tổng hợp",
-  drift: "Iterative: start local → extract entities → explore → reduce",
+  drift: "Lặp: bắt đầu cục bộ → trích thực thể → khám phá → thu gọn",
 };
 
 interface BuildProgress {
@@ -228,7 +228,7 @@ export const GraphView: React.FC = () => {
   };
 
   const handleClear = async () => {
-    setLoadingState({ type: "general", message: "Clearing graph..." });
+    setLoadingState({ type: "general", message: "Đang xóa đồ thị..." });
     try {
       await api.clearGraph();
       setStats(null);
@@ -247,7 +247,7 @@ export const GraphView: React.FC = () => {
 
   const handleQuery = async () => {
     if (!query.trim()) return;
-    setLoadingState({ type: "query", message: `Running ${STRATEGY_LABELS[strategy]}...` });
+    setLoadingState({ type: "query", message: `Đang chạy ${STRATEGY_LABELS[strategy]}...` });
     setError("");
     setAnswer("");
     try {
@@ -258,7 +258,7 @@ export const GraphView: React.FC = () => {
       });
       setAnswer(result.answer);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Query failed");
+      setError(e instanceof Error ? e.message : "Truy vấn thất bại");
     } finally {
       setLoadingState(null);
     }
@@ -362,10 +362,10 @@ export const GraphView: React.FC = () => {
       {!stats && !loadingState && (
         <div className="graph-empty">
           <IconGraph size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
-          <h3>Knowledge Graph chưa có dữ liệu</h3>
-          <p>Click "Build Graph" để trích xuất entities và relationships từ các paper chunks.</p>
+          <h3>Đồ thị tri thức chưa có dữ liệu</h3>
+          <p>Nhấn "Build Graph" để trích xuất thực thể và quan hệ từ các đoạn bài báo.</p>
           <p style={{ fontSize: "0.8rem", marginTop: 8, color: "var(--color-text-muted)" }}>
-            Quá trình này gọi LLM để phân tích từng chunk và xây dựng knowledge graph có cấu trúc.
+            Quá trình này gọi LLM để phân tích từng đoạn và xây dựng đồ thị tri thức có cấu trúc.
           </p>
         </div>
       )}
@@ -381,9 +381,9 @@ export const GraphView: React.FC = () => {
                 onClick={() => handleTabClick(tab)}
                 disabled={!stats && !isBuilding}
               >
-                {tab === "explore" && "Explore"}
-                {tab === "visualize" && "Visualize"}
-                {tab === "query" && "Query"}
+                {tab === "explore" && "Khám phá"}
+                {tab === "visualize" && "Hiển thị"}
+                {tab === "query" && "Truy vấn"}
               </button>
             ))}
           </div>
@@ -393,14 +393,14 @@ export const GraphView: React.FC = () => {
             <div className="graph-explore">
               {entities.length > 0 && (
                 <div className="graph-section">
-                  <h3>Entities ({entities.length})</h3>
+                  <h3>Thực thể ({entities.length})</h3>
                   <div className="entity-list">
                     {entities.map((e) => (
                       <div key={e.id} className="entity-card">
                         <div className="entity-title">{e.title}</div>
                         <div className="entity-meta">
-                          <span className="entity-type">{e.type || "concept"}</span>
-                          <span className="entity-rank">rank: {e.rank.toFixed(1)}</span>
+                          <span className="entity-type">{e.type || "khái niệm"}</span>
+                          <span className="entity-rank">điểm: {e.rank.toFixed(1)}</span>
                         </div>
                         {e.description && (
                           <div className="entity-desc">{e.description.slice(0, 200)}</div>
@@ -426,14 +426,14 @@ export const GraphView: React.FC = () => {
 
               {communities.length > 0 && (
                 <div className="graph-section">
-                  <h3>Communities ({communities.length})</h3>
+                  <h3>Cộng đồng ({communities.length})</h3>
                   <div className="community-list">
                     {communities.map((c) => (
                       <div key={c.id} className="community-card">
                         <div className="community-title">{c.title}</div>
                         <div className="community-meta">
-                          <span>Level {c.level}</span>
-                          <span>{c.size} entities</span>
+                          <span>Cấp {c.level}</span>
+                          <span>{c.size} thực thể</span>
                         </div>
                         {c.report && (
                           <div className="community-report">{c.report.slice(0, 200)}...</div>
@@ -452,14 +452,14 @@ export const GraphView: React.FC = () => {
               {graphData && graphData.nodes.length > 0 ? (
                 <div className="graph-viz-wrapper">
                   <div className="graph-viz-info">
-                    {graphData.nodes.length} nodes · {graphData.edges.length} edges
-                    <span className="graph-viz-hint">Click node để xem chi tiết · Double-click để fit view</span>
+                    {graphData.nodes.length} nút · {graphData.edges.length} cạnh
+                    <span className="graph-viz-hint">Nhấp node để xem chi tiết · Nháy đúp để vừa khung</span>
                   </div>
                   <GraphVisualizer data={graphData} />
                 </div>
               ) : (
                 <div className="graph-empty-text">
-                  {stats ? "No graph data to visualize. Entities may have been extracted without relationships." : "Build the graph first."}
+                  {stats ? "Không có dữ liệu đồ thị để hiển thị. Có thể đã trích xuất thực thể nhưng chưa có quan hệ." : "Hãy xây dựng đồ thị trước."}
                 </div>
               )}
             </div>
@@ -486,7 +486,7 @@ export const GraphView: React.FC = () => {
                 <input
                   type="text"
                   className="query-input"
-                  placeholder="Ask a question about your research knowledge graph..."
+                  placeholder="Hỏi một câu về đồ thị kiến thức nghiên cứu của bạn..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleQuery()}
@@ -498,7 +498,7 @@ export const GraphView: React.FC = () => {
                   disabled={loadingState !== null || !query.trim()}
                 >
                   {loadingState?.type === "query" ? <IconSpinner size={16} /> : <IconSearch size={16} />}
-                  {loadingState?.type === "query" ? " Running..." : " Ask"}
+                  {loadingState?.type === "query" ? " Đang truy vấn..." : " Hỏi"}
                 </button>
               </div>
 

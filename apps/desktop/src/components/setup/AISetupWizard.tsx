@@ -164,7 +164,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
           <div className="aiwizard-step welcome-step">
             <div className="aiwizard-logo"><IconBrain size={48} className="icon-gradient" /></div>
             <h1 className="aiwizard-title">Chào mừng đến với ResearchMind</h1>
-            <p className="aiwizard-desc">Trợ lý nghiên cứu khoa học thông minh. Tự động lập chỉ mục, tóm tắt, phản biện chuyên sâu.</p>
+            <p className="aiwizard-desc">Nền tảng nghiên cứu ưu tiên bằng chứng: chuyển paper thành câu trả lời và review có thể kiểm chứng.</p>
             {specsLoading ? <IconSpinner size={24} className="icon-spin" /> : (
               <div className="aiwizard-scan-hud">
                 <div className="scan-hud-grid">
@@ -185,7 +185,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
                 <IconZap size={28} /><h3>Cloud Free</h3><p>Gemini API miễn phí</p>
               </div>
               <div className={`aiwizard-mode-card-premium ${chosenMode === "cloud_custom" ? "active" : ""}`} onClick={() => setChosenMode("cloud_custom")}>
-                <IconKey size={28} /><h3>Custom Key</h3><p>API Key cá nhân</p>
+                <IconKey size={28} /><h3>API Key riêng</h3><p>API Key cá nhân</p>
               </div>
               <div className={`aiwizard-mode-card-premium ${chosenMode === "local" ? "active" : ""}`} onClick={() => setChosenMode("local")}>
                 <IconLock size={28} /><h3>Local GGUF</h3><p>llama-server + model cục bộ</p>
@@ -204,7 +204,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
               ))}
             </div>
             <div className="aiwizard-field-premium">
-              <input type="password" className="aiwizard-input-premium" value={customProvider === "deepseek" ? deepseekApiKey : customProvider === "gemini" ? geminiApiKey : claudeApiKey} onChange={e => { const v = e.target.value; if (customProvider === "deepseek") setDeepseekApiKey(v); else if (customProvider === "gemini") setGeminiApiKey(v); else setClaudeApiKey(v); }} placeholder="API Key..." />
+                  <input type="password" className="aiwizard-input-premium" value={customProvider === "deepseek" ? deepseekApiKey : customProvider === "gemini" ? geminiApiKey : claudeApiKey} onChange={e => { const v = e.target.value; if (customProvider === "deepseek") setDeepseekApiKey(v); else if (customProvider === "gemini") setGeminiApiKey(v); else setClaudeApiKey(v); }} placeholder="Nhập API Key..." />
             </div>
             {saveMsg && <p className="aiwizard-error-message"><IconError size={16} /> {saveMsg}</p>}
             <button className="aiwizard-btn-primary" onClick={handleSaveCustom} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} Xác nhận</button>

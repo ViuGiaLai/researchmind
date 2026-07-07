@@ -21,14 +21,14 @@ import {
 } from "../Icons";
 
 const DEFAULT_SECTIONS: OutlineSection[] = [
-  { key: "background", title: "1. Background", description: "Tổng quan về lĩnh vực nghiên cứu" },
-  { key: "related_work", title: "2. Related Work", description: "Các công trình liên quan" },
-  { key: "methodology_comparison", title: "3. Methodology Comparison", description: "So sánh phương pháp" },
-  { key: "findings", title: "4. Findings", description: "Kết quả nghiên cứu chính" },
-  { key: "limitations", title: "5. Limitations", description: "Hạn chế của các nghiên cứu" },
-  { key: "research_gaps", title: "6. Research Gaps", description: "Khoảng trống nghiên cứu" },
-  { key: "future_directions", title: "7. Future Directions", description: "Hướng phát triển tương lai" },
-  { key: "bibliography", title: "8. Bibliography", description: "Danh mục tài liệu tham khảo" },
+  { key: "background", title: "1. Tổng quan", description: "Tổng quan về lĩnh vực nghiên cứu" },
+  { key: "related_work", title: "2. Công trình liên quan", description: "Các công trình liên quan" },
+  { key: "methodology_comparison", title: "3. So sánh phương pháp", description: "So sánh phương pháp" },
+  { key: "findings", title: "4. Kết quả", description: "Kết quả nghiên cứu chính" },
+  { key: "limitations", title: "5. Hạn chế", description: "Hạn chế của các nghiên cứu" },
+  { key: "research_gaps", title: "6. Khoảng trống nghiên cứu", description: "Khoảng trống nghiên cứu" },
+  { key: "future_directions", title: "7. Hướng phát triển tương lai", description: "Hướng phát triển tương lai" },
+  { key: "bibliography", title: "8. Danh mục tài liệu tham khảo", description: "Danh mục tài liệu tham khảo" },
 ];
 
 type Step = "select" | "outline" | "review";
@@ -36,7 +36,7 @@ type Step = "select" | "outline" | "review";
 export function ReviewBuilderView() {
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [title, setTitle] = useState("Literature Review");
+  const [title, setTitle] = useState("Tổng quan tài liệu ưu tiên bằng chứng");
   const [step, setStep] = useState<Step>("select");
   const [sections, setSections] = useState<Record<string, ReviewSection>>({});
   const [outlineSections, setOutlineSections] = useState<OutlineSection[]>(DEFAULT_SECTIONS);
@@ -369,7 +369,7 @@ export function ReviewBuilderView() {
     if (sectionMap["bibliography"]?.content) {
       parts.push(`\n## ${sectionMap["bibliography"].title}\n\n${sectionMap["bibliography"].content}\n`);
     }
-    parts.push(`\n---\n*Bài Literature Review được tạo tự động bởi ResearchMind AI.*`);
+    parts.push(`\n---\n*Bản review được tạo bởi ResearchMind theo hướng ưu tiên bằng chứng (ưu tiên kết luận có thể kiểm chứng).*`);
     return parts.join("\n");
   };
 
@@ -509,7 +509,7 @@ export function ReviewBuilderView() {
         }}
       >
         <IconBookOpen size={22} className="icon-gradient" />
-        <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>Literature Review Builder</span>
+        <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>Trình tạo đánh giá ưu tiên bằng chứng</span>
         <div style={{ flex: 1 }} />
 
         {step === "review" && (
@@ -543,7 +543,7 @@ export function ReviewBuilderView() {
               }}
             >
               <IconDownload size={12} />
-              Save
+              Lưu
             </button>
             {currentDraftId && (
               <div style={{ position: "relative" }}>
@@ -562,7 +562,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   <IconClock size={11} />
-                  Versions
+                  Phiên bản
                 </button>
                 {showVersions && (
                   <div style={{
@@ -574,7 +574,7 @@ export function ReviewBuilderView() {
                     zIndex: 100, padding: 8,
                   }}>
                     <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", padding: "4px 8px 8px", borderBottom: "1px solid var(--color-border, rgba(148,163,184,0.08))", marginBottom: 4 }}>
-                      Version History ({versions.length})
+                      Lịch sử phiên bản ({versions.length})
                     </div>
                     {versionsLoading ? (
                       <div style={{ padding: 12, textAlign: "center" }}>
@@ -627,7 +627,7 @@ export function ReviewBuilderView() {
         {step !== "select" && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
-              {selectedCount} papers
+              {selectedCount} bài báo
             </span>
             <button
               onClick={() => setStep("select")}
@@ -641,7 +641,7 @@ export function ReviewBuilderView() {
               }}
             >
               <IconClose size={12} />
-              Change
+              Đổi
             </button>
           </div>
         )}
@@ -656,8 +656,8 @@ export function ReviewBuilderView() {
           flexShrink: 0,
         }}>
           {[
-            { step: "select", label: "Select Papers" },
-            { step: "outline", label: "Outline" },
+            { step: "select", label: "Chọn paper" },
+            { step: "outline", label: "Dàn ý" },
             { step: "review", label: "Review" },
           ].map((s, i) => {
             const isActive = s.step === step;
@@ -695,7 +695,7 @@ export function ReviewBuilderView() {
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <label style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 4 }}>
-                    Tiêu đề Literature Review
+                    Tiêu đề review
                   </label>
                   <input
                     type="text"
@@ -776,7 +776,7 @@ export function ReviewBuilderView() {
                     display: "flex", alignItems: "center", gap: 6,
                   }}
                 >
-                  Tiếp tục → Sinh Outline
+                  Tiếp tục → Tạo dàn ý
                 </button>
                 <button
                   onClick={handleGenerateMatrix}
@@ -820,8 +820,8 @@ export function ReviewBuilderView() {
                             {d.title}
                           </div>
                           <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", display: "flex", gap: 8, marginTop: 2 }}>
-                            <span>{d.paper_count} papers</span>
-                            <span>{d.section_count} sections</span>
+                            <span>{d.paper_count} bài báo</span>
+                            <span>{d.section_count} phần</span>
                             <span>{d.updated_at ? new Date(d.updated_at).toLocaleDateString("vi-VN") : ""}</span>
                           </div>
                         </div>
@@ -835,7 +835,7 @@ export function ReviewBuilderView() {
                             cursor: "pointer", fontSize: "0.72rem", fontWeight: 500,
                           }}
                         >
-                          Load
+                          Mở
                         </button>
                         <button
                           onClick={() => handleDeleteDraft(d.id)}
@@ -864,10 +864,10 @@ export function ReviewBuilderView() {
               <div style={{ marginBottom: 16 }}>
                 <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
                   <IconBookOpen size={18} className="icon-gradient" />
-                  Literature Review Outline
+                  Dàn ý review theo bằng chứng
                 </h2>
                 <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4 }}>
-                  {paperTitles.length} papers selected — outline generated by AI
+                  {paperTitles.length} bài báo đã chọn — dàn ý do AI tạo
                 </div>
               </div>
 
@@ -911,7 +911,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   {generatingAll ? <IconSpinner size={16} /> : <IconBookOpen size={16} />}
-                  {generatingAll ? "Đang tạo draft..." : "Generate Full Review"}
+                  {generatingAll ? "Đang tạo draft..." : "Tạo bản review đầy đủ"}
                 </button>
                 <button
                   onClick={handleContinueToOutline}
@@ -925,7 +925,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   <IconRefresh size={16} />
-                  Regenerate Outline
+                  Tạo lại dàn ý
                 </button>
               </div>
             </>
@@ -1017,17 +1017,17 @@ export function ReviewBuilderView() {
                   }}>
                     {qualityIssues.filter((i) => i.severity === "high").length > 0 && (
                       <span style={{ color: "#ef4444", fontWeight: 600 }}>
-                        {qualityIssues.filter((i) => i.severity === "high").length} high
+                        {qualityIssues.filter((i) => i.severity === "high").length} cao
                       </span>
                     )}
                     {qualityIssues.filter((i) => i.severity === "medium").length > 0 && (
                       <span style={{ color: "#f59e0b", fontWeight: 600 }}>
-                        {qualityIssues.filter((i) => i.severity === "medium").length} medium
+                        {qualityIssues.filter((i) => i.severity === "medium").length} trung bình
                       </span>
                     )}
                     {qualityIssues.filter((i) => i.severity === "low").length > 0 && (
                       <span>
-                        {qualityIssues.filter((i) => i.severity === "low").length} low
+                        {qualityIssues.filter((i) => i.severity === "low").length} thấp
                       </span>
                     )}
                   </span>
@@ -1063,7 +1063,7 @@ export function ReviewBuilderView() {
                     }}
                   >
                     {exporting ? <IconSpinner size={14} /> : <IconDownload size={14} />}
-                    {fmt === "markdown" ? "Markdown" : fmt === "html" ? "HTML" : "Word (DOCX)"}
+                    {fmt === "markdown" ? "Markdown" : fmt === "html" ? "HTML" : "Word"}
                   </button>
                 ))}
               </div>
@@ -1105,7 +1105,7 @@ export function ReviewBuilderView() {
                   letterSpacing: 2,
                 }}
               >
-                Outline ▸
+                Dàn ý ▸
               </button>
             )}
           </>

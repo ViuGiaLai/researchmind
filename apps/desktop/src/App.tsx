@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner } from "./components/Icons";
-import { LibraryHub } from "./components/hub/LibraryHub";
-import { ReviewHub } from "./components/hub/ReviewHub";
+import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter } from "./components/Icons";
+import { LibraryView } from "./components/library/LibraryView";
+import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
+import { SearchView } from "./components/search/SearchView";
+import { DiscoveryView } from "./components/discovery/DiscoveryView";
+import { ReviewBuilderView } from "./components/review/ReviewBuilderView";
+import { InsightsView } from "./components/insights/InsightsView";
+import { ScreeningBoard } from "./components/screening/ScreeningBoard";
 import { ChatView } from "./components/chat/ChatView";
 import { SettingsView } from "./components/settings/SettingsView";
 import { PersonalBrainView } from "./components/personal/PersonalBrainView";
@@ -34,6 +39,55 @@ const LABS_TAB_ITEMS: { tab: LabsTab; icon: React.FC<{ size?: number; className?
 function isLabsTab(tab: Tab): tab is LabsTab {
   return (LABS_TABS as readonly string[]).includes(tab);
 }
+
+const LibraryHub: React.FC<{
+  onStartChat: (paperIds: string[]) => void;
+  onStartReview: (paperIds: string[]) => void;
+  onStartCritique: (paperIds: string[]) => void;
+  onStartDebate?: (paperIds: string[]) => void;
+  onStartVerify?: (paperIds: string[]) => void;
+  onStartWow?: (paperId: string) => void;
+}> = (props) => {
+  const [subTab, setSubTab] = useState<"library" | "highlights" | "search" | "discovery">("library");
+  const tabs = [
+    { key: "library" as const, icon: IconLibrary, label: "Thư viện" },
+    { key: "highlights" as const, icon: IconBookmark, label: "Đoạn trích" },
+    { key: "search" as const, icon: IconSearch, label: "Tìm kiếm" },
+    { key: "discovery" as const, icon: IconSparkle, label: "Khám phá" },
+  ];
+  return (
+    <div className="hub-shell">
+      <SubTabBar tabs={tabs} active={subTab} onChange={setSubTab} variant="underline" />
+      <div className="hub-shell__content">
+        {subTab === "library" && <LibraryView {...props} />}
+        {subTab === "highlights" && <HighlightsLibraryView onStartChat={props.onStartChat} />}
+        {subTab === "search" && <SearchView onStartChat={props.onStartChat} />}
+        {subTab === "discovery" && <DiscoveryView />}
+      </div>
+    </div>
+  );
+};
+
+const ReviewHub: React.FC<{
+  onStartChat: (paperIds: string[]) => void;
+}> = ({ onStartChat }) => {
+  const [subTab, setSubTab] = useState<"review" | "insights" | "screening">("review");
+  const tabs = [
+    { key: "review" as const, icon: IconBookOpen, label: "Đánh giá" },
+    { key: "insights" as const, icon: IconBulb, label: "Nhận định" },
+    { key: "screening" as const, icon: IconFilter, label: "Sàng lọc" },
+  ];
+  return (
+    <div className="hub-shell">
+      <SubTabBar tabs={tabs} active={subTab} onChange={setSubTab} variant="underline" />
+      <div className="hub-shell__content">
+        {subTab === "review" && <ReviewBuilderView />}
+        {subTab === "insights" && <InsightsView onStartChat={onStartChat} />}
+        {subTab === "screening" && <ScreeningBoard />}
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -339,7 +393,7 @@ function App() {
                 <span className="brand-text">ResearchMind</span>
               </div>
               <nav className="sidebar-menu">
-                {["Thư viện", "Tìm kiếm", "Chat AI", "Review Builder", "Cài đặt"].map((label) => (
+                {["Thư viện", "Tìm kiếm", "Chat AI", "Trình tạo review", "Cài đặt"].map((label) => (
                   <button key={label} className="sidebar-menu-btn" disabled>
                     <IconSpinner size={16} style={{ marginRight: 12 }} />
                     <span>{label}</span>
@@ -387,7 +441,7 @@ function App() {
           {[
             { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
             { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
-            { tab: "review" as Tab, icon: IconBookOpen, label: "Đánh giá" },
+            { tab: "review" as Tab, icon: IconBookOpen, label: "Trình tạo review" },
             { tab: "evidence" as Tab, icon: IconChart, label: "Bằng chứng" },
           ].map(({ tab, icon: Icon, label }) => (
             <button
@@ -438,9 +492,12 @@ function App() {
 
         {!sidebarCollapsed && (
           <div className="sidebar-footer">
-            <div className="sidebar-local-info">
-              <IconLock size={12} style={{ marginRight: 6 }} />
-              <span>Dữ liệu cục bộ</span>
+            <div className="sidebar-core-value">
+              <div className="sidebar-local-info">
+                <IconLock size={12} style={{ marginRight: 6 }} />
+                <span>Dữ liệu cục bộ</span>
+              </div>
+              <div className="sidebar-core-value-text">Nền tảng nghiên cứu ưu tiên bằng chứng</div>
             </div>
             <div className="sidebar-version">
               v0.6.0

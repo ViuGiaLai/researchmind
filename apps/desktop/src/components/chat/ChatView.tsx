@@ -41,6 +41,12 @@ interface CitationInfo {
   text_snippet?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeCitations(citations?: any[]): any[] {
+  if (!citations) return [];
+  return citations.map((c: any, i) => ({ ...c, ref_id: c.ref_id ?? i + 1 }));
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -452,7 +458,7 @@ export const ChatView: React.FC<{
                 ? {
                     ...m,
                     model_used: model,
-                    citations,
+                    citations: normalizeCitations(citations),
                     router_reason,
                     token_count,
                     content: modified_content || m.content,
@@ -537,7 +543,7 @@ export const ChatView: React.FC<{
                   verify_status: status as "full" | "partial" | "local_only",
                 });
                 return prev.map((m, i) =>
-                  i === assistantIdx ? { ...m, model_used: model, citations } : m
+                  i === assistantIdx ? { ...m, model_used: model, citations: normalizeCitations(citations) } : m
                 );
               });
               loadUsage();
@@ -561,7 +567,7 @@ export const ChatView: React.FC<{
             setVerifyResult(vres);
             res = {
               answer: vres.answer,
-              citations: vres.citations,
+              citations: normalizeCitations(vres.citations),
               model_used: vres.model_used,
               papers_used: vres.papers_used,
               chunks_used: 0,
@@ -573,7 +579,7 @@ export const ChatView: React.FC<{
         const assistantMsg: Message = {
           role: "assistant",
           content: res.answer,
-          citations: res.citations,
+          citations: normalizeCitations(res.citations),
           model_used: res.model_used,
         };
         setMessages((prev) => [...prev, assistantMsg]);
@@ -671,7 +677,7 @@ export const ChatView: React.FC<{
         setMessages((prev) => [...prev, {
           role: "assistant",
           content: vres.answer,
-          citations: vres.citations,
+          citations: normalizeCitations(vres.citations),
           model_used: vres.model_used,
         }]);
       } catch (e) {
@@ -691,7 +697,7 @@ export const ChatView: React.FC<{
         setMessages((prev) => [...prev, {
           role: "assistant",
           content: res.answer,
-          citations: res.citations,
+          citations: normalizeCitations(res.citations),
           model_used: res.model_used,
         }]);
       } catch (e) {
@@ -711,7 +717,7 @@ export const ChatView: React.FC<{
         setMessages((prev) => [...prev, {
           role: "assistant",
           content: res.answer,
-          citations: res.citations,
+          citations: normalizeCitations(res.citations),
           model_used: res.model_used,
         }]);
       } catch (e) {
@@ -840,7 +846,7 @@ export const ChatView: React.FC<{
 
     const combinedContent = assistantMessages
       .map((msg, i) => {
-        const header = i === 0 ? "# Synthesis Report" : `---\n## Phần ${i + 1}`;
+        const header = i === 0 ? "# Báo cáo tổng hợp" : `---\n## Phần ${i + 1}`;
         const modelInfo = msg.model_used ? `*Model: ${msg.model_used}*` : "";
         return `${header}\n${modelInfo}\n\n${msg.content}`;
       })
@@ -1060,9 +1066,9 @@ export const ChatView: React.FC<{
               type="button"
               className={`chat-view-scope-tab ${scope === "current" ? "active" : ""}`}
               onClick={() => setScope("current")}
-              title="Paper hiện tại"
+              title="Bài báo hiện tại"
             >
-              <IconFileText size={13} /> Paper
+              <IconFileText size={13} /> Bài báo
             </button>
             <button
               type="button"
@@ -1076,9 +1082,9 @@ export const ChatView: React.FC<{
               type="button"
               className={`chat-view-scope-tab ${scope === "collection" ? "active" : ""}`}
               onClick={() => setScope("collection")}
-              title="Collection"
+              title="Bộ sưu tập"
             >
-              <IconBook size={13} /> Collection
+              <IconBook size={13} /> Bộ sưu tập
             </button>
             <button
               type="button"
@@ -1206,7 +1212,7 @@ export const ChatView: React.FC<{
               </div>
             ) : (
               <div className="selected-papers-empty">
-                <span className="empty-hint">Chưa chọn paper nào để chat.</span>
+                <span className="empty-hint">Chưa chọn paper để tạo câu trả lời có bằng chứng.</span>
                 {availablePapers.length > 0 ? (
                   <button
                     type="button"
@@ -1241,10 +1247,10 @@ export const ChatView: React.FC<{
         {messages.length === 0 && !showCitePanel && (
           <div className="chat-view-empty">
             <IconBrain size={56} className="icon-gradient" />
-            <h3>Hỏi về research của bạn</h3>
+            <h3>Nghiên cứu có thể kiểm chứng</h3>
             <p>
-              Chọn paper trong thư viện hoặc hỏi tất cả. AI sẽ trả lời có
-              trích dẫn nguồn.
+              Chọn paper của bạn, hỏi một câu nghiên cứu, và nhận câu trả lời
+              có trích dẫn để kiểm chứng.
             </p>
             {displayQuestions && (
               <div className="chat-view-suggestions">
@@ -1294,13 +1300,13 @@ export const ChatView: React.FC<{
                   {copiedAll ? (
                     <IconWithText icon={IconCheck} size={14}>Đã copy</IconWithText>
                   ) : (
-                    "Copy tất cả"
+                    "Sao chép tất cả"
                   )}
                 </button>
                 <button
                   className="cite-export-bib-btn"
                   onClick={handleExportBibtex}
-                  title="Export BibTeX (.bib)"
+                  title="Xuất BibTeX (.bib)"
                 >
                   <IconDownload size={14} /> .bib
                 </button>
@@ -1509,7 +1515,7 @@ export const ChatView: React.FC<{
                         </>
                       );
                     })() : (
-                      <IconWithText icon={IconBot} size={14}>Assistant</IconWithText>
+                      <IconWithText icon={IconBot} size={14}>Trợ lý</IconWithText>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
@@ -1736,7 +1742,7 @@ export const ChatView: React.FC<{
           placeholder={
             scope === "external"
               ? "Hỏi về nghiên cứu bên ngoài thư viện..."
-              : "Hỏi về research của bạn..."
+              : "Hỏi để nhận câu trả lời có bằng chứng từ paper..."
           }
           disabled={loading}
         />

@@ -30,9 +30,9 @@ type FilterView = "all" | "pending" | "included" | "excluded" | "maybe";
 const FILTER_LABELS: Record<FilterView, React.ReactNode> = {
   all: "Tất cả",
   pending: "Chưa xử lý",
-  included: <IconWithText icon={IconCheck} size={12}>Include</IconWithText>,
-  excluded: <IconWithText icon={IconError} size={12}>Exclude</IconWithText>,
-  maybe: "🤔 Maybe",
+  included: <IconWithText icon={IconCheck} size={12}>Bao gồm</IconWithText>,
+  excluded: <IconWithText icon={IconError} size={12}>Loại trừ</IconWithText>,
+  maybe: "🤔 Phân vân",
 };
 
 export const ScreeningBoard: React.FC = () => {
@@ -96,18 +96,18 @@ export const ScreeningBoard: React.FC = () => {
     <div className="rm-page">
       <div className="rm-page-header">
         <h2>Sàng lọc bài báo</h2>
-        <p>Include / Exclude / Maybe để chọn bài báo cho systematic review</p>
+        <p>Bao gồm / Loại trừ / Phân vân để chọn bài báo cho đánh giá có hệ thống</p>
       </div>
 
       <div className="rm-progress">
         <div className="rm-progress-label">
           <span>{screened}/{total} bài đã sàng lọc ({progress}%)</span>
           <span>
-            <span className="rm-stat-include">{included} Include</span>
+            <span className="rm-stat-include">{included} Bao gồm</span>
             {" · "}
-            <span className="rm-stat-exclude">{excluded} Exclude</span>
+            <span className="rm-stat-exclude">{excluded} Loại trừ</span>
             {" · "}
-            <span className="rm-stat-maybe">{maybe} Maybe</span>
+            <span className="rm-stat-maybe">{maybe} Phân vân</span>
           </span>
         </div>
         <div className="rm-progress-track">
@@ -166,7 +166,7 @@ export const ScreeningBoard: React.FC = () => {
                         type="button"
                         className={`rm-btn rm-btn--icon rm-btn--include${d?.decision === "include" ? " active" : ""}`}
                         onClick={() => setDecision(paper.id, "include")}
-                        title="Include"
+                        title="Bao gồm"
                       >
                         <IconCheck size={14} />
                       </button>
@@ -174,7 +174,7 @@ export const ScreeningBoard: React.FC = () => {
                         type="button"
                         className={`rm-btn rm-btn--icon rm-btn--exclude${d?.decision === "exclude" ? " active" : ""}`}
                         onClick={() => setDecision(paper.id, "exclude")}
-                        title="Exclude"
+                        title="Loại trừ"
                       >
                         <IconClose size={14} />
                       </button>
@@ -182,7 +182,7 @@ export const ScreeningBoard: React.FC = () => {
                         type="button"
                         className={`rm-btn rm-btn--icon rm-btn--maybe${d?.decision === "maybe" ? " active" : ""}`}
                         onClick={() => setDecision(paper.id, "maybe")}
-                        title="Maybe"
+                        title="Phân vân"
                       >
                         <IconMinus size={14} />
                       </button>
@@ -191,7 +191,7 @@ export const ScreeningBoard: React.FC = () => {
                           type="button"
                           className="rm-btn rm-btn--icon rm-btn--xs"
                           onClick={() => clearDecision(paper.id)}
-                          title="Clear"
+                          title="Xoá"
                         >
                           ↺
                         </button>

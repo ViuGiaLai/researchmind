@@ -136,11 +136,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     cloudflare: "Cloudflare", cerebras: "Cerebras", local: "Local",
   };
   const TASK_LABELS: Record<string, string> = {
-    summary: "Tóm tắt", daily_reader: "Daily Reader", chat: "Chat",
-    quality_check: "Kiểm tra chất lượng", insight: "Insights",
+    summary: "Tóm tắt", daily_reader: "Đọc hôm nay", chat: "Chat",
+    quality_check: "Kiểm tra chất lượng", insight: "Phân tích sâu",
     entity: "Trích xuất thực thể", rag: "RAG (có context)",
-    critique: "Phản biện", verify: "Xác minh", gap: "Gap Analysis",
-    debate: "Tranh luận", review: "Review Builder",
+    critique: "Phản biện", verify: "Xác minh", gap: "Phân tích khoảng trống",
+    debate: "Tranh luận", review: "Trình tạo review",
     research: "Nghiên cứu sâu", synthesis: "Tổng hợp", graph: "GraphRAG",
   };
   const [taskProviderMapStr, setTaskProviderMapStr] = useState("{}");
@@ -469,7 +469,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const handleCopyDiagnostics = async () => {
     if (!diagnostics) return;
     const lines = [
-      "ResearchMind Diagnostics",
+      "Chẩn đoán ResearchMind",
       `Version: ${diagnostics.version}`,
       `Backend: ${diagnostics.backend_ready ? "OK" : "NOT READY"} — ${diagnostics.init_message}`,
       `Embedder: ${diagnostics.embedder_ready ? "OK" : "Warming up"}`,
@@ -641,8 +641,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
   const modeSuggestions = specs
     ? [
-        { mode: "cloud_free" as LlmMode, label: "Cloud Free ", desc: "Miễn phí, chạy ngay", highlight: true },
-        { mode: "cloud_custom" as LlmMode, label: "Custom API Key", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
+        { mode: "cloud_free" as LlmMode, label: "Miễn phí đám mây", desc: "Miễn phí, chạy ngay", highlight: true },
+        { mode: "cloud_custom" as LlmMode, label: "API Key tùy chỉnh", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
         { mode: "local" as LlmMode, label: "Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "2" : "8"}GB, chạy offline`, highlight: false },
       ]
     : [];
@@ -660,13 +660,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
   const sectionMeta: Record<SettingsSection, { desc: string }> = {
     general: {
-      desc: "Kiểm tra backend, chủ đề giao diện và thông số máy.",
+      desc: "Thiết lập nền tảng để ResearchMind chạy ổn định và kiểm chứng được.",
     },
     diagnostics: {
       desc: "Trạng thái hệ thống, bảo trì, onboarding và báo cáo hỗ trợ.",
     },
     ai: {
-      desc: "Chọn Cloud Free, API riêng hoặc chạy local với llama-server.",
+      desc: "Chọn mô hình AI phù hợp để tạo kết quả có bằng chứng và citation rõ ràng.",
     },
     data: {
       desc: "Thư mục lưu trữ, Zotero, bộ nhớ đệm và tài nguyên hệ thống.",
@@ -689,10 +689,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           <div className="settings-toolbar-text">
             <h2 className="settings-page-title">Cài đặt</h2>
             <p className="settings-page-desc">{sectionMeta[activeSection].desc}</p>
+            <p className="settings-page-desc" style={{ marginTop: 4, fontSize: "0.8rem", opacity: 0.88 }}>
+              Workspace nghiên cứu ưu tiên bằng chứng
+            </p>
           </div>
           <div className="settings-toolbar-meta">
             {stats && (
-              <span className="settings-meta-chip">{stats.total_papers} papers</span>
+              <span className="settings-meta-chip">{stats.total_papers} tài liệu</span>
             )}
             <span className="settings-meta-chip">v0.6.0</span>
             {activeSection === "ai" && (
@@ -756,7 +759,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         <div className="settings-field">
           <label className="settings-label">Chế độ giao diện</label>
           <p className="settings-desc" style={{ marginBottom: 10 }}>
-            Sáng, tối hoặc theo hệ thống — AI Workspace Theme với accent teal.
+            Sáng, tối hoặc theo hệ thống — giao diện AI với accent xanh ngọc.
           </p>
           <div className="settings-theme-options" role="group" aria-label="Chế độ giao diện">
             <button
@@ -1885,7 +1888,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   >
                     <option value="cls">CLS</option>
                     <option value="mean">Mean</option>
-                    <option value="last_token">Last Token</option>
+                    <option value="last_token">Token cuối</option>
                   </select>
                 </label>
                 <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
@@ -1895,7 +1898,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     onChange={e => setNormalizeEmbeddings(e.target.checked)}
                     style={{ cursor: "pointer" }}
                   />
-                  Normalize embeddings
+                  Chuẩn hóa embeddings
                 </label>
               </div>
               <div style={{ display: "flex", gap: 16, marginTop: 8, alignItems: "center" }}>
@@ -1918,10 +1921,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           )}
           <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
             <span style={{ fontWeight: 600, fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
-              Model Router
+              Bộ định tuyến Model
             </span>
             <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: 8 }}>
-              Tự động chuyển sang model context lớn khi vượt ngưỡng token (open-notebook inspired)
+              Tự động chuyển sang model context lớn khi vượt ngưỡng token
             </p>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>

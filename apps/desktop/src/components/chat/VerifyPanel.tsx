@@ -98,7 +98,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
                   }
                 }}
                 disabled={refreshingDoi === src.doi}
-                title="Xoá cache và refresh metadata"
+                title="Xoá cache và làm mới metadata"
                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-border text-text-muted hover:text-text hover:bg-surface transition-all disabled:opacity-50"
                 style={{
                   background: "transparent",
@@ -107,7 +107,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
                 }}
               >
                 <RefreshCw size={11} className={refreshingDoi === src.doi ? "animate-spin" : ""} />
-                <span>{refreshingDoi === src.doi ? "Đang xóa..." : "Refresh"}</span>
+                <span>{refreshingDoi === src.doi ? "Đang xóa..." : "Làm mới"}</span>
               </button>
 
               {refreshMsg && refreshingDoi !== src.doi && (
@@ -122,16 +122,16 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
               {src.openalex && (
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border bg-primary/5 text-primary" style={{ background: "rgba(45, 212, 191, 0.05)", borderColor: "rgba(45, 212, 191, 0.15)", color: "var(--color-primary, #2dd4bf)" }}>
                   <BarChart2 size={11} />
-                  <span>{src.openalex.citation_count.toLocaleString()} citations (OA)</span>
+                  <span>{src.openalex.citation_count.toLocaleString()} trích dẫn (OA)</span>
                 </span>
               )}
               {src.semantic_scholar && (
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border" style={{ background: "rgba(139, 92, 246, 0.05)", borderColor: "rgba(139, 92, 246, 0.15)", color: "#a78bfa" }}>
                   <BookOpen size={11} />
                   <span>
-                    {src.semantic_scholar.citation_count} citations (S2)
+                    {src.semantic_scholar.citation_count} trích dẫn (S2)
                     {src.semantic_scholar.influential_citation_count > 0 &&
-                      ` · ${src.semantic_scholar.influential_citation_count} influential`}
+                      ` · ${src.semantic_scholar.influential_citation_count} quan trọng`}
                   </span>
                 </span>
               )}
@@ -189,7 +189,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
                     <div key={i} className="flex gap-2 text-xs text-text-muted">
                       <span className="flex-1 leading-normal">{cite.title}</span>
                       <span className="font-semibold text-primary flex-shrink-0" style={{ color: "var(--color-primary, #2dd4bf)" }}>
-                        ({cite.citation_count} cit)
+                        ({cite.citation_count} trích dẫn)
                       </span>
                     </div>
                   ))}
