@@ -13,7 +13,7 @@ import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
 import { AISetupWizard } from "./components/setup/AISetupWizard";
 import { HelpMenu } from "./components/help/HelpMenu";
 import { HelpCenterView } from "./components/help/HelpCenterView";
-import { WelcomeTour, hasSeenWelcomeTour } from "./components/help/WelcomeTour";
+import { WelcomeTour, hasSeenWelcomeTour, resetWelcomeTourSeen } from "./components/help/WelcomeTour";
 import type { HelpSectionId } from "./components/help/helpContent";
 import { ToastProvider } from "./components/shared/Toast";
 import { SubTabBar } from "./components/shared/SubTabBar";
@@ -131,6 +131,19 @@ function App() {
       return () => window.clearTimeout(t);
     }
   }, [checkingSetup, showSetup, openWelcomeTour]);
+
+  const handleReplaySetup = useCallback(async () => {
+    try {
+      await api.updateSettings({ setup_completed: false });
+      resetWelcomeTourSeen();
+      setupJustCompletedRef.current = false;
+      setShowWelcomeTour(false);
+      setShowSetup(true);
+    } catch (e) {
+      console.error("Replay setup failed:", e);
+      window.alert(e instanceof Error ? e.message : "Không thể mở lại Setup Wizard.");
+    }
+  }, []);
 
   const handleSetupComplete = useCallback(() => {
     setupJustCompletedRef.current = true;
@@ -466,7 +479,11 @@ function App() {
             </div>
           </div>
         ) : activeTab === "settings" ? (
-          <SettingsView onOpenHelp={(id) => setHelpSection(id)} />
+          <SettingsView
+            onOpenHelp={(id) => setHelpSection(id)}
+            onStartTour={openWelcomeTour}
+            onReplaySetup={handleReplaySetup}
+          />
         ) : (
           <>
             {activeTab === "library" && (

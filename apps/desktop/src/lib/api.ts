@@ -29,6 +29,56 @@ function parseApiError(status: number, text: string): string {
   return text || `HTTP ${status}`;
 }
 
+function isNotFoundError(e: unknown): boolean {
+  return e instanceof Error && (e.message.includes("Not Found") || e.message.includes("404"));
+}
+
+async function buildDiagnosticsFallback(): Promise<DiagnosticsResponse> {
+  const [health, stats, cache, settings] = await Promise.all([
+    request<HealthResponse>("GET", "/api/health"),
+    request<Stats>("GET", "/api/stats"),
+    request<{ llm_cache_count: number; embedding_cache_count: number }>("GET", "/api/settings/cache-stats").catch(
+      () => ({ llm_cache_count: 0, embedding_cache_count: 0 }),
+    ),
+    request<{ setup_completed: boolean }>("GET", "/api/settings").catch(() => ({ setup_completed: true })),
+  ]);
+
+  let disk: DiagnosticsResponse["disk"] = { free_gb: null, total_gb: null, warning: false };
+  if (stats.data_dir) {
+    try {
+      const d = await request<{ free_gb: number; total_gb: number; warning: boolean }>(
+        "GET",
+        `/api/data/disk-space?path=${encodeURIComponent(stats.data_dir)}`,
+      );
+      disk = { free_gb: d.free_gb, total_gb: d.total_gb, warning: d.warning };
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return {
+    backend_ready: health.backend_ready ?? health.status === "ok",
+    embedder_ready: health.embedder_ready ?? false,
+    init_message: health.init_message ?? "",
+    version: health.version ?? "0.6.0",
+    setup_completed: settings.setup_completed ?? true,
+    llm_mode: stats.llm_mode,
+    embedding_model: stats.embedding_model,
+    local_model: health.local_model ?? "",
+    data_dir: stats.data_dir ?? "",
+    total_papers: stats.total_papers,
+    indexed_papers: stats.indexed_papers,
+    total_chunks: stats.total_chunks,
+    chroma_chunks: stats.chroma_chunks,
+    chunk_sync_ok: stats.total_chunks === stats.chroma_chunks,
+    total_size_mb: stats.total_size_mb,
+    bm25_ready: true,
+    vector_ready: stats.chroma_chunks >= 0,
+    disk,
+    cache,
+  };
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -149,6 +199,28 @@ export interface HealthResponse {
   init_message?: string;
 }
 
+export interface DiagnosticsResponse {
+  backend_ready: boolean;
+  embedder_ready: boolean;
+  init_message: string;
+  version: string;
+  setup_completed: boolean;
+  llm_mode: string;
+  embedding_model: string;
+  local_model: string;
+  data_dir: string;
+  total_papers: number;
+  indexed_papers: number;
+  total_chunks: number;
+  chroma_chunks: number;
+  chunk_sync_ok: boolean;
+  total_size_mb: number;
+  bm25_ready: boolean;
+  vector_ready: boolean;
+  disk: { free_gb: number | null; total_gb: number | null; warning: boolean };
+  cache: { llm_cache_count: number; embedding_cache_count: number };
+}
+
 export interface Highlight {
   category: string;
   text: string;
@@ -255,6 +327,34 @@ export const api = {
   health: () => request<HealthResponse>("GET", "/api/health"),
 
   ping: () => request<{ status: string; backend_ready?: boolean; init_message?: string }>("GET", "/api/ping"),
+
+  getDiagnostics: async () => {
+    const paths = ["/api/system/diagnostics", "/api/settings/diagnostics"];
+    for (const path of paths) {
+      try {
+        return await request<DiagnosticsResponse>("GET", path);
+      } catch (e) {
+        if (!isNotFoundError(e)) throw e;
+      }
+    }
+    return buildDiagnosticsFallback();
+  },
+
+  rebuildFts: async () => {
+    const paths = ["/api/system/rebuild-fts", "/api/settings/rebuild-fts"];
+    let lastError: unknown;
+    for (const path of paths) {
+      try {
+        return await request<{ status: string; message: string }>("POST", path);
+      } catch (e) {
+        lastError = e;
+        if (!isNotFoundError(e)) throw e;
+      }
+    }
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("Rebuild FTS chưa khả dụng — hãy khởi động lại backend (uvicorn main:app --reload --port 8765).");
+  },
 
   // Papers
   listPapers: async (page = 1, limit = 20, status?: string, readStatus?: string, starred?: boolean, extra?: {

@@ -471,6 +471,20 @@ async def clear_cache():
         session.close()
 
 
+@router.get("/settings/diagnostics")
+async def get_settings_diagnostics():
+    """Alias for system diagnostics — used by desktop settings panel."""
+    from routers.system import get_diagnostics
+    return await get_diagnostics()
+
+
+@router.post("/settings/rebuild-fts")
+async def rebuild_settings_fts():
+    """Alias for FTS rebuild — used by desktop settings panel."""
+    from routers.system import rebuild_fts_index
+    return await rebuild_fts_index()
+
+
 @router.get("/settings/model-status")
 async def get_model_status():
     """Get the current loaded/unloaded status of offline models (embedding and cross-encoder)."""

@@ -115,6 +115,88 @@ async def get_stats():
         session.close()
 
 
+@router.get("/system/diagnostics")
+async def get_diagnostics():
+    """Consolidated health snapshot for the desktop diagnostics panel."""
+    session = get_session(state.engine)
+    try:
+        total_papers = session.query(Paper).count()
+        indexed_papers = session.query(Paper).filter(Paper.status == "indexed").count()
+        total_chunks = session.query(Chunk).count()
+        total_size = session.query(Paper).with_entities(Paper.file_size).all()
+        total_size_bytes = sum(s[0] or 0 for s in total_size)
+    finally:
+        session.close()
+
+    chroma_count = state.vector.count() if state.vector is not None else 0
+    chunk_sync_ok = total_chunks == chroma_count
+
+    disk = {"free_gb": None, "total_gb": None, "warning": False}
+    try:
+        total, _used, free = shutil.disk_usage(str(settings.data_dir))
+        free_gb = free / (1024**3)
+        disk = {
+            "free_gb": round(free_gb, 1),
+            "total_gb": round(total / (1024**3), 1),
+            "warning": free_gb < 10.0,
+        }
+    except Exception as e:
+        logger.warning(f"Diagnostics disk check failed: {e}")
+
+    llm_cache_count = 0
+    embedding_cache_count = 0
+    try:
+        from db.models import LLMCache, EmbeddingCache
+
+        cache_session = get_session(state.engine)
+        try:
+            llm_cache_count = cache_session.query(LLMCache).count()
+            embedding_cache_count = cache_session.query(EmbeddingCache).count()
+        finally:
+            cache_session.close()
+    except Exception:
+        pass
+
+    return {
+        "backend_ready": state.backend_ready,
+        "embedder_ready": state.embedder_ready,
+        "init_message": state.init_message,
+        "version": "0.6.0",
+        "setup_completed": settings.setup_completed,
+        "llm_mode": settings.llm_mode,
+        "embedding_model": settings.embedding_model,
+        "local_model": settings.local_model,
+        "data_dir": str(settings.data_dir),
+        "total_papers": total_papers,
+        "indexed_papers": indexed_papers,
+        "total_chunks": total_chunks,
+        "chroma_chunks": chroma_count,
+        "chunk_sync_ok": chunk_sync_ok,
+        "total_size_mb": round(total_size_bytes / (1024 * 1024), 2),
+        "bm25_ready": state.bm25 is not None,
+        "vector_ready": state.vector is not None,
+        "disk": disk,
+        "cache": {
+            "llm_cache_count": llm_cache_count,
+            "embedding_cache_count": embedding_cache_count,
+        },
+    }
+
+
+@router.post("/system/rebuild-fts")
+async def rebuild_fts_index():
+    """Rebuild SQLite FTS5 full-text index from chunks table."""
+    if state.bm25 is None:
+        raise HTTPException(status_code=503, detail="BM25 search chưa sẵn sàng.")
+    try:
+        await asyncio.to_thread(state.bm25._rebuild_fts)
+        logger.info("FTS index rebuilt via diagnostics")
+        return {"status": "ok", "message": "Đã rebuild chỉ mục tìm kiếm FTS."}
+    except Exception as e:
+        logger.error(f"FTS rebuild failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ─── Machine Specs ───────────────────────────────────────────────
 
 @router.get("/detect-specs")

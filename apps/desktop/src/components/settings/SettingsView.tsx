@@ -36,12 +36,19 @@ import {
   IconBookOpen,
   IconHelp,
   IconInfo,
+  IconActivity,
+  IconCopy,
+  IconRocket,
 } from "../Icons";
+import { resetWelcomeTourSeen } from "../help/WelcomeTour";
+import type { DiagnosticsResponse } from "../../lib/api";
 import { SubTabBar } from "../shared/SubTabBar";
 import type { HelpSectionId } from "../help/helpContent";
 
 interface SettingsViewProps {
   onOpenHelp?: (section: HelpSectionId) => void;
+  onStartTour?: () => void;
+  onReplaySetup?: () => void;
 }
 
 
@@ -54,7 +61,7 @@ interface SpecsResult {
   suggested_model: string;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartTour, onReplaySetup }) => {
   // ── LLM Mode ────────────────────────────────────────────────
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
@@ -156,6 +163,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
   const [cacheStats, setCacheStats] = useState<{ llm_cache_count: number; embedding_cache_count: number } | null>(null);
   const [clearingCache, setClearingCache] = useState(false);
   const [cacheMsg, setCacheMsg] = useState<string | null>(null);
+
+  // ── Diagnostics State ────────────────────────────────────────
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsResponse | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagMsg, setDiagMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [rebuildingFts, setRebuildingFts] = useState(false);
 
   // ── Model Status State ─────────────────────────────────────────
   const [modelStatus, setModelStatus] = useState<{
@@ -415,6 +428,87 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
     }
   };
 
+  const loadDiagnostics = async () => {
+    setDiagLoading(true);
+    setDiagMsg(null);
+    try {
+      const d = await api.getDiagnostics();
+      setDiagnostics(d);
+    } catch (e) {
+      setDiagMsg({
+        type: "error",
+        text: e instanceof Error ? e.message : "Không thể tải chẩn đoán hệ thống.",
+      });
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+  const handleRebuildFts = async () => {
+    const ok = window.confirm(
+      "Rebuild chỉ mục FTS từ bảng chunks? Thao tác này an toàn nhưng có thể mất vài giây với thư viện lớn."
+    );
+    if (!ok) return;
+
+    setRebuildingFts(true);
+    setDiagMsg(null);
+    try {
+      const res = await api.rebuildFts();
+      setDiagMsg({ type: "success", text: res.message });
+      await loadDiagnostics();
+    } catch (e) {
+      setDiagMsg({
+        type: "error",
+        text: e instanceof Error ? e.message : "Rebuild FTS thất bại.",
+      });
+    } finally {
+      setRebuildingFts(false);
+    }
+  };
+
+  const handleCopyDiagnostics = async () => {
+    if (!diagnostics) return;
+    const lines = [
+      "ResearchMind Diagnostics",
+      `Version: ${diagnostics.version}`,
+      `Backend: ${diagnostics.backend_ready ? "OK" : "NOT READY"} — ${diagnostics.init_message}`,
+      `Embedder: ${diagnostics.embedder_ready ? "OK" : "Warming up"}`,
+      `LLM mode: ${diagnostics.llm_mode}`,
+      `Papers: ${diagnostics.total_papers} (${diagnostics.indexed_papers} indexed)`,
+      `Chunks: ${diagnostics.total_chunks} SQLite / ${diagnostics.chroma_chunks} Chroma`,
+      `Chunk sync: ${diagnostics.chunk_sync_ok ? "OK" : "MISMATCH"}`,
+      `Data: ${diagnostics.data_dir}`,
+      `Disk free: ${diagnostics.disk.free_gb ?? "?"} GB`,
+      `Cache: ${diagnostics.cache.llm_cache_count} LLM / ${diagnostics.cache.embedding_cache_count} embedding`,
+    ];
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setDiagMsg({ type: "success", text: "Đã sao chép báo cáo chẩn đoán." });
+    } catch {
+      setDiagMsg({ type: "error", text: "Không thể sao chép vào clipboard." });
+    }
+  };
+
+  const handleReplayWelcomeTour = () => {
+    resetWelcomeTourSeen();
+    onStartTour?.();
+    setDiagMsg({ type: "success", text: "Đang mở Welcome Tour..." });
+  };
+
+  const handleReplaySetupWizard = () => {
+    if (!onReplaySetup) {
+      setDiagMsg({ type: "error", text: "Không thể mở Setup Wizard từ đây." });
+      return;
+    }
+    const ok = window.confirm(
+      "Chạy lại trình thiết lập AI ban đầu? Cài đặt hiện tại vẫn được giữ — chỉ mở lại wizard để xem lại hoặc đổi chế độ AI."
+    );
+    if (!ok) return;
+    onReplaySetup();
+  };
+
+  const diagStatus = (ok: boolean) => (ok ? "ok" : "warn");
+
   const handleClearCache = async () => {
     const confirmClear = window.confirm("Bạn có chắc chắn muốn xoá bộ nhớ đệm LLM và Embedding? Hành động này sẽ khiến hệ thống phải gọi lại mô hình AI/API từ đầu ở lần chạy kế tiếp.");
     if (!confirmClear) return;
@@ -425,6 +519,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
       const res = await api.clearCache();
       setCacheMsg(res.message || "Đã xoá bộ nhớ đệm.");
       loadCacheStats();
+      loadDiagnostics();
     } catch (e) {
       alert("Xoá bộ nhớ đệm thất bại: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -552,11 +647,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
       ]
     : [];
 
-  type SettingsSection = "general" | "ai" | "data" | "advanced";
+  type SettingsSection = "general" | "diagnostics" | "ai" | "data" | "advanced";
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
 
   const settingsTabs = [
     { key: "general" as const, label: "Tổng quan", icon: IconMonitor },
+    { key: "diagnostics" as const, label: "Chẩn đoán", icon: IconActivity },
     { key: "ai" as const, label: "Chế độ AI", icon: IconBrain },
     { key: "data" as const, label: "Dữ liệu", icon: IconFolder },
     { key: "advanced" as const, label: "Nâng cao", icon: IconZap },
@@ -565,6 +661,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
   const sectionMeta: Record<SettingsSection, { desc: string }> = {
     general: {
       desc: "Kiểm tra backend, chủ đề giao diện và thông số máy.",
+    },
+    diagnostics: {
+      desc: "Trạng thái hệ thống, bảo trì, onboarding và báo cáo hỗ trợ.",
     },
     ai: {
       desc: "Chọn Cloud Free, API riêng hoặc chạy local với llama-server.",
@@ -576,6 +675,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
       desc: "Định tuyến provider theo tác vụ, embedding, reranker và thống kê.",
     },
   };
+
+  useEffect(() => {
+    if (activeSection === "diagnostics") {
+      loadDiagnostics();
+    }
+  }, [activeSection]);
 
   return (
     <div className="settings-view">
@@ -739,6 +844,169 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp }) => {
           <p className="settings-desc">Không thể phát hiện cấu hình máy.</p>
         )}
       </div>
+              </div>
+            )}
+
+            {activeSection === "diagnostics" && (
+              <div className="settings-diagnostics">
+                <div className="settings-section settings-section--flat">
+                  <div className="settings-diag-toolbar">
+                    <h3 className="settings-section-title" style={{ margin: 0 }}>
+                      <IconActivity size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                      Trạng thái hệ thống
+                    </h3>
+                    <div className="settings-diag-toolbar-actions">
+                      <button
+                        type="button"
+                        className="settings-btn-secondary"
+                        onClick={loadDiagnostics}
+                        disabled={diagLoading}
+                      >
+                        {diagLoading ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
+                        Làm mới
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-btn-secondary"
+                        onClick={handleCopyDiagnostics}
+                        disabled={!diagnostics}
+                      >
+                        <IconCopy size={14} />
+                        Sao chép báo cáo
+                      </button>
+                    </div>
+                  </div>
+
+                  {diagLoading && !diagnostics ? (
+                    <div className="aiwizard-loading" style={{ padding: "24px 0" }}>
+                      <IconSpinner size={18} /> Đang quét hệ thống...
+                    </div>
+                  ) : diagnostics ? (
+                    <>
+                      <div className="settings-diag-grid">
+                        <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.backend_ready)}`}>
+                          <span className="settings-diag-label">Backend</span>
+                          <strong>{diagnostics.backend_ready ? "Sẵn sàng" : "Đang khởi động"}</strong>
+                          <span className="settings-diag-hint">{diagnostics.init_message || BASE_URL}</span>
+                        </div>
+                        <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.embedder_ready)}`}>
+                          <span className="settings-diag-label">Embedder</span>
+                          <strong>{diagnostics.embedder_ready ? "Sẵn sàng" : "Đang tải"}</strong>
+                          <span className="settings-diag-hint">{diagnostics.embedding_model}</span>
+                        </div>
+                        <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.bm25_ready)}`}>
+                          <span className="settings-diag-label">FTS / BM25</span>
+                          <strong>{diagnostics.bm25_ready ? "Hoạt động" : "Chưa sẵn sàng"}</strong>
+                          <span className="settings-diag-hint">SQLite full-text search</span>
+                        </div>
+                        <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.vector_ready)}`}>
+                          <span className="settings-diag-label">ChromaDB</span>
+                          <strong>{diagnostics.vector_ready ? "Kết nối" : "Chưa sẵn sàng"}</strong>
+                          <span className="settings-diag-hint">{diagnostics.chroma_chunks} vectors</span>
+                        </div>
+                        <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.chunk_sync_ok)}`}>
+                          <span className="settings-diag-label">Đồng bộ chunk</span>
+                          <strong>{diagnostics.chunk_sync_ok ? "Khớp" : "Lệch"}</strong>
+                          <span className="settings-diag-hint">
+                            {diagnostics.total_chunks} SQLite / {diagnostics.chroma_chunks} Chroma
+                          </span>
+                        </div>
+                        <div className={`settings-diag-card settings-diag-card--${diagStatus(!diagnostics.disk.warning)}`}>
+                          <span className="settings-diag-label">Ổ đĩa</span>
+                          <strong>
+                            {diagnostics.disk.free_gb != null ? `${diagnostics.disk.free_gb} GB trống` : "Không rõ"}
+                          </strong>
+                          <span className="settings-diag-hint">
+                            {diagnostics.disk.warning ? "Cảnh báo: dung lượng thấp" : diagnostics.data_dir}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="settings-diag-stats">
+                        <span>{diagnostics.total_papers} papers</span>
+                        <span>{diagnostics.indexed_papers} đã index</span>
+                        <span>{diagnostics.total_size_mb} MB dữ liệu</span>
+                        <span>LLM: {diagnostics.llm_mode}</span>
+                        <span>Setup: {diagnostics.setup_completed ? "Hoàn tất" : "Chưa xong"}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="settings-desc">Không thể tải dữ liệu chẩn đoán. Kiểm tra backend rồi thử lại.</p>
+                  )}
+
+                  {diagMsg && (
+                    <div
+                      className={`settings-storage-msg ${diagMsg.type}`}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 12,
+                        color: diagMsg.type === "success" ? "var(--color-success)" : "var(--color-error)",
+                      }}
+                    >
+                      {diagMsg.type === "success" ? <IconCheck size={14} /> : <IconError size={14} />}
+                      <span>{diagMsg.text}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="settings-section">
+                  <h3 className="settings-section-title">
+                    <IconRefresh size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                    Bảo trì
+                  </h3>
+                  <p className="settings-desc" style={{ marginBottom: 12 }}>
+                    Các thao tác an toàn để khắc phục tìm kiếm chậm hoặc cache lỗi thời.
+                  </p>
+                  <div className="settings-diag-actions">
+                    <button
+                      type="button"
+                      className="settings-btn-secondary"
+                      onClick={handleRebuildFts}
+                      disabled={rebuildingFts || diagLoading}
+                    >
+                      {rebuildingFts ? <IconSpinner size={14} /> : <IconSearch size={14} />}
+                      Rebuild chỉ mục FTS
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-btn-secondary"
+                      onClick={handleClearCache}
+                      disabled={clearingCache || actionLoading}
+                    >
+                      {clearingCache ? <IconSpinner size={14} /> : <IconTrash size={14} />}
+                      Xoá cache LLM & Embedding
+                    </button>
+                    <button type="button" className="settings-btn-secondary" onClick={handleOpenFolder} disabled={actionLoading}>
+                      <IconFolderOpen size={14} />
+                      Mở thư mục dữ liệu
+                    </button>
+                  </div>
+                  {cacheMsg && (
+                    <p className="settings-desc" style={{ marginTop: 8, color: "var(--color-success)" }}>{cacheMsg}</p>
+                  )}
+                </div>
+
+                <div className="settings-section">
+                  <h3 className="settings-section-title">
+                    <IconRocket size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                    Onboarding
+                  </h3>
+                  <p className="settings-desc" style={{ marginBottom: 12 }}>
+                    Chạy lại hướng dẫn ban đầu hoặc trình thiết lập AI.
+                  </p>
+                  <div className="settings-diag-actions">
+                    <button type="button" className="settings-btn-secondary" onClick={handleReplayWelcomeTour}>
+                      <IconRocket size={14} />
+                      Tour giới thiệu
+                    </button>
+                    <button type="button" className="settings-btn-secondary" onClick={handleReplaySetupWizard}>
+                      <IconSparkle size={14} />
+                      Setup Wizard AI
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

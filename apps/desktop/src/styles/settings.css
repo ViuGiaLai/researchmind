@@ -849,6 +849,94 @@
   .settings-general-grid {
     grid-template-columns: 1fr;
   }
+
+  .settings-diag-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Diagnostics tab ── */
+.settings-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.settings-diag-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.settings-diag-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-diag-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-diag-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+}
+
+.settings-diag-card--ok {
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, var(--color-border-subtle));
+}
+
+.settings-diag-card--warn {
+  border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 40%, var(--color-border-subtle));
+}
+
+.settings-diag-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.settings-diag-card strong {
+  font-size: 0.92rem;
+  color: var(--color-text);
+}
+
+.settings-diag-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.settings-diag-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.settings-diag-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 
