@@ -50,7 +50,7 @@ from chat.patched_generator import PatchedGenerator as Generator
 from export import router as export_router
 from zotero_import import router as zotero_import_router
 
-from routers.papers import router as papers_router, jobs_router
+from routers.papers import router as papers_router, jobs_router, recover_interrupted_import_jobs
 from routers.search import router as search_router
 from routers.chat import router as chat_router
 from routers.insights import router as insights_router
@@ -265,6 +265,7 @@ async def lifespan(app: FastAPI):
             logger.info(f"Knowledge graph store initialized: {state._graph_store.graph.stats()}")
 
             logger.info("RAG pipeline initialized")
+            recover_interrupted_import_jobs()
             state.backend_ready = True
             state.init_message = "Sẵn sàng"
             logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")

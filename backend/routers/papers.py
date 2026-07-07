@@ -346,51 +346,41 @@ async def import_document(
     with open(save_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    _update_import_job(job_id, status="parsing", stage="parsing", progress=25)
-
     is_image = ext in IMAGE_EXTENSIONS
     if is_image:
-        # Return immediately — RapidOCR model load can take minutes on first run
+        # Return immediately; RapidOCR model load can take minutes on first run.
         doc = create_image_stub_document(str(save_path), file.filename)
-    else:
-        doc = await asyncio.to_thread(extract_document, str(save_path))
-    if doc is None:
-        err = f"Cannot parse file: {file.filename}"
-        logger.warning(f"Import failed for {file.filename} (ext={ext}): parser returned no content")
-        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=err)
-        raise HTTPException(status_code=400, detail=err)
+        paper_title = getattr(doc, "suggested_title", None) or doc.title
 
-    paper_title = getattr(doc, "suggested_title", None) or doc.title
+        session = get_session(state.engine)
+        try:
+            paper = Paper(
+                id=file_id,
+                filename=file.filename,
+                title=paper_title,
+                authors=doc.authors,
+                year=doc.year,
+                doi=doc.doi,
+                page_count=doc.page_count,
+                file_size=doc.file_size,
+                file_path=str(save_path),
+                language=doc.language,
+                status="indexing",
+                ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+                ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+                is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
+                layout_stats=json.dumps(getattr(doc, "layout_stats", None) or {}),
+            )
+            session.add(paper)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to save image paper metadata: {e}")
+            _update_import_job(job_id, status="failed", stage="saved", progress=100, error=f"Database error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        finally:
+            session.close()
 
-    session = get_session(state.engine)
-    try:
-        paper = Paper(
-            id=file_id,
-            filename=file.filename,
-            title=paper_title,
-            authors=doc.authors,
-            year=doc.year,
-            doi=doc.doi,
-            page_count=doc.page_count,
-            file_size=doc.file_size,
-            file_path=str(save_path),
-            language=doc.language,
-            status="indexing",
-            ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
-            ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
-            is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
-        )
-        session.add(paper)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Failed to save paper metadata: {e}")
-        _update_import_job(job_id, status="failed", stage="saved", progress=100, error=f"Database error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    finally:
-        session.close()
-
-    if is_image:
         background_tasks.add_task(
             _parse_and_index_image_paper,
             file_id,
@@ -398,29 +388,39 @@ async def import_document(
             job_id,
             file.filename or safe_name,
         )
-    else:
-        background_tasks.add_task(_index_paper, file_id, doc, job_id)
-        background_tasks.add_task(
-            _enrich_paper_background,
-            paper_id=file_id,
-            file_path=str(save_path),
-            title=paper_title or file.filename,
-            authors=doc.authors.split(",") if doc.authors else [],
-        )
+        return {
+            "paper_id": file_id,
+            "job_id": job_id,
+            "filename": file.filename,
+            "title": paper_title,
+            "page_count": doc.page_count,
+            "language": doc.language,
+            "status": "parsing",
+            "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
+            "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
+            "is_scanned": bool(getattr(doc, "is_scanned", False)),
+        }
+
+    background_tasks.add_task(
+        _parse_and_index_document_paper,
+        file_id,
+        str(save_path),
+        job_id,
+        file.filename or safe_name,
+    )
 
     return {
         "paper_id": file_id,
         "job_id": job_id,
         "filename": file.filename,
-        "title": paper_title,
-        "page_count": doc.page_count,
-        "language": doc.language,
-        "status": "parsing" if is_image else "indexing",
-        "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
-        "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
-        "is_scanned": bool(getattr(doc, "is_scanned", False)),
+        "title": Path(file.filename or safe_name).stem,
+        "page_count": None,
+        "language": "unknown",
+        "status": "parsing",
+        "ocr_pages_count": 0,
+        "ocr_pages_failed": 0,
+        "is_scanned": False,
     }
-
 
 @router.post("/import/folder")
 async def import_folder(
@@ -704,6 +704,82 @@ def _parse_and_index_image_paper(
             file_path=file_path,
             title=paper_title or filename,
             authors=authors,
+        ))
+    except Exception:
+        pass
+
+
+def _parse_and_index_document_paper(
+    file_id: str,
+    file_path: str,
+    job_id: str | None,
+    filename: str,
+):
+    """Parse + index non-image documents in the background."""
+    logger.info(f"Background parse/index for document: {filename}")
+    _update_import_job(job_id, status="parsing", stage="parsing", progress=25)
+
+    try:
+        doc = extract_document(file_path)
+    except Exception as exc:
+        logger.exception(f"Document parse failed for {filename}: {exc}")
+        doc = None
+
+    if doc is None:
+        err = f"Cannot parse file: {filename}"
+        logger.warning(f"Import failed for {filename}: parser returned no content")
+        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=err)
+        return
+
+    paper_title = getattr(doc, "suggested_title", None) or doc.title
+
+    session = get_session(state.engine)
+    try:
+        paper = Paper(
+            id=file_id,
+            filename=filename,
+            title=paper_title,
+            authors=doc.authors,
+            year=doc.year,
+            doi=doc.doi,
+            page_count=doc.page_count,
+            file_size=doc.file_size,
+            file_path=file_path,
+            language=doc.language,
+            status="indexing",
+            ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+            ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+            is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
+            layout_stats=json.dumps(getattr(doc, "layout_stats", None) or {}),
+        )
+        session.add(paper)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save paper metadata: {e}")
+        _update_import_job(job_id, status="failed", stage="saved", progress=100, error=f"Database error: {str(e)}")
+        return
+    finally:
+        session.close()
+
+    _update_import_job(
+        job_id,
+        status="indexing",
+        stage="indexing",
+        progress=40,
+        paper_id=file_id,
+        ocr_pages_count=getattr(doc, "ocr_pages_count", 0),
+        ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
+        is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
+    )
+    _index_paper(file_id, doc, job_id)
+
+    try:
+        asyncio.run(_enrich_paper_background(
+            paper_id=file_id,
+            file_path=file_path,
+            title=paper_title or filename,
+            authors=doc.authors.split(",") if doc.authors else [],
         ))
     except Exception:
         pass
@@ -993,6 +1069,54 @@ def _retry_import_job(job_id: str):
     _index_paper(paper_id, doc, job_id)
 
 
+def recover_interrupted_import_jobs(
+    job_ids: list[str] | None = None,
+    stale_after_seconds: float = 0,
+) -> int:
+    """Resume import jobs left active by a process reload/crash."""
+    active_statuses = {"queued", "saved", "parsing", "indexing", "summarizing", "enriching"}
+    now = datetime.utcnow()
+    session = get_session(state.engine)
+    try:
+        query = session.query(ImportJob).filter(ImportJob.status.in_(active_statuses))
+        if job_ids:
+            query = query.filter(ImportJob.id.in_(job_ids))
+        jobs = query.all()
+        recoverable: list[str] = []
+        for job in jobs:
+            if stale_after_seconds > 0 and job.updated_at:
+                age = (now - job.updated_at).total_seconds()
+                if age < stale_after_seconds:
+                    continue
+            file_path = job.file_path or job.source_path
+            if not file_path or not Path(file_path).exists():
+                job.status = "failed"
+                job.stage = "recovery"
+                job.progress = 100
+                job.error = "Import file no longer exists after backend restart."
+                job.finished_at = now
+                continue
+            job.status = "queued"
+            job.stage = "recovery"
+            job.progress = 0
+            job.error = ""
+            job.finished_at = None
+            recoverable.append(job.id)
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        logger.warning(f"Failed to recover interrupted import jobs: {exc}")
+        return 0
+    finally:
+        session.close()
+
+    for job_id in recoverable:
+        threading.Thread(target=_retry_import_job, args=(job_id,), daemon=True).start()
+    if recoverable:
+        logger.info(f"Recovered {len(recoverable)} interrupted import job(s)")
+    return len(recoverable)
+
+
 @jobs_router.get("")
 async def list_import_jobs(limit: int = Query(50, ge=1, le=200)):
     session = get_session(state.engine)
@@ -1006,6 +1130,8 @@ async def list_import_jobs(limit: int = Query(50, ge=1, le=200)):
 @jobs_router.get("/stream")
 async def stream_import_jobs(ids: str = Query(...)):
     job_ids = [job_id.strip() for job_id in ids.split(",") if job_id.strip()]
+    if job_ids and getattr(state, "backend_ready", False):
+        recover_interrupted_import_jobs(job_ids=job_ids, stale_after_seconds=180)
 
     async def event_stream():
         if not job_ids:

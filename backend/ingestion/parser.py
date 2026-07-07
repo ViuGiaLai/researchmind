@@ -5,7 +5,6 @@ from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
 import threading
-from concurrent.futures import ThreadPoolExecutor
 
 from .layout_parser import reorder_page_text, detect_layout_stats
 from .image_ocr import (
@@ -114,7 +113,7 @@ def extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     return _extract_pdf(file_path)
 
 
-def _process_single_page(file_path: str, page_num: int, collect_layout: bool = False) -> tuple[int, str, bool, bool, Optional[dict]]:
+def _process_single_page(file_path: str, page_num: int, collect_layout: bool = False, include_image_ocr: bool = False) -> tuple[int, str, bool, bool, Optional[dict]]:
     import fitz
     import re
     
@@ -181,15 +180,17 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
             except Exception as e:
                 logger.warning(f"OCR failed for page {page_num + 1}: {e}")
 
-        # OCR embedded figures/charts even when the page already has extractable text
-        image_snippets = extract_pdf_page_image_text(
-            page,
-            doc,
-            page_num=page_num + 1,
-            page_text=text,
-        )
-        if image_snippets:
-            text = (text.rstrip() + "\n\n" + "\n".join(image_snippets)).strip()
+        # Embedded figure OCR is opt-in. Running OCR over every image during
+        # import can stall PDF parsing on image-heavy papers.
+        if include_image_ocr:
+            image_snippets = extract_pdf_page_image_text(
+                page,
+                doc,
+                page_num=page_num + 1,
+                page_text=text,
+            )
+            if image_snippets:
+                text = (text.rstrip() + "\n\n" + "\n".join(image_snippets)).strip()
         doc.close()
     except Exception as e:
         logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
@@ -232,38 +233,27 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     ocr_pages_count = 0
     ocr_pages_failed = 0
     layout_stats: dict = {}
-    max_workers = min(4, page_count) if page_count > 0 else 1
-    pages_to_process = list(range(page_count))
-    
+
+    # Parse pages sequentially. PyMuPDF plus OCR inside a thread pool can leave
+    # one worker stuck and keep the whole import at "parsing 25%" indefinitely.
     try:
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            results = executor.map(lambda p: _process_single_page(file_path, p, collect_layout=True), pages_to_process)
-            for page_num, text, ocr_attempted, ocr_failed, layout in results:
-                text_by_page[page_num + 1] = text
-                if ocr_attempted:
-                    ocr_pages_count += 1
-                if ocr_failed:
-                    ocr_pages_failed += 1
-                if layout:
-                    layout_stats[page_num + 1] = layout
+        for page_num in range(page_count):
+            p_num, text, ocr_attempted, ocr_failed, layout = _process_single_page(
+                file_path,
+                page_num,
+                collect_layout=True,
+                include_image_ocr=False,
+            )
+            text_by_page[p_num + 1] = text
+            if ocr_attempted:
+                ocr_pages_count += 1
+            if ocr_failed:
+                ocr_pages_failed += 1
+            if layout:
+                layout_stats[p_num + 1] = layout
     except Exception as e:
-        logger.error(f"Error during parallel PDF parsing: {e}")
-        text_by_page = {}
-        try:
-            doc = fitz.open(file_path)
-            for page_num in range(len(doc)):
-                p_num, text, ocr_attempted, ocr_failed, layout = _process_single_page(file_path, page_num, collect_layout=True)
-                text_by_page[p_num + 1] = text
-                if ocr_attempted:
-                    ocr_pages_count += 1
-                if ocr_failed:
-                    ocr_pages_failed += 1
-                if layout:
-                    layout_stats[page_num + 1] = layout
-            doc.close()
-        except Exception as fallback_err:
-            logger.error(f"Fallback parsing also failed: {fallback_err}")
-            return None
+        logger.error(f"Error during PDF parsing: {e}")
+        return None
 
     full_text_parts = [text_by_page[p] for p in sorted(text_by_page.keys())]
     full_text = "\n".join(full_text_parts)
