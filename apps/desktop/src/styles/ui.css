@@ -92,15 +92,37 @@
 .rm-btn--primary {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
-  font-weight: 600;
+  color: var(--color-on-primary);
+  font-weight: 500;
 }
 
 .rm-btn--primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
-  color: #fff;
-  transform: translateY(-1px);
+  color: var(--color-on-primary);
+}
+
+.rm-btn--outline {
+  background: transparent;
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.rm-btn--outline:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary-muted);
+  color: var(--color-primary);
+}
+
+.rm-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.rm-btn--ghost:hover:not(:disabled) {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
 }
 
 .rm-btn--sm {
@@ -198,14 +220,19 @@
 /* ── Cards ── */
 .rm-card {
   padding: 12px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
   background: var(--color-surface);
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition-normal),
+              background var(--transition-normal),
+              box-shadow var(--transition-normal),
+              transform var(--transition-normal);
 }
 
 .rm-card:hover {
-  border-color: rgba(var(--color-primary-rgb), 0.25);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .rm-card--interactive {
@@ -332,7 +359,7 @@
 .rm-progress-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, var(--color-success), var(--color-primary));
+  background: var(--color-text);
   transition: width 0.3s ease;
 }
 
@@ -462,23 +489,28 @@
 .rm-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--color-overlay);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: rm-fade-in 0.2s ease-out;
+  animation: rm-fade-in var(--transition-normal) var(--ease-workspace);
 }
 
 .rm-modal {
-  width: 80%;
+  width: min(92vw, 960px);
+  max-height: 90vh;
   height: 85%;
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  background: var(--color-glass);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: rm-fade-up var(--transition-slow) var(--ease-workspace);
 }
 
 .rm-modal-header {
@@ -512,6 +544,11 @@
 @keyframes rm-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes rm-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Section label ── */

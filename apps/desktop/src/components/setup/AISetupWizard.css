@@ -1605,3 +1605,91 @@
     display: none; /* Hide tracker on small mobile screens to prevent clutter */
   }
 }
+
+/* ── Modern Minimal overrides ── */
+.aiwizard-overlay {
+  background: var(--color-bg) !important;
+}
+
+.aiwizard-glow-bg-1,
+.aiwizard-glow-bg-2 {
+  display: none !important;
+}
+
+.aiwizard-card {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.aiwizard-card::before {
+  display: none !important;
+}
+
+.aiwizard-mode-card,
+.aiwizard-tier-chip,
+.aiwizard-provider-tab {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.aiwizard-mode-card.active,
+.aiwizard-tier-chip.active {
+  border-color: var(--color-text) !important;
+  background: var(--color-highlight) !important;
+}
+
+.aiwizard-btn-primary,
+.aiwizard-next-btn {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+
+.aiwizard-btn-primary:hover,
+.aiwizard-next-btn:hover {
+  background: var(--color-primary-hover) !important;
+  box-shadow: none !important;
+}
+
+.scan-hud-item,
+.quick-start-card,
+.provider-tab-btn,
+.aiwizard-storage-box {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.provider-tab-btn.active,
+.aiwizard-mode-card.selected {
+  border-color: var(--color-text) !important;
+  background: var(--color-highlight) !important;
+  box-shadow: none !important;
+}
+
+.aiwizard-title,
+.aiwizard-subtitle {
+  background: none !important;
+  -webkit-text-fill-color: var(--color-text) !important;
+  color: var(--color-text) !important;
+}
+
+.aiwizard-logo img,
+.aiwizard-logo .icon-gradient {
+  filter: none !important;
+}
+
+.aiwizard-progress-fill {
+  background: var(--color-text) !important;
+  background-image: none !important;
+}
+
+.aiwizard-step-dot.active {
+  background: var(--color-text) !important;
+  box-shadow: none !important;
+}

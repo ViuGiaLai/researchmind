@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { api, BASE_URL } from "../../lib/api";
+import {
+  getThemePreference,
+  setThemePreference,
+  type ThemePreference,
+} from "../../lib/theme";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
@@ -12,6 +17,8 @@ import {
   IconZap,
   IconKey,
   IconMonitor,
+  IconSun,
+  IconMoon,
   IconFolder,
   IconFolderOpen,
   IconRefresh,
@@ -125,15 +132,11 @@ export const SettingsView: React.FC = () => {
   const [taskFallbackMapStr, setTaskFallbackMapStr] = useState("{}");
 
   // ── Theme State ──────────────────────────────────────────────
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    try { return (localStorage.getItem("app-theme") as "dark" | "light") || "dark"; } catch { return "dark"; }
-  });
+  const [themePref, setThemePref] = useState<ThemePreference>(() => getThemePreference());
 
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    try { localStorage.setItem("app-theme", next); } catch {}
+  const selectTheme = (pref: ThemePreference) => {
+    setThemePref(pref);
+    setThemePreference(pref);
   };
 
   // ── Data Management State ─────────────────────────────────────
@@ -638,17 +641,36 @@ export const SettingsView: React.FC = () => {
           Giao diện
         </h3>
         <div className="settings-field">
-          <label className="settings-label settings-label--row">
-            <span>Chế độ sáng / tối</span>
+          <label className="settings-label">Chế độ giao diện</label>
+          <p className="settings-desc" style={{ marginBottom: 10 }}>
+            Sáng, tối hoặc theo hệ thống — AI Workspace Theme với accent teal.
+          </p>
+          <div className="settings-theme-options" role="group" aria-label="Chế độ giao diện">
             <button
               type="button"
-              className={`settings-theme-toggle${theme === "light" ? " is-light" : ""}`}
-              onClick={toggleTheme}
-              aria-label="Đổi chế độ sáng tối"
+              className={`settings-theme-option${themePref === "light" ? " active" : ""}`}
+              onClick={() => selectTheme("light")}
             >
-              <span className="settings-theme-knob" />
+              <IconSun size={16} />
+              Sáng
             </button>
-          </label>
+            <button
+              type="button"
+              className={`settings-theme-option${themePref === "dark" ? " active" : ""}`}
+              onClick={() => selectTheme("dark")}
+            >
+              <IconMoon size={16} />
+              Tối
+            </button>
+            <button
+              type="button"
+              className={`settings-theme-option${themePref === "system" ? " active" : ""}`}
+              onClick={() => selectTheme("system")}
+            >
+              <IconMonitor size={16} />
+              Hệ thống
+            </button>
+          </div>
         </div>
       </div>
 

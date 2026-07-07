@@ -1,0 +1,752 @@
+/* ═══════════════════════════════════════════════════════════
+   AI Workspace — layout & components (loaded late)
+   Soft shadow · teal accent · elevation · responsive shell
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Base typography ── */
+body {
+  font-feature-settings: "kern", "liga";
+  letter-spacing: -0.012em;
+}
+
+h1, h2, h3, h4,
+.rm-page-header h2,
+.settings-page-title,
+.search-hero-title,
+.wow-title,
+.graph-header-left h2,
+.discovery-header h2,
+.daily-reader-hero-title,
+.personal-brain-header h2 {
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+
+/* ── Hide harsh decorative glows ── */
+.search-hero-glow,
+.aiwizard-glow-bg-1,
+.aiwizard-glow-bg-2,
+.wow-view::before,
+.wow-view::after,
+.wow-dropzone::before,
+.wow-dropzone::after,
+.aiwizard-card::before {
+  display: none !important;
+}
+
+/* ── Titles: solid readable text ── */
+.logo,
+.sidebar-brand .brand-text,
+.search-hero-title,
+.wow-title,
+.graph-header-left h2 {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--color-text) !important;
+  color: var(--color-text) !important;
+}
+
+.icon-gradient {
+  filter: none !important;
+  stroke: currentColor !important;
+  color: var(--color-primary) !important;
+}
+
+.icon-3d {
+  filter: none !important;
+  stroke: currentColor !important;
+  color: currentColor;
+}
+
+.icon-3d:hover,
+.icon-brain-img:hover {
+  transform: none !important;
+}
+
+.icon-brain-img {
+  filter: none !important;
+  animation: none !important;
+}
+
+.brain-icon-loading {
+  animation: iconSpin 1s linear infinite !important;
+}
+
+/* ══════════════ PAGE SHELLS ══════════════ */
+.chat-view,
+.library-view,
+.library-split-view,
+.search-view-modern,
+.settings-view,
+.wow-view,
+.personal-brain-view,
+.daily-reader-view,
+.graph-view,
+.insights-view,
+.discovery-view,
+.hl-view,
+.import-panel,
+.hub-shell,
+.rm-page,
+.evidence-matrix-view,
+.screening-board,
+.review-builder,
+.aiwizard-overlay {
+  background: var(--color-bg) !important;
+  color: var(--color-text);
+}
+
+.main,
+.hub-shell__content,
+.labs-content {
+  background: var(--color-bg);
+}
+
+/* ══════════════ SIDEBAR & NAV ══════════════ */
+.app-sidebar {
+  background: var(--color-bg-subtle) !important;
+  border-right: 1px solid var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-brand {
+  border-bottom: 1px solid var(--color-border-subtle);
+  min-height: 56px;
+}
+
+.sidebar-menu-btn {
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid transparent !important;
+}
+
+.sidebar-menu-btn:hover {
+  transform: none;
+  background: var(--color-surface-hover) !important;
+}
+
+.sidebar-menu-btn.active {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+  font-weight: 600;
+  box-shadow: none !important;
+  border-left: 3px solid var(--color-primary) !important;
+  padding-left: 9px;
+}
+
+.collapsed .sidebar-menu-btn.active {
+  border-left: none !important;
+  border-bottom: 3px solid var(--color-primary) !important;
+  padding-left: 8px;
+}
+
+.sidebar-menu-btn-labs.active,
+.sidebar-menu-btn-wow.active {
+  box-shadow: none !important;
+  color: var(--color-primary) !important;
+  background: var(--color-primary-subtle) !important;
+}
+
+.sidebar-menu-btn-labs.active svg,
+.sidebar-menu-btn-wow.active svg {
+  filter: none !important;
+  color: var(--color-primary) !important;
+}
+
+.sidebar-collapse-btn:hover {
+  transform: none;
+}
+
+.nav-btn.active {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ══════════════ TABS ══════════════ */
+.sub-tab-bar {
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.sub-tab-bar__btn {
+  border-radius: var(--radius-sm) !important;
+}
+
+.sub-tab-bar--underline .sub-tab-bar__btn.active {
+  color: var(--color-primary) !important;
+  border-bottom-color: var(--color-primary) !important;
+  font-weight: 600;
+}
+
+.sub-tab-bar--pills .sub-tab-bar__btn.active {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ══════════════ SHARED: buttons, inputs, cards ══════════════ */
+.rm-btn--primary,
+.settings-save-btn,
+.folder-picker-btn,
+.chat-view-send-btn,
+.import-btn-primary,
+.wow-action-btn-header,
+.wow-regenerate-all-btn,
+.graph-header-actions .btn-primary,
+.daily-reader-refresh-btn,
+.discovery-search-btn,
+.search-submit-btn,
+.search-btn-modern,
+.search-bar-submit,
+.filter-apply-btn,
+.aiwizard-btn-primary,
+.aiwizard-next-btn {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border: 1px solid var(--color-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+  transform: none !important;
+}
+
+.rm-btn--primary:hover:not(:disabled),
+.settings-save-btn:hover:not(:disabled),
+.chat-view-send-btn:hover:not(:disabled),
+.search-submit-btn:hover:not(:disabled),
+.search-bar-submit:hover:not(:disabled),
+.filter-apply-btn:hover,
+.aiwizard-btn-primary:hover {
+  background: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.rm-btn,
+.rm-btn--chip,
+.rm-chip,
+.rm-filter-pill,
+.import-tab,
+.chat-view-mode-select-trigger,
+.chat-view-strict-evidence-toggle,
+.settings-input,
+.settings-select,
+.rm-input,
+.discovery-search-input {
+  border-radius: var(--radius-md) !important;
+}
+
+.rm-btn--secondary,
+.rm-btn:not(.rm-btn--primary):not(.rm-btn--chip),
+.chat-view-cite-btn,
+.chat-view-export-btn,
+.chat-view-clear-btn {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.rm-btn--chip.active,
+.rm-chip.selected,
+.rm-filter-pill.active,
+.import-tab.active {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+}
+
+/* ── Soft elevated cards ── */
+.rm-card,
+.settings-section,
+.library-paper-card,
+.library-paper-row,
+.import-dropzone,
+.import-result-row,
+.personal-brain-section,
+.personal-brain-stat-card,
+.personal-brain-insight-card,
+.personal-brain-interest-group,
+.daily-reader-section,
+.daily-reader-paper-card,
+.daily-reader-stat,
+.graph-stat-card,
+.graph-entity-card,
+.discovery-result-card,
+.evidence-matrix-table-wrap,
+.screening-paper-card,
+.review-section-card,
+.rm-modal,
+.wow-loading-card,
+.wow-dropzone,
+.wow-action-btn,
+.wow-paper-card-select,
+.wow-card-section,
+.wow-step-indicator,
+.aiwizard-card,
+.hl-paper-card,
+.hl-highlight-card,
+.cite-panel,
+.trust-panel,
+.debate-panel,
+.insight-type-card,
+.insight-stat-card,
+.insights-stat {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.rm-card:hover,
+.library-paper-card:hover,
+.library-paper-row:hover,
+.daily-reader-paper-card:hover,
+.wow-paper-card-select:hover,
+.wow-card-section.completed:hover,
+.search-result-card-modern:hover,
+.suggestion-card-modern:hover {
+  border-color: var(--color-border) !important;
+  background: var(--color-surface-hover) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+}
+
+.rm-input:focus,
+.settings-input:focus,
+.search-input-modern:focus,
+.chat-view-textarea:focus,
+.discovery-search-input:focus,
+.aiwizard-input:focus,
+.filter-select:focus,
+.filter-input:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-focus-ring) !important;
+  outline: none !important;
+}
+
+.rm-progress-fill,
+.personal-brain-progress-fill,
+.personal-brain-reading-fill,
+.graph-stat-bar-fill,
+.app-loading-bar-fill,
+.scan-progress-fill {
+  background: var(--color-primary) !important;
+}
+
+/* ══════════════ CHAT ══════════════ */
+.chat-view-header,
+.chat-scope-tabs,
+.chat-view-input {
+  background: var(--color-bg) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+.chat-view-input {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.chat-view-textarea {
+  background: transparent !important;
+}
+
+.chat-view-scope-tabs {
+  background: var(--color-inset) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 3px !important;
+}
+
+.chat-view-scope-tab {
+  border-radius: calc(var(--radius-md) - 3px) !important;
+}
+
+.chat-view-scope-tab.active {
+  background: var(--color-surface) !important;
+  color: var(--color-primary) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-sm) !important;
+  font-weight: 600;
+}
+
+.chat-view-message-assistant .chat-view-bubble,
+.chat-view-thinking-block {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.chat-view-mode-dropdown-menu {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+}
+
+.selected-paper-badge {
+  background: var(--color-primary-subtle) !important;
+  border: 1px solid var(--color-primary-muted) !important;
+  color: var(--color-text) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+/* ══════════════ LIBRARY ══════════════ */
+.library-toolbar,
+.library-header,
+.library-sidebar,
+.library-main-panel,
+.library-preview-panel,
+.library-filters-bar {
+  background: var(--color-bg) !important;
+  border-color: var(--color-border-subtle) !important;
+}
+
+.library-paper-row.selected,
+.library-paper-card.selected {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.library-preview-header,
+.library-detail-panel {
+  background: var(--color-bg-subtle) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+}
+
+/* ══════════════ SEARCH ══════════════ */
+.search-hero-modern {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-card) !important;
+  padding: 2rem 1.5rem !important;
+}
+
+.search-hero-badge {
+  background: var(--color-primary-subtle) !important;
+  border: 1px solid var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.search-hero-stats {
+  background: var(--color-inset) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.hero-stat-value,
+.hero-stat-value--icon {
+  color: var(--color-text) !important;
+}
+
+.search-bar-wrapper {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-full) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.search-bar-wrapper:focus-within {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-focus-ring), var(--shadow-card) !important;
+}
+
+.search-result-card-modern,
+.search-cluster-card,
+.search-suggestion-chip,
+.search-filter-chip,
+.suggestion-card-modern,
+.filter-panel-modern {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.search-suggest-dropdown-modern {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+}
+
+.filter-toggle-btn,
+.saved-search-chip-modern,
+.search-save-btn {
+  border-radius: var(--radius-full) !important;
+}
+
+.filter-toggle-btn.active {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+}
+
+/* ══════════════ SETTINGS ══════════════ */
+.settings-view,
+.settings-shell,
+.settings-toolbar,
+.settings-content {
+  background: var(--color-bg);
+}
+
+.settings-section,
+.settings-mode-card,
+.settings-health,
+.settings-storage-box {
+  border-radius: var(--radius-lg) !important;
+}
+
+.settings-mode-card.active {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-subtle) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.settings-mode-badge {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.settings-meta-chip {
+  border-radius: var(--radius-full);
+  background: var(--color-highlight);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.settings-provider-tab.active {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+}
+
+.settings-theme-toggle {
+  border-radius: var(--radius-full) !important;
+  background: var(--color-inset) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.settings-theme-toggle.is-light {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+}
+
+.settings-theme-knob {
+  background: var(--color-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ══════════════ WOW / INSIGHTS ══════════════ */
+.wow-view {
+  background: var(--color-bg) !important;
+  padding: var(--space-lg) !important;
+}
+
+.wow-loading-overlay {
+  background: var(--color-overlay) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.wow-dropzone {
+  border: 2px dashed var(--color-border) !important;
+  border-radius: var(--radius-xl) !important;
+}
+
+.wow-dropzone:hover,
+.wow-dropzone.drag-over {
+  border-color: var(--color-primary-muted) !important;
+  background: var(--color-primary-subtle) !important;
+}
+
+.wow-dropzone-badge,
+.wow-paper-hover-badge {
+  background: var(--color-primary-subtle) !important;
+  border: 1px solid var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+}
+
+.wow-step-indicator.running {
+  border-color: var(--color-primary-muted) !important;
+  background: var(--color-primary-subtle) !important;
+}
+
+.wow-step-indicator-number {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+}
+
+.wow-report-header,
+.wow-stepper {
+  background: var(--color-bg-subtle) !important;
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+}
+
+.insights-view {
+  background: var(--color-bg);
+}
+
+/* ══════════════ PERSONAL BRAIN & DAILY READER ══════════════ */
+.personal-brain-tag,
+.personal-brain-lang-chip,
+.personal-brain-author-chip,
+.daily-reader-badge,
+.daily-reader-model-badge,
+.daily-reader-paper-tag {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  color: var(--color-text-secondary) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.daily-reader-hero,
+.daily-reader-streak {
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* ══════════════ GRAPH / IMPORT / EVIDENCE ══════════════ */
+.graph-canvas-wrap,
+.graph-sidebar {
+  border: 1px solid var(--color-border-subtle) !important;
+  background: var(--color-surface) !important;
+  box-shadow: var(--shadow-card) !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.import-dropzone:hover,
+.import-dropzone.drag-over {
+  border-color: var(--color-primary-muted) !important;
+  background: var(--color-primary-subtle) !important;
+}
+
+.import-format-chip {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+.evidence-matrix-header,
+.screening-header,
+.review-header {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.rm-table th {
+  border-bottom: 1px solid var(--color-border-subtle) !important;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+}
+
+.rm-table td.rm-table-td--criterion {
+  background: var(--color-highlight) !important;
+}
+
+.rm-quote {
+  border-left-color: var(--color-primary) !important;
+  background: var(--color-primary-subtle) !important;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+}
+
+/* ══════════════ HIGHLIGHTS ══════════════ */
+.hl-view,
+.hl-sidebar,
+.hl-main {
+  background: var(--color-bg) !important;
+}
+
+.hl-tab.active {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.hl-paper-card.active {
+  background: var(--color-primary-subtle) !important;
+  border-color: var(--color-primary-muted) !important;
+}
+
+.hl-context-quote,
+.hl-evidence-quote {
+  border-left-color: var(--color-primary) !important;
+}
+
+/* ══════════════ PDF / CITE / TRUST ══════════════ */
+.library-preview-panel,
+.pdf-toolbar,
+.pdf-highlight-banner {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border-subtle) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.pdf-action-btn {
+  border: 1px solid var(--color-border-subtle) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.cite-panel,
+.trust-panel,
+.debate-view {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ══════════════ SETUP WIZARD ══════════════ */
+.aiwizard-card {
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: var(--space-xl) !important;
+}
+
+.aiwizard-mode-card.active,
+.aiwizard-tier-chip.active {
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-subtle) !important;
+}
+
+.aiwizard-step-dot.active {
+  background: var(--color-primary) !important;
+}
+
+/* ══════════════ TOAST & OVERLAY ══════════════ */
+.toast-item-outer,
+.toast-card {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+}
+
+.rm-overlay {
+  background: var(--color-overlay) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+.local-error-banner {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ══════════════ SCROLLBAR (soft) ══════════════ */
+::-webkit-scrollbar-thumb {
+  background: var(--color-border) !important;
+  border-radius: var(--radius-full) !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong) !important;
+}

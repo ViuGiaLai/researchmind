@@ -32,6 +32,8 @@ import {
   Zap,
   Key,
   Monitor,
+  Sun,
+  Moon,
   Cpu,
   Eye,
   EyeOff,
@@ -156,6 +158,8 @@ export const IconDashboard = wrapIcon(BarChart3, "icon-dashboard", true);
 export const IconZap = wrapIcon(Zap, "icon-zap", true);
 export const IconKey = wrapIcon(Key, "icon-key");
 export const IconMonitor = wrapIcon(Monitor, "icon-monitor");
+export const IconSun = wrapIcon(Sun, "icon-sun");
+export const IconMoon = wrapIcon(Moon, "icon-moon");
 export const IconCpu = wrapIcon(Cpu, "icon-cpu");
 export const IconEye = wrapIcon(Eye, "icon-eye");
 export const IconEyeOff = wrapIcon(EyeOff, "icon-eye-off");

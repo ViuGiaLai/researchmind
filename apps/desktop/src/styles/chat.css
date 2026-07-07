@@ -246,7 +246,8 @@
 }
 
 .chat-view-text pre {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-inset);
+  border: 1px solid var(--color-border-subtle);
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
@@ -342,8 +343,8 @@
   display: flex;
   flex: 1;
   min-width: 0;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--color-inset);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 2px;
   width: auto;
@@ -374,15 +375,15 @@
 
 .chat-view-scope-tab:hover {
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-surface-hover);
 }
 
 .chat-view-scope-tab.active {
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.15), rgba(14, 165, 233, 0.15));
-  border: 1px solid rgba(45, 212, 191, 0.3);
-  color: var(--color-primary);
+  background: var(--color-highlight);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.1);
+  box-shadow: none;
 }
 
 /* Selected Papers Horizontal Scroll Tray */
@@ -403,24 +404,23 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3em;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   padding: 0.2em 0.55em;
   border-radius: 20px;
   font-size: 0.82em;
   color: var(--color-text-secondary);
   max-width: min(200px, 42cqw);
   transition: all var(--transition-fast);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   user-select: none;
   -webkit-user-drag: none;
 }
 
 .selected-paper-badge:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(45, 212, 191, 0.3);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
   color: var(--color-text);
-  transform: translateY(-1px);
 }
 
 .paper-badge-icon {
@@ -562,8 +562,8 @@
 }
 
 .chat-view-input:focus-within {
-  border-color: rgba(20, 184, 166, 0.4);
-  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.08), var(--shadow-md);
+  border-color: var(--color-text-muted);
+  box-shadow: 0 0 0 3px rgba(var(--color-text-rgb), 0.06), var(--shadow-md);
 }
 
 .chat-view-textarea {
@@ -685,16 +685,15 @@
   left: 0;
   z-index: 999;
   width: 320px;
-  background: rgba(18, 18, 22, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl, 12px);
   padding: 8px;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 12px -6px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   gap: 4px;
   animation: slideUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(12px);
 }
 
 @keyframes slideUp {
@@ -721,13 +720,13 @@
 }
 
 .chat-view-mode-dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border);
 }
 
 .chat-view-mode-dropdown-item.active {
   background-color: rgba(20, 184, 166, 0.12);
-  border: 1px solid var(--color-primary, #14b8a6);
+  border: 1px solid var(--color-border);
 }
 
 .chat-view-mode-dropdown-item .item-icon {
@@ -746,17 +745,17 @@
 .chat-view-mode-dropdown-item .item-title {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text);
   text-align: left;
 }
 
 .chat-view-mode-dropdown-item.active .item-title {
-  color: var(--color-primary, #14b8a6);
+  color: var(--color-text);
 }
 
 .chat-view-mode-dropdown-item .item-desc {
   font-size: 0.72rem;
-  color: #a1a1aa;
+  color: var(--color-text-muted);
   line-height: 1.3;
   text-align: left;
 }
@@ -767,18 +766,28 @@
   min-width: var(--chat-input-row-h);
   border-radius: var(--radius-sm);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  overflow: visible;
+}
+
+.chat-view-send-btn svg,
+.chat-view-send-btn .icon-3d {
+  color: var(--color-on-primary) !important;
+  stroke: currentColor;
+  flex-shrink: 0;
 }
 
 .chat-view-send-btn svg {
   width: 1.15em;
   height: 1.15em;
+  min-width: 1.15em;
+  min-height: 1.15em;
 }
 
 .chat-view-send-btn:hover:not(:disabled) {
@@ -791,10 +800,15 @@
 }
 
 .chat-view-send-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   background: var(--color-surface-hover);
   color: var(--color-text-muted);
   cursor: not-allowed;
+}
+
+.chat-view-send-btn:disabled svg,
+.chat-view-send-btn:disabled .icon-3d {
+  color: var(--color-text-muted) !important;
 }
 
 /* â”€â”€â”€ Paper Picker Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
@@ -906,7 +920,7 @@
 }
 
 .picker-quick-btn {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
   font-size: 0.72rem;
@@ -917,9 +931,9 @@
 }
 
 .picker-quick-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
 }
 
 .paper-picker-checkbox-wrapper {
@@ -942,7 +956,7 @@
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-inset);
 }
 
 .paper-picker-checkbox:checked {
@@ -1082,21 +1096,22 @@
 }
 
 .paper-picker-confirm-btn {
-  background: linear-gradient(135deg, var(--color-primary), #0ea5e9);
-  color: #0c0a09;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   border: none;
   border-radius: var(--radius-sm);
   padding: 6px 14px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast);
 }
 
 .paper-picker-confirm-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.3);
-  filter: brightness(1.1);
+  background: var(--color-primary-hover);
+  transform: none;
+  box-shadow: none;
+  filter: none;
 }
 
 .chat-view-footnote-entry {
@@ -1189,7 +1204,7 @@
 .chat-view-footnotes {
   margin-top: var(--chat-gap);
   padding-top: var(--chat-gap);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--color-border);
   font-size: 0.92em;
 }
 
@@ -1213,7 +1228,7 @@
   justify-content: space-between;
   align-items: center;
   margin-top: var(--chat-gap);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--color-border-subtle);
   padding-top: calc(var(--chat-gap) * 0.75);
   font-size: 0.88em;
   color: var(--color-text-muted, #94a3b8);
@@ -1238,9 +1253,9 @@
 }
 
 .chat-view-strict-evidence-toggle.is-active {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.3);
-  color: var(--color-primary, #6366f1);
+  background: var(--color-highlight);
+  border-color: var(--color-border);
+  color: var(--color-text);
   font-weight: 600;
 }
 

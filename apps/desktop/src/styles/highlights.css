@@ -366,7 +366,8 @@
   margin-top: 12px;
   padding: 10px 24px;
   border-radius: var(--radius-md, 8px);
-  background: linear-gradient(135deg, var(--color-primary), #0ea5e9);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   color: #fff;
   border: none;
   font-size: 0.9rem;
@@ -836,7 +837,7 @@
   padding: 16px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-left: 2px solid #2dd4bf;
+  border-left: 2px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   transition: border-color var(--transition-fast);
   animation: cardFadeInUp 0.4s ease both;
@@ -852,7 +853,7 @@
 
 .hl-overview-card:hover {
   border-color: rgba(148, 163, 184, 0.3);
-  border-left-color: #2dd4bf;
+  border-left-color: var(--color-border-strong);
 }
 
 @keyframes cardFadeInUp {
@@ -912,7 +913,7 @@
 
 .hl-insight-summary-label {
   font-weight: 600;
-  color: #2dd4bf;
+  color: var(--color-border-strong);
   white-space: nowrap;
 }
 
@@ -929,7 +930,7 @@
 .hl-insight-summary-toggle {
   background: none;
   border: none;
-  color: #2dd4bf;
+  color: var(--color-border-strong);
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
@@ -1010,7 +1011,7 @@
   padding: 3px 8px;
   border-radius: 4px;
   background: rgba(45, 212, 191, 0.08);
-  color: #2dd4bf;
+  color: var(--color-border-strong);
   border: 1px solid rgba(45, 212, 191, 0.15);
   transition: all var(--transition-fast);
 }

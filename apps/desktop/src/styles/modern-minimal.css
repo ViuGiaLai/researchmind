@@ -1,0 +1,798 @@
+/* ═══════════════════════════════════════════════════════════
+   Modern Minimal — ALL PAGES (loaded last, wins cascade)
+   Flat · neutral · 1px borders · no glow/gradient decoration
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Base ── */
+body {
+  font-feature-settings: "cv01", "ss01";
+  letter-spacing: -0.011em;
+}
+
+h1, h2, h3, h4,
+.rm-page-header h2,
+.settings-page-title,
+.search-hero-title,
+.wow-title,
+.graph-header-left h2,
+.discovery-header h2,
+.daily-reader-hero-title,
+.personal-brain-header h2 {
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+/* ── Hide decorative glows / textures ── */
+.search-hero-glow,
+.aiwizard-glow-bg-1,
+.aiwizard-glow-bg-2,
+.wow-view::before,
+.wow-view::after,
+.wow-dropzone::before,
+.wow-dropzone::after,
+.aiwizard-card::before {
+  display: none !important;
+}
+
+/* ── Kill gradient text ── */
+.logo,
+.sidebar-brand .brand-text,
+.search-hero-title,
+.wow-title,
+.graph-header-left h2 {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: var(--color-text) !important;
+  color: var(--color-text) !important;
+}
+
+.icon-gradient,
+.icon-3d {
+  filter: none !important;
+  stroke: currentColor !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.icon-3d:hover,
+.icon-brain-img:hover {
+  transform: none !important;
+}
+
+.icon-brain-img {
+  filter: none !important;
+  animation: none !important;
+}
+
+.brain-icon-loading {
+  animation: iconSpin 1s linear infinite !important;
+}
+
+/* ══════════════ PAGE SHELLS ══════════════ */
+.chat-view,
+.library-view,
+.library-split-view,
+.search-view-modern,
+.settings-view,
+.wow-view,
+.personal-brain-view,
+.daily-reader-view,
+.graph-view,
+.insights-view,
+.discovery-view,
+.hl-view,
+.import-panel,
+.hub-shell,
+.rm-page,
+.evidence-matrix-view,
+.screening-board,
+.review-builder,
+.aiwizard-overlay {
+  background: var(--color-bg) !important;
+  color: var(--color-text);
+}
+
+.main,
+.hub-shell__content,
+.labs-content {
+  background: var(--color-bg);
+}
+
+/* ══════════════ SIDEBAR & NAV ══════════════ */
+.app-sidebar {
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+.sidebar-brand {
+  border-bottom: 1px solid var(--color-border);
+  min-height: 56px;
+}
+
+.sidebar-menu-btn:hover {
+  transform: none;
+  background: var(--color-surface-hover);
+}
+
+.sidebar-menu-btn.active {
+  background: var(--color-highlight);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: none !important;
+  border-left: 2px solid var(--color-text);
+  padding-left: 10px;
+}
+
+.collapsed .sidebar-menu-btn.active {
+  border-left: none;
+  border-bottom: 2px solid var(--color-text);
+  padding-left: 8px;
+}
+
+.sidebar-menu-btn-labs.active,
+.sidebar-menu-btn-wow.active {
+  box-shadow: none !important;
+  color: var(--color-text) !important;
+  background: var(--color-highlight) !important;
+}
+
+.sidebar-menu-btn-labs.active svg,
+.sidebar-menu-btn-wow.active svg {
+  filter: none !important;
+}
+
+.sidebar-collapse-btn:hover {
+  transform: none;
+}
+
+.nav-btn.active {
+  background: var(--color-text);
+  color: var(--color-on-primary);
+  border-color: var(--color-text);
+}
+
+/* ══════════════ TABS ══════════════ */
+.sub-tab-bar {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sub-tab-bar--underline .sub-tab-bar__btn.active {
+  color: var(--color-text);
+  border-bottom-color: var(--color-text);
+}
+
+.sub-tab-bar--pills .sub-tab-bar__btn.active {
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-on-primary);
+}
+
+/* ══════════════ SHARED: buttons, inputs, cards ══════════════ */
+.rm-btn--primary,
+.settings-save-btn,
+.folder-picker-btn,
+.chat-view-send-btn,
+.import-btn-primary,
+.import-tab.active,
+.wow-action-btn-header,
+.wow-regenerate-all-btn,
+.graph-header-actions .btn-primary,
+.daily-reader-refresh-btn,
+.discovery-search-btn,
+.search-submit-btn,
+.search-btn-modern,
+.aiwizard-btn-primary,
+.aiwizard-next-btn,
+.rm-btn--primary {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border: 1px solid var(--color-primary) !important;
+  box-shadow: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  transform: none !important;
+}
+
+.rm-btn--primary:hover:not(:disabled),
+.settings-save-btn:hover:not(:disabled),
+.chat-view-send-btn:hover:not(:disabled),
+.search-submit-btn:hover,
+.aiwizard-btn-primary:hover {
+  background: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  transform: none !important;
+}
+
+.rm-btn,
+.rm-btn--chip,
+.rm-chip,
+.rm-filter-pill,
+.import-tab,
+.chat-view-mode-select-trigger,
+.chat-view-strict-evidence-toggle,
+.settings-input,
+.settings-select,
+.rm-input,
+.discovery-search-input {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+}
+
+.rm-btn--chip.active,
+.rm-chip.selected,
+.rm-filter-pill.active,
+.import-tab.active {
+  background: var(--color-highlight) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.rm-card,
+.settings-section,
+.library-paper-card,
+.library-paper-row,
+.import-dropzone,
+.import-result-row,
+.personal-brain-section,
+.personal-brain-stat-card,
+.personal-brain-insight-card,
+.personal-brain-interest-group,
+.daily-reader-section,
+.daily-reader-paper-card,
+.daily-reader-stat,
+.graph-stat-card,
+.graph-entity-card,
+.discovery-result-card,
+.evidence-matrix-table-wrap,
+.screening-paper-card,
+.review-section-card,
+.rm-modal,
+.wow-loading-card,
+.wow-dropzone,
+.wow-action-btn,
+.wow-paper-card-select,
+.wow-card-section,
+.wow-step-indicator,
+.aiwizard-card,
+.hl-paper-card,
+.hl-highlight-card,
+.cite-panel,
+.trust-panel,
+.debate-panel {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.rm-card:hover,
+.library-paper-card:hover,
+.library-paper-row:hover,
+.daily-reader-paper-card:hover,
+.wow-paper-card-select:hover,
+.wow-card-section.completed:hover {
+  border-color: var(--color-text-muted) !important;
+  background: var(--color-surface-hover) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.rm-input:focus,
+.settings-input:focus,
+.search-input-modern:focus,
+.chat-view-textarea:focus,
+.discovery-search-input:focus,
+.aiwizard-input:focus {
+  border-color: var(--color-text-muted) !important;
+  box-shadow: 0 0 0 2px rgba(var(--color-text-rgb), 0.06) !important;
+}
+
+.rm-progress-fill,
+.personal-brain-progress-fill,
+.personal-brain-reading-fill,
+.graph-stat-bar-fill,
+.app-loading-bar-fill,
+.scan-progress-fill {
+  background: var(--color-text) !important;
+}
+
+/* ══════════════ CHAT ══════════════ */
+.chat-view-header,
+.chat-scope-tabs,
+.chat-view-input {
+  background: var(--color-bg) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.chat-view-textarea {
+  background: transparent !important;
+}
+
+.chat-view-scope-tab.active {
+  background: var(--color-highlight) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+.chat-view-message-assistant .chat-view-bubble,
+.chat-view-thinking-block {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.chat-view-send-btn {
+  background: var(--color-primary) !important;
+}
+
+.chat-view-mode-dropdown-menu {
+  box-shadow: var(--shadow-md) !important;
+}
+
+.chat-view-cite-btn,
+.chat-view-export-btn {
+  border: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+  box-shadow: none !important;
+}
+
+/* ══════════════ LIBRARY ══════════════ */
+.library-toolbar,
+.library-header,
+.library-sidebar,
+.library-main-panel,
+.library-preview-panel,
+.library-filters-bar {
+  background: var(--color-bg) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.library-paper-row.selected,
+.library-paper-card.selected {
+  background: var(--color-highlight) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.library-preview-header,
+.library-detail-panel {
+  background: var(--color-bg) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.library-empty-state,
+.library-loading {
+  color: var(--color-text-secondary);
+}
+
+/* ══════════════ SEARCH ══════════════ */
+.search-hero-modern {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  padding: 2rem 1.5rem !important;
+}
+
+.search-hero-badge {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.search-hero-stats {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.hero-stat-value,
+.hero-stat-value--icon {
+  color: var(--color-text) !important;
+}
+
+.search-bar-wrapper,
+.search-bar-input-wrapper {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+.search-bar-wrapper:focus-within {
+  border-color: var(--color-text-muted) !important;
+  box-shadow: 0 0 0 2px rgba(var(--color-text-rgb), 0.06) !important;
+}
+
+.search-result-card-modern,
+.search-cluster-card,
+.search-suggestion-chip,
+.search-filter-chip {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.search-result-card-modern:hover {
+  border-color: var(--color-text-muted) !important;
+  box-shadow: none !important;
+}
+
+.search-empty-modern {
+  background: transparent;
+}
+
+/* ══════════════ SETTINGS ══════════════ */
+.settings-view,
+.settings-shell,
+.settings-toolbar,
+.settings-content {
+  background: var(--color-bg);
+}
+
+.settings-section,
+.settings-mode-card,
+.settings-health,
+.settings-storage-box,
+.settings-actions--sticky {
+  box-shadow: none !important;
+}
+
+.settings-mode-card.active {
+  border-color: var(--color-text) !important;
+  background: var(--color-highlight) !important;
+}
+
+.settings-mode-badge {
+  background: var(--color-text) !important;
+  color: var(--color-on-primary) !important;
+}
+
+.settings-meta-chip {
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.settings-provider-tab.active {
+  background: var(--color-highlight) !important;
+  border-color: var(--color-text-muted) !important;
+  color: var(--color-text) !important;
+}
+
+/* ══════════════ WOW / INSIGHTS ══════════════ */
+.wow-view {
+  background: var(--color-bg) !important;
+  padding: var(--space-lg) !important;
+}
+
+.wow-loading-overlay {
+  background: rgba(var(--color-bg-rgb), 0.85) !important;
+  backdrop-filter: none !important;
+}
+
+.wow-spin {
+  color: var(--color-text-secondary) !important;
+}
+
+.wow-dropzone {
+  border: 1px dashed var(--color-border) !important;
+}
+
+.wow-dropzone:hover,
+.wow-dropzone.drag-over {
+  border-color: var(--color-text-muted) !important;
+  background: var(--color-surface-hover) !important;
+}
+
+.wow-dropzone-badge,
+.wow-paper-hover-badge {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+.wow-step-indicator.running {
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.wow-step-indicator-number {
+  background: var(--color-surface-hover) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.wow-card-section.running,
+.wow-card-section.completed,
+.wow-card-section.focused-highlight {
+  box-shadow: none !important;
+  border-color: var(--color-border) !important;
+}
+
+.wow-report-header,
+.wow-stepper {
+  background: var(--color-bg) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.insights-view,
+.insights-card,
+.insights-stat {
+  background: var(--color-bg);
+  box-shadow: none !important;
+}
+
+/* ══════════════ PERSONAL BRAIN & DAILY READER ══════════════ */
+.personal-brain-header,
+.personal-brain-stats-grid {
+  border: none;
+  box-shadow: none;
+}
+
+.personal-brain-stat-card {
+  border: 1px solid var(--color-border) !important;
+}
+
+.personal-brain-insight-card {
+  border-left: 2px solid var(--color-border) !important;
+}
+
+.personal-brain-tag,
+.personal-brain-lang-chip,
+.personal-brain-author-chip {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.daily-reader-hero,
+.daily-reader-streak {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.daily-reader-badge,
+.daily-reader-model-badge,
+.daily-reader-paper-tag {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+/* ══════════════ GRAPH ══════════════ */
+.graph-canvas-wrap,
+.graph-sidebar {
+  border: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+  box-shadow: none !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.graph-legend-item {
+  border: 1px solid var(--color-border);
+}
+
+/* ══════════════ IMPORT ══════════════ */
+.import-dropzone:hover,
+.import-dropzone.drag-over {
+  border-color: var(--color-text-muted) !important;
+  background: var(--color-surface-hover) !important;
+}
+
+.import-tabs {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.import-tab.active {
+  color: var(--color-on-primary) !important;
+}
+
+.import-format-chip {
+  background: var(--color-highlight) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+/* ══════════════ EVIDENCE / SCREENING / REVIEW / DISCOVERY ══════════════ */
+.evidence-matrix-view,
+.screening-board,
+.review-builder,
+.discovery-view {
+  padding: var(--space-md);
+}
+
+.evidence-matrix-header,
+.screening-header,
+.review-header {
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: none !important;
+}
+
+.rm-table th {
+  border-bottom: 1px solid var(--color-border) !important;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+}
+
+.rm-table td.rm-table-td--criterion {
+  background: var(--color-highlight) !important;
+}
+
+.rm-quote {
+  border-left-color: var(--color-border) !important;
+  background: var(--color-highlight) !important;
+}
+
+/* ══════════════ HIGHLIGHTS ══════════════ */
+.hl-view,
+.hl-sidebar,
+.hl-main {
+  background: var(--color-bg) !important;
+}
+
+.hl-tab.active {
+  background: var(--color-highlight) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+.hl-paper-card.active {
+  background: var(--color-highlight) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* ══════════════ PDF ══════════════ */
+.library-preview-panel,
+.pdf-toolbar,
+.pdf-highlight-banner {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.pdf-action-btn {
+  border: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+}
+
+/* ══════════════ CITE / TRUST / DEBATE ══════════════ */
+.cite-panel,
+.trust-panel,
+.debate-view {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: none !important;
+}
+
+.trust-panel-stat {
+  background: var(--color-surface) !important;
+}
+
+/* ══════════════ SETUP WIZARD ══════════════ */
+.aiwizard-overlay {
+  background: var(--color-bg) !important;
+}
+
+.aiwizard-card {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  padding: var(--space-xl) !important;
+}
+
+.aiwizard-mode-card,
+.aiwizard-tier-chip {
+  border: 1px solid var(--color-border) !important;
+  background: var(--color-surface) !important;
+  box-shadow: none !important;
+}
+
+.aiwizard-mode-card.active,
+.aiwizard-tier-chip.active {
+  border-color: var(--color-text) !important;
+  background: var(--color-highlight) !important;
+}
+
+.aiwizard-step-dot.active {
+  background: var(--color-text) !important;
+}
+
+/* ══════════════ TOAST & OVERLAY ══════════════ */
+.toast-item-outer {
+  box-shadow: var(--shadow-md) !important;
+  backdrop-filter: none !important;
+}
+
+.rm-overlay {
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.local-error-banner {
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+/* ══════════════ LIGHT THEME TWEAKS ══════════════ */
+[data-theme="light"] .search-hero-modern,
+[data-theme="light"] .wow-card-section,
+[data-theme="light"] .daily-reader-paper-card {
+  background: var(--color-surface) !important;
+}
+
+[data-theme="light"] .hero-stat-value {
+  color: var(--color-text) !important;
+}
+
+/* ══════════════ INSIGHTS / HIGHLIGHTS / GRAPH / SCAN ══════════════ */
+.insight-type-card,
+.insight-stat-card,
+.insights-stat {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.insight-type-card:hover {
+  transform: none !important;
+  border-color: var(--color-text-muted) !important;
+  box-shadow: none !important;
+}
+
+.hl-tab.active,
+.hl-highlight-card.active {
+  background: var(--color-highlight) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.hl-chat-selected-btn,
+.hl-evidence-action-btn,
+.hl-send-btn {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--color-primary) !important;
+}
+
+.hl-context-quote {
+  border-left-color: var(--color-border) !important;
+}
+
+.graph-progress-fill,
+.scan-progress-fill,
+.timeline-progress-fill {
+  background: var(--color-text) !important;
+  background-image: none !important;
+}
+
+.chat-panel-send-btn,
+.chat-panel-header {
+  box-shadow: none !important;
+}
+
+.chat-view-mode-dropdown-item.active {
+  background: var(--color-highlight) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.paper-picker-modal {
+  box-shadow: var(--shadow-md) !important;
+  border: 1px solid var(--color-border) !important;
+}

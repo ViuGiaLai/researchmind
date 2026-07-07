@@ -76,7 +76,7 @@
 
 .scan-progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #14b8a6);
+  background: var(--color-text);
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -85,7 +85,7 @@
   background: linear-gradient(
     90deg,
     var(--color-primary),
-    #14b8a6,
+    var(--color-primary-hover),
     var(--color-primary)
   );
   background-size: 200% 100%;

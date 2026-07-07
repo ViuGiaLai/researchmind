@@ -13,11 +13,11 @@
 }
 
 .pdf-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: var(--color-surface-hover) !important;
 }
 
 .pdf-nav-btn:active {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: var(--color-highlight) !important;
 }
 
 .pdf-nav-btn:disabled {

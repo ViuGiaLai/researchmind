@@ -569,8 +569,8 @@
 [data-theme="light"] .insights-run-btn,
 [data-theme="light"] .insights-action-btn.primary {
   color: #fff;
-  background: var(--color-primary, #0d9488);
-  border-color: var(--color-primary, #0d9488);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   box-shadow: 0 16px 36px rgba(var(--color-primary-rgb), .15);
 }
 
@@ -610,7 +610,7 @@
 }
 
 [data-theme="light"] .insight-item-label {
-  color: var(--color-primary, #0d9488);
+  color: var(--color-primary);
 }
 
 [data-theme="light"] .insights-citations,

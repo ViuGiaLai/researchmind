@@ -18,10 +18,10 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
     <div
       className="thinking-block"
       style={{
-        borderLeft: "3px solid var(--color-primary, #2dd4bf)",
+        borderLeft: "3px solid var(--color-border)",
         background: "var(--color-surface)",
         border: "1px solid var(--color-border)",
-        borderLeftColor: "var(--color-primary, #2dd4bf)",
+        borderLeftColor: "var(--color-text-muted)",
         padding: "10px 14px",
         borderRadius: "var(--radius-sm, 6px)",
         margin: "8px 0",
@@ -38,7 +38,7 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
           cursor: "pointer",
           userSelect: "none",
           fontWeight: 500,
-          color: "var(--color-primary, #2dd4bf)",
+          color: "var(--color-text-secondary)",
         }}
       >
         {isCollapsed ? <ChevronRight size={14} style={{ display: "inline" }} /> : <ChevronDown size={14} style={{ display: "inline" }} />}

@@ -16,11 +16,10 @@
 }
 
 .logo {
-  font-size: 1.25rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--color-primary), #14b8a6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
 }
 
 .header-right {
@@ -46,9 +45,9 @@
 }
 
 .nav-btn.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
+  background: var(--color-text);
+  color: var(--color-on-primary);
+  border-color: var(--color-text);
 }
 
 /* Main */
@@ -153,7 +152,7 @@
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -345,7 +344,7 @@
 .app-loading-bar-fill {
   height: 100%;
   width: 30%;
-  background: linear-gradient(90deg, var(--color-primary), #14b8a6);
+  background: var(--color-text);
   border-radius: 4px;
   animation: loading-indeterminate 1.5s ease-in-out infinite;
 }
@@ -404,12 +403,10 @@
 }
 
 .sidebar-brand .brand-text {
-  font-size: 1.2rem;
-  font-weight: 750;
-  background: linear-gradient(135deg, var(--color-primary), #14b8a6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: 0.5px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
   white-space: nowrap;
   overflow: hidden;
   flex: 1;
@@ -489,24 +486,25 @@
 .sidebar-menu-btn:hover {
   background: var(--color-surface-hover);
   color: var(--color-text);
-  transform: translateY(-0.5px);
 }
 
 .sidebar-menu-btn:active {
-  transform: scale(0.98);
+  opacity: 0.85;
 }
 
 .sidebar-menu-btn:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-text-muted);
   outline-offset: 2px;
 }
 
 .sidebar-menu-btn.active {
   background: var(--color-highlight);
-  border-color: rgba(var(--color-primary-rgb), 0.25);
+  border-color: var(--color-border);
   color: var(--color-text);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--color-primary), var(--shadow-sm);
+  box-shadow: none;
+  border-left: 2px solid var(--color-text);
+  padding-left: 10px;
 }
 
 .sidebar-divider {
@@ -519,33 +517,32 @@
 /* Labs section in sidebar */
 .sidebar-menu-btn-labs.active {
   background: var(--color-highlight);
-  border-color: rgba(var(--color-primary-rgb), 0.3);
-  color: var(--color-primary);
-  box-shadow: inset 3px 0 0 var(--color-primary), 0 0 20px rgba(var(--color-primary-rgb), 0.08);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  box-shadow: none;
 }
 
 .sidebar-menu-btn-labs:not(.active):hover {
-  color: var(--color-primary-hover);
+  color: var(--color-text);
 }
 
 .sidebar-menu-btn-labs.active svg {
-  filter: drop-shadow(0 0 6px rgba(var(--color-primary-rgb), 0.35));
+  filter: none;
 }
 
-/* Legacy wow class — keep for compatibility */
 .sidebar-menu-btn-wow.active {
-  background: rgba(20, 184, 166, 0.12);
-  border-color: rgba(20, 184, 166, 0.3);
-  color: var(--color-primary-hover, #2dd4bf);
-  box-shadow: 0 0 16px rgba(20, 184, 166, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.06);
+  background: var(--color-highlight);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  box-shadow: none;
 }
 
 .sidebar-menu-btn-wow.active svg {
-  filter: drop-shadow(0 0 6px rgba(20, 184, 166, 0.4));
+  filter: none;
 }
 
 .sidebar-menu-btn-wow:not(.active):hover {
-  color: var(--color-primary-hover, #2dd4bf);
+  color: var(--color-text);
 }
 
 .collapsed .sidebar-label {

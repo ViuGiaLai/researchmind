@@ -469,3 +469,34 @@
     max-width: 1200px;
   }
 }
+
+/* ── AI Workspace: touch & small viewports ── */
+@media (max-width: 768px) {
+  .chat-view {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .sub-tab-bar__btn {
+    min-height: 40px;
+    padding: 8px 12px;
+  }
+
+  .rm-btn,
+  .sidebar-menu-btn {
+    min-height: 36px;
+  }
+
+  .search-hero-modern {
+    padding: 1.25rem 1rem !important;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  .rm-btn,
+  .sidebar-menu-btn,
+  .sub-tab-bar__btn {
+    min-height: 40px;
+  }
+}

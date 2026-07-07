@@ -124,7 +124,7 @@
 
 .personal-brain-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #14b8a6);
+  background: var(--color-text);
   border-radius: 4px;
   transition: width 0.6s ease;
 }
@@ -170,8 +170,8 @@
 }
 
 .insight-action {
-  border-left: 3px solid var(--color-primary);
-  background: linear-gradient(135deg, rgba(99,102,241,0.06), transparent);
+  border-left: 3px solid var(--color-border);
+  background: var(--color-highlight);
 }
 
 .insight-progress {
@@ -310,7 +310,7 @@
 
 .personal-brain-author-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #14b8a6);
+  background: var(--color-text);
   border-radius: 3px;
 }
 
@@ -351,7 +351,7 @@
 
 .personal-brain-timeline-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #14b8a6);
+  background: var(--color-text);
   border-radius: 4px;
   transition: width 0.4s ease;
 }

@@ -1,0 +1,398 @@
+/* ═══════════════════════════════════════════════════════════
+   AI Workspace — UI Primitives
+   Buttons · Cards · Skeleton · Toast · Modal · Dropdown · Tooltip
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Click: scale 0.98 ── */
+button:not(:disabled),
+.rm-btn:not(:disabled),
+.sidebar-menu-btn,
+.nav-btn,
+.sub-tab-bar__btn,
+.filter-toggle-btn,
+.saved-search-chip-modern,
+.chat-view-scope-tab,
+.sidebar-menu-btn,
+.settings-theme-option {
+  transition: background-color var(--transition-normal),
+              border-color var(--transition-normal),
+              color var(--transition-normal),
+              box-shadow var(--transition-normal),
+              transform var(--transition-normal),
+              opacity var(--transition-normal);
+}
+
+button:active:not(:disabled),
+.rm-btn:active:not(:disabled),
+.sidebar-menu-btn:active,
+.nav-btn:active,
+.sub-tab-bar__btn:active,
+.filter-toggle-btn:active,
+.chat-view-send-btn:active:not(:disabled),
+.search-bar-submit:active:not(:disabled),
+.settings-save-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ── Button variants: Filled · Outline · Ghost ── */
+.rm-btn--outline {
+  background: transparent !important;
+  border: 1px solid var(--color-border-strong) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+}
+
+.rm-btn--outline:hover:not(:disabled) {
+  background: var(--color-surface-hover) !important;
+  border-color: var(--color-primary-muted) !important;
+  color: var(--color-primary) !important;
+}
+
+.rm-btn--ghost {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--color-text-secondary) !important;
+  box-shadow: none !important;
+}
+
+.rm-btn--ghost:hover:not(:disabled) {
+  background: var(--color-primary-subtle) !important;
+  color: var(--color-primary) !important;
+}
+
+.rm-btn--primary,
+.settings-save-btn,
+.chat-view-send-btn,
+.search-bar-submit,
+.filter-apply-btn,
+.folder-picker-btn {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-md) !important;
+  font-weight: 600 !important;
+}
+
+.rm-btn--primary:hover:not(:disabled),
+.settings-save-btn:hover:not(:disabled),
+.chat-view-send-btn:hover:not(:disabled),
+.search-bar-submit:hover:not(:disabled) {
+  background: var(--color-primary-hover) !important;
+  border-color: var(--color-primary-hover) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* ── Cards: outline + soft shadow + hover elevation ── */
+.rm-card,
+.settings-section,
+.library-paper-card,
+.library-paper-row,
+.search-result-card-modern,
+.wow-card-section,
+.personal-brain-section,
+.daily-reader-paper-card,
+.suggestion-card-modern,
+.filter-panel-modern {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: border-color var(--transition-normal),
+              box-shadow var(--transition-normal),
+              background var(--transition-normal),
+              transform var(--transition-normal);
+}
+
+.rm-card:hover,
+.library-paper-card:hover,
+.library-paper-row:hover,
+.search-result-card-modern:hover,
+.suggestion-card-modern:hover,
+.daily-reader-paper-card:hover,
+.wow-card-section.completed:hover {
+  border-color: var(--color-border) !important;
+  background: var(--color-surface-hover) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+}
+
+.rm-card--interactive:active,
+.library-paper-card:active,
+.search-result-card-modern:active {
+  transform: scale(0.995);
+}
+
+/* ── Fade animations ── */
+@keyframes aw-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes aw-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes aw-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.aw-fade-in,
+.rm-overlay,
+.toast-item-outer,
+.chat-view-mode-dropdown-menu,
+.search-suggest-dropdown-modern,
+.rm-dropdown-menu {
+  animation: aw-fade-in var(--transition-normal) var(--ease-workspace);
+}
+
+.aw-fade-up {
+  animation: aw-fade-up var(--transition-slow) var(--ease-workspace);
+}
+
+/* ── Skeleton + Shimmer ── */
+@keyframes skeletonShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-base {
+  display: inline-block;
+  height: 1em;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-inset) 25%,
+    var(--color-highlight) 37%,
+    var(--color-inset) 63%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-library-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 8px;
+}
+
+/* ── Toast (floating) ── */
+.toast-container {
+  z-index: 9999;
+}
+
+.toast-item-outer,
+.toast-card {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  background: var(--color-surface) !important;
+  box-shadow: var(--shadow-float) !important;
+}
+
+.toast-item-outer.toast-dismissing {
+  animation: aw-fade-out var(--transition-normal) var(--ease-workspace) forwards;
+}
+
+/* ── Modal / Dialog — glass chỉ ở dialog ── */
+.rm-overlay {
+  background: var(--color-overlay) !important;
+  backdrop-filter: blur(2px);
+  animation: aw-fade-in var(--transition-normal) var(--ease-workspace);
+}
+
+.rm-modal,
+.aiwizard-card,
+.paper-picker-modal {
+  background: var(--color-glass) !important;
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-lg) !important;
+  animation: aw-fade-up var(--transition-slow) var(--ease-workspace);
+}
+
+/* ── Floating dropdown menu ── */
+.rm-dropdown-menu,
+.chat-view-mode-dropdown-menu,
+.search-suggest-dropdown-modern,
+.settings-provider-dropdown {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border-subtle) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-float) !important;
+  padding: 4px !important;
+  animation: aw-fade-up var(--transition-normal) var(--ease-workspace);
+}
+
+.rm-dropdown-item,
+.chat-view-mode-dropdown-item,
+.search-suggest-item-modern {
+  border-radius: var(--radius-sm) !important;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.rm-dropdown-item:hover,
+.chat-view-mode-dropdown-item:hover,
+.search-suggest-item-modern:hover {
+  background: var(--color-primary-subtle) !important;
+  color: var(--color-primary) !important;
+}
+
+/* ── Tooltip ── */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.96);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-on-primary);
+  background: var(--color-text);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 10000;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* ── Thin custom scrollbar ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+
+/* ── Charts: flat interactive ── */
+.rm-chart,
+.graph-canvas-wrap canvas,
+.chart-bar {
+  border-radius: var(--radius-sm);
+}
+
+.graph-stat-bar-fill,
+.rm-progress-fill,
+.scan-progress-bar-fill {
+  background: var(--color-primary) !important;
+  border-radius: var(--radius-full);
+}
+
+.graph-stat-bar-track,
+.rm-progress-track {
+  background: var(--color-inset) !important;
+  border-radius: var(--radius-full);
+}
+
+/* ── Accent gradient (minimal, accent only) ── */
+.scan-progress-bar-fill.animate {
+  background: linear-gradient(
+    90deg,
+    var(--color-primary),
+    var(--color-primary-hover),
+    var(--color-primary)
+  ) !important;
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Theme selector (settings) ── */
+.settings-theme-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.settings-theme-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-theme-option:hover {
+  border-color: var(--color-primary-muted);
+  color: var(--color-text);
+}
+
+.settings-theme-option.active {
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Lucide icons: consistent stroke ── */
+.lucide,
+[class^="icon-"] svg {
+  stroke-width: 1.75;
+}
+
+/* Icons on filled primary surfaces must contrast with button bg */
+.chat-view-send-btn .icon-3d,
+.chat-view-send-btn svg,
+.rm-btn--primary .icon-3d,
+.rm-btn--primary svg,
+.settings-save-btn .icon-3d,
+.settings-save-btn svg,
+.search-bar-submit .icon-3d,
+.search-bar-submit svg,
+.folder-picker-btn .icon-3d,
+.folder-picker-btn svg {
+  color: var(--color-on-primary) !important;
+  stroke: currentColor;
+}
+
+.icon-gradient {
+  color: var(--color-primary) !important;
+}

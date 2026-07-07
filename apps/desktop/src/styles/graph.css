@@ -671,7 +671,7 @@
 
 .graph-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), #a78bfa);
+  background: var(--color-text);
   border-radius: 99px;
   transition: width 0.3s ease;
 }

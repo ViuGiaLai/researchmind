@@ -214,22 +214,24 @@
   cursor: default;
 }
 
-/* Theme toggle */
+/* Theme toggle — Soft Modern */
 .settings-theme-toggle {
   position: relative;
   width: 48px;
   height: 26px;
   flex-shrink: 0;
   padding: 3px;
-  border: none;
-  border-radius: 13px;
-  background: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-inset);
   cursor: pointer;
-  transition: background 0.25s ease;
+  transition: background 0.25s ease, border-color 0.25s ease;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .settings-theme-toggle.is-light {
-  background: var(--color-border);
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary-muted);
 }
 
 .settings-theme-knob {
@@ -237,9 +239,9 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  transition: transform 0.25s ease;
+  background: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.25s ease, background 0.25s ease;
 }
 
 .settings-theme-toggle.is-light .settings-theme-knob {
@@ -319,7 +321,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 .settings-actions--footer {
@@ -333,7 +335,7 @@
   align-items: center;
   gap: var(--space-sm);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-lg);
@@ -351,7 +353,7 @@
 
 .settings-save-btn:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .settings-save-btn:disabled {

@@ -994,8 +994,8 @@
 
 /* Auto Summary Section in Preview Panel */
 .preview-summary-section {
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.08), rgba(94, 234, 212, 0.05));
-  border: 1px solid rgba(45, 212, 191, 0.25);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   margin-bottom: var(--space-md);
@@ -1219,8 +1219,8 @@
 }
 
 .highlight-card.highlight-high {
-  border-left: 3px solid var(--color-primary);
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.06), var(--color-surface));
+  border-left: 3px solid var(--color-border);
+  background: var(--color-highlight);
 }
 
 .highlight-card.highlight-medium {
@@ -1389,8 +1389,8 @@
   justify-content: center;
   min-width: 60px;
   padding: var(--space-xs);
-  background: linear-gradient(135deg, rgba(45, 212, 191, 0.1), rgba(94, 234, 212, 0.05));
-  border: 1px solid rgba(45, 212, 191, 0.2);
+  background: var(--color-highlight);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
 }
 

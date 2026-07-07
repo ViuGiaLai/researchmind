@@ -26,9 +26,7 @@
 .chat-header-title {
   font-size: 1.25rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--color-primary), #14b8a6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-text);
 }
 
 .chat-header-desc {

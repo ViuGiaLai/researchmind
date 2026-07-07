@@ -14,8 +14,8 @@
 }
 
 .import-dropzone:hover, .import-dropzone.drag-over {
-  border-color: var(--color-primary);
-  background: var(--color-highlight);
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-hover);
 }
 
 .import-dropzone-icon {
