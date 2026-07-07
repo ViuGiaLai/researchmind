@@ -16,6 +16,16 @@ import {
   IconFolderOpen,
   IconRefresh,
   IconTrash,
+  IconEye,
+  IconEyeOff,
+  IconCloud,
+  IconLaptop,
+  IconRotateCcw,
+  IconSkipForward,
+  IconPlug,
+  IconCircle,
+  IconPauseCircle,
+  IconWithText,
 } from "../Icons";
 import { SubTabBar } from "../shared/SubTabBar";
 
@@ -274,14 +284,14 @@ export const SettingsView: React.FC = () => {
       if (!selected) return;
       
       // 1. Check disk space for the new folder
-      setStorageMsg({ type: "success", text: "⏳ Đang kiểm tra dung lượng ổ đĩa..." });
+      setStorageMsg({ type: "success", text: "Đang kiểm tra dung lượng ổ đĩa..." });
       const space = await api.getDiskSpace(selected);
       
-      let confirmMsg = `Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n👉 ${selected}\n\n`;
+      let confirmMsg = `Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n${selected}\n\n`;
       confirmMsg += `Ổ đĩa đích còn trống: ${space.free_gb} GB.\n`;
       
       if (space.warning) {
-        confirmMsg += `⚠️ CẢNH BÁO: Dung lượng ổ đĩa đích còn khá thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục không?\n\n`;
+        confirmMsg += `CẢNH BÁO: Dung lượng ổ đĩa đích còn khá thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục không?\n\n`;
       } else {
         confirmMsg += `Bạn có chắc chắn muốn di chuyển không?\n\n`;
       }
@@ -294,7 +304,7 @@ export const SettingsView: React.FC = () => {
       
       // 2. Perform moving storage
       setActionLoading(true);
-      setStorageMsg({ type: "success", text: "⏳ Đang di chuyển dữ liệu (vui lòng không tắt ứng dụng)..." });
+      setStorageMsg({ type: "success", text: "Đang di chuyển dữ liệu (vui lòng không tắt ứng dụng)..." });
       
       const res = await api.moveStorage(selected);
       setStorageMsg({ type: "success", text: res.message || "Đã chuyển thư mục thành công." });
@@ -338,7 +348,7 @@ export const SettingsView: React.FC = () => {
 
   const handleClearData = async () => {
     const confirmClear = window.confirm(
-      "⚠️ CẢNH BÁO: Hành động này sẽ xoá TOÀN BỘ tài liệu PDF đã import, lịch sử chat, các ghi chú và cơ sở dữ liệu tìm kiếm vector. Cấu hình cài đặt và API Key của bạn vẫn được GIỮ LẠI.\n\nBạn có chắc chắn muốn tiếp tục?"
+      "CẢNH BÁO: Hành động này sẽ xoá TOÀN BỘ tài liệu PDF đã import, lịch sử chat, các ghi chú và cơ sở dữ liệu tìm kiếm vector. Cấu hình cài đặt và API Key của bạn vẫn được GIỮ LẠI.\n\nBạn có chắc chắn muốn tiếp tục?"
     );
     if (!confirmClear) return;
 
@@ -357,7 +367,7 @@ export const SettingsView: React.FC = () => {
 
   const handleResetApp = async () => {
     const confirmReset = window.confirm(
-      "❌ CẢNH BÁO NGUY HIỂM: Hành động này sẽ xoá SẠCH HOÀN TOÀN cấu hình cài đặt, API Key, tài liệu PDF, lịch sử chat và vector database. Ứng dụng sẽ quay trở về trạng thái ban đầu như lúc vừa mới cài đặt.\n\nBạn có chắc chắn muốn reset toàn bộ ứng dụng không?"
+      "CẢNH BÁO NGUY HIỂM: Hành động này sẽ xoá SẠCH HOÀN TOÀN cấu hình cài đặt, API Key, tài liệu PDF, lịch sử chat và vector database. Ứng dụng sẽ quay trở về trạng thái ban đầu như lúc vừa mới cài đặt.\n\nBạn có chắc chắn muốn reset toàn bộ ứng dụng không?"
     );
     if (!confirmReset) return;
 
@@ -776,11 +786,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 API key được lưu trên máy bạn, không gửi đi đâu.
+                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
                     <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy key tại đây →
                     </a>
@@ -813,11 +823,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 API key được lưu trên máy bạn, không gửi đi đâu.
+                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
                     <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy key tại đây →
                     </a>
@@ -851,11 +861,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 API key được lưu trên máy bạn, không gửi đi đâu.
+                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
                     <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy key tại đây →
                     </a>
@@ -889,11 +899,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 API key được lưu trên máy bạn.
+                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn.</IconWithText>
                     <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy key tại đây →
                     </a>
@@ -927,11 +937,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 API key được lưu trên máy bạn.
+                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn.</IconWithText>
                     <a href="https://build.nvidia.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy key tại đây →
                     </a>
@@ -965,11 +975,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 API key được lưu trên máy bạn.
+                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn.</IconWithText>
                     <a href="https://freemodel.dev/" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy key tại đây →
                     </a>
@@ -1003,11 +1013,11 @@ export const SettingsView: React.FC = () => {
                       onClick={() => setShowApiKey(!showApiKey)}
                       title={showApiKey ? "Ẩn key" : "Hiện key"}
                     >
-                      {showApiKey ? "🙈" : "👁️"}
+                      {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    🔒 Token được lưu trên máy bạn, không gửi đi đâu.
+                    <IconWithText icon={IconLock} size={12}>Token được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
                     <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="settings-link">
                       {" "}Lấy token tại đây →
                     </a>
@@ -1139,14 +1149,14 @@ export const SettingsView: React.FC = () => {
                 onClick={handleSelectZoteroPath}
                 style={{ padding: "6px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
               >
-                📁 Chọn thư mục
+                <IconWithText icon={IconFolder} size={14}>Chọn thư mục</IconWithText>
               </button>
               <button 
                 className="settings-btn-secondary" 
                 onClick={handleDetectZotero}
                 style={{ padding: "6px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
               >
-                ⚡ Tự động tìm
+                <IconWithText icon={IconZap} size={14}>Tự động tìm</IconWithText>
               </button>
             </div>
           </div>
@@ -1200,11 +1210,11 @@ export const SettingsView: React.FC = () => {
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {modelStatus.embedder.loaded ? (
                       <>
-                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>🟢 Hoạt động</span>
+                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>Hoạt động</IconWithText></span>
                         <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>Chờ: {modelStatus.embedder.idle_seconds}s</span>
                       </>
                     ) : (
-                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>💤 Tạm dừng</span>
+                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>Tạm dừng</IconWithText></span>
                     )}
                   </div>
                 </div>
@@ -1217,11 +1227,11 @@ export const SettingsView: React.FC = () => {
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {modelStatus.reranker.loaded ? (
                       <>
-                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>🟢 Hoạt động</span>
+                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>Hoạt động</IconWithText></span>
                         <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>Chờ: {modelStatus.reranker.idle_seconds}s</span>
                       </>
                     ) : (
-                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}>💤 Tạm dừng</span>
+                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>Tạm dừng</IconWithText></span>
                     )}
                   </div>
                 </div>
@@ -1385,8 +1395,8 @@ export const SettingsView: React.FC = () => {
             Embedding:{" "}
             <strong>
               {embeddingMode === "cloud"
-                ? `☁️ Gemini`
-                : `💻 ${embeddingModel || "bge-m3"} (local)`}
+                ? <IconWithText icon={IconCloud} size={12}>Gemini</IconWithText>
+                : <IconWithText icon={IconLaptop} size={12}>{`${embeddingModel || "bge-m3"} (local)`}</IconWithText>}
             </strong>
             <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <select
@@ -1430,7 +1440,19 @@ export const SettingsView: React.FC = () => {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {testingEmbedding ? "⏳" : embeddingTestResult === "success" ? "✅ OK" : embeddingTestResult === "error" ? "❌ Lỗi" : "Kết nối"}
+                  {testingEmbedding ? (
+                    <IconSpinner size={14} />
+                  ) : embeddingTestResult === "success" ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <IconCheck size={14} /> OK
+                    </span>
+                  ) : embeddingTestResult === "error" ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <IconError size={14} /> Lỗi
+                    </span>
+                  ) : (
+                    "Kết nối"
+                  )}
                 </button>
               )}
               {embeddingTestMsg && (
@@ -1447,13 +1469,21 @@ export const SettingsView: React.FC = () => {
           <p>
             MMR:{" "}
             <strong>
-              {mmrLambda !== "" ? `🔄 λ=${mmrLambda}` : "⏭️ Tắt"}
+              {mmrLambda !== "" ? (
+                <IconWithText icon={IconRotateCcw} size={12}>{`λ=${mmrLambda}`}</IconWithText>
+              ) : (
+                <IconWithText icon={IconSkipForward} size={12}>Tắt</IconWithText>
+              )}
             </strong>
           </p>
           <p style={{ marginTop: 4 }}>
             Reranker:{" "}
             <strong>
-              {enableReranker ? "🔌 Bật (Chậm, chính xác hơn)" : "⚡ Tắt (Nhanh, nhẹ)"}
+              {enableReranker ? (
+                <IconWithText icon={IconPlug} size={12}>Bật (Chậm, chính xác hơn)</IconWithText>
+              ) : (
+                <IconWithText icon={IconZap} size={12}>Tắt (Nhanh, nhẹ)</IconWithText>
+              )}
             </strong>
             <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <select

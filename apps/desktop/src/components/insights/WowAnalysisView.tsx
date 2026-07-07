@@ -8,6 +8,15 @@ import {
   IconBrain,
   IconFileText,
   IconChat,
+  IconSparkle,
+  IconWarning,
+  IconSwords,
+  IconCircleDot,
+  IconBrainAi,
+  IconZap,
+  IconRotateCcw,
+  IconArrowDown,
+  IconWithText,
 } from "../Icons";
 import { useToast } from "../shared/Toast";
 import "./WowAnalysisView.css";
@@ -26,6 +35,22 @@ interface WowAnalysisViewProps {
   initialPaperId?: string | null;
   onClearInitialPaperId?: () => void;
 }
+
+const WOW_STEP_META = {
+  summary: { label: "Tóm tắt ngay", Icon: IconSparkle },
+  critique: { label: "Điểm yếu", Icon: IconWarning },
+  conflict: { label: "Mâu thuẫn", Icon: IconSwords },
+  gap: { label: "Research Gap", Icon: IconCircleDot },
+  debate: { label: "Tranh luận AI", Icon: IconBrainAi },
+} as const;
+
+const WOW_STEPS = [
+  { key: "summary" as const, color: "#10b981" },
+  { key: "critique" as const, color: "#ef4444" },
+  { key: "conflict" as const, color: "#f59e0b" },
+  { key: "gap" as const, color: "#2dd4bf" },
+  { key: "debate" as const, color: "#06b6d4" },
+];
 
 const LOADER_MESSAGES: Record<string, string[]> = {
   summary: [
@@ -517,15 +542,15 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
           {/* Action Buttons */}
           <div className="wow-action-buttons">
             <button className="wow-action-btn wow-action-summary" onClick={() => handleActionClick("summary")}>
-              <span className="wow-action-icon">📄</span>
+              <span className="wow-action-icon"><IconFileText size={20} /></span>
               <span className="wow-action-label">Tóm tắt ngay</span>
             </button>
             <button className="wow-action-btn wow-action-critique" onClick={() => handleActionClick("critique")}>
-              <span className="wow-action-icon">⚠️</span>
+              <span className="wow-action-icon"><IconWarning size={20} /></span>
               <span className="wow-action-label">Xem điểm yếu</span>
             </button>
             <button className="wow-action-btn wow-action-debate" onClick={() => handleActionClick("debate")}>
-              <span className="wow-action-icon">⚔️</span>
+              <span className="wow-action-icon"><IconSwords size={20} /></span>
               <span className="wow-action-label">So sánh</span>
             </button>
           </div>
@@ -541,7 +566,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             ) : libraryPapers.length === 0 ? (
               <div className="wow-library-empty">
                 <p>Chưa có tài liệu</p>
-                <p className="wow-empty-hint">👇 Kéo PDF vào để AI phân tích ngay</p>
+                <p className="wow-empty-hint">
+                  <IconWithText icon={IconArrowDown} size={14}>Kéo PDF vào để AI phân tích ngay</IconWithText>
+                </p>
               </div>
             ) : (
               <div className="wow-papers-grid">
@@ -563,7 +590,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                         {paper.authors ? `${paper.authors.replace(/[\[\]"']/g, "").slice(0, 40)}...` : "Không rõ tác giả"}
                       </p>
                     </div>
-                    <div className="wow-paper-hover-badge">⚡ WOW</div>
+                    <div className="wow-paper-hover-badge">
+                      <IconWithText icon={IconZap} size={12}>WOW</IconWithText>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -608,7 +637,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 {regeneratingAll ? (
                   <><IconSpinner size={14} /> Đang tạo lại...</>
                 ) : (
-                  <><span>🔄</span> Tạo lại tất cả</>
+                  <><IconRotateCcw size={14} /> Tạo lại tất cả</>
                 )}
               </button>
               <button
@@ -623,13 +652,8 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
 
           {/* Stepper Status Bar */}
           <div className="wow-stepper">
-            {[
-              { key: "summary", label: "✨ Tóm tắt ngay", color: "#10b981" },
-              { key: "critique", label: "⚠️ Điểm yếu", color: "#ef4444" },
-              { key: "conflict", label: "⚔️ Mâu thuẫn", color: "#f59e0b" },
-              { key: "gap", label: "🕳️ Research Gap", color: "#2dd4bf" },
-              { key: "debate", label: "🧠 Tranh luận AI", color: "#06b6d4" },
-            ].map((step, idx) => {
+            {WOW_STEPS.map((step, idx) => {
+              const meta = WOW_STEP_META[step.key];
               const state = steps[step.key];
               return (
                 <div
@@ -639,7 +663,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     const element = document.getElementById(`wow-section-${step.key}`);
                     element?.scrollIntoView({ behavior: "smooth", block: "center" });
                   }}
-                  title={`Xem phần ${step.label}`}
+                  title={`Xem phần ${meta.label}`}
                 >
                   <div className="wow-step-indicator-number">
                     {state.status === "completed" ? (
@@ -652,7 +676,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                       idx + 1
                     )}
                   </div>
-                  <span className="wow-step-indicator-label">{step.label}</span>
+                  <span className="wow-step-indicator-label">
+                    <IconWithText icon={meta.Icon} size={13}>{meta.label}</IconWithText>
+                  </span>
                 </div>
               );
             })}
@@ -667,7 +693,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
-                  <span className="wow-card-icon-badge">✨</span>
+                  <span className="wow-card-icon-badge"><IconSparkle size={16} /></span>
                   <h3>Tóm tắt học thuật cực nhanh</h3>
                 </div>
                 <div className="wow-card-status-label">
@@ -719,7 +745,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     {regeneratingSteps.summary ? (
                       <><IconSpinner size={13} /> Đang tạo...</>
                     ) : (
-                      <><span>🔄</span> Tạo lại</>
+                      <><IconRotateCcw size={14} /> Tạo lại</>
                     )}
                   </button>
                 </footer>
@@ -733,7 +759,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
-                  <span className="wow-card-icon-badge">⚠️</span>
+                  <span className="wow-card-icon-badge"><IconWarning size={16} /></span>
                   <h3>Điểm yếu & Hạn chế cốt lõi</h3>
                 </div>
                 <div className="wow-card-status-label">
@@ -785,7 +811,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     {regeneratingSteps.critique ? (
                       <><IconSpinner size={13} /> Đang tạo...</>
                     ) : (
-                      <><span>🔄</span> Tạo lại</>
+                      <><IconRotateCcw size={14} /> Tạo lại</>
                     )}
                   </button>
                 </footer>
@@ -799,7 +825,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
-                  <span className="wow-card-icon-badge">⚔️</span>
+                  <span className="wow-card-icon-badge"><IconSwords size={16} /></span>
                   <h3>Mâu thuẫn & Tranh chấp khoa học</h3>
                 </div>
                 <div className="wow-card-status-label">
@@ -851,7 +877,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     {regeneratingSteps.conflict ? (
                       <><IconSpinner size={13} /> Đang tạo...</>
                     ) : (
-                      <><span>🔄</span> Tạo lại</>
+                      <><IconRotateCcw size={14} /> Tạo lại</>
                     )}
                   </button>
                 </footer>
@@ -865,7 +891,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
-                  <span className="wow-card-icon-badge">🕳️</span>
+                  <span className="wow-card-icon-badge"><IconCircleDot size={16} /></span>
                   <h3>Lỗ hổng nghiên cứu (Research Gap)</h3>
                 </div>
                 <div className="wow-card-status-label">
@@ -917,7 +943,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     {regeneratingSteps.gap ? (
                       <><IconSpinner size={13} /> Đang tạo...</>
                     ) : (
-                      <><span>🔄</span> Tạo lại</>
+                      <><IconRotateCcw size={14} /> Tạo lại</>
                     )}
                   </button>
                 </footer>
@@ -931,7 +957,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             >
               <header className="wow-card-header">
                 <div className="wow-card-title">
-                  <span className="wow-card-icon-badge">🧠</span>
+                  <span className="wow-card-icon-badge"><IconBrainAi size={16} /></span>
                   <h3>Tranh luận AI đa chiều & Đề xuất</h3>
                 </div>
                 <div className="wow-card-status-label">
@@ -983,7 +1009,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     {regeneratingSteps.debate ? (
                       <><IconSpinner size={13} /> Đang tạo...</>
                     ) : (
-                      <><span>🔄</span> Tạo lại</>
+                      <><IconRotateCcw size={14} /> Tạo lại</>
                     )}
                   </button>
                   {onStartDebate && (

@@ -1,5 +1,5 @@
 import React from "react";
-import { IconCheck, IconError, IconSearch, IconDownload, IconBrain } from "../Icons";
+import { IconCheck, IconError, IconSearch, IconDownload, IconBrain, IconChart, IconWarning, IconFileText, IconLink, IconWithText } from "../Icons";
 
 interface ClaimAnalysis {
   total_claims: number;
@@ -94,12 +94,12 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
         }}
       >
         {[
-          { label: "Tổng nhận định", value: analysis.total_claims, icon: "📊" },
-          { label: "Có trích dẫn", value: `${analysis.cited_claims}/${analysis.total_claims}`, icon: "✅", color: "#10b981" },
-          { label: "Thiếu nguồn", value: analysis.uncited_claims, icon: "⚠️", color: analysis.uncited_claims > 0 ? "#f59e0b" : undefined },
-          { label: "Nguồn trực tiếp", value: analysis.direct_sources, icon: "📄" },
-          { label: "Nguồn gián tiếp", value: analysis.indirect_sources, icon: "🔗", color: "#94a3b8" },
-          { label: "Trích dẫn nghi ngờ", value: analysis.suspicious_citations, icon: "🔍", color: analysis.suspicious_citations > 0 ? "#ef4444" : undefined },
+          { label: "Tổng nhận định", value: analysis.total_claims, icon: IconChart },
+          { label: "Có trích dẫn", value: `${analysis.cited_claims}/${analysis.total_claims}`, icon: IconCheck, color: "#10b981" },
+          { label: "Thiếu nguồn", value: analysis.uncited_claims, icon: IconWarning, color: analysis.uncited_claims > 0 ? "#f59e0b" : undefined },
+          { label: "Nguồn trực tiếp", value: analysis.direct_sources, icon: IconFileText },
+          { label: "Nguồn gián tiếp", value: analysis.indirect_sources, icon: IconLink, color: "#94a3b8" },
+          { label: "Trích dẫn nghi ngờ", value: analysis.suspicious_citations, icon: IconSearch, color: analysis.suspicious_citations > 0 ? "#ef4444" : undefined },
         ].map((stat, i) => (
           <div
             key={i}
@@ -112,7 +112,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               gap: "8px",
             }}
           >
-            <span style={{ fontSize: "0.9rem" }}>{stat.icon}</span>
+            <stat.icon size={14} style={stat.color ? { color: stat.color } : undefined} />
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
@@ -150,7 +150,9 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               letterSpacing: "0.5px",
             }}
           >
-            ⚠️ Nhận định thiếu nguồn
+            <IconWithText icon={IconWarning} size={12}>
+              Nhận định thiếu nguồn
+            </IconWithText>
           </div>
           {analysis.uncited_claim_texts.map((text, i) => (
             <div
@@ -182,7 +184,9 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               letterSpacing: "0.5px",
             }}
           >
-            🔍 Trích dẫn nghi ngờ
+            <IconWithText icon={IconSearch} size={12}>
+              Trích dẫn nghi ngờ
+            </IconWithText>
           </div>
           {analysis.suspicious_citation_texts.map((text, i) => (
             <div

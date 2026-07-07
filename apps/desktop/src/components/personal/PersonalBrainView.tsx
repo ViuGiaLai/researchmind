@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, PersonalBrainResponse } from "../../lib/api";
-import { IconBrain, IconSpinner, IconBook, IconStar, IconLibrary, IconChat } from "../Icons";
+import { IconBrain, IconSpinner, IconBook, IconStar, IconLibrary, IconChat, IconActivity, IconBulb, IconTags, IconPenLine, IconCalendar, IconClock, IconWithText } from "../Icons";
 
 export const PersonalBrainView: React.FC = () => {
   const [data, setData] = useState<PersonalBrainResponse | null>(null);
@@ -98,7 +98,9 @@ export const PersonalBrainView: React.FC = () => {
 
       {/* Reading Progress Bar */}
       <div className="personal-brain-section">
-        <h3 className="personal-brain-section-title">📊 Tiến độ đọc</h3>
+        <h3 className="personal-brain-section-title">
+          <IconWithText icon={IconActivity} size={16}>Tiến độ đọc</IconWithText>
+        </h3>
         <div className="personal-brain-progress-container">
           <div className="personal-brain-progress-bar">
             <div
@@ -125,7 +127,9 @@ export const PersonalBrainView: React.FC = () => {
       {/* AI Insights */}
       {insights.length > 0 && (
         <div className="personal-brain-section">
-          <h3 className="personal-brain-section-title">💡 Gợi ý từ AI</h3>
+          <h3 className="personal-brain-section-title">
+            <IconWithText icon={IconBulb} size={16}>Gợi ý từ AI</IconWithText>
+          </h3>
           <div className="personal-brain-insights-list">
             {insights.map((insight, i) => (
               <div key={i} className={`personal-brain-insight-card insight-${insight.type}`}>
@@ -142,7 +146,9 @@ export const PersonalBrainView: React.FC = () => {
 
       {/* Topic Interests */}
       <div className="personal-brain-section">
-        <h3 className="personal-brain-section-title">🏷️ Chủ đề quan tâm</h3>
+        <h3 className="personal-brain-section-title">
+          <IconWithText icon={IconTags} size={16}>Chủ đề quan tâm</IconWithText>
+        </h3>
         <div className="personal-brain-interests-grid">
           {/* Tags */}
           {topic_interests.top_tags.length > 0 && (
@@ -194,7 +200,9 @@ export const PersonalBrainView: React.FC = () => {
       {/* Author Preferences */}
       {author_preferences.top_authors.length > 0 && (
         <div className="personal-brain-section">
-          <h3 className="personal-brain-section-title">✍️ Tác giả yêu thích</h3>
+          <h3 className="personal-brain-section-title">
+            <IconWithText icon={IconPenLine} size={16}>Tác giả yêu thích</IconWithText>
+          </h3>
           <div className="personal-brain-authors-list">
             {author_preferences.top_authors.map((author) => (
               <div key={author.author} className="personal-brain-author-row">
@@ -215,7 +223,9 @@ export const PersonalBrainView: React.FC = () => {
       {/* Reading Timeline */}
       {timeline.length > 0 && (
         <div className="personal-brain-section">
-          <h3 className="personal-brain-section-title">📅 Lịch sử nhập liệu</h3>
+          <h3 className="personal-brain-section-title">
+            <IconWithText icon={IconCalendar} size={16}>Lịch sử nhập liệu</IconWithText>
+          </h3>
           <div className="personal-brain-timeline">
             {timeline.map((t) => (
               <div key={t.month} className="personal-brain-timeline-item">
@@ -236,7 +246,9 @@ export const PersonalBrainView: React.FC = () => {
       {/* Recent Activity */}
       {recent_activity.length > 0 && (
         <div className="personal-brain-section">
-          <h3 className="personal-brain-section-title">🕐 Hoạt động gần đây</h3>
+          <h3 className="personal-brain-section-title">
+            <IconWithText icon={IconClock} size={16}>Hoạt động gần đây</IconWithText>
+          </h3>
           <div className="personal-brain-activity-list">
             {recent_activity.slice(0, 5).map((activity, i) => (
               <div key={i} className="personal-brain-activity-item">

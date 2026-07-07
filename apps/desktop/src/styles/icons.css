@@ -88,4 +88,14 @@
   color: var(--color-primary);
 }
 
+.icon-with-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  vertical-align: middle;
+}
+
+.personal-brain-section-title .icon-with-text {
+  gap: 0.45em;
+}
 

@@ -86,6 +86,12 @@
   font-size: 1rem;
   color: #e2e8f0;
 }
+.hero-stat-value--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary, #2dd4bf);
+}
 .hero-stat-label {
   font-size: 0.7rem;
   color: var(--text-muted, #64748b);

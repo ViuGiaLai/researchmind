@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { api, BASE_URL } from "../../lib/api";
 import { useToast } from "../shared/Toast";
-import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose } from "../Icons";
+import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText } from "../Icons";
 
 interface EvidenceCell {
   paper_id: string;
@@ -58,10 +58,10 @@ const CONFIDENCE_BADGE: Record<EvidenceCell["confidence"], string> = {
   low: "rm-badge--error",
 };
 
-const CONFIDENCE_LABEL: Record<EvidenceCell["confidence"], string> = {
-  high: "✅ Chắc chắn",
-  medium: "⚠️ Trung bình",
-  low: "❌ Thấp",
+const CONFIDENCE_LABEL: Record<EvidenceCell["confidence"], { icon: React.FC<{ size?: number }>; text: string }> = {
+  high: { icon: IconCheck, text: "Chắc chắn" },
+  medium: { icon: IconWarning, text: "Trung bình" },
+  low: { icon: IconError, text: "Thấp" },
 };
 
 export const EvidenceMatrixView: React.FC = () => {
@@ -284,14 +284,22 @@ export const EvidenceMatrixView: React.FC = () => {
                               className="rm-btn rm-btn--xs"
                               onClick={(e) => { e.stopPropagation(); openPdf(cell.paper_id, cell.page, cell.quote); }}
                             >
-                              📄 Mở PDF (tr.{cell.page})
+                              <IconWithText icon={IconFileText} size={12}>
+                                Mở PDF (tr.{cell.page})
+                              </IconWithText>
                             </button>
                           )}
                           <span className={`rm-badge ${CONFIDENCE_BADGE[cell.confidence]}`}>
-                            {CONFIDENCE_LABEL[cell.confidence]}
+                            <IconWithText icon={CONFIDENCE_LABEL[cell.confidence].icon} size={12}>
+                              {CONFIDENCE_LABEL[cell.confidence].text}
+                            </IconWithText>
                           </span>
                           <span className={`rm-badge ${cell.status === "user_verified" ? "rm-badge--success" : "rm-badge--muted"}`}>
-                            {cell.status === "user_verified" ? "✅ Đã xác nhận" : "🤖 AI trích xuất"}
+                            {cell.status === "user_verified" ? (
+                              <IconWithText icon={IconCheck} size={12}>Đã xác nhận</IconWithText>
+                            ) : (
+                              <IconWithText icon={IconBot} size={12}>AI trích xuất</IconWithText>
+                            )}
                           </span>
                         </div>
                       </td>

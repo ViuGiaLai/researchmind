@@ -47,6 +47,33 @@ import {
   ArrowLeft,
   ListFilter,
   Minus,
+  Brain,
+  Bot,
+  Cloud,
+  Laptop,
+  Clipboard,
+  ClipboardCheck,
+  Info,
+  Globe,
+  NotebookPen,
+  BookMarked,
+  Swords,
+  CircleDot,
+  Tags,
+  PenLine,
+  Activity,
+  Plug,
+  Unplug,
+  SkipForward,
+  RotateCcw,
+  FlaskConical,
+  Circle,
+  PauseCircle,
+  ScanSearch,
+  FileCode,
+  ArrowDown,
+  ArrowRight,
+  Microscope,
   type LucideIcon,
 } from "lucide-react";
 
@@ -144,6 +171,46 @@ export const IconChevronDown = wrapIcon(ChevronDown, "icon-chevron-down");
 export const IconArrowLeft = wrapIcon(ArrowLeft, "icon-arrow-left");
 export const IconFilter = wrapIcon(ListFilter, "icon-filter");
 export const IconMinus = wrapIcon(Minus, "icon-minus");
+export const IconBrainAi = wrapIcon(Brain, "icon-brain-ai", true);
+export const IconBot = wrapIcon(Bot, "icon-bot");
+export const IconCloud = wrapIcon(Cloud, "icon-cloud");
+export const IconLaptop = wrapIcon(Laptop, "icon-laptop");
+export const IconClipboard = wrapIcon(Clipboard, "icon-clipboard");
+export const IconClipboardCheck = wrapIcon(ClipboardCheck, "icon-clipboard-check");
+export const IconInfo = wrapIcon(Info, "icon-info");
+export const IconGlobe = wrapIcon(Globe, "icon-globe");
+export const IconNotebookPen = wrapIcon(NotebookPen, "icon-notebook-pen");
+export const IconBookMarked = wrapIcon(BookMarked, "icon-book-marked");
+export const IconSwords = wrapIcon(Swords, "icon-swords");
+export const IconCircleDot = wrapIcon(CircleDot, "icon-circle-dot");
+export const IconTags = wrapIcon(Tags, "icon-tags");
+export const IconPenLine = wrapIcon(PenLine, "icon-pen-line");
+export const IconActivity = wrapIcon(Activity, "icon-activity", true);
+export const IconPlug = wrapIcon(Plug, "icon-plug");
+export const IconUnplug = wrapIcon(Unplug, "icon-unplug");
+export const IconSkipForward = wrapIcon(SkipForward, "icon-skip-forward");
+export const IconRotateCcw = wrapIcon(RotateCcw, "icon-rotate-ccw");
+export const IconFlask = wrapIcon(FlaskConical, "icon-flask");
+export const IconCircle = wrapIcon(Circle, "icon-circle");
+export const IconPauseCircle = wrapIcon(PauseCircle, "icon-pause-circle");
+export const IconScanSearch = wrapIcon(ScanSearch, "icon-scan-search");
+export const IconFileCode = wrapIcon(FileCode, "icon-file-code");
+export const IconArrowDown = wrapIcon(ArrowDown, "icon-arrow-down");
+export const IconArrowRight = wrapIcon(ArrowRight, "icon-arrow-right");
+export const IconMicroscope = wrapIcon(Microscope, "icon-microscope");
+
+/** Inline icon + text label */
+export const IconWithText: React.FC<{
+  icon: React.FC<IconProps>;
+  size?: number;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ icon: Icon, size = 14, children, className = "" }) => (
+  <span className={`icon-with-text ${className}`.trim()}>
+    <Icon size={size} />
+    <span>{children}</span>
+  </span>
+);
 
 
 

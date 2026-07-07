@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { api } from "../../lib/api";
-import { IconCheck, IconClose, IconMinus, IconSpinner, IconSearch } from "../Icons";
+import { IconCheck, IconClose, IconMinus, IconSpinner, IconSearch, IconError, IconWithText } from "../Icons";
 
 interface ScreeningDecision {
   decision: "include" | "exclude" | "maybe";
@@ -27,11 +27,11 @@ function saveDecisions(d: Record<string, ScreeningDecision>) {
 
 type FilterView = "all" | "pending" | "included" | "excluded" | "maybe";
 
-const FILTER_LABELS: Record<FilterView, string> = {
+const FILTER_LABELS: Record<FilterView, React.ReactNode> = {
   all: "Tất cả",
   pending: "Chưa xử lý",
-  included: "✅ Include",
-  excluded: "❌ Exclude",
+  included: <IconWithText icon={IconCheck} size={12}>Include</IconWithText>,
+  excluded: <IconWithText icon={IconError} size={12}>Exclude</IconWithText>,
   maybe: "🤔 Maybe",
 };
 

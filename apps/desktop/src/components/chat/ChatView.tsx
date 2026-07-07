@@ -6,6 +6,8 @@ import { PdfViewer } from "../pdf/PdfViewer";
 import { parseDebate, ParsedDebate } from "../../lib/debateParser";
 import {
   IconBrain,
+  IconBrainAi,
+  IconBot,
   IconUser,
   IconTrash,
   IconSend,
@@ -14,12 +16,16 @@ import {
   IconFileText,
   IconStar,
   IconBook,
+  IconBookOpen,
   IconLibrary,
   IconSearch,
   IconZap,
   IconCheck,
+  IconClipboard,
   IconDownload,
   IconClose,
+  IconArrowRight,
+  IconWithText,
 } from "../Icons";
 
 import { useToast } from "../shared/Toast";
@@ -176,12 +182,12 @@ export const ChatView: React.FC<{
           const quote = `> "${text.trim()}"\n\n`;
           return prev ? prev + quote : quote;
         });
-        toast.addToast("success", "📋 Đã trích dẫn văn bản từ PDF/clipboard!");
+        toast.addToast("success", "Đã trích dẫn văn bản từ PDF/clipboard!");
       } else {
-        toast.addToast("error", "❌ Clipboard trống hoặc không chứa văn bản.");
+        toast.addToast("error", "Clipboard trống hoặc không chứa văn bản.");
       }
     } catch (err) {
-      toast.addToast("error", "❌ Không thể đọc clipboard. Vui lòng cấp quyền.");
+      toast.addToast("error", "Không thể đọc clipboard. Vui lòng cấp quyền.");
     }
   };
 
@@ -364,7 +370,7 @@ export const ChatView: React.FC<{
       if (paperIds.length === 0) {
         const errMsg: Message = {
           role: "assistant",
-          content: "❌ **Chưa chọn paper nào!**\n\nChế độ **📄 Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.\n\n👉 Chuyển sang **📚 Toàn bộ thư viện** để hỏi tất cả, hoặc quay lại thư viện chọn paper.",
+          content: "**Chưa chọn paper nào!**\n\nChế độ **Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.\n\nChuyển sang **Toàn bộ thư viện** để hỏi tất cả, hoặc quay lại thư viện chọn paper.",
         };
         setMessages((prev) => [...prev, errMsg]);
         setLoading(false);
@@ -377,7 +383,7 @@ export const ChatView: React.FC<{
       if (!activeCollectionId) {
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: "❌ **Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước khi chat theo phạm vi này.",
+          content: "**Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước khi chat theo phạm vi này.",
         }]);
         setLoading(false);
         return;
@@ -411,7 +417,7 @@ export const ChatView: React.FC<{
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           releaseLoading();
-          const content = `❌ Lỗi: ${errMsg}`;
+          const content = `Lỗi: ${errMsg}`;
           setMessages((prev) => prev.map((m, i) =>
             i === assistantIdx ? { ...m, content } : m
           ));
@@ -543,7 +549,7 @@ export const ChatView: React.FC<{
               activeChatStreamRef.current = null;
               setIsStreaming(false);
               releaseLoading();
-              const content = `❌ Lỗi: ${err}\n\n> 💡 Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
+              const content = `Lỗi: ${err}\n\n> Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
               setMessages((prev) => prev.map((m, i) =>
                 i === assistantIdx ? { ...m, content } : m
               ));
@@ -575,7 +581,7 @@ export const ChatView: React.FC<{
       }
     } catch (e) {
       const errorText = e instanceof Error ? e.message : "Không thể kết nối đến backend";
-      const content = `❌ Lỗi: ${errorText}`;
+      const content = `Lỗi: ${errorText}`;
       const errMsg: Message = {
         role: "assistant",
         content,
@@ -592,7 +598,7 @@ export const ChatView: React.FC<{
     if (action === "deep_research") {
       const q = input.trim();
       if (!q) {
-        toast.addToast("error", "❌ Nhập câu hỏi trước khi dùng Deep Research.");
+        toast.addToast("error", "Nhập câu hỏi trước khi dùng Deep Research.");
         return;
       }
       setMessages((prev) => [...prev, { role: "user", content: q }]);
@@ -600,16 +606,16 @@ export const ChatView: React.FC<{
       try {
         const res = await api.deepResearch(q, scope === "current" ? paperIds : undefined);
         const personaInfo = res.personas?.length
-          ? "\n\n---\n*🔬 **Deep Research** — " + res.personas.map(p => `*${p.name}* (${p.focus_areas.join(", ")})`).join(" · ") + "*"
+          ? "\n\n---\n**Deep Research** — " + res.personas.map(p => `*${p.name}* (${p.focus_areas.join(", ")})`).join(" · ") + "*"
           : "";
         setMessages((prev) => [...prev, {
           role: "assistant",
           content: res.content + personaInfo,
-          model_used: `🔬 Deep Research`,
+          model_used: "Deep Research",
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Deep Research thất bại: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: `Deep Research thất bại: ${errMsg}` }]);
       } finally {
         setLoading(false);
       }
@@ -643,8 +649,8 @@ export const ChatView: React.FC<{
     if (quickIds === "error") {
       setMessages((prev) => [...prev, { role: "user", content: act.query }]);
       const errContent = scope === "collection"
-        ? "❌ **Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước."
-        : "❌ **Chưa chọn paper nào!**\n\nChế độ **📄 Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.";
+        ? "**Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước."
+        : "**Chưa chọn paper nào!**\n\nChế độ **Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.";
       setMessages((prev) => [...prev, { role: "assistant", content: errContent }]);
       return;
     }
@@ -670,7 +676,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Lỗi: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
       } finally {
         setLoading(false);
       }
@@ -690,7 +696,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Lỗi: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
       } finally {
         setLoading(false);
       }
@@ -710,7 +716,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `❌ Lỗi: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
       } finally {
         setLoading(false);
       }
@@ -819,7 +825,7 @@ export const ChatView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export synthesis report:", e);
-      toast.addToast("error", "❌ Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.");
+      toast.addToast("error", "Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.");
     } finally {
       setExportingSynthesis(false);
     }
@@ -922,14 +928,14 @@ export const ChatView: React.FC<{
           const citation = msgCitations.find(c => c.ref_id === refId);
           if (!citation) {
             console.warn(`[Citation] ref_id=${refId} not found in citations`, msgCitations);
-            toast.addToast("error", `❌ Không tìm thấy nguồn [${refId}]`);
+            toast.addToast("error", `Không tìm thấy nguồn [${refId}]`);
             return;
           }
           console.log("[Citation] Clicked:", citation);
           const paperId = citation.paper_id;
           if (!paperId) {
             console.warn("[Citation] paper_id is empty:", citation);
-            toast.addToast("error", `❌ Không tìm thấy paper_id cho nguồn [${refId}]`);
+            toast.addToast("error", `Không tìm thấy paper_id cho nguồn [${refId}]`);
             return;
           }
           const page = citation.page || 1;
@@ -967,8 +973,10 @@ export const ChatView: React.FC<{
                 <div className="debate-citations">
                   {parsed.aiA.citations.map((c, i) => (
                     <div key={i}>
-                      📚 {c.source}
-                      {c.page ? `, trang ${c.page}` : ""}
+                      <IconWithText icon={IconLibrary} size={14}>
+                        {c.source}
+                        {c.page ? `, trang ${c.page}` : ""}
+                      </IconWithText>
                     </div>
                   ))}
                 </div>
@@ -992,8 +1000,10 @@ export const ChatView: React.FC<{
                 <div className="debate-citations">
                   {parsed.aiB.citations.map((c, i) => (
                     <div key={i}>
-                      📚 {c.source}
-                      {c.page ? `, trang ${c.page}` : ""}
+                      <IconWithText icon={IconLibrary} size={14}>
+                        {c.source}
+                        {c.page ? `, trang ${c.page}` : ""}
+                      </IconWithText>
                     </div>
                   ))}
                 </div>
@@ -1087,7 +1097,7 @@ export const ChatView: React.FC<{
                 onClick={() => setShowPdfViewer(true)}
                 title="Mở trình xem PDF song song"
               >
-                📖 PDF
+                <IconWithText icon={IconBookOpen} size={13}>PDF</IconWithText>
               </button>
             )}
             {paperIds.length > 0 && (
@@ -1207,7 +1217,9 @@ export const ChatView: React.FC<{
                     Chọn paper
                   </button>
                 ) : loadingPapers ? (
-                  <span className="loading-hint">⏳ Đang tải tài liệu...</span>
+                  <span className="loading-hint">
+                    <IconWithText icon={IconSpinner} size={12}>Đang tải tài liệu...</IconWithText>
+                  </span>
                 ) : (
                   <span className="import-hint">
                     Chưa có paper trong thư viện. {onGoToLibrary ? (
@@ -1279,7 +1291,11 @@ export const ChatView: React.FC<{
                   className="cite-copy-all-btn"
                   onClick={() => copyToClipboard(bibliography)}
                 >
-                  {copiedAll ? "✓ Đã copy" : "Copy tất cả"}
+                  {copiedAll ? (
+                    <IconWithText icon={IconCheck} size={14}>Đã copy</IconWithText>
+                  ) : (
+                    "Copy tất cả"
+                  )}
                 </button>
                 <button
                   className="cite-export-bib-btn"
@@ -1330,7 +1346,7 @@ export const ChatView: React.FC<{
                     onClick={() => copyToClipboard(c.formatted, i)}
                     title="Copy citation"
                   >
-                    {copiedIdx === i ? "✓" : "📋"}
+                    {copiedIdx === i ? <IconCheck size={14} /> : <IconClipboard size={14} />}
                   </button>
                 </div>
               ))}
@@ -1376,7 +1392,7 @@ export const ChatView: React.FC<{
                                 console.log("[Citation] Footnote clicked:", c);
                                 if (!c.ref_id) {
                                   console.warn("[Citation] Footer: ref_id missing");
-                                  toast.addToast("error", "❌ Thiếu ref_id");
+                                  toast.addToast("error", "Thiếu ref_id");
                                   return;
                                 }
                                 if (!c.paper_id) {
@@ -1416,7 +1432,8 @@ export const ChatView: React.FC<{
                                 )}
                                 {c.paper_id && (
                                   <div className="chat-view-footnote-link">
-                                    📄 Mở PDF →
+                                    <IconWithText icon={IconFileText} size={14}>Mở PDF</IconWithText>
+                                    <IconArrowRight size={14} />
                                   </div>
                                 )}
                               </div>
@@ -1492,7 +1509,7 @@ export const ChatView: React.FC<{
                         </>
                       );
                     })() : (
-                      <span>🤖 Assistant</span>
+                      <IconWithText icon={IconBot} size={14}>Assistant</IconWithText>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
@@ -1654,7 +1671,13 @@ export const ChatView: React.FC<{
             onClick={() => setShowModeDropdown(!showModeDropdown)}
             title="Chọn chế độ suy luận"
           >
-            {reasoningMode === "fast" ? "⚡ Fast" : reasoningMode === "deep" ? "🧠 Deep" : "🧠 Deep+"}
+            {reasoningMode === "fast" ? (
+              <IconWithText icon={IconZap} size={16}>Fast</IconWithText>
+            ) : reasoningMode === "deep" ? (
+              <IconWithText icon={IconBrainAi} size={16}>Deep</IconWithText>
+            ) : (
+              <IconWithText icon={IconBrainAi} size={16}>Deep+</IconWithText>
+            )}
             <span className="dropdown-arrow"></span>
           </button>
           
@@ -1669,7 +1692,7 @@ export const ChatView: React.FC<{
                     setShowModeDropdown(false);
                   }}
                 >
-                  <span className="item-icon">⚡</span>
+                  <span className="item-icon"><IconZap size={16} /></span>
                   <div className="item-text">
                     <div className="item-title">Fast</div>
                     <div className="item-desc">Trả lời nhanh, không hiển thị suy nghĩ</div>
@@ -1682,7 +1705,7 @@ export const ChatView: React.FC<{
                     setShowModeDropdown(false);
                   }}
                 >
-                  <span className="item-icon">🧠</span>
+                  <span className="item-icon"><IconBrainAi size={16} /></span>
                   <div className="item-text">
                     <div className="item-title">Deep</div>
                     <div className="item-desc">Suy luận sâu với DeepSeek V4 Flash</div>
@@ -1695,7 +1718,7 @@ export const ChatView: React.FC<{
                     setShowModeDropdown(false);
                   }}
                 >
-                  <span className="item-icon">🧠</span>
+                  <span className="item-icon"><IconBrainAi size={16} /></span>
                   <div className="item-text">
                     <div className="item-title">Deep+</div>
                     <div className="item-desc">Lập luận chuyên sâu với DeepSeek R1</div>
@@ -1723,7 +1746,9 @@ export const ChatView: React.FC<{
           onClick={() => setStrictEvidence(!strictEvidence)}
           title={strictEvidence ? "ĐANG BẬT: Model chỉ trả lời khi có bằng chứng trong tài liệu" : "ĐANG TẮT: Model có thể dùng kiến thức chung để trả lời"}
         >
-          <span className="chat-view-strict-evidence-icon">{strictEvidence ? "✓" : "✕"}</span>
+          <span className="chat-view-strict-evidence-icon">
+            {strictEvidence ? <IconCheck size={14} /> : <IconClose size={14} />}
+          </span>
           <span>{strictEvidence ? "Chỉ bằng chứng" : "Tự do"}</span>
         </button>
         <button

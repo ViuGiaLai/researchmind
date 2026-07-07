@@ -2,6 +2,16 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { api, ImportJob } from "../../lib/api";
 import {
   IconFileText,
+  IconNotebookPen,
+  IconFileCode,
+  IconBookMarked,
+  IconFileImage,
+  IconInfo,
+  IconWarning,
+  IconEdit,
+  IconScanSearch,
+  IconCircle,
+  IconWithText,
   IconSpinner,
   IconCheck,
   IconError,
@@ -12,18 +22,18 @@ import {
 } from "../Icons";
 
 const SUPPORTED_FORMATS = [
-  { ext: ".pdf", label: "PDF", icon: "📄" },
-  { ext: ".docx", label: "DOCX", icon: "📝" },
-  { ext: ".doc", label: "DOC", icon: "📝" },
-  { ext: ".txt", label: "TXT", icon: "📃" },
-  { ext: ".md", label: "Markdown", icon: "📑" },
-  { ext: ".html", label: "HTML", icon: "🌐" },
-  { ext: ".htm", label: "HTML", icon: "🌐" },
-  { ext: ".epub", label: "EPUB", icon: "📖" },
-  { ext: ".png", label: "PNG", icon: "🖼️" },
-  { ext: ".jpg", label: "JPG", icon: "🖼️" },
-  { ext: ".jpeg", label: "JPEG", icon: "🖼️" },
-  { ext: ".webp", label: "WebP", icon: "🖼️" },
+  { ext: ".pdf", label: "PDF", Icon: IconFileText },
+  { ext: ".docx", label: "DOCX", Icon: IconNotebookPen },
+  { ext: ".doc", label: "DOC", Icon: IconNotebookPen },
+  { ext: ".txt", label: "TXT", Icon: IconFileText },
+  { ext: ".md", label: "Markdown", Icon: IconBookMarked },
+  { ext: ".html", label: "HTML", Icon: IconFileCode },
+  { ext: ".htm", label: "HTML", Icon: IconFileCode },
+  { ext: ".epub", label: "EPUB", Icon: IconBookMarked },
+  { ext: ".png", label: "PNG", Icon: IconFileImage },
+  { ext: ".jpg", label: "JPG", Icon: IconFileImage },
+  { ext: ".jpeg", label: "JPEG", Icon: IconFileImage },
+  { ext: ".webp", label: "WebP", Icon: IconFileImage },
 ];
 
 const SUPPORTED_ACCEPT = SUPPORTED_FORMATS.map(f => f.ext).join(",");
@@ -478,9 +488,9 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <h3>Tải lên tài liệu</h3>
           <p>Kéo thả file vào đây, hoặc</p>
           <div className="import-formats">
-            {[...new Map(SUPPORTED_FORMATS.map(f => [f.icon, f])).values()].map(fmt => (
+            {[...new Map(SUPPORTED_FORMATS.map(f => [f.label, f])).values()].map(fmt => (
               <span key={fmt.ext} className="import-format-badge">
-                {fmt.icon} {fmt.label}
+                <fmt.Icon size={14} /> {fmt.label}
               </span>
             ))}
           </div>
@@ -541,7 +551,9 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             </button>
           </div>
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
-            ℹ️ Dữ liệu sẽ được import dưới dạng metadata (không có file PDF kèm theo).
+            <IconWithText icon={IconInfo} size={12}>
+              Dữ liệu sẽ được import dưới dạng metadata (không có file PDF kèm theo).
+            </IconWithText>
           </p>
           <input
             ref={bibtexInputRef}
@@ -644,8 +656,10 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
             </button>
           </div>
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
-            ℹ️ Cách export: Zotero → Chọn collection → File → Export Library... → Format: CSV
-            {findPdfs && zoteroDataDir.trim() ? " • PDF sẽ được tự động tìm và index" : ""}
+            <IconWithText icon={IconInfo} size={12}>
+              Cách export: Zotero → Chọn collection → File → Export Library... → Format: CSV
+              {findPdfs && zoteroDataDir.trim() ? " • PDF sẽ được tự động tìm và index" : ""}
+            </IconWithText>
           </p>
           <input
             ref={csvInputRef}
@@ -722,9 +736,9 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     {r.status === "error" || r.status === "failed" ? (
                       <IconError size={16} style={{ color: iconColor }} />
                     ) : r.status === "needs_ocr" ? (
-                      <span style={{ color: iconColor, fontSize: 16 }}>⚠</span>
+                      <IconWarning size={16} style={{ color: iconColor }} />
                     ) : r.status === "duplicate" ? (
-                      <span style={{ color: iconColor, fontSize: 16 }}>⏺</span>
+                      <IconCircle size={16} style={{ color: iconColor }} />
                     ) : isProcessing ? (
                       <IconSpinner size={16} style={{ color: iconColor }} />
                     ) : (
@@ -755,7 +769,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     >
                       {r.title || r.filename}
                       {r.paper_id && (
-                        <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.4 }}>✎</span>
+                        <IconEdit size={11} style={{ marginLeft: 6, opacity: 0.4 }} />
                       )}
                     </span>
                   )}
@@ -799,7 +813,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       background: "rgba(234, 179, 8, 0.1)", color: "#a16207",
                       whiteSpace: "nowrap",
                     }} title={pdfError || "Không tìm thấy PDF trong Zotero storage"}>
-                      📄 Không có PDF
+                      <IconWithText icon={IconFileText} size={10}>Không có PDF</IconWithText>
                     </span>
                   )}
                   {pdfStatus === "warning" && (
@@ -808,7 +822,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       background: "rgba(249, 115, 22, 0.1)", color: "#c2410c",
                       whiteSpace: "nowrap",
                     }} title={pdfError || "PDF có thể là scanned, cần OCR"}>
-                      ⚠️ PDF scanned
+                      <IconWithText icon={IconScanSearch} size={10}>PDF scanned</IconWithText>
                     </span>
                   )}
                   {pdfStatus === "error" && (
@@ -817,7 +831,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       background: "rgba(239, 68, 68, 0.1)", color: "var(--color-error, #ef4444)",
                       whiteSpace: "nowrap",
                     }} title={pdfError || "Lỗi khi copy PDF"}>
-                      ❌ PDF lỗi
+                      <IconWithText icon={IconError} size={10}>PDF lỗi</IconWithText>
                     </span>
                   )}
                 </div>

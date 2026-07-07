@@ -17,6 +17,9 @@ import {
   IconUser,
   IconSparkle,
   IconClose,
+  IconCloud,
+  IconLaptop,
+  IconWithText,
   IconSettings,
 } from "../Icons";
 
@@ -214,8 +217,8 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
               </div>
               <div className="hero-stat-divider" />
               <div className="hero-stat">
-                <span className="hero-stat-value">
-                  {embeddingInfo?.mode === "cloud" ? "☁️" : "💻"}
+                <span className="hero-stat-value hero-stat-value--icon">
+                  {embeddingInfo?.mode === "cloud" ? <IconCloud size={22} /> : <IconLaptop size={22} />}
                 </span>
                 <span className="hero-stat-label">
                   {embeddingInfo?.mode === "cloud" ? "Cloud" : "Local"}
@@ -465,7 +468,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             <h3>Không tìm thấy kết quả</h3>
             <p>Thử với từ khóa khác hoặc import thêm PDF vào thư viện.</p>
             <div className="search-empty-tips">
-              <span>💡 Gợi ý:</span>
+              <IconWithText icon={IconBulb} size={14}>Gợi ý:</IconWithText>
               <ul>
                 <li>Sử dụng từ khóa cụ thể hơn</li>
                 <li>Kiểm tra chính tả</li>

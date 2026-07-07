@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { BASE_URL } from "../../lib/api";
+import { IconSearch, IconClipboard, IconClose, IconWithText } from "../Icons";
 
 interface PdfViewerProps {
   paperId: string;
@@ -269,9 +270,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               whiteSpace: "nowrap",
             }}
           >
-            📋 Trích dẫn
+            <IconWithText icon={IconClipboard} size={12}>Trích dẫn</IconWithText>
           </button>
-          <button
+            <button
             className="pdf-close-btn"
             onClick={onClose}
             title="Đóng PDF"
@@ -285,7 +286,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               lineHeight: 1,
             }}
           >
-            ✕
+            <IconClose size={16} />
           </button>
         </div>
       </div>
@@ -306,15 +307,16 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             flexShrink: 0,
           }}
         >
-          <span>🔍</span>
+          <IconSearch size={14} />
           <span style={{ flex: 1, fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             "{highlightText}"
           </span>
           <button
             onClick={() => setShowHighlightBanner(false)}
-            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "0.8rem" }}
+            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "0.8rem", display: "flex" }}
+            aria-label="Đóng"
           >
-            ✕
+            <IconClose size={14} />
           </button>
         </div>
       )}
