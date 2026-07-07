@@ -4,7 +4,7 @@
 
 ---
 
-## 0. Trạng thái hiện tại — commit `32dd8ed` (18/06/2026)
+## 0. Trạng thái hiện tại — v0.6.0 (07/07/2026)
 
 ```
 Phase 0: Research ────── Tuần 1-2 ──── ✅ Đã hoàn thành (phỏng vấn, validate pain point)
@@ -14,9 +14,9 @@ Phase 1: MVP ─────────── Tuần 3-8 ──── ✅ Đã 
      │
 Phase 2: Thu phí ──────── Tháng 3 ───── ⏳ Chưa bắt đầu
      │
-Phase 3: Polish ───────── Tháng 4-6 ─── ⏳ Chưa bắt đầu
+Phase 3: Polish & Launch ─ Tháng 4-6 ─ ✅ Đã hoàn thành (v0.6)
      │
-Phase 4: Grow ─────────── Tháng 7-12 ── ⏳ Chưa bắt đầu
+Phase 4: Grow ─────────── Tháng 7-12 ── ⏳ Chưa bắt đầu (v0.7+)
      │
 Year 2: Mở rộng ───────── Năm 2 ─────── ⏳ Chưa bắt đầu
 ```
@@ -58,7 +58,7 @@ Phase 1: MVP ─────── Tuần 3-8 ─── 4 tính năng cốt lõi
      │
 Phase 2: Thu phí ─── Tháng 3 ────── Gói Pro 99k/tháng
      │
-Phase 3: Polish ──── Tháng 4-6 ──── Zotero import, bug fixes, SEO
+Phase 3: Polish & Launch ──── Tháng 4-6 ──── Zotero import, bug fixes, SEO, onboarding
      │
 Phase 4: Grow ────── Tháng 7-12 ─── B2B Lab, 200 users
      │
@@ -165,7 +165,7 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 
 ---
 
-## 5. Phase 3: Polish + Mở Rộng (Tháng 4-6)
+## 5. Phase 3: Polish + Launch (Tháng 4-6)
 
 ### Mục tiêu
 - [ ] 50 paying users
@@ -181,6 +181,14 @@ Year 2: Mở rộng ──── Năm 2 ──────── Đông Nam Á, 
 | Batch import folder | 🟡 Trung bình | 2 ngày |
 | Dark mode | 🟡 Trung bình | 1 ngày |
 | Search filters (author, year, tags) | 🟡 Trung bình | 2 ngày |
+
+### v0.6 — Done
+
+- [x] UI polish and consistency pass
+- [x] Onboarding flow and setup wizard
+- [x] Keyboard shortcuts and help center
+- [x] Privacy-first messaging and bug report entry point
+- [x] Release notes synced với app version 0.6.0
 
 ### Marketing
 

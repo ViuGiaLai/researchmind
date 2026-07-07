@@ -5,7 +5,7 @@
 
 ResearchMind VN là hệ thống quản lý tri thức học thuật cá nhân, chạy hoàn toàn offline. Hỗ trợ import, search, chat RAG, verify, và literature review — không gửi dữ liệu ra ngoài.
 
-**Version hiện tại:** v0.4 · **Kế tiếp:** [v0.5 — Speed Plan](VERSION/VERSION_v0.5.md)
+**Version hiện tại:** v0.6 · **Chi tiết:** [v0.6 — Polish & Launch](VERSION/VERSION_v0.6.md)
 
 ---
 
@@ -107,7 +107,8 @@ pnpm tauri dev
 | **v0.2** | Streaming, Cache, Retry, Provider chain | ✅ |
 | **v0.3** | Verify (OpenAlex/Crossref/S2), Critique, Debate | ✅ |
 | **v0.4** | Import Queue, OCR UX, Review Builder, Collections | ✅ |
-| **v0.5** | Speed: virtualization, cold start, debounce, lazy load | 🔜 |
+| **v0.5** | Speed: virtualization, cold start, debounce, lazy load | ✅ |
+| **v0.6** | Polish & Launch: onboarding, shortcuts, privacy, release notes | ✅ |
 
 Xem chi tiết từng version tại [`VERSION/`](VERSION/).
 

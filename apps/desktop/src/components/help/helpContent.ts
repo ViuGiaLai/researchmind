@@ -280,9 +280,9 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
             version: "v0.6.0",
             items: [
               "Giao diện AI Workspace — teal, tối/sáng/hệ thống",
-              "Trung tâm trợ giúp & Tour giới thiệu",
-              "Cải thiện streaming Chat và chế độ tối",
-              "Tabs Cài đặt ngang, icon Lucide thống nhất",
+              "Trung tâm trợ giúp, Tour giới thiệu và release notes cập nhật",
+              "Citation export APA/IEEE và copy citation nhanh",
+              "Privacy badge, onboarding và phím tắt cốt lõi",
             ],
           },
           {
