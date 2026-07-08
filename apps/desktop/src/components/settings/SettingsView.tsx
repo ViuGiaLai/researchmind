@@ -126,14 +126,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     "gap", "debate", "review", "research", "synthesis", "graph",
   ] as const;
   const ALL_PROVIDERS = [
-    "github", "gemini", "deepseek", "groq", "nvidia", "freemodel",
+    "github", "gemini", "deepseek", "nvidia_deepseek", "groq", "nvidia", "freemodel",
     "claude", "openrouter", "cohere", "cloudflare", "cerebras", "local",
   ] as const;
   const PROVIDER_LABELS: Record<string, string> = {
     github: "GitHub Models", gemini: "Gemini", deepseek: "DeepSeek",
-    groq: "Groq", nvidia: "Nvidia NIM", freemodel: "FreeModel",
-    claude: "Claude", openrouter: "OpenRouter", cohere: "Cohere",
-    cloudflare: "Cloudflare", cerebras: "Cerebras", local: "Local",
+    nvidia_deepseek: "NVIDIA DeepSeek", groq: "Groq", nvidia: "Nvidia NIM",
+    freemodel: "FreeModel", claude: "Claude", openrouter: "OpenRouter",
+    cohere: "Cohere", cloudflare: "Cloudflare", cerebras: "Cerebras", local: "Local",
   };
   const TASK_LABELS: Record<string, string> = {
     summary: "Tóm tắt", daily_reader: "Đọc hôm nay", chat: "Chat",
@@ -207,18 +207,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       setDeepseekApiKey(s.deepseek_api_key === "***" ? "" : s.deepseek_api_key);
       setDeepseekModel(s.deepseek_model);
       setGeminiApiKey(s.gemini_api_key === "***" ? "" : s.gemini_api_key);
-      setGeminiModel(s.gemini_model || "gemini-2.5-flash");
+      setGeminiModel(s.gemini_model || "");
       setGroqApiKey((s as any).groq_api_key === "***" ? "" : (s as any).groq_api_key || "");
-      setGroqModel((s as any).groq_model || "llama-3.3-70b-versatile");
+      setGroqModel((s as any).groq_model || "");
       setNvidiaApiKey((s as any).nvidia_api_key === "***" ? "" : (s as any).nvidia_api_key || "");
-      setNvidiaModel((s as any).nvidia_model || "moonshotai/kimi-k2.6");
+      setNvidiaModel((s as any).nvidia_model || "");
       setFreemodelApiKey((s as any).freemodel_api_key === "***" ? "" : (s as any).freemodel_api_key || "");
-      setFreemodelModel((s as any).freemodel_model || "gpt-4o-mini");
+      setFreemodelModel((s as any).freemodel_model || "");
       setGithubApiKey((s as any).github_api_key === "***" ? "" : (s as any).github_api_key || "");
-      setGithubModel((s as any).github_model || "gpt-4o-mini");
-      setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "deepseek");
-      setLlamaServerUrl((s as any).llama_server_url || "http://127.0.0.1:8080");
-      setLocalModel((s as any).local_model || "Qwen3-4B-Q4_K_M.gguf");
+      setGithubModel((s as any).github_model || "");
+      setCustomCloudProvider((s.custom_cloud_provider as CustomProvider) || "");
+      setLlamaServerUrl((s as any).llama_server_url || "");
+      setLocalModel((s as any).local_model || "");
       setEmbeddingModel(s.embedding_model);
       setEmbeddingMode(s.embedding_mode || "local");
       setEmbeddingQueryInstruction((s as any).embedding_query_instruction || (s as any).query_instruction || "");
@@ -1578,12 +1578,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               <>
       {/* ── Provider Routing ────────────────────────────────── */}
       <div className="settings-section">
-        <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <IconZap size={18} /> Định tuyến Provider
-        </h3>
-        <p className="settings-desc">
-          Cấu hình provider cho từng tác vụ AI. Khi provider chính gặp lỗi, hệ thống tự động chuyển sang fallback.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <IconZap size={18} /> Định tuyến Provider
+            </h3>
+            <p className="settings-desc">
+              Cấu hình provider cho từng tác vụ AI. Khi provider chính gặp lỗi, hệ thống tự động chuyển sang fallback.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setTaskProviderMapStr(JSON.stringify({
+                summary: "groq", daily_reader: "github", chat: "github",
+                quality_check: "github", insight: "github", rag: "gemini",
+                gap: "nvidia_deepseek", critique: "gemini", debate: "nvidia_deepseek",
+                verify: "gemini", review: "nvidia_deepseek", graph: "cerebras",
+                research: "groq", synthesis: "groq", entity: "cerebras",
+              }, null, 2));
+              setTaskFallbackMapStr(JSON.stringify({
+                summary: "cloudflare", daily_reader: "cohere", chat: "openrouter",
+                quality_check: "cohere", insight: "openrouter", rag: "cerebras",
+                gap: "gemini", critique: "nvidia_deepseek", debate: "gemini",
+                verify: "nvidia_deepseek", review: "gemini", graph: "gemini",
+                research: "openrouter", synthesis: "openrouter", entity: "cohere",
+              }, null, 2));
+            }}
+            style={{
+              padding: "6px 12px", fontSize: "0.78rem", whiteSpace: "nowrap",
+              background: "transparent", border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)", color: "var(--color-text-muted)",
+              cursor: "pointer",
+            }}
+            title="Đặt lại mapping provider về mặc định"
+          >
+            Đặt lại gốc
+          </button>
+        </div>
 
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>

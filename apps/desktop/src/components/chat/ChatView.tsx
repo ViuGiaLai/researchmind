@@ -1496,7 +1496,15 @@ export const ChatView: React.FC<{
                         claude: { bg: "rgba(168, 85, 247, 0.12)", color: "#c084fc" },
                         groq: { bg: "rgba(248, 113, 113, 0.12)", color: "#f87171" },
                         nvidia: { bg: "rgba(52, 211, 153, 0.12)", color: "#34d399" },
+                        nvidia_deepseek: { bg: "rgba(52, 211, 153, 0.12)", color: "#34d399" },
+                        github: { bg: "rgba(13, 148, 136, 0.12)", color: "#14b8a6" },
+                        github_deepseek_v3: { bg: "rgba(13, 148, 136, 0.12)", color: "#14b8a6" },
                         freemodel: { bg: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" },
+                        openrouter: { bg: "rgba(236, 72, 153, 0.12)", color: "#f472b6" },
+                        openrouter_r1: { bg: "rgba(236, 72, 153, 0.12)", color: "#f472b6" },
+                        cohere: { bg: "rgba(6, 182, 212, 0.12)", color: "#22d3ee" },
+                        cloudflare: { bg: "rgba(250, 204, 21, 0.12)", color: "#eab308" },
+                        cerebras: { bg: "rgba(168, 85, 247, 0.12)", color: "#a855f7" },
                       };
                       const pc = providerColors[provider] || { bg: "rgba(148, 163, 184, 0.12)", color: "#94a3b8" };
                       return (

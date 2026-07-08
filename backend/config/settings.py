@@ -158,7 +158,7 @@ class Settings(BaseSettings):
     # Cohere (Compatibility API — OpenAI-compatible)
     cohere_api_key: str = ""
     cohere_model: str = "command-r-plus"
-    cohere_url: str = "https://api.cohere.ai/compatibility/v1"
+    cohere_url: str = "https://api.cohere.ai/v1"
 
     # Cloudflare Workers AI (OpenAI-compatible — needs Account ID in URL)
     cloudflare_api_key: str = ""
@@ -168,7 +168,7 @@ class Settings(BaseSettings):
     # Cerebras (OpenAI-compatible — ultra-fast inference)
     cerebras_api_key: str = ""
     cerebras_model: str = "qwen-3-235b-a22b-instruct-2507"
-    cerebras_url: str = "https://api.cerebras.net/v1"
+    cerebras_url: str = "https://api.cerebras.ai/v1"
     
     # Reranking settings (BGE cross-encoder for improved relevance)
     enable_reranker: bool = True
@@ -217,17 +217,25 @@ class Settings(BaseSettings):
     custom_cloud_provider: str = "deepseek"
     
     # Per-task provider map (JSON string): task_type → provider name
-    # https://github.com/marketplace/models/azureml/gpt-4o-mini
-    task_provider_map: str = ""
+    # Factory default (override via .env):
+    # {"summary":"github","daily_reader":"github","chat":"github","quality_check":"github",
+    #  "insight":"github","rag":"gemini","gap":"deepseek","critique":"gemini","debate":"deepseek",
+    #  "verify":"gemini","review":"deepseek","graph":"cerebras","research":"deepseek",
+    #  "synthesis":"deepseek","entity":"github"}
+    task_provider_map: str = '{"summary":"github","daily_reader":"github","chat":"github","quality_check":"github","insight":"github","rag":"gemini","gap":"deepseek","critique":"gemini","debate":"deepseek","verify":"gemini","review":"deepseek","graph":"cerebras","research":"deepseek","synthesis":"deepseek","entity":"github"}'
 
     # Per-task fallback provider map (JSON string): task_type → fallback provider
     # Used when primary provider fails (no key, rate limit, error)
-    # Format: {"summary":"cloudflare","daily_reader":"cohere",...}
-    task_fallback_map: str = ""
+    # Factory default (override via .env):
+    # {"summary":"cloudflare","daily_reader":"cohere","chat":"openrouter","quality_check":"cohere",
+    #  "insight":"openrouter","rag":"cerebras","gap":"gemini","critique":"deepseek","debate":"gemini",
+    #  "verify":"deepseek","review":"gemini","graph":"gemini","research":"gemini",
+    #  "synthesis":"gemini","entity":"cohere"}
+    task_fallback_map: str = '{"summary":"cloudflare","daily_reader":"cohere","chat":"openrouter","quality_check":"cohere","insight":"openrouter","rag":"cerebras","gap":"gemini","critique":"deepseek","debate":"gemini","verify":"deepseek","review":"gemini","graph":"gemini","research":"gemini","synthesis":"gemini","entity":"cohere"}'
 
     # Ultimate fallback chain (comma-separated): tried in order when primary + fallback both fail
-    # Format: "cerebras,groq,gemini,github,local"
-    task_ultimate_fallback_chain: str = ""
+    # Factory default: "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
+    task_ultimate_fallback_chain: str = "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
     
     # Onboarding setup completed state
     setup_completed: bool = False

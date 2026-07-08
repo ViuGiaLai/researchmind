@@ -339,7 +339,7 @@ export function ReviewBuilderView() {
   const handleGenerateSection = async (sectionKey: string) => {
     setGeneratingSections((prev) => new Set(prev).add(sectionKey));
     try {
-      const res = await api.generateReviewSection(selectedIds, sectionKey);
+      const res = await api.generateReviewSection(selectedIds, sectionKey, false);
       if (res.error) {
         toast.addToast("error", res.error);
         return;

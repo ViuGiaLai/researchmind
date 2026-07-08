@@ -1048,10 +1048,11 @@ export const api = {
     return { abort: () => controller.abort() };
   },
 
-  generateReviewSection: (paperIds: string[], section: string) =>
+  generateReviewSection: (paperIds: string[], section: string, useCache: boolean = true) =>
     request<ReviewSectionResponse>("POST", "/api/review/builder/section", {
       paper_ids: paperIds,
       section,
+      use_cache: useCache,
     }),
 
   generateReviewMatrix: (paperIds: string[]) =>

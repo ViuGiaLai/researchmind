@@ -210,7 +210,12 @@ class Generator(
             elif mode in ("deep_plus", "deep+"):
                 return "openrouter_r1"
 
-        # Heavy analytical tasks → Groq (fastest) > GitHub > DeepSeek-V3-0324
+        # Respect configured task_provider_map first
+        provider = self.task_provider_map.get(task_type)
+        if provider:
+            return provider
+
+        # Fallback hardcoded defaults when no task_provider_map entry
         if task_type in ("critique", "debate", "insight", "gap"):
             if self.groq_api_key:
                 return "groq"
@@ -218,35 +223,38 @@ class Generator(
                 return "github"
             if self.github_deepseek_v3_api_key:
                 return "github_deepseek_v3"
-            logger.warning(f"No API key for {task_type}, falling back to task_provider_map")
+            logger.warning(f"No API key and no task_provider_map entry for {task_type}")
 
-        # Summary, review, & quality check → Groq (fastest inference)
-        # GitHub gpt-4o-mini is too slow for these tasks
         if task_type in ("summary", "review", "quality_check"):
             if self.groq_api_key:
                 return "groq"
             if task_type == "quality_check":
-                # Skip task_provider_map — GitHub times out
                 return None
 
-        return self.task_provider_map.get(task_type)
+        return None
 
     def _get_fallback_for_task(self, task_type: str) -> str | None:
         task_type = task_type.strip().lower() if task_type else ""
         if not task_type:
             return None
-            
+
         # Dynamic routing for chat/rag tasks based on reasoning_mode
         if task_type in ("chat", "rag"):
             mode = getattr(self._local, "reasoning_mode", "fast")
             if mode == "fast":
-                return "openrouter"
+                fb = self.task_fallback_map.get(task_type) or "openrouter"
+                return fb
             elif mode == "deep":
-                return "gemini"
+                return self.task_fallback_map.get(task_type) or "gemini"
             elif mode in ("deep_plus", "deep+"):
-                return "gemini"
+                return self.task_fallback_map.get(task_type) or "gemini"
 
-        # Analytical tasks: fallback chain for quality Vietnamese output
+        # Respect configured task_fallback_map first
+        fb = self.task_fallback_map.get(task_type)
+        if fb:
+            return fb
+
+        # Fallback hardcoded defaults when no task_fallback_map entry
         if task_type in ("critique", "debate", "insight", "gap"):
             for provider, key_attr in [
                 ("gemini", "gemini_api_key"),
@@ -256,8 +264,8 @@ class Generator(
             ]:
                 if getattr(self, key_attr, None):
                     return provider
-                
-        return self.task_fallback_map.get(task_type)
+
+        return None
 
     def _get_fallback_chain(self, task_type: str) -> list[str]:
         """Get ordered fallback chain for a task.
@@ -268,7 +276,12 @@ class Generator(
         if not task_type:
             return chain
 
-        # Quality check: try fast providers in priority order
+        # Start with the configured fallback from task_fallback_map
+        fb = self._get_fallback_for_task(task_type)
+        if fb:
+            chain.append(fb)
+
+        # Quality check: also try other fast providers as additional fallbacks
         if task_type == "quality_check":
             for p, key_attr in [
                 ("cerebras", "cerebras_api_key"),
@@ -278,13 +291,8 @@ class Generator(
                 ("cloudflare", "cloudflare_api_key"),
                 ("cohere", "cohere_api_key"),
             ]:
-                if getattr(self, key_attr, None):
+                if p not in chain and getattr(self, key_attr, None):
                     chain.append(p)
-
-        # Also include the task_fallback_map entry if not already in chain
-        fb = self._get_fallback_for_task(task_type)
-        if fb and fb not in chain:
-            chain.append(fb)
 
         return chain
 
@@ -730,6 +738,7 @@ class Generator(
         reasoning_mode: str = "fast",
         task_type: str = "chat",
         strict_evidence: bool = False,
+        use_cache: bool = True,
     ) -> GenerationResult:
         self._local.reasoning_mode = reasoning_mode
         self._local.strict_evidence = strict_evidence
@@ -764,7 +773,7 @@ class Generator(
         cache_key_raw = f"mode:{self.mode}|provider:{self.custom_cloud_provider}|sys:{system_prompt}|user:{user_prompt}"
         key_hash = hashlib.md5(cache_key_raw.encode("utf-8")).hexdigest()
 
-        if state.engine:
+        if use_cache and state.engine:
             session = get_session(state.engine)
             try:
                 cached = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
@@ -794,14 +803,16 @@ class Generator(
                     "model_used": result.model_used,
                     "finish_reason": result.finish_reason
                 }
-                exists = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
-                if not exists:
+                existing = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
+                if existing:
+                    existing.response = json.dumps(cached_res)
+                else:
                     session.add(LLMCache(
                         key_hash=key_hash,
                         prompt=user_prompt,
                         response=json.dumps(cached_res)
                     ))
-                    session.commit()
+                session.commit()
             except Exception as cache_err:
                 session.rollback()
                 logger.warning(f"Failed to save to LLM cache: {cache_err}")

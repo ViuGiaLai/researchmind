@@ -182,7 +182,7 @@ def extract_citations(content: str, paper_titles: dict[str, str]) -> list[dict]:
 
 # ─── Section Generation ──────────────────────────────────────
 
-async def _generate_section(paper_ids: list[str], section: str, paper_titles: dict) -> dict:
+async def _generate_section(paper_ids: list[str], section: str, paper_titles: dict, use_cache: bool = True) -> dict:
     """Generate a single section of the literature review."""
     if section == "bibliography":
         return await _generate_bibliography(paper_ids, paper_titles)
@@ -236,6 +236,7 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
         query=section_query,
         context_text=retrieval.context_text,
         task_type="review",
+        use_cache=use_cache,
     )
 
     citations = extract_citations(generation.content, paper_titles)
@@ -603,6 +604,7 @@ async def generate_section(body: dict = Body(...)):
     """Generate or regenerate a single section."""
     paper_ids = body.get("paper_ids", [])
     section = body.get("section", "")
+    use_cache = body.get("use_cache", True)
 
     if not paper_ids:
         return {"error": "Vui lòng chọn ít nhất 1 tài liệu.", "content": ""}
@@ -621,7 +623,7 @@ async def generate_section(body: dict = Body(...)):
     finally:
         session.close()
 
-    result = await _generate_section(paper_ids, section, paper_titles)
+    result = await _generate_section(paper_ids, section, paper_titles, use_cache=use_cache)
     return result
 
 
