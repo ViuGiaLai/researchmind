@@ -77,8 +77,7 @@ async def search_works(
                 params={
                     "search": query,
                     "per_page": limit,
-                    "sort": "cited_by_count:desc",
-                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index"
+                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index,relevance_score"
                 },
                 headers=HEADERS
             )

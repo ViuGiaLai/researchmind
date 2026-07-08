@@ -119,8 +119,22 @@ async def discover_papers(body: dict = Body(...)):
             "abstract": p.abstract or "",
         })
 
-    results.sort(key=lambda x: x["citation_count"], reverse=True)
-    return {"results": results}
+    # Interleave results from both sources to preserve relevance ordering
+    # (OpenAlex sorts by relevance by default when using ?search=)
+    # (Semantic Scholar returns results in its own relevance order)
+    interleaved: list[dict] = []
+    oa_idx, s2_idx = 0, 0
+    # Split results into source-specific lists preserving original order
+    oa_list = [r for r in results if r["source"] == "openalex"]
+    s2_list = [r for r in results if r["source"] == "semantic_scholar"]
+    while oa_idx < len(oa_list) or s2_idx < len(s2_list):
+        if oa_idx < len(oa_list):
+            interleaved.append(oa_list[oa_idx])
+            oa_idx += 1
+        if s2_idx < len(s2_list):
+            interleaved.append(s2_list[s2_idx])
+            s2_idx += 1
+    return {"results": interleaved}
 
 
 @router.delete("/cache/{doi:path}")
