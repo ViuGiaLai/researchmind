@@ -893,9 +893,9 @@
 }
 
 .hl-insight-summary {
-  font-size: 0.8rem;
-  line-height: 1.65;
-  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.68;
+  color: var(--color-text);
 }
 
 .hl-insight-summary-heading {
@@ -906,31 +906,36 @@
 }
 
 .hl-insight-summary-item {
-  display: flex;
-  gap: 6px;
-  padding: 2px 0;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.38fr) 1fr;
+  gap: 10px;
+  padding: 5px 0;
+  align-items: start;
 }
 
 .hl-insight-summary-label {
-  font-weight: 600;
-  color: var(--color-border-strong);
-  white-space: nowrap;
+  font-weight: 800;
+  color: var(--color-primary);
+  white-space: normal;
 }
 
 .hl-insight-summary-value {
-  color: var(--color-text-secondary);
+  color: var(--color-text);
+  font-weight: 500;
 }
 
 .hl-insight-summary-text {
-  margin: 4px 0;
-  font-size: 0.78rem;
-  line-height: 1.55;
+  margin: 5px 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  font-weight: 500;
 }
 
 .hl-insight-summary-toggle {
   background: none;
   border: none;
-  color: var(--color-border-strong);
+  color: var(--color-primary);
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;

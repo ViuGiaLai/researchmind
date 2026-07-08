@@ -301,13 +301,13 @@ export const HighlightsLibraryView: React.FC<{
           if (line.startsWith('###')) {
             return <h5 key={i} className="hl-insight-summary-heading">{line.replace(/^#+\s*/, '')}</h5>;
           }
-          if (line.startsWith('* **')) {
-            const parts = line.replace(/^\*\s*/, '').split(':');
-            const label = parts[0]?.replace(/\*\*/g, '') || '';
-            const value = parts.slice(1).join(':').trim();
+          const itemMatch = line.match(/^\s*[-*]\s*\*\*(.+?)\*\*:?\s*(.*)$/);
+          if (itemMatch) {
+            const label = itemMatch[1].trim();
+            const value = itemMatch[2].trim();
             return (
               <div key={i} className="hl-insight-summary-item">
-                <span className="hl-insight-summary-label">{label}</span>
+                <span className="hl-insight-summary-label">{label}:</span>
                 <span className="hl-insight-summary-value">{value}</span>
               </div>
             );
