@@ -661,21 +661,31 @@ export function ReviewBuilderView() {
             { step: "review", label: "Review" },
           ].map((s, i) => {
             const isActive = s.step === step;
-            // step !== "select" already guaranteed by outer condition
             const isDone = s.step === "select" || (s.step === "outline" && step === "review");
             return (
               <div key={s.step} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  background: isDone ? "var(--color-success, #22c55e)" : isActive ? "var(--color-primary)" : "var(--color-border, rgba(148,163,184,0.2))",
-                  color: "#fff", fontSize: "0.65rem", fontWeight: 700,
+                  background: isDone || isActive ? "var(--color-primary)" : "var(--color-surface-hover)",
+                  color: "#fff", fontSize: "0.6rem", fontWeight: 700,
+                  opacity: isDone || isActive ? 1 : 0.45,
                 }}>
-                  {isDone ? <IconCheck size={12} /> : i + 1}
+                  {isDone ? (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      {i === 0 ? <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></> :
+                       i === 1 ? <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></> :
+                       <><polygon points="13 2 3 14 12 14 11 22 21 10 12 10" /></>}
+                    </svg>
+                  )}
                 </div>
                 <span style={{
                   fontSize: "0.75rem", fontWeight: isActive ? 600 : 400,
-                  color: isActive ? "var(--color-text, #e2e8f0)" : "var(--color-text-muted)",
+                  color: isActive || isDone ? "var(--color-text)" : "var(--color-text-muted)",
                 }}>
                   {s.label}
                 </span>
