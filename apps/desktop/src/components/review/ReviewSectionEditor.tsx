@@ -13,14 +13,6 @@ const turndownService = new TurndownService({
   emDelimiter: "*",
 });
 
-function mdToHtml(md: string): string {
-  return md
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\[(\d+)\]/g, '<span class="review-editor-citation">[$1]</span>')
-    .replace(/\n/g, "<br/>");
-}
 
 function htmlToMd(html: string): string {
   let md = turndownService.turndown(html);
@@ -45,6 +37,7 @@ interface ReviewSectionEditorProps {
   onRegenerate: (section: string) => void;
   onChange: (section: string, content: string) => void;
   onClose?: () => void;
+  onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void;
 }
 
 function EditorToolbar({ editor }: { editor: any }) {
@@ -133,6 +126,66 @@ function EditorToolbar({ editor }: { editor: any }) {
   );
 }
 
+function renderContentWithCitations(
+  text: string,
+  citations?: Citation[],
+  onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void
+) {
+  const lines = text.split("\n");
+  return lines.map((line, li) => {
+    const parts = line.split(/(\[[^\]]+\])/g);
+    const children = parts.map((part, pi) => {
+      const m = part.match(/^\[(\d+)\]$/);
+      if (m) {
+        const num = parseInt(m[1], 10);
+        const citation = citations?.[num - 1];
+        if (!citation) return <>{part}</>;
+        return (
+          <span
+            key={pi}
+            className="review-editor-citation"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCitationClick?.(citation.paper_id, citation.paper_title);
+            }}
+            style={{ cursor: "pointer" }}
+            title={`Mở: ${citation.paper_title}`}
+          >
+            [{num}]
+          </span>
+        );
+      }
+      const long = part.match(/^\[([a-f0-9\-]+)_([^\]]*?)(?:,\s*trang\s*(\d+))?\]$/i);
+      if (long) {
+        const paperId = long[1];
+        const page = long[3] ? parseInt(long[3], 10) : undefined;
+        const citation = citations?.find((c) => c.paper_id === paperId);
+        const label = citation?.paper_title || paperId;
+        return (
+          <span
+            key={pi}
+            className="review-editor-citation"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCitationClick?.(paperId, label, page);
+            }}
+            style={{ cursor: "pointer" }}
+            title={`Mở: ${label}${page ? ` trang ${page}` : ""}`}
+          >
+            {page ? `[${page}]` : `[${label.slice(0, 20)}…]`}
+          </span>
+        );
+      }
+      return <>{part}</>;
+    });
+    return (
+      <span key={li} style={{ display: "block" }}>
+        {children}
+      </span>
+    );
+  });
+}
+
 export function ReviewSectionEditor({
   section,
   title,
@@ -144,6 +197,7 @@ export function ReviewSectionEditor({
   onRegenerate,
   onChange,
   onClose,
+  onCitationClick,
 }: ReviewSectionEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const editorRef = useRef(content);
@@ -388,8 +442,9 @@ export function ReviewSectionEditor({
               fontSize: "0.82rem", lineHeight: 1.7,
               color: "var(--color-text, #e2e8f0)",
             }}
-            dangerouslySetInnerHTML={{ __html: mdToHtml(content) }}
-          />
+          >
+            {renderContentWithCitations(content, citations, onCitationClick)}
+          </div>
         </div>
       ) : (
         <div style={{ padding: "20px 0", textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
@@ -414,12 +469,18 @@ export function ReviewSectionEditor({
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {citations.map((c, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 4,
-                padding: "2px 8px", borderRadius: 4,
-                background: "rgba(var(--color-primary-rgb), 0.06)",
-                fontSize: "0.72rem", color: "var(--color-primary)",
-              }}>
+              <div
+                key={i}
+                onClick={() => onCitationClick?.(c.paper_id, c.paper_title)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "2px 8px", borderRadius: 4,
+                  background: "rgba(var(--color-primary-rgb), 0.06)",
+                  fontSize: "0.72rem", color: "var(--color-primary)",
+                  cursor: onCitationClick ? "pointer" : "default",
+                }}
+                title="Mở tài liệu"
+              >
                 <span style={{ fontWeight: 700 }}>[{i + 1}]</span>
                 {c.paper_title}
               </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue } from "../../lib/api";
+import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, BASE_URL } from "../../lib/api";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
 import { ProgressSidebar } from "./ProgressSidebar";
@@ -53,6 +53,7 @@ export function ReviewBuilderView() {
   const [activeSection, setActiveSection] = useState<string | undefined>();
   const [editingSection, setEditingSection] = useState<string | undefined>();
   const [matrixLoading, setMatrixLoading] = useState(false);
+  const [activePdf, setActivePdf] = useState<{ paperId: string; paperTitle: string; page?: number } | null>(null);
   const [qualityIssues, setQualityIssues] = useState<QualityIssue[]>([]);
   const [qualityLoading, setQualityLoading] = useState(false);
   const toast = useToast();
@@ -457,6 +458,10 @@ export function ReviewBuilderView() {
     setEditingSection(undefined);
     setFullText(""); // force rebuild on next save/export
     setTimeout(() => doSave(), 0);
+  };
+
+  const handleCitationClick = (paperId: string, paperTitle: string, page?: number) => {
+    setActivePdf({ paperId, paperTitle, page });
   };
 
   const handleIssueAction = (sectionKey: string, action: string, _type: string) => {
@@ -972,12 +977,14 @@ export function ReviewBuilderView() {
                       paperCount={secData?.papers_used?.length}
                       status={sectionStatus[sec.key]}
                       issues={secIssues.length > 0 ? secIssues : undefined}
+                      citations={secData?.citations}
                       onGenerate={handleGenerateSection}
                       onEdit={(key) => {
                         setActiveSection(key);
                         setEditingSection(key);
                       }}
                       onIssueAction={handleIssueAction}
+                      onCitationClick={handleCitationClick}
                     />
                     {isEditing && (
                       <div style={{ marginTop: -8, marginBottom: 12 }}>
@@ -991,6 +998,7 @@ export function ReviewBuilderView() {
                           onRegenerate={handleGenerateSection}
                           onChange={handleSectionEdit}
                           onClose={() => setEditingSection(undefined)}
+                          onCitationClick={handleCitationClick}
                         />
                       </div>
                     )}
@@ -1127,7 +1135,27 @@ export function ReviewBuilderView() {
             citations={activeCitations}
             evidence={activeEvidence}
             onClose={() => setShowSource(false)}
+            onCitationClick={handleCitationClick}
           />
+        )}
+
+        {/* PDF Overlay */}
+        {activePdf && (
+          <div className="rm-overlay evidence-pdf-overlay" onClick={() => setActivePdf(null)}>
+            <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="rm-modal-header">
+                <span className="rm-modal-title">
+                  {activePdf.paperTitle}{activePdf.page ? ` — Trang ${activePdf.page}` : ""}
+                </span>
+                <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
+              </div>
+              <iframe
+                src={`${BASE_URL}/api/papers/${activePdf.paperId}/file${activePdf.page ? `#page=${activePdf.page}` : ""}`}
+                style={{ flex: 1, border: "none" }}
+                title="Xem trước PDF"
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

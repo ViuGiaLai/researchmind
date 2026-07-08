@@ -19,9 +19,10 @@ interface SourcePanelProps {
   citations: Citation[];
   evidence: EvidenceItem[];
   onClose: () => void;
+  onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void;
 }
 
-export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) {
+export function SourcePanel({ citations, evidence, onClose, onCitationClick }: SourcePanelProps) {
   const papers = new Map<string, { title: string; chunks: EvidenceItem[] }>();
   for (const ev of evidence) {
     if (!papers.has(ev.paper_id)) {
@@ -77,6 +78,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
             {citations.map((c, i) => (
               <div
                 key={i}
+                onClick={() => onCitationClick?.(c.paper_id, c.paper_title)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -86,7 +88,9 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
                   fontSize: "0.75rem",
                   marginBottom: 4,
                   background: "rgba(var(--color-primary-rgb), 0.06)",
+                  cursor: onCitationClick ? "pointer" : "default",
                 }}
+                title="Mở tài liệu"
               >
                 <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>
                   [{i + 1}]
@@ -123,6 +127,7 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
                   {paper.chunks.map((ev) => (
                     <div
                       key={ev.chunk_id}
+                      onClick={() => onCitationClick?.(ev.paper_id, ev.paper_title, ev.page_number ?? undefined)}
                       style={{
                         padding: "6px 8px",
                         borderRadius: 4,
@@ -133,7 +138,9 @@ export function SourcePanel({ citations, evidence, onClose }: SourcePanelProps) 
                         borderLeft: "2px solid var(--color-primary)",
                         display: "flex",
                         flexDirection: "column",
+                        cursor: onCitationClick ? "pointer" : "default",
                       }}
+                      title={ev.page_number ? `Mở trang ${ev.page_number}` : "Mở tài liệu"}
                     >
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         {ev.content.length > 120 ? ev.content.slice(0, 120) + "..." : ev.content}

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { IconRefresh, IconSpinner, IconCheck, IconFileText, IconError } from "../Icons";
 
 interface QualityIssue {
@@ -7,6 +8,12 @@ interface QualityIssue {
   message: string;
   action: string;
   action_label: string;
+}
+
+interface Citation {
+  paper_id: string;
+  paper_title: string;
+  citation_text: string;
 }
 
 interface SectionCardProps {
@@ -19,9 +26,11 @@ interface SectionCardProps {
   paperCount?: number;
   status: "pending" | "generating" | "done" | "empty";
   issues?: QualityIssue[];
+  citations?: Citation[];
   onGenerate: (section: string) => void;
   onEdit?: (section: string) => void;
   onIssueAction?: (section: string, action: string, type: string) => void;
+  onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void;
 }
 
 const sectionCardStyles = `
@@ -39,6 +48,67 @@ const sectionCardStyles = `
 }
 `;
 
+function renderContentWithCitations(
+  text: string,
+  citations?: Citation[],
+  onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void
+) {
+  const lines = text.split("\n");
+  return lines.map((line, li) => {
+    const parts = line.split(/(\[[^\]]+\])/g);
+    const children = parts.map((part, pi) => {
+      const m = part.match(/^\[(\d+)\]$/);
+      if (m) {
+        const num = parseInt(m[1], 10);
+        const citation = citations?.[num - 1];
+        if (!citation) return <Fragment key={pi}>{part}</Fragment>;
+        return (
+          <span
+            key={pi}
+            className="section-card-citation"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCitationClick?.(citation.paper_id, citation.paper_title);
+            }}
+            style={{ cursor: "pointer" }}
+            title={`Mở: ${citation.paper_title}`}
+          >
+            [{num}]
+          </span>
+        );
+      }
+      const long = part.match(/^\[([a-f0-9\-]+)_([^\]]*?)(?:,\s*trang\s*(\d+))?\]$/i);
+      if (long) {
+        const paperId = long[1];
+        const page = long[3] ? parseInt(long[3], 10) : undefined;
+        const citation = citations?.find((c) => c.paper_id === paperId);
+        const label = citation?.paper_title || paperId;
+        return (
+          <span
+            key={pi}
+            className="section-card-citation"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCitationClick?.(paperId, label, page);
+            }}
+            style={{ cursor: "pointer" }}
+            title={`Mở: ${label}${page ? ` trang ${page}` : ""}`}
+          >
+            {page ? `[${page}]` : `[${label.slice(0, 20)}…]`}
+          </span>
+        );
+      }
+      return <Fragment key={pi}>{part}</Fragment>;
+    });
+    return (
+      <Fragment key={li}>
+        {children}
+        {li < lines.length - 1 && <br />}
+      </Fragment>
+    );
+  });
+}
+
 export function SectionCard({
   section,
   title,
@@ -49,9 +119,11 @@ export function SectionCard({
   paperCount,
   status,
   issues,
+  citations,
   onGenerate,
   onEdit,
   onIssueAction,
+  onCitationClick,
 }: SectionCardProps) {
   return (
     <>
@@ -178,16 +250,9 @@ export function SectionCard({
           <div style={{
             fontSize: "0.82rem", lineHeight: 1.7,
             color: "var(--color-text, #e2e8f0)",
-          }}
-            dangerouslySetInnerHTML={{
-              __html: content
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/\[(\d+)\]/g, '<span class="section-card-citation">[$1]</span>')
-                .replace(/\n/g, "<br/>"),
-            }}
-          />
+          }}>
+            {renderContentWithCitations(content, citations, onCitationClick)}
+          </div>
           {issues && issues.length > 0 && (
             <div style={{
               marginTop: 8, paddingTop: 8,
