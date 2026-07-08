@@ -255,6 +255,24 @@ export interface RelatedPaper {
   matching_chunks: number;
 }
 
+export interface ChunkMatch {
+  chunk_id: string;
+  paper_id: string;
+  paper_title: string;
+  content: string;
+  page_number: number | null;
+  chunk_index: number | null;
+  similarity: number;
+}
+
+export interface RelatedPaperMatchesResponse {
+  matches: ChunkMatch[];
+  paper_id: string;
+  other_paper_id: string;
+  other_paper_title: string;
+  model_info: { name: string; mode: string };
+}
+
 export interface ImportJob {
   id: string;
   paper_id: string | null;
@@ -934,9 +952,15 @@ export const api = {
 
   // Related Papers
   findRelatedPapers: (paperId: string, limit = 5) =>
-    request<{ related_papers: RelatedPaper[]; paper_id: string }>(
+    request<{ related_papers: RelatedPaper[]; paper_id: string; model_info: { name: string; mode: string } }>(
       "GET",
       `/api/papers/${paperId}/related?limit=${limit}`
+    ),
+
+  getRelatedPaperMatches: (paperId: string, otherPaperId: string, limit = 10) =>
+    request<RelatedPaperMatchesResponse>(
+      "GET",
+      `/api/papers/${paperId}/related/${otherPaperId}/matches?limit=${limit}`
     ),
 
   // Paper Export

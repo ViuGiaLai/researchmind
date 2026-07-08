@@ -1438,3 +1438,243 @@
 }
 /* â”€â”€â”€ Insights View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+
+.related-model-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  background: var(--color-highlight, #f0f4ff);
+  border: 1px solid var(--color-border-subtle, #e2e8f0);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Related Paper Matches Modal */
+.rm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rm-modal-matches {
+  width: min(92vw, 680px);
+  max-height: 85vh;
+  height: auto;
+  min-height: 300px;
+}
+
+.rm-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.matches-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  color: var(--color-text-secondary);
+}
+
+.matches-loading .insights-loading-spinner {
+  width: 36px;
+  height: 36px;
+}
+
+.matches-summary {
+  margin-bottom: 16px;
+}
+
+.matches-papers {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.matches-paper-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.matches-paper-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matches-vs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px 12px;
+  background: var(--color-highlight, #f0f4ff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.matches-similarity {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.matches-model-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.matches-divider {
+  height: 1px;
+  background: var(--color-border, #e5e7eb);
+  margin: 12px 0;
+}
+
+.matches-list-header {
+  margin-bottom: 10px;
+}
+
+.matches-list-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.matches-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.match-chunk-card {
+  padding: 12px;
+  background: var(--color-surface, #fafafa);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 6px);
+  margin-bottom: 8px;
+  transition: border-color var(--transition-fast, 0.15s);
+}
+
+.match-chunk-card:hover {
+  border-color: var(--color-primary);
+}
+
+.match-chunk-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.match-chunk-score {
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 48px;
+}
+
+.match-chunk-page {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg, #fff);
+  padding: 1px 6px;
+  border: 1px solid var(--color-border-subtle, #e2e8f0);
+  border-radius: var(--radius-xs, 3px);
+}
+
+.match-chunk-index {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.match-chunk-content {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.related-paper-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: var(--color-highlight, #f0f4ff);
+  border: 1px solid var(--color-border-subtle, #e2e8f0);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: center;
+  transition: all var(--transition-fast, 0.15s);
+}
+
+.related-paper-detail-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.rm-modal-pdf {
+  width: min(94vw, 1000px);
+  height: 90vh;
+  max-height: 90vh;
+}
+
+.rm-modal-pdf-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+.rm-modal-pdf-body .pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.related-papers-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: var(--color-highlight, #f0f4ff);
+  border: 1px solid var(--color-border-subtle, #e2e8f0);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s);
+}
+
+.related-papers-detail-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}

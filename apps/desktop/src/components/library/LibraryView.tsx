@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { api, Collection, Paper, RelatedPaper, Highlight, BASE_URL } from "../../lib/api";
+import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, BASE_URL } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
@@ -109,6 +109,21 @@ export const LibraryView: React.FC<{
   // Related papers state
   const [relatedPapers, setRelatedPapers] = useState<RelatedPaper[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [relatedModelInfo, setRelatedModelInfo] = useState<{ name: string; mode: string } | null>(null);
+
+  // Chunk match modal state
+  const [matchModalOpen, setMatchModalOpen] = useState(false);
+  const [matchModalData, setMatchModalData] = useState<{
+    sourceTitle: string;
+    otherTitle: string;
+    similarity: number;
+    matches: ChunkMatch[];
+    modelInfo: { name: string; mode: string } | null;
+  } | null>(null);
+  const [loadingMatches, setLoadingMatches] = useState(false);
+
+  // PDF preview modal for related papers
+  const [pdfPreviewId, setPdfPreviewId] = useState<string | null>(null);
 
   // Highlights state
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -422,16 +437,40 @@ export const LibraryView: React.FC<{
   const loadRelatedPapers = async (paperId: string) => {
     setLoadingRelated(true);
     setRelatedPapers([]);
+    setRelatedModelInfo(null);
     try {
       const res = await api.findRelatedPapers(paperId, 5);
       if (activePaperIdRef.current !== paperId) return;
       setRelatedPapers(res.related_papers);
+      setRelatedModelInfo(res.model_info || null);
     } catch (e) {
       if (activePaperIdRef.current !== paperId) return;
       console.error("Failed to load related papers:", e);
       setRelatedPapers([]);
     } finally {
       if (activePaperIdRef.current === paperId) setLoadingRelated(false);
+    }
+  };
+
+  const showRelatedPaperMatches = async (otherPaperId: string, similarity: number, otherTitle: string) => {
+    if (!activePaper) return;
+    setLoadingMatches(true);
+    setMatchModalOpen(true);
+    setMatchModalData(null);
+    try {
+      const res = await api.getRelatedPaperMatches(activePaper.id, otherPaperId, 10);
+      setMatchModalData({
+        sourceTitle: activePaper.title || activePaper.filename,
+        otherTitle: otherTitle || res.other_paper_title,
+        similarity,
+        matches: res.matches,
+        modelInfo: res.model_info || null,
+      });
+    } catch (e) {
+      console.error("Failed to load matching chunks:", e);
+      setMatchModalData(null);
+    } finally {
+      setLoadingMatches(false);
     }
   };
 
@@ -1187,13 +1226,33 @@ export const LibraryView: React.FC<{
                     <IconLink size={14} />
                     <span>Papers liên quan (theo embedding similarity)</span>
                   </h4>
-                  <button
-                    className="related-papers-refresh-btn"
-                    onClick={() => activePaper && loadRelatedPapers(activePaper.id)}
-                    disabled={loadingRelated}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {relatedModelInfo && (
+                      <span className="related-model-badge" title={`Model: ${relatedModelInfo.name} · Mode: ${relatedModelInfo.mode}`}>
+                        {relatedModelInfo.name.split("/").pop()} ({relatedModelInfo.mode})
+                      </span>
+                    )}
+                    {relatedPapers.length > 0 && (
+                      <button
+                        className="related-papers-detail-btn"
+                        onClick={() => {
+                          const top = relatedPapers[0];
+                          showRelatedPaperMatches(top.paper_id, top.similarity, top.title);
+                        }}
+                        title="Xem chi tiết tương đồng"
+                      >
+                        <IconSearch size={12} />
+                        <span>Chi tiết</span>
+                      </button>
+                    )}
+                    <button
+                      className="related-papers-refresh-btn"
+                      onClick={() => activePaper && loadRelatedPapers(activePaper.id)}
+                      disabled={loadingRelated}
                   >
                     {loadingRelated ? "Đang tải..." : "Làm mới"}
                   </button>
+                  </div>
                 </div>
 
                 {loadingRelated ? (
@@ -1212,10 +1271,7 @@ export const LibraryView: React.FC<{
                       <div
                         key={rp.paper_id}
                         className="related-paper-card"
-                        onClick={() => {
-                          const paper = papers.find((p) => p.id === rp.paper_id);
-                          if (paper) setActivePaper(paper);
-                        }}
+                        onClick={() => setPdfPreviewId(rp.paper_id)}
                       >
                         <div className="related-paper-score">
                           <span className="related-paper-score-value">
@@ -1364,6 +1420,104 @@ export const LibraryView: React.FC<{
             <IconFileText size={48} />
             <h3>Chưa chọn tài liệu</h3>
             <p>Chọn một tài liệu trong danh sách bên trái để xem thông tin chi tiết và đọc nội dung tài liệu.</p>
+          </div>
+        )}
+
+        {/* Related paper matches modal */}
+        {matchModalOpen && (
+          <div className="rm-modal-overlay" onClick={() => setMatchModalOpen(false)}>
+            <div className="rm-modal rm-modal-matches" onClick={(e) => e.stopPropagation()}>
+              <div className="rm-modal-header">
+                <h3 className="rm-modal-title">
+                  <IconGraph size={16} style={{ marginRight: 8 }} />
+                  Chi tiết tương đồng
+                </h3>
+                <button className="rm-modal-close" onClick={() => setMatchModalOpen(false)}>✕</button>
+              </div>
+              <div className="rm-modal-body">
+                {loadingMatches ? (
+                  <div className="matches-loading">
+                    <div className="insights-loading-spinner" />
+                    <span>Đang tìm các chunk tương đồng...</span>
+                  </div>
+                ) : matchModalData ? (
+                  <>
+                    <div className="matches-summary">
+                      <div className="matches-papers">
+                        <div className="matches-paper-title" title={matchModalData.sourceTitle}>
+                          <IconFileText size={14} />
+                          <span>{matchModalData.sourceTitle}</span>
+                        </div>
+                        <div className="matches-vs">
+                          <IconGraph size={14} />
+                          <span className="matches-similarity">{(matchModalData.similarity * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="matches-paper-title" title={matchModalData.otherTitle}>
+                          <IconFileText size={14} />
+                          <span>{matchModalData.otherTitle}</span>
+                        </div>
+                      </div>
+                      {matchModalData.modelInfo && (
+                        <div className="matches-model-info">
+                          <IconSettings size={12} />
+                          <span>Embedding model: <strong>{matchModalData.modelInfo.name}</strong> ({matchModalData.modelInfo.mode})</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="matches-divider" />
+                    <div className="matches-list">
+                      <div className="matches-list-header">
+                        <span className="matches-list-title">Các chunk tương đồng ({matchModalData.matches.length})</span>
+                      </div>
+                      {matchModalData.matches.length === 0 ? (
+                        <div className="matches-empty">Không tìm thấy chunk tương đồng chi tiết.</div>
+                      ) : (
+                        matchModalData.matches.map((m, i) => (
+                          <div key={m.chunk_id || i} className="match-chunk-card">
+                            <div className="match-chunk-header">
+                              <span className="match-chunk-score" style={{ color: m.similarity > 0.7 ? "var(--color-success, #22c55e)" : m.similarity > 0.5 ? "var(--color-warning, #eab308)" : "var(--color-text-muted)" }}>
+                                {(m.similarity * 100).toFixed(1)}%
+                              </span>
+                              {m.page_number != null && (
+                                <span className="match-chunk-page">Trang {m.page_number}</span>
+                              )}
+                              {m.chunk_index != null && (
+                                <span className="match-chunk-index">Chunk #{m.chunk_index}</span>
+                              )}
+                            </div>
+                            <div className="match-chunk-content">"{m.content}"</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="matches-empty">Không thể tải dữ liệu tương đồng.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PDF preview modal for related papers */}
+        {pdfPreviewId && (
+          <div className="rm-modal-overlay" onClick={() => setPdfPreviewId(null)}>
+            <div className="rm-modal rm-modal-pdf" onClick={(e) => e.stopPropagation()}>
+              <div className="rm-modal-header">
+                <h3 className="rm-modal-title">
+                  <IconBookOpen size={16} style={{ marginRight: 8 }} />
+                  {papers.find(p => p.id === pdfPreviewId)?.title || "Xem tài liệu"}
+                </h3>
+                <button className="rm-modal-close" onClick={() => setPdfPreviewId(null)}>✕</button>
+              </div>
+              <div className="rm-modal-pdf-body">
+                <iframe
+                  src={`${BASE_URL}/api/papers/${pdfPreviewId}/file`}
+                  className="pdf-iframe"
+                  title="PDF Preview"
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

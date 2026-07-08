@@ -1470,6 +1470,96 @@ async def find_related_papers(paper_id: str, limit: int = Query(5)):
         return {
             "related_papers": related_papers[:limit],
             "paper_id": paper_id,
+            "model_info": {
+                "name": settings.embedding_model,
+                "mode": settings.embedding_mode,
+            },
+        }
+    finally:
+        session.close()
+
+
+@router.get("/{paper_id}/related/{other_paper_id}/matches")
+async def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: int = Query(10)):
+    """
+    Get detailed chunk-level matches between a paper and a related paper.
+    Returns the matching chunks with content, similarity scores, and page numbers.
+    """
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        other_paper = session.query(Paper).filter(Paper.id == other_paper_id).first()
+        if not paper or not other_paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index).all()
+        if not chunks:
+            return {"matches": [], "paper_id": paper_id, "other_paper_id": other_paper_id}
+
+        # Use the first chunk's embedding to find matches (same logic as find_related_papers)
+        chunk_ids = [f"{paper_id}_{chunks[0].chunk_index}"]
+
+        try:
+            collection = state.vector.collection
+            results = collection.get(
+                ids=chunk_ids,
+                include=["embeddings"],
+            )
+            if not results["ids"] or len(results["embeddings"]) == 0:
+                return {"matches": [], "paper_id": paper_id, "other_paper_id": other_paper_id}
+
+            query_embedding = results["embeddings"][0]
+        except Exception as e:
+            logger.warning(f"Failed to get embeddings for paper {paper_id}: {e}")
+            return {"matches": [], "paper_id": paper_id, "other_paper_id": other_paper_id}
+
+        # Query with larger n_results to find matches for the specific other paper
+        search_results = state.vector.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=limit * 5,
+            include=["metadatas", "distances", "documents"],
+        )
+
+        matches = []
+        seen_chunk_ids = set()
+        if search_results["ids"] and search_results["ids"][0]:
+            for i in range(len(search_results["ids"][0])):
+                metadata = search_results["metadatas"][0][i]
+                distance = search_results["distances"][0][i]
+                match_paper_id = metadata.get("paper_id", "")
+                chunk_id = search_results["ids"][0][i]
+
+                if match_paper_id != other_paper_id:
+                    continue
+                if chunk_id in seen_chunk_ids:
+                    continue
+                seen_chunk_ids.add(chunk_id)
+
+                similarity = 1.0 - distance
+                matches.append({
+                    "chunk_id": chunk_id,
+                    "paper_id": other_paper_id,
+                    "paper_title": metadata.get("paper_title", ""),
+                    "content": search_results["documents"][0][i][:500],
+                    "page_number": metadata.get("page_number"),
+                    "chunk_index": metadata.get("chunk_index"),
+                    "similarity": round(similarity, 4),
+                })
+
+                if len(matches) >= limit:
+                    break
+
+        matches.sort(key=lambda x: x["similarity"], reverse=True)
+
+        return {
+            "matches": matches,
+            "paper_id": paper_id,
+            "other_paper_id": other_paper_id,
+            "other_paper_title": other_paper.title or other_paper.filename,
+            "model_info": {
+                "name": settings.embedding_model,
+                "mode": settings.embedding_mode,
+            },
         }
     finally:
         session.close()
