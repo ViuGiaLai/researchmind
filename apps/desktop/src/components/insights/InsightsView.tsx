@@ -14,9 +14,10 @@ import {
   IconLink,
 } from "../Icons";
 
+
 interface InsightResult {
   answer: string;
-  citations: { source: string; page: number | null; text: string }[];
+  citations: { source: string; page: number | null; text: string; paper_id?: string }[];
   model_used: string;
   papers_used: string[];
   chunks_used: number;
@@ -72,6 +73,10 @@ export const InsightsView: React.FC<{
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [pdfPaperId, setPdfPaperId] = useState<string | null>(null);
+  const [pdfInitialPage, setPdfInitialPage] = useState(1);
+  const [pdfRefreshKey, setPdfRefreshKey] = useState(0);
 
   useEffect(() => {
     loadPapers();
@@ -162,21 +167,73 @@ export const InsightsView: React.FC<{
     }
   };
 
-  const stripMarkdown = (s: string) =>
-    s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/`(.+?)`/g, '$1');
+  const openPdf = (paperId: string, page: number = 1) => {
+    setPdfPaperId(paperId);
+    setPdfInitialPage(page);
+    setShowPdfViewer(true);
+    setPdfRefreshKey(k => k + 1);
+  };
+
+  const extractPaperId = (text: string): string | null => {
+    const m = text.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/);
+    return m ? m[1] : null;
+  };
+
+  const renderInline = (text: string, key: number) => {
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let idx = 0;
+    const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+    while (remaining.length > 0) {
+      const citeMatch = remaining.match(/^\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]/);
+      if (citeMatch) {
+        const paperId = extractPaperId(citeMatch[1]);
+        const display = citeMatch[1].replace(uuidRe, "").replace(/^_?/, "").trim();
+        const page = citeMatch[2] || null;
+        if (paperId) {
+          parts.push(
+            <span
+              key={idx++}
+              className="citation-ref"
+              onClick={() => openPdf(paperId, page ? parseInt(page, 10) : 1)}
+              title="Nhấp để mở PDF"
+              style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.85em", cursor: "pointer", padding: "0 2px" }}
+            >
+              [{display}{page ? `, tr.${page}` : ""}]
+            </span>
+          );
+        } else {
+          parts.push(<span key={idx++} style={{ color: "var(--color-primary)", fontSize: "0.85em" }}>[{citeMatch[1]}{page ? `, tr.${page}` : ""}]</span>);
+        }
+        remaining = remaining.slice(citeMatch[0].length);
+        continue;
+      }
+      const nextCite = remaining.search(/\[/);
+      if (nextCite === -1) {
+        parts.push(<span key={idx++}>{remaining}</span>);
+        break;
+      }
+      if (nextCite > 0) {
+        parts.push(<span key={idx++}>{remaining.slice(0, nextCite)}</span>);
+      }
+      remaining = remaining.slice(nextCite);
+    }
+    return <React.Fragment key={key}>{parts}</React.Fragment>;
+  };
 
   const renderMarkdown = (text: string) => {
+    let elemIdx = 0;
     return text.split("\n").map((line, i) => {
       if (line.startsWith("###"))
         return (
           <h4 key={i} className="insight-heading">
-            {stripMarkdown(line.replace(/^#+\s*/, ""))}
+            {renderInline(line.replace(/^#+\s*/, ""), elemIdx++)}
           </h4>
         );
       if (line.startsWith("##"))
         return (
           <h3 key={i} className="insight-heading-2">
-            {stripMarkdown(line.replace(/^#+\s*/, ""))}
+            {renderInline(line.replace(/^#+\s*/, ""), elemIdx++)}
           </h3>
         );
       if (line.startsWith("* **") || line.startsWith("**")) {
@@ -187,23 +244,23 @@ export const InsightsView: React.FC<{
         return (
           <div key={i} className="insight-item">
             <span className="insight-item-label">{label}</span>
-            <span className="insight-item-value">{value}</span>
+            <span className="insight-item-value">{renderInline(value, elemIdx++)}</span>
           </div>
         );
       }
       if (line.startsWith("- ") || line.startsWith("• "))
         return (
           <li key={i} className="insight-list-item">
-            {stripMarkdown(line.replace(/^[-•]\s*/, ""))}
+            {renderInline(line.replace(/^[-•]\s*/, ""), elemIdx++)}
           </li>
         );
       if (/^\d+[.)]\s/.test(line))
         return (
           <li key={i} className="insight-list-item">
-            {stripMarkdown(line.replace(/^\d+[.)]\s*/, ""))}
+            {renderInline(line.replace(/^\d+[.)]\s*/, ""), elemIdx++)}
           </li>
         );
-      if (line.trim()) return <p key={i} className="insight-text">{stripMarkdown(line)}</p>;
+      if (line.trim()) return <p key={i} className="insight-text">{renderInline(line, elemIdx++)}</p>;
       return null;
     });
   };
@@ -421,12 +478,20 @@ export const InsightsView: React.FC<{
             <div className="insights-citations">
               <h4>Nguồn tham chiếu:</h4>
               <div className="insights-citations-list">
-                {result.citations.map((c, i) => (
-                  <span key={i} className="insights-citation-tag">
-                    {c.source}
-                    {c.page ? ` (trang ${c.page})` : ""}
-                  </span>
-                ))}
+                {result.citations.map((c, i) => {
+                  const paperId = c.paper_id || extractPaperId(c.source);
+                  return (
+                    <span
+                      key={i}
+                      className={`insights-citation-tag${paperId ? " clickable" : ""}`}
+                      onClick={paperId ? () => openPdf(paperId, c.page || 1) : undefined}
+                      title={paperId ? "Nhấp để mở PDF" : undefined}
+                    >
+                      {c.source.replace(/^[0-9a-f-]{36}_?/, "").trim()}
+                      {c.page ? ` (trang ${c.page})` : ""}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -470,6 +535,46 @@ export const InsightsView: React.FC<{
               <IconChat size={16} />
               Hỏi thêm về kết quả này
             </button>
+          </div>
+        </div>
+      )}
+
+      {showPdfViewer && pdfPaperId && (
+        <div className="pdf-overlay" style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.6)", display: "flex",
+          alignItems: "center", justifyContent: "center",
+        }}
+          onClick={() => setShowPdfViewer(false)}
+        >
+          <div style={{
+            width: "90vw", height: "90vh", background: "var(--color-bg,#1a1a2e)",
+            borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column",
+          }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "8px 16px", borderBottom: "1px solid var(--color-border)",
+            }}>
+              <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                {papers.find(p => p.id === pdfPaperId)?.title || pdfPaperId?.slice(0, 12)}
+              </span>
+              <button onClick={() => setShowPdfViewer(false)}
+                style={{
+                  background: "none", border: "none", color: "var(--color-text-muted)",
+                  cursor: "pointer", fontSize: "1.2rem",
+                }}
+              >✕</button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <iframe
+                key={`${pdfPaperId}-${pdfInitialPage}-${pdfRefreshKey}`}
+                src={`${(window as any).BASE_URL || "http://127.0.0.1:8765"}/api/papers/${pdfPaperId}/file#page=${pdfInitialPage}`}
+                style={{ width: "100%", height: "100%", border: "none" }}
+                title={papers.find(p => p.id === pdfPaperId)?.title || "Tài liệu"}
+              />
+            </div>
           </div>
         </div>
       )}
