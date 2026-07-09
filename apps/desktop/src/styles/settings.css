@@ -27,7 +27,7 @@
 }
 
 .settings-page-title {
-  font-size: 1.25rem;
+  font-size: clamp(1.35rem, 1.2rem + 0.55vw, 1.8rem);
   font-weight: 700;
   margin: 0 0 4px;
   letter-spacing: -0.02em;
@@ -35,10 +35,10 @@
 
 .settings-page-desc {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: clamp(0.9rem, 0.86rem + 0.2vw, 1rem);
   color: var(--color-text-muted);
   line-height: 1.5;
-  max-width: 56ch;
+  max-width: 64ch;
 }
 
 .settings-toolbar-meta {
@@ -74,7 +74,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  max-width: 960px;
+  width: 100%;
+  max-width: min(1320px, 100%);
+  margin: 0 auto;
 }
 
 /* Legacy panel wrapper (unused) */
@@ -825,8 +827,41 @@
   width: 100%;
 }
 
+.settings-general-grid > .settings-section {
+  min-width: 0;
+}
+
 .settings-general-grid .settings-section--span {
   grid-column: 1 / -1;
+}
+
+@media (max-width: 1100px) {
+  .settings-toolbar {
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  .settings-shell > .sub-tab-bar {
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  .settings-content {
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  .settings-general-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-diag-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-diag-surface {
+    padding: var(--space-md);
+  }
 }
 
 @media (max-width: 720px) {
@@ -853,6 +888,18 @@
   .settings-diag-grid {
     grid-template-columns: 1fr;
   }
+
+  .settings-diag-card {
+    min-height: 104px;
+  }
+
+  .settings-page-title {
+    font-size: 1.25rem;
+  }
+
+  .settings-page-desc {
+    font-size: 0.85rem;
+  }
 }
 
 /* ── Diagnostics tab ── */
@@ -863,13 +910,38 @@
   width: 100%;
 }
 
+.settings-diag-surface {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, transparent), var(--color-surface));
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+}
+
 .settings-diag-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
   margin-bottom: var(--space-md);
+}
+
+.settings-diag-toolbar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 260px;
+}
+
+.settings-diag-title {
+  margin-bottom: 0;
+}
+
+.settings-diag-intro {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
 }
 
 .settings-diag-toolbar-actions {
@@ -881,25 +953,47 @@
 .settings-diag-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
 .settings-diag-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: 6px;
+  min-height: 118px;
+  padding: 14px 15px;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-subtle);
-  background: var(--color-surface);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--color-surface) 97%, #ffffff 3%), var(--color-surface));
+}
+
+.settings-diag-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-border-subtle) 80%, transparent);
 }
 
 .settings-diag-card--ok {
   border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, var(--color-border-subtle));
 }
 
+.settings-diag-card--ok::before {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 65%, transparent);
+}
+
 .settings-diag-card--warn {
   border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 40%, var(--color-border-subtle));
+}
+
+.settings-diag-card--warn::before {
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 70%, transparent);
 }
 
 .settings-diag-label {
@@ -911,8 +1005,9 @@
 }
 
 .settings-diag-card strong {
-  font-size: 0.92rem;
+  font-size: 1.02rem;
   color: var(--color-text);
+  line-height: 1.3;
 }
 
 .settings-diag-hint {
@@ -925,11 +1020,21 @@
 .settings-diag-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 14px;
-  padding-top: 12px;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid var(--color-border-subtle);
-  font-size: 0.8rem;
+}
+
+.settings-diag-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-hover) 82%, transparent);
+  font-size: 0.78rem;
   color: var(--color-text-secondary);
 }
 

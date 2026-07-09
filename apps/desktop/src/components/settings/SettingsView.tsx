@@ -852,12 +852,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
             {activeSection === "diagnostics" && (
               <div className="settings-diagnostics">
-                <div className="settings-section settings-section--flat">
+                <div className="settings-section settings-section--flat settings-diag-surface">
                   <div className="settings-diag-toolbar">
-                    <h3 className="settings-section-title" style={{ margin: 0 }}>
-                      <IconActivity size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                      Trạng thái hệ thống
-                    </h3>
+                    <div className="settings-diag-toolbar-head">
+                      <h3 className="settings-section-title settings-diag-title" style={{ margin: 0 }}>
+                        <IconActivity size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+                        Trạng thái hệ thống
+                      </h3>
+                      <p className="settings-diag-intro">Theo dõi sức khoẻ backend, chỉ mục và bộ nhớ theo thời gian thực.</p>
+                    </div>
                     <div className="settings-diag-toolbar-actions">
                       <button
                         type="button"
@@ -926,11 +929,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                       </div>
 
                       <div className="settings-diag-stats">
-                        <span>{diagnostics.total_papers} papers</span>
-                        <span>{diagnostics.indexed_papers} đã index</span>
-                        <span>{diagnostics.total_size_mb} MB dữ liệu</span>
-                        <span>LLM: {diagnostics.llm_mode}</span>
-                        <span>Setup: {diagnostics.setup_completed ? "Hoàn tất" : "Chưa xong"}</span>
+                        <span className="settings-diag-stat-chip">{diagnostics.total_papers} papers</span>
+                        <span className="settings-diag-stat-chip">{diagnostics.indexed_papers} đã index</span>
+                        <span className="settings-diag-stat-chip">{diagnostics.total_size_mb} MB dữ liệu</span>
+                        <span className="settings-diag-stat-chip">LLM: {diagnostics.llm_mode}</span>
+                        <span className="settings-diag-stat-chip">Setup: {diagnostics.setup_completed ? "Hoàn tất" : "Chưa xong"}</span>
                       </div>
                     </>
                   ) : (
