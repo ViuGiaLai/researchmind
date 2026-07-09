@@ -51,7 +51,7 @@ export const PersonalBrainView: React.FC = () => {
 
   if (!data) return null;
 
-  const { reading_stats, topic_interests, author_preferences, timeline, recent_activity, insights } = data;
+  const { reading_stats, topic_interests, research_profile, author_preferences, timeline, recent_activity, insights } = data;
 
   return (
     <div className="personal-brain-view">
@@ -111,6 +111,10 @@ export const PersonalBrainView: React.FC = () => {
           <div className="personal-brain-progress-info">
             <span>{reading_stats.read_percentage}% đã đọc ({reading_stats.read_count}/{reading_stats.total_papers})</span>
             <span>{reading_stats.total_pages} trang tổng cộng</span>
+          </div>
+          <div className="personal-brain-progress-metrics">
+            <span>Ước tính trung bình: {reading_stats.average_reading_minutes || 0} phút / paper</span>
+            <span>Tổng thời gian đọc: {reading_stats.estimated_total_reading_minutes || 0} phút</span>
           </div>
         </div>
         {reading_stats.languages && Object.keys(reading_stats.languages).length > 0 && (
@@ -179,7 +183,7 @@ export const PersonalBrainView: React.FC = () => {
           {/* Chat query topics */}
           {topic_interests.top_query_topics.length > 0 && (
             <div className="personal-brain-interest-group">
-              <h4 className="personal-brain-interest-label">Chủ đề trong câu hỏi chat</h4>
+              <h4 className="personal-brain-interest-label">Chủ đề AI đã trao đổi</h4>
               <div className="personal-brain-tag-list">
                 {topic_interests.top_query_topics.map((qt) => (
                   <span key={qt.topic} className="personal-brain-tag chat-topic-tag">
@@ -189,13 +193,64 @@ export const PersonalBrainView: React.FC = () => {
               </div>
             </div>
           )}
-          {topic_interests.top_tags.length === 0 && topic_interests.top_keywords.length === 0 && (
+          {topic_interests.top_tags.length === 0 && topic_interests.top_keywords.length === 0 && topic_interests.top_query_topics.length === 0 && (
             <div className="personal-brain-empty-hint">
               <p>Hãy thêm tags cho papers hoặc bắt đầu chat để AI phân tích sở thích của bạn.</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Research Profile */}
+      {research_profile && (
+        research_profile.primary_fields.length > 0 ||
+        research_profile.top_venues.length > 0 ||
+        research_profile.ai_modes.length > 0
+      ) && (
+        <div className="personal-brain-section">
+          <h3 className="personal-brain-section-title">
+            <IconWithText icon={IconBulb} size={16}>Phân tích thói quen nghiên cứu</IconWithText>
+          </h3>
+          <div className="personal-brain-interests-grid">
+            {research_profile.primary_fields.length > 0 && (
+              <div className="personal-brain-interest-group">
+                <h4 className="personal-brain-interest-label">Lĩnh vực nghiên cứu chính</h4>
+                <div className="personal-brain-tag-list">
+                  {research_profile.primary_fields.map((field) => (
+                    <span key={field.field} className="personal-brain-tag field-tag">
+                      {field.field} <span className="personal-brain-tag-count">{field.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {research_profile.top_venues.length > 0 && (
+              <div className="personal-brain-interest-group">
+                <h4 className="personal-brain-interest-label">Tạp chí/Hội nghị đọc nhiều nhất</h4>
+                <div className="personal-brain-tag-list">
+                  {research_profile.top_venues.map((venue) => (
+                    <span key={venue.venue} className="personal-brain-tag venue-tag">
+                      {venue.venue} <span className="personal-brain-tag-count">{venue.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {research_profile.ai_modes.length > 0 && (
+              <div className="personal-brain-interest-group">
+                <h4 className="personal-brain-interest-label">Mô hình AI sử dụng nhiều nhất</h4>
+                <div className="personal-brain-tag-list">
+                  {research_profile.ai_modes.map((mode) => (
+                    <span key={mode.mode} className="personal-brain-tag ai-mode-tag">
+                      {mode.mode} <span className="personal-brain-tag-count">{mode.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Author Preferences */}
       {author_preferences.top_authors.length > 0 && (
