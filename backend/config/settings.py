@@ -119,7 +119,11 @@ class Settings(BaseSettings):
     # Gemini Cloud
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
-    
+
+    # Gemini Translation
+    gemini_translate_api_key: str = ""
+    gemini_translate_model: str = "gemini-2.5-flash"
+
     # NVIDIA NIM (OpenAI-compatible)
     nvidia_api_key: str = ""
     nvidia_model: str = "moonshotai/kimi-k2.6"

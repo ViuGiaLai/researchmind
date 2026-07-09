@@ -75,6 +75,33 @@
   transform: none;
 }
 
+.discovery-translate-btn {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+  background: rgba(var(--color-primary-rgb), 0.08);
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.discovery-translate-btn:hover:not(:disabled) {
+  background: rgba(var(--color-primary-rgb), 0.15);
+  border-color: var(--color-primary);
+}
+
+.discovery-translate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .discovery-results {
   flex: 1;
   overflow-y: auto;

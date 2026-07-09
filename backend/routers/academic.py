@@ -4,12 +4,16 @@ GET  /api/academic/paper        → tra paper nhanh qua OpenAlex
 POST /api/academic/discover     → search query qua OpenAlex + Semantic Scholar, trả JSON deduped
 DELETE /api/academic/cache/{doi} → xoá cache cho DOI cụ thể
 GET  /api/academic/pdf-proxy    → proxy PDF từ URL ngoài để xem trong iframe
+POST /api/academic/translate    → translate all papers in results list via Gemini
 """
 import asyncio
+import json
 import httpx
 from fastapi import APIRouter, Body, Query, HTTPException
 from fastapi.responses import Response
 from loguru import logger
+
+from config.settings import settings
 
 from academic.openalex import get_work_by_doi as oa_get, search_works as oa_search
 from academic.crossref import get_work_by_doi as cr_get
@@ -188,6 +192,82 @@ async def proxy_pdf(url: str = Query(..., description="PDF URL to proxy")):
         raise HTTPException(status_code=504, detail="Timeout fetching PDF")
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail=f"Error fetching PDF: {str(e)}")
+
+
+@router.post("/translate")
+async def translate_papers(body: dict = Body(...)):
+    """Translate discovery result titles and abstracts from English to Vietnamese via Gemini."""
+    papers = body.get("papers", [])
+    if not papers:
+        return {"translations": []}
+
+    api_key = settings.gemini_translate_api_key or settings.gemini_api_key
+    model = settings.gemini_translate_model or "gemini-2.5-flash"
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Missing Gemini API key. Set GEMINI_TRANSLATE_API_KEY or GEMINI_API_KEY in .env")
+
+    system_prompt = (
+        "Bạn là chuyên gia dịch thuật học thuật Anh-Việt. "
+        "Dịch title và abstract từ tiếng Anh sang tiếng Việt. "
+        "Giữ nguyên: tên tác giả, tên tạp chí, DOI, số liệu, thuật ngữ kỹ thuật (RAG, GraphRAG, LLM, Transformer, GAN, v.v.). "
+        "Chỉ trả về JSON, không thêm giải thích."
+    )
+
+    batch = []
+    for p in papers:
+        title = (p.get("title") or "").strip()
+        abstract = (p.get("abstract") or "").strip()
+        batch.append({"title": title, "abstract": abstract})
+
+    prompt = json.dumps(batch, ensure_ascii=False)
+    user_prompt = f"Dịch các title và abstract sau sang tiếng Việt:\n\n{prompt}"
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 8192,
+            "responseMimeType": "application/json",
+        },
+    }
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Gemini API timeout")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Gemini API error: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    candidates = data.get("candidates", [])
+    if not candidates:
+        raise HTTPException(status_code=502, detail="Gemini returned no candidates")
+
+    raw = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+    try:
+        parsed = json.loads(raw)
+        translations = parsed.get("translations", parsed if isinstance(parsed, list) else [])
+    except json.JSONDecodeError:
+        logger.warning(f"Gemini translate: failed to parse JSON, raw={raw[:200]}")
+        raise HTTPException(status_code=502, detail="Gemini returned invalid JSON")
+
+    # Ensure we return exactly one translation per input paper
+    result = []
+    for i, p in enumerate(papers):
+        t = translations[i] if i < len(translations) else {}
+        result.append({
+            "title_vi": t.get("title_vi") or t.get("title") or "",
+            "abstract_vi": t.get("abstract_vi") or t.get("abstract") or "",
+        })
+
+    return {"translations": result}
 
 
 @router.delete("/cache/{doi:path}")

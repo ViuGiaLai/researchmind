@@ -781,6 +781,8 @@ export const api = {
   importPaperByMetadata: (meta: {
     doi?: string; title: string; authors?: string[]; year?: number; journal?: string; abstract?: string
   }) => request<{ paper_id: string; title: string; status: string }>("POST", "/api/papers/import/metadata", meta),
+  translatePapers: (papers: { title: string; abstract: string }[]) =>
+    request<{ translations: { title_vi: string; abstract_vi: string }[] }>("POST", "/api/academic/translate", { papers }),
 
   // Collections / Projects
   listCollections: () =>
@@ -1446,11 +1448,18 @@ export interface PersonalBrainResponse {
     total_pages: number;
     languages: Record<string, number>;
     read_percentage: number;
+    average_reading_minutes?: number;
+    estimated_total_reading_minutes?: number;
   };
   topic_interests: {
     top_tags: { topic: string; count: number }[];
     top_keywords: { keyword: string; count: number }[];
     top_query_topics: { topic: string; count: number }[];
+  };
+  research_profile?: {
+    primary_fields: { field: string; count: number }[];
+    top_venues: { venue: string; count: number }[];
+    ai_modes: { mode: string; count: number }[];
   };
   author_preferences: {
     top_authors: { author: string; count: number }[];

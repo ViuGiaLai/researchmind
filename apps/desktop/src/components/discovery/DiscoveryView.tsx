@@ -11,10 +11,11 @@ export const DiscoveryView: React.FC = () => {
   const [searched, setSearched] = useState(false);
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
-  const toast = useToast();
-
-  // Detail modal
+  const [translating, setTranslating] = useState(false);
+  const [translateMode, setTranslateMode] = useState<"original" | "vi">("original");
+  const [translations, setTranslations] = useState<Map<string, { title_vi: string; abstract_vi: string }>>(new Map());
   const [detailPaper, setDetailPaper] = useState<DiscoveredPaper | null>(null);
+  const toast = useToast();
 
   const getSourceUrl = (paper: DiscoveredPaper) => {
     if (paper.source === "openalex" && paper.openalex_id) {
@@ -32,6 +33,8 @@ export const DiscoveryView: React.FC = () => {
     if (!q) return;
     setSearching(true);
     setSearched(true);
+    setTranslateMode("original");
+    setTranslations(new Map());
     try {
       const res = await api.discoverPapers(q, 20);
       setResults(res.results);
@@ -39,6 +42,31 @@ export const DiscoveryView: React.FC = () => {
       toast.addToast("error", "Không thể tìm kiếm. Vui lòng thử lại.");
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleTranslateAll = async () => {
+    if (translating) return;
+    if (translations.size > 0) {
+      setTranslateMode(translateMode === "original" ? "vi" : "original");
+      return;
+    }
+    setTranslating(true);
+    try {
+      const papers = results.map((r) => ({ title: r.title, abstract: r.abstract }));
+      const res = await api.translatePapers(papers);
+      const map = new Map<string, { title_vi: string; abstract_vi: string }>();
+      results.forEach((r, i) => {
+        const t = res.translations[i];
+        if (t) map.set(r.doi || r.title, t);
+      });
+      setTranslations(map);
+      setTranslateMode("vi");
+      toast.addToast("success", `Đã dịch ${res.translations.length} bài báo`);
+    } catch {
+      toast.addToast("error", "Không thể dịch. Vui lòng kiểm tra API key Gemini trong .env");
+    } finally {
+      setTranslating(false);
     }
   };
 
@@ -111,6 +139,17 @@ export const DiscoveryView: React.FC = () => {
           {searching ? <IconSpinner size={14} /> : <IconSearch size={14} />}
           {searching ? "Đang tìm..." : "Tìm kiếm"}
         </button>
+        {searched && results.length > 0 && (
+          <button
+            type="button"
+            className="discovery-translate-btn"
+            onClick={handleTranslateAll}
+            disabled={translating}
+            title={translateMode === "vi" ? "Hiển thị bản gốc" : "Dịch tất cả sang tiếng Việt"}
+          >
+            {translating ? <IconSpinner size={14} /> : <span>{translateMode === "vi" ? "EN" : "VI"}</span>}
+          </button>
+        )}
       </div>
 
       <div className="discovery-results">
@@ -132,17 +171,23 @@ export const DiscoveryView: React.FC = () => {
               const key = paper.doi || paper.title;
               const isImporting = importing.has(key);
               const isImported = imported.has(key);
+              const t = translations.get(key);
+              const showVi = translateMode === "vi" && t;
               return (
                 <div key={`${key}-${i}`} className="discovery-result-card">
-                  <div className="discovery-result-title">{paper.title}</div>
+                  <div className="discovery-result-title">
+                    {showVi ? t!.title_vi : paper.title}
+                  </div>
                   <div className="discovery-result-meta">
                     {paper.authors.slice(0, 4).join(", ")}{paper.authors.length > 4 ? " et al." : ""}
                     {paper.year && <span> · {paper.year}</span>}
                     {" · "}{paper.citation_count} trích dẫn
                     {paper.journal && <span> · {paper.journal}</span>}
                   </div>
-                    {paper.abstract && (
-                    <div className="discovery-result-abstract">{paper.abstract}</div>
+                  {(showVi ? t!.abstract_vi : paper.abstract) && (
+                    <div className="discovery-result-abstract">
+                      {showVi ? t!.abstract_vi : paper.abstract}
+                    </div>
                   )}
                   <div className="discovery-result-footer">
                     <span className={`discovery-source-badge source-${paper.source}`}>
@@ -193,7 +238,6 @@ export const DiscoveryView: React.FC = () => {
         )}
       </div>
 
-      {/* Detail modal */}
       {detailPaper && (
         <div className="rm-modal-overlay" onClick={() => setDetailPaper(null)}>
           <div className="rm-modal rm-modal-detail" onClick={(e) => e.stopPropagation()}>
