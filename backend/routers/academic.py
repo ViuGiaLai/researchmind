@@ -85,14 +85,8 @@ async def discover_papers(body: dict = Body(...)):
         s2_search(query, limit=limit),
     )
 
-    seen_dois: set[str] = set()
     results: list[dict] = []
     for r in oa_results:
-        doi = (r.get("doi") or "").replace("https://doi.org/", "").lower()
-        if doi and doi in seen_dois:
-            continue
-        if doi:
-            seen_dois.add(doi)
         authors = [a.get("author", {}).get("display_name", "") for a in (r.get("authorships") or [])]
         loc = r.get("primary_location") or {}
         source = loc.get("source") or {}
@@ -111,7 +105,7 @@ async def discover_papers(body: dict = Body(...)):
         oa_pdf_url = oa_access.get("oa_url", "") if oa_access.get("is_oa") else ""
         results.append({
             "source": "openalex",
-            "doi": doi or "",
+            "doi": (r.get("doi") or "").replace("https://doi.org/", "").lower(),
             "title": r.get("title", ""),
             "authors": authors,
             "year": r.get("publication_year"),
@@ -126,10 +120,6 @@ async def discover_papers(body: dict = Body(...)):
         doi = ""
         if p.external_ids:
             doi = (p.external_ids.get("DOI") or "").lower()
-        if doi and doi in seen_dois:
-            continue
-        if doi:
-            seen_dois.add(doi)
         results.append({
             "source": "semantic_scholar",
             "doi": doi,
@@ -143,21 +133,18 @@ async def discover_papers(body: dict = Body(...)):
             "pdf_url": p.open_access_pdf_url or "",
         })
 
-    # Interleave results from both sources to preserve relevance ordering
-    # (OpenAlex sorts by relevance by default when using ?search=)
-    # (Semantic Scholar returns results in its own relevance order)
+    # Interleave results: one from each source at a time to keep both visible
+    oa_only = [r for r in results if r["source"] == "openalex"]
+    s2_only = [r for r in results if r["source"] == "semantic_scholar"]
     interleaved: list[dict] = []
-    oa_idx, s2_idx = 0, 0
-    # Split results into source-specific lists preserving original order
-    oa_list = [r for r in results if r["source"] == "openalex"]
-    s2_list = [r for r in results if r["source"] == "semantic_scholar"]
-    while oa_idx < len(oa_list) or s2_idx < len(s2_list):
-        if oa_idx < len(oa_list):
-            interleaved.append(oa_list[oa_idx])
-            oa_idx += 1
-        if s2_idx < len(s2_list):
-            interleaved.append(s2_list[s2_idx])
-            s2_idx += 1
+    oa_i, s2_i = 0, 0
+    while oa_i < len(oa_only) or s2_i < len(s2_only):
+        if oa_i < len(oa_only):
+            interleaved.append(oa_only[oa_i])
+            oa_i += 1
+        if s2_i < len(s2_only):
+            interleaved.append(s2_only[s2_i])
+            s2_i += 1
     return {"results": interleaved}
 
 
@@ -253,7 +240,10 @@ async def translate_papers(body: dict = Body(...)):
     raw = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
     try:
         parsed = json.loads(raw)
-        translations = parsed.get("translations", parsed if isinstance(parsed, list) else [])
+        if isinstance(parsed, list):
+            translations = parsed
+        else:
+            translations = parsed.get("translations", [])
     except json.JSONDecodeError:
         logger.warning(f"Gemini translate: failed to parse JSON, raw={raw[:200]}")
         raise HTTPException(status_code=502, detail="Gemini returned invalid JSON")
