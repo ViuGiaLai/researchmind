@@ -251,7 +251,7 @@ export const DiscoveryView: React.FC = () => {
             <div className="rm-modal-body">
               <div className="detail-section">
                 <div className="detail-label">Tiêu đề</div>
-                <div className="detail-value detail-title">{detailPaper.title}</div>
+                <div className="detail-value detail-title">{translateMode === "vi" && translations.get(detailPaper.doi || detailPaper.title)?.title_vi || detailPaper.title}</div>
               </div>
               <div className="detail-section">
                 <div className="detail-label">Tác giả</div>
@@ -286,7 +286,7 @@ export const DiscoveryView: React.FC = () => {
               {detailPaper.abstract && (
                 <div className="detail-section">
                   <div className="detail-label">Tóm tắt</div>
-                  <div className="detail-value detail-abstract">{detailPaper.abstract}</div>
+                  <div className="detail-value detail-abstract">{translateMode === "vi" && translations.get(detailPaper.doi || detailPaper.title)?.abstract_vi || detailPaper.abstract}</div>
                 </div>
               )}
               {getSourceUrl(detailPaper) && (
