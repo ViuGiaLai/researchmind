@@ -140,38 +140,42 @@ export const DiscoveryView: React.FC = () => {
                     {paper.year && <span> · {paper.year}</span>}
                     {" · "}{paper.citation_count} trích dẫn
                     {paper.journal && <span> · {paper.journal}</span>}
-                    {" · "}{paper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}
                   </div>
-                  {paper.abstract && (
+                    {paper.abstract && (
                     <div className="discovery-result-abstract">{paper.abstract}</div>
                   )}
-                  <div className="discovery-actions">
-                    <button
-                      type="button"
-                      className={`discovery-action-btn discovery-import-btn${isImported ? " imported" : ""}`}
-                      onClick={() => handleImport(paper)}
-                      disabled={isImporting || isImported}
-                    >
-                      {isImported ? <IconCheck size={12} /> : isImporting ? <IconSpinner size={12} /> : <IconDownload size={12} />}
-                      {isImported ? "Đã có trong thư viện" : isImporting ? "Đang thêm..." : "Thêm vào thư viện"}
-                    </button>
-                    <button
-                      type="button"
-                      className="discovery-action-btn discovery-detail-btn"
-                      onClick={() => setDetailPaper(paper)}
-                    >
-                      <IconEye size={12} />
-                      Chi tiết
-                    </button>
-                    <button
-                      type="button"
-                      className="discovery-action-btn discovery-pdf-btn"
-                      onClick={() => handleOpenPdf(paper)}
-                      title={paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
-                    >
-                      <IconBookOpen size={12} />
-                      {paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
-                    </button>
+                  <div className="discovery-result-footer">
+                    <span className={`discovery-source-badge source-${paper.source}`}>
+                      {paper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}
+                    </span>
+                    <div className="discovery-actions">
+                      <button
+                        type="button"
+                        className={`discovery-action-btn discovery-import-btn${isImported ? " imported" : ""}`}
+                        onClick={() => handleImport(paper)}
+                        disabled={isImporting || isImported}
+                      >
+                        {isImported ? <IconCheck size={12} /> : isImporting ? <IconSpinner size={12} /> : <IconDownload size={12} />}
+                        {isImported ? "Đã có trong thư viện" : isImporting ? "Đang thêm..." : "Thêm vào thư viện"}
+                      </button>
+                      <button
+                        type="button"
+                        className="discovery-action-btn discovery-detail-btn"
+                        onClick={() => setDetailPaper(paper)}
+                      >
+                        <IconEye size={12} />
+                        Chi tiết
+                      </button>
+                      <button
+                        type="button"
+                        className="discovery-action-btn discovery-pdf-btn"
+                        onClick={() => handleOpenPdf(paper)}
+                        title={paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
+                      >
+                        <IconBookOpen size={12} />
+                        {paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

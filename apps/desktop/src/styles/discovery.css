@@ -160,8 +160,38 @@
 .discovery-actions {
   display: flex;
   gap: 6px;
-  margin-top: 8px;
   flex-wrap: wrap;
+}
+
+.discovery-result-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.discovery-source-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+.source-openalex {
+  color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.source-semantic_scholar {
+  color: var(--color-primary);
+  border-color: rgba(var(--color-primary-rgb), 0.3);
+  background: rgba(var(--color-primary-rgb), 0.08);
 }
 
 .discovery-action-btn {
