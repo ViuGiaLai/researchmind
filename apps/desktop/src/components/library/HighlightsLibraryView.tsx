@@ -113,6 +113,7 @@ export const HighlightsLibraryView: React.FC<{
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [paperDetail, setPaperDetail] = useState<Paper & { chunk_count?: number } | null>(null);
   const [loadingPaperDetail, setLoadingPaperDetail] = useState(false);
+  const resultsAnchorRef = React.useRef<HTMLDivElement | null>(null);
 
   // Generate a stable ID for a highlight (independent of array index)
   const getHighlightId = useCallback((h: Highlight): string => {
@@ -290,6 +291,19 @@ export const HighlightsLibraryView: React.FC<{
     return matchesSearch && matchesCategory;
   });
 
+  useEffect(() => {
+    if (!selectedPaper) return;
+    if (loadingHighlights) return;
+    if (activeTab === "all") return;
+    if (typeof window === "undefined") return;
+
+    const id = window.requestAnimationFrame(() => {
+      resultsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(id);
+  }, [activeTab, selectedPaper?.id, loadingHighlights]);
+
   // ─── Helper: render auto_summary markdown ────────────────
   const renderSummary = (text: string) => {
     const lines = text.split('\n');
@@ -427,6 +441,7 @@ export const HighlightsLibraryView: React.FC<{
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.value}
+                  type="button"
                   className={`hl-tab ${activeTab === cat.value ? "active" : ""}`}
                   onClick={() => setActiveTab(cat.value)}
                 >
@@ -452,6 +467,7 @@ export const HighlightsLibraryView: React.FC<{
               />
               {highlightQuery && (
                 <button
+                    type="button"
                   className="hl-search-bar-clear"
                   onClick={() => setHighlightQuery("")}
                 >
@@ -585,13 +601,14 @@ export const HighlightsLibraryView: React.FC<{
                 <>
                   {/* Evidence Cards (only when highlights exist) */}
                   {filteredHighlights.length > 0 && (
-                    <div className="hl-cards-grid">
+                    <div className="hl-cards-grid" ref={resultsAnchorRef}>
                       {/* Context toggle bulk actions */}
                       <div className="hl-bulk-actions">
                         <span className="hl-bulk-label">
                           Chọn đoạn để đưa vào Chat:
                         </span>
                         <button
+                          type="button"
                           className="hl-bulk-btn"
                           onClick={() => {
                             const all = new Set<string>();
@@ -602,6 +619,7 @@ export const HighlightsLibraryView: React.FC<{
                           Chọn tất cả
                         </button>
                         <button
+                          type="button"
                           className="hl-bulk-btn"
                           onClick={() => setContextIncluded(new Set())}
                         >
@@ -704,6 +722,7 @@ export const HighlightsLibraryView: React.FC<{
                             {/* Actions */}
                             <div className="hl-evidence-actions">
                               <button
+                                type="button"
                                 className="hl-evidence-action-btn"
                                 onClick={() => handleCopyHighlight(h.text)}
                                 title="Sao chép đoạn trích"
@@ -712,6 +731,7 @@ export const HighlightsLibraryView: React.FC<{
                                 <span>Sao chép</span>
                               </button>
                               <button
+                                type="button"
                                 className="hl-evidence-action-btn primary"
                                 onClick={() => handleChatWithHighlight()}
                                 title="Hỏi AI về đoạn này"
@@ -720,6 +740,7 @@ export const HighlightsLibraryView: React.FC<{
                                 <span>Hỏi AI</span>
                               </button>
                               <button
+                                type="button"
                                 className="hl-evidence-action-btn outline"
                                 onClick={() => handleOpenPdfPage(h.page_hint)}
                                 title={h.page_hint ? `Mở PDF trang ${h.page_hint}` : "Mở PDF"}
@@ -741,6 +762,7 @@ export const HighlightsLibraryView: React.FC<{
                       <h4>Chưa có bằng chứng nào</h4>
                       <p>Trích xuất các phát hiện chính, phương pháp, hạn chế và đóng góp từ bài báo này bằng AI.</p>
                       <button
+                        type="button"
                         className="hl-extract-btn"
                         onClick={() => selectedPaper && loadHighlights(selectedPaper.id)}
                       >
@@ -769,6 +791,7 @@ export const HighlightsLibraryView: React.FC<{
                                 <span className="hl-generate-action-desc">{opt.desc}</span>
                               </div>
                               <button
+                                type="button"
                                 className={`hl-generate-action-btn ${isGenerating ? "generating" : ""}`}
                                 onClick={() => handleGenerateOne(opt.id)}
                                 disabled={generatingType !== null}
@@ -852,6 +875,7 @@ export const HighlightsLibraryView: React.FC<{
               </div>
               <div className="hl-pdf-overlay-header-actions">
                 <button
+                  type="button"
                   className="hl-pdf-overlay-open-btn"
                   onClick={() => window.open(pdfOverlayUrl, "_blank")}
                   title="Mở trong tab mới"
@@ -860,6 +884,7 @@ export const HighlightsLibraryView: React.FC<{
                   <span>Mở tab mới</span>
                 </button>
                 <button
+                  type="button"
                   className="hl-pdf-overlay-close-btn"
                   onClick={() => setShowPdfOverlay(false)}
                   title="Đóng (Esc)"

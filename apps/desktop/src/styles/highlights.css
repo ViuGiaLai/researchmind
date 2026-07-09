@@ -244,6 +244,10 @@
   transition: all var(--transition-fast);
   white-space: nowrap;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  -webkit-app-region: no-drag;
+  touch-action: manipulation;
 }
 
 .hl-tab:hover {
@@ -313,6 +317,7 @@
   cursor: pointer;
   font-size: 0.85rem;
   padding: 2px 4px;
+  -webkit-app-region: no-drag;
 }
 
 .hl-search-bar-clear:hover {
@@ -415,6 +420,7 @@
   font-size: 0.75rem;
   cursor: pointer;
   transition: all var(--transition-fast);
+  -webkit-app-region: no-drag;
 }
 
 .hl-bulk-btn:hover {
@@ -594,6 +600,7 @@
   font-size: 0.76rem;
   cursor: pointer;
   transition: all var(--transition-fast);
+  -webkit-app-region: no-drag;
 }
 
 .hl-evidence-action-btn:hover {
