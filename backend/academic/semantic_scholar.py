@@ -23,12 +23,14 @@ class S2Paper:
     abstract: Optional[str]
     venue: Optional[str]
     citation_stats: Optional[dict] = None
+    is_open_access: bool = False
+    open_access_pdf_url: Optional[str] = None
 
 
 async def search_papers(
     query: str,
     limit: int = 10,
-    fields: str = "title,year,citationCount,influentialCitationCount,authors,externalIds,abstract,venue",
+    fields: str = "title,year,citationCount,influentialCitationCount,authors,externalIds,abstract,venue,isOpenAccess,openAccessPdf",
 ) -> list[S2Paper]:
     async with httpx.AsyncClient(timeout=10) as client:
         try:
@@ -161,6 +163,7 @@ def _parse_paper(data: dict) -> S2Paper:
         name = a.get("name", "")
         if name:
             authors.append(name)
+    oa_pdf = data.get("openAccessPdf") or {}
     return S2Paper(
         paper_id=data.get("paperId", ""),
         title=data.get("title", ""),
@@ -171,6 +174,8 @@ def _parse_paper(data: dict) -> S2Paper:
         external_ids=data.get("externalIds", {}),
         abstract=data.get("abstract"),
         venue=data.get("venue"),
+        is_open_access=data.get("isOpenAccess", False),
+        open_access_pdf_url=oa_pdf.get("url"),
     )
 
 

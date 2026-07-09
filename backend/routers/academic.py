@@ -3,9 +3,12 @@ GET  /api/academic/doi          → tra DOI nhanh qua Crossref
 GET  /api/academic/paper        → tra paper nhanh qua OpenAlex
 POST /api/academic/discover     → search query qua OpenAlex + Semantic Scholar, trả JSON deduped
 DELETE /api/academic/cache/{doi} → xoá cache cho DOI cụ thể
+GET  /api/academic/pdf-proxy    → proxy PDF từ URL ngoài để xem trong iframe
 """
 import asyncio
-from fastapi import APIRouter, Body, Query
+import httpx
+from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi.responses import Response
 from loguru import logger
 
 from academic.openalex import get_work_by_doi as oa_get, search_works as oa_search
@@ -89,6 +92,19 @@ async def discover_papers(body: dict = Body(...)):
         authors = [a.get("author", {}).get("display_name", "") for a in (r.get("authorships") or [])]
         loc = r.get("primary_location") or {}
         source = loc.get("source") or {}
+        # Reconstruct abstract from inverted index
+        abstract_text = ""
+        inv_index = r.get("abstract_inverted_index") or {}
+        if inv_index:
+            word_positions = []
+            for word, positions in inv_index.items():
+                for pos in positions:
+                    word_positions.append((pos, word))
+            word_positions.sort(key=lambda x: x[0])
+            abstract_text = " ".join(wp[1] for wp in word_positions)
+        # Get PDF URL from OpenAlex open_access
+        oa_access = r.get("open_access") or {}
+        oa_pdf_url = oa_access.get("oa_url", "") if oa_access.get("is_oa") else ""
         results.append({
             "source": "openalex",
             "doi": doi or "",
@@ -97,7 +113,9 @@ async def discover_papers(body: dict = Body(...)):
             "year": r.get("publication_year"),
             "citation_count": r.get("cited_by_count", 0),
             "journal": source.get("display_name", ""),
-            "abstract": "",
+            "abstract": abstract_text,
+            "openalex_id": r.get("id", ""),
+            "pdf_url": oa_pdf_url,
         })
 
     for p in s2_results:
@@ -117,6 +135,8 @@ async def discover_papers(body: dict = Body(...)):
             "citation_count": p.citation_count,
             "journal": p.venue or "",
             "abstract": p.abstract or "",
+            "s2_paper_id": p.paper_id,
+            "pdf_url": p.open_access_pdf_url or "",
         })
 
     # Interleave results from both sources to preserve relevance ordering
@@ -135,6 +155,39 @@ async def discover_papers(body: dict = Body(...)):
             interleaved.append(s2_list[s2_idx])
             s2_idx += 1
     return {"results": interleaved}
+
+
+@router.get("/pdf-proxy")
+async def proxy_pdf(url: str = Query(..., description="PDF URL to proxy")):
+    """Proxy PDF from external URL to bypass CORS/X-Frame-Options for iframe viewing."""
+    if not url.startswith("http://") and not url.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Invalid URL")
+    # Block non-PDF URLs
+    if not any(url.lower().endswith(ext) for ext in [".pdf", ".PDF"]) and "pdf" not in url.lower():
+        raise HTTPException(status_code=400, detail="URL does not appear to be a PDF")
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(url, headers={"User-Agent": "ResearchMindVN/0.3"})
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Failed to fetch PDF: HTTP {resp.status_code}")
+            content_type = resp.headers.get("content-type", "").lower()
+            if "pdf" not in content_type and not url.lower().endswith(".pdf"):
+                # Some servers return octet-stream for PDFs, allow it
+                pass
+            return Response(
+                content=resp.content,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": "inline",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET",
+                    "Cache-Control": "public, max-age=3600",
+                },
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Timeout fetching PDF")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Error fetching PDF: {str(e)}")
 
 
 @router.delete("/cache/{doi:path}")

@@ -45,8 +45,8 @@ class LocalProviderMixin:
             data = resp.json()
             choice = data["choices"][0]
             msg = choice.get("message", {})
-            raw_reasoning = msg.get("reasoning_content", "")
-            raw_content = msg.get("content", "")
+            raw_reasoning = msg.get("reasoning_content") or ""
+            raw_content = msg.get("content") or ""
             if raw_reasoning:
                 content = f"<think>\n{raw_reasoning.strip()}\n</think>\n\n{raw_content}"
             else:
@@ -71,7 +71,7 @@ class LocalProviderMixin:
                 )
                 response.raise_for_status()
                 data = response.json()
-                content = data.get("content", "").strip()
+                content = (data.get("content") or "").strip()
             except httpx.ConnectError:
                 logger.error("Cannot connect to llama-server.")
                 return GenerationResult(

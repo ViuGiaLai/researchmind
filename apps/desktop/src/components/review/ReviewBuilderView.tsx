@@ -221,6 +221,25 @@ export function ReviewBuilderView() {
     }
   };
 
+  const handleRenameDraft = async (draftId: string, currentTitle: string) => {
+    const nextTitle = window.prompt("Đổi tên bản nháp", currentTitle)?.trim();
+    if (!nextTitle || nextTitle === currentTitle) return;
+    try {
+      const res = await api.renameReviewDraft(draftId, nextTitle);
+      if (res.error) {
+        toast.addToast("error", res.error);
+        return;
+      }
+      setSavedDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, title: nextTitle } : d)));
+      if (currentDraftId === draftId) {
+        setTitle(nextTitle);
+      }
+      toast.addToast("success", "Đã đổi tên draft.");
+    } catch {
+      toast.addToast("error", "Lỗi khi đổi tên draft.");
+    }
+  };
+
   // ─── Init ──────────────────────────────────────────────────
   useEffect(() => {
     loadPapers();
@@ -851,6 +870,19 @@ export function ReviewBuilderView() {
                           }}
                         >
                           Mở
+                        </button>
+                        <button
+                          onClick={() => handleRenameDraft(d.id, d.title)}
+                          style={{
+                            padding: "4px 8px", borderRadius: 4,
+                            border: "1px solid rgba(148, 163, 184, 0.2)",
+                            background: "transparent",
+                            color: "var(--color-text-muted)",
+                            cursor: "pointer", fontSize: "0.72rem",
+                          }}
+                          title="Đổi tên draft"
+                        >
+                          Đổi
                         </button>
                         <button
                           onClick={() => handleDeleteDraft(d.id)}

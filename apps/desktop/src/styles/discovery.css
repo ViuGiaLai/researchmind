@@ -132,7 +132,6 @@
 }
 
 .discovery-import-btn {
-  margin-top: 8px;
   padding: 5px 12px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--color-border);
@@ -155,4 +154,135 @@
 .discovery-import-btn.imported {
   color: var(--color-success);
   border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ─── Action Buttons Row ──────────────────────────── */
+.discovery-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.discovery-action-btn {
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  transition: all var(--transition-fast, 0.15s);
+}
+
+.discovery-action-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-highlight);
+}
+
+.discovery-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.discovery-import-btn.imported,
+.discovery-action-btn.imported {
+  color: var(--color-success);
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.discovery-detail-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.discovery-pdf-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.discovery-source-btn {
+  padding: 5px 8px;
+  margin-left: auto;
+}
+
+/* ─── Detail Modal ────────────────────────────────── */
+.rm-modal-detail {
+  width: min(92vw, 580px);
+  max-height: 80vh;
+  height: auto;
+  min-height: 200px;
+}
+
+.detail-section {
+  margin-bottom: 14px;
+}
+
+.detail-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.detail-value {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.detail-value code {
+  font-size: 0.78rem;
+  background: var(--color-surface);
+  padding: 1px 6px;
+  border-radius: 3px;
+  word-break: break-all;
+}
+
+.detail-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.detail-abstract {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.detail-row {
+  display: flex;
+  gap: 16px;
+}
+
+.detail-row .detail-section {
+  flex: 1;
+}
+
+.detail-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+  border-radius: var(--radius-xs, 4px);
+  margin-top: 4px;
+}
+
+.detail-source-link:hover {
+  background: var(--color-highlight);
 }

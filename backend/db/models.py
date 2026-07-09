@@ -163,3 +163,16 @@ class ReviewDraft(Base):
     versions = Column(Text, default="[]")  # JSON array: [{title, paper_ids, paper_titles, outline_sections, sections, full_text, saved_at}, ...]
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class EvidenceMatrixDraft(Base):
+    __tablename__ = "evidence_matrix_drafts"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    title = Column(String, default="Ma trận so sánh")
+    paper_ids = Column(Text, default="[]")         # JSON array
+    paper_names = Column(Text, default="[]")        # JSON array
+    columns = Column(Text, default="[]")            # JSON array of paper titles
+    rows = Column(Text, default="[]")               # JSON array of {criterion, cells[...]}
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

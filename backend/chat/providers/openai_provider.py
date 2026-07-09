@@ -42,7 +42,7 @@ class OpenAIProviderMixin:
             response.raise_for_status()
             data = response.json()
             choice = data.get("choices", [{}])[0]
-            content = choice.get("message", {}).get("content", "")
+            content = choice.get("message", {}).get("content") or ""
             finish_reason = choice.get("finish_reason", "stop")
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
@@ -80,7 +80,7 @@ class OpenAIProviderMixin:
             response.raise_for_status()
             data = response.json()
             choice = data.get("choices", [{}])[0]
-            content = choice.get("message", {}).get("content", "")
+            content = choice.get("message", {}).get("content") or ""
             finish_reason = choice.get("finish_reason", "stop")
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
@@ -113,7 +113,7 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
@@ -139,7 +139,7 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
@@ -165,7 +165,7 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
@@ -195,7 +195,7 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
@@ -225,7 +225,7 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
@@ -260,7 +260,7 @@ class OpenAIProviderMixin:
             )
             response.raise_for_status()
             data = response.json()
-            content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            content = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)
             return GenerationResult(content=content, citations=citations,
@@ -291,7 +291,7 @@ class OpenAIProviderMixin:
             response.raise_for_status()
             data = response.json()
             choice = data.get("choices", [{}])[0]
-            content = choice.get("message", {}).get("content", "")
+            content = choice.get("message", {}).get("content") or ""
             finish_reason = choice.get("finish_reason", "stop")
             citations = self._extract_citations(content)
             content = self._verify_citations(content, citations)

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { api, BASE_URL } from "../../lib/api";
+import { api, BASE_URL, EvidenceMatrixDraftSummary, EvidenceMatrixData } from "../../lib/api";
 import { useToast } from "../shared/Toast";
-import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText } from "../Icons";
+import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText, IconRefresh } from "../Icons";
 
 interface EvidenceCell {
   paper_id: string;
@@ -24,30 +24,17 @@ interface EvidenceMatrix {
 interface HistoryEntry {
   id: string;
   title: string;
-  timestamp: number;
   paperIds: string[];
   paperNames: string[];
   matrix: EvidenceMatrix;
+  criterionCount?: number;
+  updated_at: string | null;
+  created_at: string | null;
 }
 
-const STORAGE_KEY = "evidence-matrix-history";
-
-function loadHistory(): HistoryEntry[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(entries: HistoryEntry[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  } catch {}
-}
-
-function formatDate(ts: number) {
-  const d = new Date(ts);
+function formatServerDate(dateStr: string | null) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
   return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) + " " +
     d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
@@ -71,14 +58,64 @@ export const EvidenceMatrixView: React.FC = () => {
   const [matrix, setMatrix] = useState<EvidenceMatrix | null>(null);
   const [expandedCell, setExpandedCell] = useState<{ row: number; col: number } | null>(null);
   const [activePdf, setActivePdf] = useState<{ paperId: string; page: number; quote: string } | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const toast = useToast();
 
+  // Load papers and history from server
   useEffect(() => {
     api.listPapers(1, 100).then(data => {
       setPapers(data.papers.map(p => ({ id: p.id, title: p.title || p.filename, authors: p.authors || "" })));
     }).catch(() => {});
+    loadDraftList();
   }, []);
+
+  const loadDraftList = async () => {
+    try {
+      const res = await api.listEvidenceMatrixDrafts();
+      const entries: HistoryEntry[] = res.drafts.map((d: EvidenceMatrixDraftSummary) => ({
+        id: d.id,
+        title: d.title,
+        paperIds: [],
+        paperNames: d.paper_names,
+        matrix: { columns: [], rows: [] },
+        criterionCount: d.criterion_count,
+        updated_at: d.updated_at,
+        created_at: d.created_at,
+      }));
+      setHistory(entries);
+    } catch {
+      // silently fail
+    }
+  };
+
+  const loadFullDraft = async (draftId: string) => {
+    try {
+      const data = await api.loadEvidenceMatrixDraft(draftId);
+      if (data.error) {
+        toast.addToast("error", data.error);
+        return;
+      }
+      setSelectedIds(data.paper_ids);
+      setMatrix({
+        columns: data.columns,
+        rows: data.rows.map((r) => ({
+          criterion: r.criterion,
+          cells: r.cells.map((c) => ({
+            paper_id: c.paper_id,
+            paper_title: c.paper_title,
+            value: c.value,
+            quote: c.quote,
+            page: c.page,
+            confidence: c.confidence,
+            status: c.status,
+          })),
+        })),
+      });
+      setExpandedCell(null);
+    } catch {
+      toast.addToast("error", "Không thể tải draft.");
+    }
+  };
 
   const selectAll = () => setSelectedIds(papers.map(p => p.id));
   const deselectAll = () => setSelectedIds([]);
@@ -89,15 +126,21 @@ export const EvidenceMatrixView: React.FC = () => {
     );
   };
 
+  const autoTitle = useCallback((paperNames: string[]) => {
+    if (paperNames.length === 0) return "Ma trận so sánh";
+    const first = paperNames[0];
+    const short = first.length > 40 ? first.slice(0, 40) + "..." : first;
+    return paperNames.length > 1 ? `${short} +${paperNames.length - 1}` : short;
+  }, []);
+
   const generateMatrix = useCallback(async () => {
     if (selectedIds.length < 2) {
       toast.addToast("error", "Chọn ít nhất 2 bài báo để so sánh");
       return;
     }
     setGenerating(true);
-    setMatrix(null);
     try {
-      const res = await api.generateEvidenceMatrix(selectedIds);
+      const res = await api.generateEvidenceMatrix(selectedIds, false);
       const m = res.matrix;
       setMatrix(m);
 
@@ -106,42 +149,53 @@ export const EvidenceMatrixView: React.FC = () => {
         .map(t => t.length > 30 ? t.slice(0, 30) + "..." : t);
 
       const title = autoTitle(paperNames);
-      const entry: HistoryEntry = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+
+      // Save to server
+      const saveRes = await api.saveEvidenceMatrixDraft({
         title,
-        timestamp: Date.now(),
-        paperIds: [...selectedIds],
-        paperNames,
-        matrix: m,
-      };
-      const updated = [entry, ...history].slice(0, 20);
-      setHistory(updated);
-      saveHistory(updated);
+        paper_ids: selectedIds,
+        paper_names: paperNames,
+        columns: m.columns,
+        rows: m.rows.map((r) => ({
+          criterion: r.criterion,
+          cells: r.cells,
+        })),
+      });
+
+      if (saveRes.id) {
+        // Reload draft list
+        await loadDraftList();
+      }
     } catch {
       toast.addToast("error", "Không thể tạo ma trận so sánh");
     } finally {
       setGenerating(false);
     }
-  }, [selectedIds, papers, history, toast]);
+  }, [selectedIds, papers, toast, autoTitle]);
 
-  const autoTitle = useCallback((paperNames: string[]) => {
-    if (paperNames.length === 0) return "Ma trận so sánh";
-    const first = paperNames[0];
-    const short = first.length > 40 ? first.slice(0, 40) + "..." : first;
-    return paperNames.length > 1 ? `${short} +${paperNames.length - 1}` : short;
-  }, []);
+  const renameHistoryEntry = useCallback(async (id: string) => {
+    const entry = history.find((item) => item.id === id);
+    if (!entry) return;
+    const nextTitle = window.prompt("Đổi tên bản nháp", entry.title)?.trim();
+    if (!nextTitle || nextTitle === entry.title) return;
+    try {
+      await api.renameEvidenceMatrixDraft(id, nextTitle);
+      setHistory((prev) => prev.map((item) => (item.id === id ? { ...item, title: nextTitle } : item)));
+      toast.addToast("success", "Đã đổi tên.");
+    } catch {
+      toast.addToast("error", "Không thể đổi tên.");
+    }
+  }, [history, toast]);
 
-  const loadFromHistory = useCallback((entry: HistoryEntry) => {
-    setSelectedIds(entry.paperIds);
-    setMatrix(entry.matrix);
-    setExpandedCell(null);
-  }, []);
-
-  const deleteHistoryEntry = useCallback((id: string) => {
-    const updated = history.filter(h => h.id !== id);
-    setHistory(updated);
-    saveHistory(updated);
-  }, [history]);
+  const deleteHistoryEntry = useCallback(async (id: string) => {
+    try {
+      await api.deleteEvidenceMatrixDraft(id);
+      setHistory((prev) => prev.filter((h) => h.id !== id));
+      toast.addToast("success", "Đã xoá draft khỏi server.");
+    } catch {
+      toast.addToast("error", "Không thể xoá draft.");
+    }
+  }, [toast]);
 
   const exportCsv = useCallback(() => {
     if (!matrix) return;
@@ -181,13 +235,24 @@ export const EvidenceMatrixView: React.FC = () => {
           </p>
         </div>
         {matrix && (
-          <button
-            type="button"
-            className="rm-btn rm-btn--sm"
-            onClick={() => { setMatrix(null); setExpandedCell(null); }}
-          >
-            <IconClose size={14} /> Tạo mới
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="rm-btn rm-btn--sm rm-btn--outline"
+              onClick={() => { setMatrix(null); setExpandedCell(null); }}
+            >
+              <IconClose size={14} /> Tạo mới
+            </button>
+            <button
+              type="button"
+              className="rm-btn rm-btn--sm rm-btn--primary"
+              onClick={generateMatrix}
+              disabled={generating}
+            >
+              {generating ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
+              {generating ? "Đang tạo lại..." : "Tạo lại"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -244,7 +309,7 @@ export const EvidenceMatrixView: React.FC = () => {
       {matrix && (
         <div className="rm-table-wrap">
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-            <button type="button" className="rm-btn rm-btn--xs" onClick={exportCsv}>
+            <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportCsv}>
               <IconDownload size={12} /> Xuất CSV
             </button>
           </div>
@@ -325,25 +390,35 @@ export const EvidenceMatrixView: React.FC = () => {
         ) : (
           <div className="rm-history-list">
             {history.map(entry => (
-              <div key={entry.id} className="rm-history-item" onClick={() => loadFromHistory(entry)}>
+              <div key={entry.id} className="rm-history-item" onClick={() => loadFullDraft(entry.id)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="rm-history-item-title">
                     {entry.title || entry.paperNames.join(" • ")}
                   </div>
                   <div className="rm-history-item-meta">
                     <span>{entry.paperNames.length} bài báo</span>
-                    <span>{entry.matrix.rows.length} tiêu chí</span>
-                    <span>{formatDate(entry.timestamp)}</span>
+                    {entry.criterionCount !== undefined && <span>{entry.criterionCount} tiêu chí</span>}
+                    <span>{formatServerDate(entry.updated_at)}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="rm-history-delete"
-                  onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
-                  title="Xóa"
-                >
-                  ✕
-                </button>
+                <div className="rm-history-actions">
+                  <button
+                    type="button"
+                    className="rm-btn rm-btn--icon rm-btn--ghost"
+                    onClick={(e) => { e.stopPropagation(); renameHistoryEntry(entry.id); }}
+                    title="Đổi tên"
+                  >
+                    <IconRefresh size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    className="rm-btn rm-btn--icon rm-btn--ghost"
+                    onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
+                    title="Xóa"
+                  >
+                    <IconClose size={12} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

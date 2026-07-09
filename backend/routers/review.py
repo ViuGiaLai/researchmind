@@ -19,7 +19,7 @@ from loguru import logger
 from app_state import state
 from academic.paper_check import check_papers_ready
 from db.database import get_session
-from db.models import Paper, ReviewDraft
+from db.models import Paper, ReviewDraft, EvidenceMatrixDraft
 
 def _parse_authors(authors_str: str) -> list[str]:
     if not authors_str:
@@ -161,6 +161,7 @@ def extract_citations(content: str, paper_titles: dict[str, str]) -> list[dict]:
     """Parse [Paper Name] citations from generated content.
     Returns list of {paper_id, paper_title, citation_text}.
     """
+    content = content or ""
     citations = []
     pattern = r'\[([^\]]+?)\]'
     seen = set()
@@ -397,7 +398,7 @@ Dùng tiếng Việt cho description. Key dùng tiếng Anh không dấu, viết
         task_type="review",
     )
 
-    content = generation.content.strip()
+    content = (generation.content or "").strip()
     if content.startswith("```"):
         content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 
@@ -633,6 +634,7 @@ async def generate_section(body: dict = Body(...)):
 async def generate_matrix(body: dict = Body(...)):
     """Generate a comparison matrix for selected papers."""
     paper_ids = body.get("paper_ids", [])
+    use_cache = body.get("use_cache", False)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
@@ -684,8 +686,9 @@ Trả về đúng JSON sau, không kèm văn bản khác:
             query=prompt,
             context_text=retrieval.context_text,
             task_type="review",
+            use_cache=use_cache,
         )
-        content = generation.content.strip()
+        content = (generation.content or "").strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         data = {}
@@ -1081,6 +1084,29 @@ async def delete_draft(draft_id: str):
         session.close()
 
 
+@router.patch("/draft/{draft_id}/rename")
+async def rename_draft(draft_id: str, body: dict = Body(...)):
+    """Rename a saved review draft."""
+    title = (body.get("title") or "").strip()
+    if not title:
+        return {"error": "Tiêu đề không được để trống."}
+
+    session = get_session(state.engine)
+    try:
+        draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+        draft.title = title
+        session.commit()
+        return {"status": "renamed", "id": draft_id, "title": title}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to rename review draft: {e}")
+        return {"error": f"Không thể đổi tên draft: {str(e)}"}
+    finally:
+        session.close()
+
+
 # ─── Version History ─────────────────────────────────────────
 
 @router.get("/draft/{draft_id}/versions")
@@ -1409,6 +1435,7 @@ async def generate_evidence_matrix(body: dict = Body(...)):
     Each cell includes: quote, page number, confidence score, extraction status.
     """
     paper_ids = body.get("paper_ids", [])
+    use_cache = body.get("use_cache", False)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
@@ -1477,9 +1504,10 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
             query=prompt,
             context_text=retrieval.context_text,
             task_type="review",
+            use_cache=use_cache,
         )
 
-        content = generation.content.strip()
+        content = (generation.content or "").strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 
@@ -1540,3 +1568,139 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
         rows.append({"criterion": dim_label, "cells": cells})
 
     return {"matrix": {"columns": columns, "rows": rows}}
+
+
+# ─── Evidence Matrix Draft CRUD ──────────────────────────────
+
+@router.post("/evidence-matrix/save")
+async def save_evidence_matrix_draft(body: dict = Body(...)):
+    """Save or update an evidence matrix draft."""
+    draft_id = body.get("id")
+    title = body.get("title", "Ma trận so sánh")
+    paper_ids = body.get("paper_ids", [])
+    paper_names = body.get("paper_names", [])
+    columns = body.get("columns", [])
+    rows = body.get("rows", [])
+
+    session = get_session(state.engine)
+    try:
+        if draft_id:
+            existing = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
+            if existing:
+                existing.title = title
+                existing.paper_ids = json.dumps(paper_ids, ensure_ascii=False)
+                existing.paper_names = json.dumps(paper_names, ensure_ascii=False)
+                existing.columns = json.dumps(columns, ensure_ascii=False)
+                existing.rows = json.dumps(rows, ensure_ascii=False)
+                session.commit()
+                return {"id": draft_id, "status": "updated"}
+
+        new_draft = EvidenceMatrixDraft(
+            title=title,
+            paper_ids=json.dumps(paper_ids, ensure_ascii=False),
+            paper_names=json.dumps(paper_names, ensure_ascii=False),
+            columns=json.dumps(columns, ensure_ascii=False),
+            rows=json.dumps(rows, ensure_ascii=False),
+        )
+        session.add(new_draft)
+        session.commit()
+        return {"id": new_draft.id, "status": "created"}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to save evidence matrix draft: {e}")
+        return {"error": f"Không thể lưu: {str(e)}"}
+    finally:
+        session.close()
+
+
+@router.get("/evidence-matrix/drafts")
+async def list_evidence_matrix_drafts():
+    """List all saved evidence matrix drafts."""
+    session = get_session(state.engine)
+    try:
+        drafts = session.query(EvidenceMatrixDraft).order_by(EvidenceMatrixDraft.updated_at.desc()).all()
+        result = []
+        for d in drafts:
+            paper_names = json.loads(d.paper_names or "[]")
+            rows = json.loads(d.rows or "[]")
+            result.append({
+                "id": d.id,
+                "title": d.title,
+                "paper_names": paper_names,
+                "paper_count": len(json.loads(d.paper_ids or "[]")),
+                "criterion_count": len(rows),
+                "updated_at": d.updated_at.isoformat() if d.updated_at else None,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            })
+        return {"drafts": result}
+    except Exception as e:
+        logger.error(f"Failed to list evidence matrix drafts: {e}")
+        return {"drafts": []}
+    finally:
+        session.close()
+
+
+@router.get("/evidence-matrix/draft/{draft_id}")
+async def load_evidence_matrix_draft(draft_id: str):
+    """Load a saved evidence matrix draft by ID."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+        return {
+            "id": draft.id,
+            "title": draft.title,
+            "paper_ids": json.loads(draft.paper_ids or "[]"),
+            "paper_names": json.loads(draft.paper_names or "[]"),
+            "columns": json.loads(draft.columns or "[]"),
+            "rows": json.loads(draft.rows or "[]"),
+            "created_at": draft.created_at.isoformat() if draft.created_at else None,
+            "updated_at": draft.updated_at.isoformat() if draft.updated_at else None,
+        }
+    except Exception as e:
+        logger.error(f"Failed to load evidence matrix draft: {e}")
+        return {"error": f"Không thể tải: {str(e)}"}
+    finally:
+        session.close()
+
+
+@router.delete("/evidence-matrix/draft/{draft_id}")
+async def delete_evidence_matrix_draft(draft_id: str):
+    """Delete a saved evidence matrix draft."""
+    session = get_session(state.engine)
+    try:
+        draft = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+        session.delete(draft)
+        session.commit()
+        return {"status": "deleted", "id": draft_id}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to delete evidence matrix draft: {e}")
+        return {"error": f"Không thể xoá: {str(e)}"}
+    finally:
+        session.close()
+
+
+@router.patch("/evidence-matrix/draft/{draft_id}/rename")
+async def rename_evidence_matrix_draft(draft_id: str, body: dict = Body(...)):
+    """Rename a saved evidence matrix draft."""
+    title = (body.get("title") or "").strip()
+    if not title:
+        return {"error": "Tiêu đề không được để trống."}
+    session = get_session(state.engine)
+    try:
+        draft = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
+        if not draft:
+            return {"error": "Draft không tồn tại."}
+        draft.title = title
+        session.commit()
+        return {"status": "renamed", "id": draft_id, "title": title}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Failed to rename evidence matrix draft: {e}")
+        return {"error": f"Không thể đổi tên: {str(e)}"}
+    finally:
+        session.close()

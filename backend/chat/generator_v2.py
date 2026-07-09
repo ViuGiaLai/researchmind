@@ -1118,6 +1118,7 @@ class Generator(
         raise RuntimeError(f"All {max_retries+1} retries exhausted for {fn.__name__}")
 
     def _extract_citations(self, content: str) -> list[dict]:
+        content = content or ""
         citations = []
         pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
         for match in re.finditer(pattern, content):

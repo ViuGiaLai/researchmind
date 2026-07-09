@@ -1847,7 +1847,7 @@ CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng
 
         highlights = []
         try:
-            content = generation.content.strip()
+            content = (generation.content or "").strip()
             if content.startswith("```"):
                 fences = re.findall(r'```', content)
                 if len(fences) >= 2:
@@ -1858,7 +1858,7 @@ CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng
             highlights = _parse_highlights_json(content)
         except Exception as parse_err:
             logger.warning(f"Failed to parse highlights JSON: {parse_err}")
-            fallback_text = generation.content.strip()
+            fallback_text = (generation.content or "").strip()
             highlights = [{
                 "category": "important_claim",
                 "text": fallback_text[:200] if fallback_text else "AI không trả về JSON hợp lệ.",

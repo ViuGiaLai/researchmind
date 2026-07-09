@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { api, DiscoveredPaper } from "../../lib/api";
 import { useToast } from "../shared/Toast";
-import { IconSearch, IconSpinner, IconDownload, IconCheck, IconSparkle, IconBrain } from "../Icons";
+import { IconSearch, IconSpinner, IconDownload, IconCheck, IconSparkle, IconBrain, IconEye, IconLink, IconInfo, IconBookOpen } from "../Icons";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 
 export const DiscoveryView: React.FC = () => {
   const [query, setQuery] = useState("");
@@ -11,6 +12,20 @@ export const DiscoveryView: React.FC = () => {
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
   const toast = useToast();
+
+  // Detail modal
+  const [detailPaper, setDetailPaper] = useState<DiscoveredPaper | null>(null);
+
+  const getSourceUrl = (paper: DiscoveredPaper) => {
+    if (paper.source === "openalex" && paper.openalex_id) {
+      return paper.openalex_id;
+    }
+    if (paper.source === "semantic_scholar" && paper.s2_paper_id) {
+      return `https://www.semanticscholar.org/paper/${paper.s2_paper_id}`;
+    }
+    if (paper.doi) return `https://doi.org/${paper.doi}`;
+    return "";
+  };
 
   const handleSearch = async () => {
     const q = query.trim();
@@ -42,14 +57,29 @@ export const DiscoveryView: React.FC = () => {
       });
       setImported((prev) => new Set(prev).add(key));
       toast.addToast("success", `Đã thêm "${paper.title.slice(0, 50)}..." vào thư viện`);
-    } catch {
-      toast.addToast("error", `Không thể thêm "${paper.title.slice(0, 40)}..."`);
+    } catch (e: any) {
+      const msg = e?.message || "";
+      if (msg.includes("File not found") || msg.includes("file not found") || msg.includes("not found on disk")) {
+        toast.addToast("error", `Không tìm thấy file PDF cho bài báo này trên hệ thống.`);
+      } else {
+        toast.addToast("error", `Không thể thêm "${paper.title.slice(0, 40)}..."`);
+      }
     } finally {
       setImporting((prev) => {
         const next = new Set(prev);
         next.delete(key);
         return next;
       });
+    }
+  };
+
+  const handleOpenPdf = async (paper: DiscoveredPaper) => {
+    const url = paper.pdf_url || getSourceUrl(paper);
+    if (!url) return;
+    try {
+      await shellOpen(url);
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -115,15 +145,34 @@ export const DiscoveryView: React.FC = () => {
                   {paper.abstract && (
                     <div className="discovery-result-abstract">{paper.abstract}</div>
                   )}
-                  <button
-                    type="button"
-                    className={`discovery-import-btn${isImported ? " imported" : ""}`}
-                    onClick={() => handleImport(paper)}
-                    disabled={isImporting || isImported}
-                  >
-                    {isImported || isImporting ? <IconCheck size={12} /> : <IconDownload size={12} />}
-                    {isImported ? "Đã thêm" : isImporting ? "Đang thêm..." : "Thêm vào thư viện"}
-                  </button>
+                  <div className="discovery-actions">
+                    <button
+                      type="button"
+                      className={`discovery-action-btn discovery-import-btn${isImported ? " imported" : ""}`}
+                      onClick={() => handleImport(paper)}
+                      disabled={isImporting || isImported}
+                    >
+                      {isImported ? <IconCheck size={12} /> : isImporting ? <IconSpinner size={12} /> : <IconDownload size={12} />}
+                      {isImported ? "Đã có trong thư viện" : isImporting ? "Đang thêm..." : "Thêm vào thư viện"}
+                    </button>
+                    <button
+                      type="button"
+                      className="discovery-action-btn discovery-detail-btn"
+                      onClick={() => setDetailPaper(paper)}
+                    >
+                      <IconEye size={12} />
+                      Chi tiết
+                    </button>
+                    <button
+                      type="button"
+                      className="discovery-action-btn discovery-pdf-btn"
+                      onClick={() => handleOpenPdf(paper)}
+                      title={paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
+                    >
+                      <IconBookOpen size={12} />
+                      {paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -139,6 +188,74 @@ export const DiscoveryView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Detail modal */}
+      {detailPaper && (
+        <div className="rm-modal-overlay" onClick={() => setDetailPaper(null)}>
+          <div className="rm-modal rm-modal-detail" onClick={(e) => e.stopPropagation()}>
+            <div className="rm-modal-header">
+              <h3 className="rm-modal-title">
+                <IconInfo size={16} style={{ marginRight: 8 }} />
+                Chi tiết bài báo
+              </h3>
+              <button className="rm-modal-close" onClick={() => setDetailPaper(null)}>✕</button>
+            </div>
+            <div className="rm-modal-body">
+              <div className="detail-section">
+                <div className="detail-label">Tiêu đề</div>
+                <div className="detail-value detail-title">{detailPaper.title}</div>
+              </div>
+              <div className="detail-section">
+                <div className="detail-label">Tác giả</div>
+                <div className="detail-value">{detailPaper.authors.join(", ")}</div>
+              </div>
+              <div className="detail-row">
+                <div className="detail-section">
+                  <div className="detail-label">Năm</div>
+                  <div className="detail-value">{detailPaper.year || "N/A"}</div>
+                </div>
+                <div className="detail-section">
+                  <div className="detail-label">Trích dẫn</div>
+                  <div className="detail-value">{detailPaper.citation_count}</div>
+                </div>
+                <div className="detail-section">
+                  <div className="detail-label">Nguồn</div>
+                  <div className="detail-value">{detailPaper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}</div>
+                </div>
+              </div>
+              {detailPaper.doi && (
+                <div className="detail-section">
+                  <div className="detail-label">DOI</div>
+                  <div className="detail-value"><code>{detailPaper.doi}</code></div>
+                </div>
+              )}
+              {detailPaper.journal && (
+                <div className="detail-section">
+                  <div className="detail-label">Tạp chí</div>
+                  <div className="detail-value">{detailPaper.journal}</div>
+                </div>
+              )}
+              {detailPaper.abstract && (
+                <div className="detail-section">
+                  <div className="detail-label">Tóm tắt</div>
+                  <div className="detail-value detail-abstract">{detailPaper.abstract}</div>
+                </div>
+              )}
+              {getSourceUrl(detailPaper) && (
+                <a
+                  href={getSourceUrl(detailPaper)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="detail-source-link"
+                >
+                  <IconLink size={12} />
+                  Mở trên {detailPaper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

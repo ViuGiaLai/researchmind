@@ -1079,9 +1079,10 @@ export const api = {
       use_cache: useCache,
     }),
 
-  generateReviewMatrix: (paperIds: string[]) =>
+  generateReviewMatrix: (paperIds: string[], useCache: boolean = false) =>
     request<ReviewMatrixResponse>("POST", "/api/review/builder/matrix", {
       paper_ids: paperIds,
+      use_cache: useCache,
     }),
 
   exportReview: (title: string, content: string, format: string) =>
@@ -1128,6 +1129,11 @@ export const api = {
   deleteReviewDraft: (draftId: string) =>
     request<{ status: string; error?: string }>("DELETE", `/api/review/builder/draft/${draftId}`),
 
+  renameReviewDraft: (draftId: string, title: string) =>
+    request<{ status: string; error?: string; id?: string; title?: string }>("PATCH", `/api/review/builder/draft/${draftId}/rename`, {
+      title,
+    }),
+
   listDraftVersions: (draftId: string) =>
     request<{ versions: DraftVersionSummary[] }>("GET", `/api/review/builder/draft/${draftId}/versions`),
 
@@ -1143,9 +1149,35 @@ export const api = {
       sections,
     }),
 
-  generateEvidenceMatrix: (paperIds: string[]) =>
+  generateEvidenceMatrix: (paperIds: string[], useCache: boolean = false) =>
     request<EvidenceMatrixResponse>("POST", "/api/review/builder/evidence-matrix", {
       paper_ids: paperIds,
+      use_cache: useCache,
+    }),
+
+  // Evidence Matrix Drafts (server-side)
+  saveEvidenceMatrixDraft: (data: {
+    id?: string;
+    title: string;
+    paper_ids: string[];
+    paper_names: string[];
+    columns: string[];
+    rows: EvidenceMatrixRow[];
+  }) =>
+    request<{ id: string; status: string; error?: string }>("POST", "/api/review/builder/evidence-matrix/save", data),
+
+  listEvidenceMatrixDrafts: () =>
+    request<{ drafts: EvidenceMatrixDraftSummary[] }>("GET", "/api/review/builder/evidence-matrix/drafts"),
+
+  loadEvidenceMatrixDraft: (draftId: string) =>
+    request<EvidenceMatrixDraftData>("GET", `/api/review/builder/evidence-matrix/draft/${draftId}`),
+
+  deleteEvidenceMatrixDraft: (draftId: string) =>
+    request<{ status: string; error?: string }>("DELETE", `/api/review/builder/evidence-matrix/draft/${draftId}`),
+
+  renameEvidenceMatrixDraft: (draftId: string, title: string) =>
+    request<{ status: string; error?: string; id?: string; title?: string }>("PATCH", `/api/review/builder/evidence-matrix/draft/${draftId}/rename`, {
+      title,
     }),
 
   analyzeClaims: (text: string, citations: any[]) =>
@@ -1503,6 +1535,28 @@ export interface EvidenceMatrixResponse {
   error?: string;
 }
 
+export interface EvidenceMatrixDraftSummary {
+  id: string;
+  title: string;
+  paper_names: string[];
+  paper_count: number;
+  criterion_count: number;
+  updated_at: string | null;
+  created_at: string | null;
+}
+
+export interface EvidenceMatrixDraftData {
+  id: string;
+  title: string;
+  paper_ids: string[];
+  paper_names: string[];
+  columns: string[];
+  rows: EvidenceMatrixRow[];
+  created_at: string | null;
+  updated_at: string | null;
+  error?: string;
+}
+
 // ─── Academic Discovery Types ──────────────────────────────
 
 export interface DiscoveredPaper {
@@ -1514,6 +1568,9 @@ export interface DiscoveredPaper {
   citation_count: number;
   journal: string;
   abstract: string;
+  openalex_id?: string;
+  s2_paper_id?: string;
+  pdf_url?: string;
 }
 
 // ─── Claim Analysis Types ───────────────────────────────────

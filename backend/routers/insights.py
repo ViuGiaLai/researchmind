@@ -344,7 +344,7 @@ Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, k
             task_type="insight",
         )
         
-        content = generation.content.strip()
+        content = (generation.content or "").strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         

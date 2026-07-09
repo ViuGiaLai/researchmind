@@ -415,7 +415,7 @@ async def suggest_questions(body: dict = Body(...)):
     )
 
     questions: list[str] = []
-    for line in generation.content.strip().split("\n"):
+    for line in (generation.content or "").strip().split("\n"):
         line = line.strip()
         if line.startswith("- "):
             q = line[2:].strip()
