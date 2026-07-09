@@ -1,15 +1,11 @@
-from groq import Groq
+from google import genai
 
-# Dán trực tiếp API key vào đây
-client = Groq(
-    api_key=""
+# Thay bằng API Key của bạn
+client = genai.Client(api_key="YOUR_GEMINI_API_KEY")
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="Xin chào! Hãy giới thiệu bản thân trong 3 câu."
 )
 
-response = client.chat.completions.create(
-    model="llama-3.3-70b-versatile",
-    messages=[
-        {"role": "user", "content": "Hello, who are you?"}
-    ]
-)
-
-print(response.choices[0].message.content)
+print(response.text)

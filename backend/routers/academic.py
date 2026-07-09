@@ -189,7 +189,6 @@ async def translate_papers(body: dict = Body(...)):
         return {"translations": []}
 
     api_key = settings.gemini_translate_api_key or settings.gemini_api_key
-    model = settings.gemini_translate_model or "gemini-2.5-flash"
     if not api_key:
         raise HTTPException(status_code=400, detail="Missing Gemini API key. Set GEMINI_TRANSLATE_API_KEY or GEMINI_API_KEY in .env")
 
@@ -200,62 +199,95 @@ async def translate_papers(body: dict = Body(...)):
         "Chỉ trả về JSON, không thêm giải thích."
     )
 
+    translate_model = settings.gemini_translate_model or "gemini-2.5-flash"
+    fallback_model = settings.gemini_model or "gemini-2.5-flash"
+    model_candidates = [translate_model]
+    if fallback_model not in model_candidates:
+        model_candidates.append(fallback_model)
+
+    def _chunk_papers(items: list[dict], size: int) -> list[list[dict]]:
+        return [items[i:i + size] for i in range(0, len(items), size)]
+
+    def _build_batch_payload(batch: list[dict], model_name: str) -> tuple[str, dict]:
+        prompt = json.dumps(batch, ensure_ascii=False)
+        user_prompt = f"Dịch các title và abstract sau sang tiếng Việt:\n\n{prompt}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+            "generationConfig": {
+                "temperature": 0.1,
+                "maxOutputTokens": 8192,
+                "responseMimeType": "application/json",
+            },
+        }
+        return url, payload
+
     batch = []
     for p in papers:
         title = (p.get("title") or "").strip()
         abstract = (p.get("abstract") or "").strip()
         batch.append({"title": title, "abstract": abstract})
 
-    prompt = json.dumps(batch, ensure_ascii=False)
-    user_prompt = f"Dịch các title và abstract sau sang tiếng Việt:\n\n{prompt}"
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-        "systemInstruction": {"parts": [{"text": system_prompt}]},
-        "generationConfig": {
-            "temperature": 0.1,
-            "maxOutputTokens": 8192,
-            "responseMimeType": "application/json",
-        },
-    }
     headers = {"Content-Type": "application/json"}
-
-    try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Gemini API timeout")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Gemini API error: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    candidates = data.get("candidates", [])
-    if not candidates:
-        raise HTTPException(status_code=502, detail="Gemini returned no candidates")
-
-    raw = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-    try:
-        parsed = json.loads(raw)
-        if isinstance(parsed, list):
-            translations = parsed
-        else:
-            translations = parsed.get("translations", [])
-    except json.JSONDecodeError:
-        logger.warning(f"Gemini translate: failed to parse JSON, raw={raw[:200]}")
-        raise HTTPException(status_code=502, detail="Gemini returned invalid JSON")
-
-    # Ensure we return exactly one translation per input paper
     result = []
-    for i, p in enumerate(papers):
-        t = translations[i] if i < len(translations) else {}
-        result.append({
-            "title_vi": t.get("title_vi") or t.get("title") or "",
-            "abstract_vi": t.get("abstract_vi") or t.get("abstract") or "",
-        })
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        for chunk in _chunk_papers(batch, 6):
+            data = None
+            last_error: Exception | None = None
+            for model in model_candidates:
+                url, payload = _build_batch_payload(chunk, model)
+                try:
+                    resp = await client.post(url, headers=headers, json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    break
+                except httpx.TimeoutException as e:
+                    raise HTTPException(status_code=504, detail="Gemini API timeout") from e
+                except httpx.HTTPStatusError as e:
+                    last_error = e
+                    body = e.response.text[:500].replace("\n", " ")
+                    logger.warning(
+                        f"Gemini translate failed: model={model} status={e.response.status_code} body={body}"
+                    )
+                    if model != model_candidates[-1]:
+                        continue
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Gemini API returned HTTP {e.response.status_code}: {body}",
+                    ) from e
+                except httpx.RequestError as e:
+                    last_error = e
+                    logger.warning(f"Gemini translate request error: model={model} error={e}")
+                    if model != model_candidates[-1]:
+                        continue
+                    raise HTTPException(status_code=502, detail=f"Gemini API error: {e}") from e
+
+            if data is None:
+                raise HTTPException(status_code=502, detail=f"Gemini translation failed: {last_error}")
+
+            candidates = data.get("candidates", [])
+            if not candidates:
+                raise HTTPException(status_code=502, detail="Gemini returned no candidates")
+
+            raw = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    translations = parsed
+                else:
+                    translations = parsed.get("translations", [])
+            except json.JSONDecodeError:
+                logger.warning(f"Gemini translate: failed to parse JSON, raw={raw[:200]}")
+                raise HTTPException(status_code=502, detail="Gemini returned invalid JSON")
+
+            for i, _paper in enumerate(chunk):
+                t = translations[i] if i < len(translations) else {}
+                result.append({
+                    "title_vi": t.get("title_vi") or t.get("title") or "",
+                    "abstract_vi": t.get("abstract_vi") or t.get("abstract") or "",
+                })
 
     return {"translations": result}
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { api, DiscoveredPaper } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { IconSearch, IconSpinner, IconDownload, IconCheck, IconSparkle, IconBrain, IconEye, IconLink, IconInfo, IconBookOpen } from "../Icons";
@@ -15,6 +15,7 @@ export const DiscoveryView: React.FC = () => {
   const [translateMode, setTranslateMode] = useState<"original" | "vi">("original");
   const [translations, setTranslations] = useState<Map<string, { title_vi: string; abstract_vi: string }>>(new Map());
   const [detailPaper, setDetailPaper] = useState<DiscoveredPaper | null>(null);
+  const translateRequestIdRef = useRef(0);
   const toast = useToast();
 
   const getSourceUrl = (paper: DiscoveredPaper) => {
@@ -51,10 +52,12 @@ export const DiscoveryView: React.FC = () => {
       setTranslateMode(translateMode === "original" ? "vi" : "original");
       return;
     }
+    const requestId = ++translateRequestIdRef.current;
     setTranslating(true);
     try {
       const papers = results.map((r) => ({ title: r.title, abstract: r.abstract }));
       const res = await api.translatePapers(papers);
+      if (translateRequestIdRef.current !== requestId) return;
       const map = new Map<string, { title_vi: string; abstract_vi: string }>();
       results.forEach((r, i) => {
         const t = res.translations[i];
@@ -64,9 +67,12 @@ export const DiscoveryView: React.FC = () => {
       setTranslateMode("vi");
       toast.addToast("success", `Đã dịch ${res.translations.length} bài báo`);
     } catch {
+      if (translateRequestIdRef.current !== requestId) return;
       toast.addToast("error", "Không thể dịch. Vui lòng kiểm tra API key Gemini trong .env");
     } finally {
-      setTranslating(false);
+      if (translateRequestIdRef.current === requestId) {
+        setTranslating(false);
+      }
     }
   };
 
