@@ -161,7 +161,7 @@ export function ReviewBuilderView() {
       setTitle(data.title);
       setSelectedIds(data.paper_ids || []);
       setPaperTitles(data.paper_titles || []);
-      setOutlineSections(data.outline_sections || DEFAULT_SECTIONS);
+      setOutlineSections(data.outline_sections || getDefaultSections(t));
       setSections(data.sections || {});
       setFullText(data.full_text || "");
       setShowVersions(false);
@@ -195,7 +195,7 @@ export function ReviewBuilderView() {
       setTitle(data.title);
       setSelectedIds(data.paper_ids || []);
       setPaperTitles(data.paper_titles || []);
-      setOutlineSections(data.outline_sections || DEFAULT_SECTIONS);
+      setOutlineSections(data.outline_sections || getDefaultSections(t));
       setSections(data.sections || {});
       setFullText(data.full_text || "");
       setStep("review");
@@ -393,7 +393,7 @@ export function ReviewBuilderView() {
     if (sectionMap["bibliography"]?.content) {
       parts.push(`\n## ${sectionMap["bibliography"].title}\n\n${sectionMap["bibliography"].content}\n`);
     }
-    parts.push(`\n---\n*Bản review được tạo bởi ResearchMind theo hướng ưu tiên bằng chứng (ưu tiên kết luận có thể kiểm chứng).*`);
+    parts.push(`\n---\n*${t("review_builder.generated_by")}*`);
     return parts.join("\n");
   };
 
@@ -1180,7 +1180,7 @@ export function ReviewBuilderView() {
             <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
               <div className="rm-modal-header">
                 <span className="rm-modal-title">
-                  {activePdf.paperTitle}{activePdf.page ? ` — Trang ${activePdf.page}` : ""}
+                  {activePdf.paperTitle}{activePdf.page ? ` — ${t("review_builder.pdf_page_label", { page: activePdf.page })}` : ""}
                 </span>
                 <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
               </div>

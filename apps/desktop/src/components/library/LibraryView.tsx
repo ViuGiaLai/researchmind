@@ -1464,10 +1464,10 @@ export const LibraryView: React.FC<{
                     <div className="matches-divider" />
                     <div className="matches-list">
                       <div className="matches-list-header">
-                        <span className="matches-list-title">Các chunk tương đồng ({matchModalData.matches.length})</span>
+                        <span className="matches-list-title">{t("library_view.similar_chunks_title", { count: matchModalData.matches.length })}</span>
                       </div>
                       {matchModalData.matches.length === 0 ? (
-                        <div className="matches-empty">Không tìm thấy chunk tương đồng chi tiết.</div>
+                        <div className="matches-empty">{t("library_view.no_similar_chunks")}</div>
                       ) : (
                         matchModalData.matches.map((m, i) => (
                           <div key={m.chunk_id || i} className="match-chunk-card">
@@ -1476,7 +1476,7 @@ export const LibraryView: React.FC<{
                                 {(m.similarity * 100).toFixed(1)}%
                               </span>
                               {m.page_number != null && (
-                                <span className="match-chunk-page">Trang {m.page_number}</span>
+                                <span className="match-chunk-page">{t("library_view.match_chunk_page", { page: m.page_number })}</span>
                               )}
                               {m.chunk_index != null && (
                                 <span className="match-chunk-index">Chunk #{m.chunk_index}</span>
@@ -1489,7 +1489,7 @@ export const LibraryView: React.FC<{
                     </div>
                   </>
                 ) : (
-                  <div className="matches-empty">Không thể tải dữ liệu tương đồng.</div>
+                  <div className="matches-empty">{t("library_view.similarity_load_error")}</div>
                 )}
               </div>
             </div>

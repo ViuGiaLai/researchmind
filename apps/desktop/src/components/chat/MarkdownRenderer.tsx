@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { IconBrain } from "../Icons";
 
@@ -187,10 +188,10 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
     case "ref_citation":
       const citeData = allCitations?.find(c => c.ref_id === seg.refId);
       const tooltipLines = [
-        citeData?.paper_title || t("cite.source_fallback", { refId: seg.refId }),
-        citeData?.page ? t("cite.page_label", { page: citeData.page }) : null,
+        citeData?.paper_title || i18n.t("cite.source_fallback", { refId: seg.refId }),
+        citeData?.page ? i18n.t("cite.page_label", { page: citeData.page }) : null,
         citeData?.text_snippet ? `"${citeData.text_snippet}"` : null,
-        citeData ? t("cite.open_pdf") : null,
+        citeData ? i18n.t("cite.open_pdf") : null,
       ].filter(Boolean).join(" | ");
       return React.createElement(
         "span",
@@ -198,7 +199,7 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
           key: i,
           className: "citation-ref",
           onClick: () => onCitationClick?.(seg.refId!),
-          title: tooltipLines || t("cite.source_fallback", { refId: seg.refId }),
+          title: tooltipLines || i18n.t("cite.source_fallback", { refId: seg.refId }),
           style: {
             color: "var(--color-primary)",
             fontWeight: 600,
@@ -220,9 +221,9 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
             fontWeight: 500,
             fontSize: "0.85em",
           },
-          title: seg.page ? t("cite.page_label", { page: seg.page }) : seg.text,
+          title: seg.page ? i18n.t("cite.page_label", { page: seg.page }) : seg.text,
         },
-        `[${seg.text}${seg.page ? `, ${t("cite.page_short", { page: seg.page })}` : ""}]`
+        `[${seg.text}${seg.page ? `, ${i18n.t("cite.page_short", { page: seg.page })}` : ""}]`
       );
     default:
       return seg.text;

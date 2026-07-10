@@ -111,7 +111,7 @@ export const InsightsView: React.FC<{
     if (!result) return;
     setExporting(true);
     try {
-      const title = `Ma_tran_so_sanh_${selectedPaperIds.length}_tai_lieu`;
+      const title = t("insights.export_filename", { count: selectedPaperIds.length });
       const blob = await api.exportSynthesis(title, result.answer, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

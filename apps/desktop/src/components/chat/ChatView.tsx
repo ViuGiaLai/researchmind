@@ -425,7 +425,7 @@ export const ChatView: React.FC<{
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           releaseLoading();
-          const content = `Lỗi: ${errMsg}`;
+          const content = t("chat.error_prefix", { msg: errMsg });
           setMessages((prev) => prev.map((m, i) =>
             i === assistantIdx ? { ...m, content } : m
           ));
@@ -557,7 +557,7 @@ export const ChatView: React.FC<{
               activeChatStreamRef.current = null;
               setIsStreaming(false);
               releaseLoading();
-              const content = `Lỗi: ${err}\n\n> Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
+              const content = t("chat.error_backend_not_running", { err });
               setMessages((prev) => prev.map((m, i) =>
                 i === assistantIdx ? { ...m, content } : m
               ));
@@ -589,7 +589,7 @@ export const ChatView: React.FC<{
       }
     } catch (e) {
       const errorText = e instanceof Error ? e.message : t("chat.error_backend");
-      const content = `Lỗi: ${errorText}`;
+      const content = t("chat.error_prefix", { msg: errorText });
       const errMsg: Message = {
         role: "assistant",
         content,
@@ -623,7 +623,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
-        setMessages((prev) => [...prev, { role: "assistant", content: `Deep Research thất bại: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.deep_research_failed", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -684,7 +684,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
-        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.error_prefix", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -704,7 +704,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
-        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.error_prefix", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -724,7 +724,7 @@ export const ChatView: React.FC<{
         }]);
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
-        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.error_prefix", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -1054,7 +1054,7 @@ export const ChatView: React.FC<{
           highlightText={pdfHighlightText}
           onClose={() => setShowPdfViewer(false)}
           onCopyQuote={(text, page) => {
-            const quote = `> "${text}" (tr.${page})\n\n`;
+            const quote = t("chat.add_quote_prefix", { text, page });
             setInput(prev => prev ? prev + quote : quote);
             toast.addToast("success", t("chat.toast_pdf_quote"));
           }}

@@ -249,7 +249,40 @@
     "embedding_instruction_used": "Dùng {query} + {passage} instruction cho RAG",
     "data_clear_confirm": "CẢNH BÁO: Hành động này sẽ xoá TOÀN BỘ tài liệu PDF đã import, lịch sử chat, các ghi chú và cơ sở dữ liệu tìm kiếm vector. Cấu hình cài đặt và API Key của bạn vẫn được GIỮ LẠI.\n\nBạn có chắc chắn muốn tiếp tục?",
     "data_reset_confirm": "CẢNH BÁO NGUY HIỂM: Hành động này sẽ xoá SẠCH HOÀN TOÀN cấu hình cài đặt, API Key, tài liệu PDF, lịch sử chat và vector database. Ứng dụng sẽ quay trở về trạng thái ban đầu như lúc vừa mới cài đặt.\n\nBạn có chắc chắn muốn reset toàn bộ ứng dụng không?",
-    "change_storage_confirm": "Bạn có chắc chắn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới?\n\nCẢNH BÁO: Dung lượng ổ đĩa đích còn thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục?"
+    "change_storage_confirm": "Bạn có chắc chắn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới?\n\nCẢNH BÁO: Dung lượng ổ đĩa đích còn thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục?",
+    "move_storage_confirm": "Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n{path}\n\nỔ đĩa đích còn trống: {free_gb} GB.\n\nBạn có chắc chắn muốn di chuyển không?",
+    "move_storage_confirm_warning": "Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n{path}\n\nỔ đĩa đích còn trống: {free_gb} GB.\n\nCẢNH BÁO: Dung lượng ổ đĩa đích còn khá thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục không?",
+    "model_desc": {
+      "deepseek_chat": "cân bằng, nhanh, thông minh",
+      "deepseek_reasoner": "suy nghĩ sâu, RAG tốt",
+      "gemini_25_flash": "nhanh, nhẹ, context cực lớn",
+      "gemini_20_flash": "thế hệ mới, rất thông minh",
+      "gemini_15_pro": "mạnh mẽ, phân tích tốt",
+      "claude_sonnet_4": "cân bằng",
+      "claude_haiku_35": "nhanh, rẻ",
+      "claude_opus_4": "mạnh nhất",
+      "llama_33_70b_versatile": "cực nhanh, nhẹ",
+      "llama_33_70b_specdec": "mạnh mẽ, thông minh",
+      "mixtral_8x7b": "context lớn",
+      "kimi_k26": "tốt cho tiếng Việt",
+      "deepseek_v3": "thông minh, đa năng",
+      "llama_33_70b_instruct": "phân tích tốt",
+      "gpt_4o_mini_standard": "tiêu chuẩn, nhanh",
+      "claude_35_haiku": "thông minh",
+      "gemini_25_flash_freemodel": "linh hoạt",
+      "gpt_4o_mini_github": "nhẹ, nhanh, miễn phí",
+      "gpt_4o_mini_full": "full path"
+    },
+    "label_gguf_model": "Tên model (GGUF)",
+    "system_info_ai_mode": "Chế độ AI:",
+    "system_info_embedding": "Embedding:",
+    "system_info_mmr": "MMR:",
+    "system_info_reranker": "Reranker:",
+    "system_info_papers": "Papers:",
+    "system_info_chunks_sqlite": "Chunks (SQLite):",
+    "system_info_chunks_chromadb": "Chunks (ChromaDB):",
+    "system_info_tokens_unit": "tokens",
+    "diag_papers_line": "Papers: {total} ({indexed} indexed)"
   },
   "language": {
     "vi": "Tiếng Việt",
@@ -402,7 +435,10 @@
     "quick_verify_query": "Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài",
     "quick_debate_query": "Tạo tranh luận AI: ủng hộ và phản biện các luận điểm chính",
     "quick_related_query": "Tìm các nghiên cứu liên quan đến chủ đề của paper này",
-    "quick_insight_query": "Phân tích khoảng trống nghiên cứu, điểm mạnh điểm yếu và hướng phát triển"
+    "quick_insight_query": "Phân tích khoảng trống nghiên cứu, điểm mạnh điểm yếu và hướng phát triển",
+    "error_prefix": "Lỗi: {msg}",
+    "error_backend_not_running": "Lỗi: {err}\n\n> Đảm bảo FastAPI backend đang chạy: `cd backend && uvicorn main:app --reload --port 8765`",
+    "deep_research_failed": "Deep Research thất bại: {msg}"
   },
   "startup": {
     "starting_backend": "Đang khởi động backend...",
@@ -563,6 +599,36 @@
     "next": "Tiếp",
     "other": "Khác"
   },
+  "help_nav": {
+    "home": "Trung tâm trợ giúp",
+    "getting_started": "Bắt đầu",
+    "user_guide": "Hướng dẫn sử dụng",
+    "ai_features": "Tính năng AI",
+    "import_export": "Nhập & Xuất",
+    "settings": "Cài đặt",
+    "faq": "Câu hỏi thường gặp",
+    "shortcuts": "Phím tắt",
+    "release_notes": "Có gì mới",
+    "troubleshooting": "Xử lý sự cố",
+    "about": "Về ResearchMind"
+  },
+  "help_group": {
+    "overview": "Tổng quan",
+    "docs": "Tài liệu",
+    "support": "Hỗ trợ"
+  },
+  "welcome_tour": {
+    "title_library": "Thư viện",
+    "body_library": "Quản lý paper, PDF, highlight và tìm kiếm semantic — điểm bắt đầu cho mọi workflow nghiên cứu.",
+    "title_chat": "Chat AI",
+    "body_chat": "Hỏi đáp với AI dựa trên paper bạn chọn. Mỗi kết luận quan trọng nên có citation để kiểm chứng nhanh.",
+    "title_review": "Đánh giá & Bằng chứng",
+    "body_review": "Insights, screening, review builder và ma trận evidence để biến paper thành kết quả có thể kiểm chứng.",
+    "title_labs": "Phòng thí nghiệm",
+    "body_labs": "Phân tích sâu, Bộ não cá nhân, Đọc hôm nay và biểu đồ quan hệ paper.",
+    "title_help": "Trợ giúp",
+    "body_help": "Bấm ? góc phải trên để mở Help Center, tài liệu và phím tắt bất cứ lúc nào."
+  },
   "import": {
     "tab_documents": "Tài liệu",
     "tab_bibtex": "BibTeX",
@@ -694,7 +760,8 @@
     "export_html": "Xuất HTML",
     "ask_more": "Hỏi thêm về kết quả này",
     "open_pdf_title": "Nhấp để mở PDF",
-    "toast_export_failed": "Xuất file thất bại: {{msg}}"
+    "toast_export_failed": "Xuất file thất bại: {{msg}}",
+    "export_filename": "Ma_tran_so_sanh_{count}_tai_lieu"
   },
   "wow": {
     "loader_summary_1": "Đang trích xuất nội dung bài báo...",
@@ -883,7 +950,11 @@
     "layout_multi": "{avg} cột (TB) · {multi}/{total} trang đa cột",
     "similarity_detail_title": "Chi tiết tương đồng",
     "loading_matches": "Đang tìm các chunk tương đồng...",
-    "view_document": "Xem tài liệu"
+    "view_document": "Xem tài liệu",
+    "similar_chunks_title": "Các chunk tương đồng ({count})",
+    "no_similar_chunks": "Không tìm thấy chunk tương đồng chi tiết.",
+    "match_chunk_page": "Trang {page}",
+    "similarity_load_error": "Không thể tải dữ liệu tương đồng."
   },
   "highlights": {
     "select_doc": "Chọn tài liệu",
@@ -1052,7 +1123,11 @@
     "section_count": "phần",
     "severity_high": "cao",
     "severity_medium": "trung bình",
-    "severity_low": "thấp"
+    "severity_low": "thấp",
+    "generated_by": "Bản review được tạo bởi ResearchMind theo hướng ưu tiên bằng chứng (ưu tiên kết luận có thể kiểm chứng).",
+    "pdf_page_label": "Trang {page}",
+    "open_citation": "Mở: {label}",
+    "open_citation_page": "Mở: {label} trang {page}"
   },
   "screening": {
     "title": "Sàng lọc bài báo",
@@ -1194,7 +1269,8 @@
     "build_cancelling_short": "Đang hủy...",
     "delete_graph": "Đang xóa đồ thị...",
     "running_strategy": "Đang chạy {strategy}...",
-    "query_failed": "Truy vấn thất bại"
+    "query_failed": "Truy vấn thất bại",
+    "entity_rank_label": "điểm: {rank}"
   },
   "scan": {
     "stop": "Dừng quét",

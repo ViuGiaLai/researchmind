@@ -315,13 +315,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       setStorageMsg({ type: "success", text: t("settings.storage_checking") });
       const space = await api.getDiskSpace(selected);
       
-      let confirmMsg = `Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n${selected}\n\n`;
-      confirmMsg += `Ổ đĩa đích còn trống: ${space.free_gb} GB.\n`;
-      
+      let confirmMsg = t("settings.move_storage_confirm", { path: selected, free_gb: space.free_gb });
       if (space.warning) {
-        confirmMsg += `CẢNH BÁO: Dung lượng ổ đĩa đích còn khá thấp (< 10GB). Bạn có chắc chắn muốn tiếp tục không?\n\n`;
-      } else {
-        confirmMsg += `Bạn có chắc chắn muốn di chuyển không?\n\n`;
+        confirmMsg = t("settings.move_storage_confirm_warning", { path: selected, free_gb: space.free_gb });
       }
       
       const proceed = window.confirm(confirmMsg);
@@ -472,7 +468,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       `Backend: ${diagnostics.backend_ready ? "OK" : "NOT READY"} — ${diagnostics.init_message}`,
       `Embedder: ${diagnostics.embedder_ready ? "OK" : "Warming up"}`,
       `LLM mode: ${diagnostics.llm_mode}`,
-      `Papers: ${diagnostics.total_papers} (${diagnostics.indexed_papers} indexed)`,
+      t("settings.diag_papers_line", { total: diagnostics.total_papers, indexed: diagnostics.indexed_papers }),
       `Chunks: ${diagnostics.total_chunks} SQLite / ${diagnostics.chroma_chunks} Chroma`,
       `Chunk sync: ${diagnostics.chunk_sync_ok ? "OK" : "MISMATCH"}`,
       `Data: ${diagnostics.data_dir}`,
@@ -1143,8 +1139,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">DeepSeek Model</label>
                   <select className="settings-select" value={deepseekModel} onChange={(e) => setDeepseekModel(e.target.value)}>
-                    <option value="deepseek-chat">deepseek-chat (cân bằng, nhanh, thông minh)</option>
-                    <option value="deepseek-reasoner">deepseek-reasoner (suy nghĩ sâu, RAG tốt)</option>
+                    <option value="deepseek-chat">deepseek-chat ({t("settings.model_desc.deepseek_chat")})</option>
+                    <option value="deepseek-reasoner">deepseek-reasoner ({t("settings.model_desc.deepseek_reasoner")})</option>
                   </select>
                 </div>
               </>
@@ -1180,9 +1176,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">Gemini Model</label>
                   <select className="settings-select" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)}>
-                    <option value="gemini-2.5-flash">gemini-2.5-flash (nhanh, nhẹ, context cực lớn)</option>
-                    <option value="gemini-2.0-flash">gemini-2.0-flash (thế hệ mới, rất thông minh)</option>
-                    <option value="gemini-1.5-pro">gemini-1.5-pro (mạnh mẽ, phân tích tốt)</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash ({t("settings.model_desc.gemini_25_flash")})</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash ({t("settings.model_desc.gemini_20_flash")})</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro ({t("settings.model_desc.gemini_15_pro")})</option>
                   </select>
                 </div>
               </>
@@ -1218,9 +1214,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">Claude Model</label>
                   <select className="settings-select" value={claudeModel} onChange={(e) => setClaudeModel(e.target.value)}>
-                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (cân bằng)</option>
-                    <option value="claude-haiku-3-5-20241022">Claude Haiku 3.5 (nhanh, rẻ)</option>
-                    <option value="claude-opus-4-20250514">Claude Opus 4 (mạnh nhất)</option>
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4 ({t("settings.model_desc.claude_sonnet_4")})</option>
+                    <option value="claude-haiku-3-5-20241022">Claude Haiku 3.5 ({t("settings.model_desc.claude_haiku_35")})</option>
+                    <option value="claude-opus-4-20250514">Claude Opus 4 ({t("settings.model_desc.claude_opus_4")})</option>
                   </select>
                 </div>
               </>
@@ -1256,9 +1252,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">Groq Model</label>
                   <select className="settings-select" value={groqModel} onChange={(e) => setGroqModel(e.target.value)}>
-                    <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (cực nhanh, nhẹ)</option>
-                    <option value="llama-3.3-70b-specdec">llama-3.3-70b-specdec (mạnh mẽ, thông minh)</option>
-                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 (context lớn)</option>
+                    <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile ({t("settings.model_desc.llama_33_70b_versatile")})</option>
+                    <option value="llama-3.3-70b-specdec">llama-3.3-70b-specdec ({t("settings.model_desc.llama_33_70b_specdec")})</option>
+                    <option value="mixtral-8x7b-32768">mixtral-8x7b-32768 ({t("settings.model_desc.mixtral_8x7b")})</option>
                   </select>
                 </div>
               </>
@@ -1294,9 +1290,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">Nvidia NIM Model</label>
                   <select className="settings-select" value={nvidiaModel} onChange={(e) => setNvidiaModel(e.target.value)}>
-                    <option value="moonshotai/kimi-k2.6">moonshotai/kimi-k2.6 (tốt cho tiếng Việt)</option>
-                    <option value="deepseek-ai/deepseek-v3">deepseek-ai/deepseek-v3 (thông minh, đa năng)</option>
-                    <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct (phân tích tốt)</option>
+                    <option value="moonshotai/kimi-k2.6">moonshotai/kimi-k2.6 ({t("settings.model_desc.kimi_k26")})</option>
+                    <option value="deepseek-ai/deepseek-v3">deepseek-ai/deepseek-v3 ({t("settings.model_desc.deepseek_v3")})</option>
+                    <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct ({t("settings.model_desc.llama_33_70b_instruct")})</option>
                   </select>
                 </div>
               </>
@@ -1332,9 +1328,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">FreeModel Model</label>
                   <select className="settings-select" value={freemodelModel} onChange={(e) => setFreemodelModel(e.target.value)}>
-                    <option value="gpt-4o-mini">gpt-4o-mini (tiêu chuẩn, nhanh)</option>
-                    <option value="claude-3-5-haiku">claude-3-5-haiku (thông minh)</option>
-                    <option value="gemini-2.5-flash">gemini-2.5-flash (linh hoạt)</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini ({t("settings.model_desc.gpt_4o_mini_standard")})</option>
+                    <option value="claude-3-5-haiku">claude-3-5-haiku ({t("settings.model_desc.claude_35_haiku")})</option>
+                    <option value="gemini-2.5-flash">gemini-2.5-flash ({t("settings.model_desc.gemini_25_flash_freemodel")})</option>
                   </select>
                 </div>
               </>
@@ -1372,8 +1368,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-field">
                   <label className="settings-label">GitHub Model</label>
                   <select className="settings-select" value={githubModel} onChange={(e) => setGithubModel(e.target.value)}>
-                    <option value="gpt-4o-mini">gpt-4o-mini (nhẹ, nhanh, miễn phí)</option>
-                    <option value="microsoft/gpt-4o-mini">microsoft/gpt-4o-mini (full path)</option>
+                    <option value="gpt-4o-mini">gpt-4o-mini ({t("settings.model_desc.gpt_4o_mini_github")})</option>
+                    <option value="microsoft/gpt-4o-mini">microsoft/gpt-4o-mini ({t("settings.model_desc.gpt_4o_mini_full")})</option>
                   </select>
                 </div>
               </>
@@ -1395,7 +1391,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               />
             </div>
             <div className="settings-field">
-              <label className="settings-label">Tên model (GGUF)</label>
+              <label className="settings-label">{t("settings.label_gguf_model")}</label>
               <input
                 type="text"
                 className="settings-input"
@@ -1741,7 +1737,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           <p>{t("settings.advanced_version")}: <strong>0.6.0</strong></p>
           <p>{t("settings.advanced_built_by")}: <strong>Viu Gia Lai</strong></p>
           <p>
-            Chế độ AI:{" "}
+            {t("settings.system_info_ai_mode")}{" "}
             <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
               {llmMode === "cloud_free" ? (
                 <>
@@ -1767,7 +1763,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             </strong>
           </p>
           <p>
-            Embedding:{" "}                <strong>
+            {t("settings.system_info_embedding")}{" "}                <strong>
                   {embeddingMode === "cloud"
                     ? <IconWithText icon={IconCloud} size={12}>Gemini</IconWithText>
                     : <IconWithText icon={IconLaptop} size={12}>{`${embeddingModel || "bge-m3"} (${t("settings.embedding_local_option")})`}</IconWithText>}
@@ -1822,7 +1818,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     </span>
                   ) : embeddingTestResult === "error" ? (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <IconError size={14} /> Lỗi
+                      <IconError size={14} /> {t("common.error")}
                     </span>                    ) : (
                     t("settings.embedding_test_connection")
                   )}
@@ -1840,7 +1836,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             </span>
           </p>
           <p>
-            MMR:{" "}
+            {t("settings.system_info_mmr")}{" "}
             <strong>
               {mmrLambda !== "" ? (
                 <IconWithText icon={IconRotateCcw} size={12}>{`λ=${mmrLambda}`}</IconWithText>
@@ -1850,7 +1846,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             </strong>
           </p>
           <p style={{ marginTop: 4 }}>
-            Reranker:{" "}
+            {t("settings.system_info_reranker")}{" "}
             <strong>
               {enableReranker ? (
                 <IconWithText icon={IconPlug} size={12}>{t("settings.reranker_on")}</IconWithText>
@@ -1945,7 +1941,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               </div>
               <div style={{ display: "flex", gap: 16, marginTop: 8, alignItems: "center" }}>
                 <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                  MMR diversity:
+                  {t("settings.advanced_embedding_mmr")}
                   <input
                     type="number"
                     value={mmrLambda}
@@ -1955,7 +1951,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     style={{ width: 70, fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
                   />
                   <span style={{ color: "var(--color-text-muted)", fontSize: "0.7rem" }}>
-                    (0=đa dạng, 1=liên quan, để trống=tắt)
+                    {t("settings.advanced_embedding_mmr_hint")}
                   </span>
                 </label>
               </div>
@@ -1978,7 +1974,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   style={{ width: 80, fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
                   min={1000} max={500000} step={1000}
                 />
-                tokens
+                {t("settings.system_info_tokens_unit")}
               </label>
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
                 {t("settings.advanced_fallback_model_label")}
@@ -2010,9 +2006,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           </div>
           {stats && (
             <>
-              <p>Papers: <strong>{stats.total_papers}</strong></p>
-              <p>Chunks (SQLite): <strong>{stats.total_chunks}</strong></p>
-              <p>Chunks (ChromaDB): <strong>{stats.chroma_chunks}</strong></p>
+              <p>{t("settings.system_info_papers")} <strong>{stats.total_papers}</strong></p>
+              <p>{t("settings.system_info_chunks_sqlite")} <strong>{stats.total_chunks}</strong></p>
+              <p>{t("settings.system_info_chunks_chromadb")} <strong>{stats.chroma_chunks}</strong></p>
             </>
           )}
           <p style={{ marginTop: 16, color: "var(--color-text-muted)", fontSize: "0.85rem" }}>

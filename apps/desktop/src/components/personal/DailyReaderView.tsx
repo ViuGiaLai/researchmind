@@ -183,6 +183,7 @@ export const DailyReaderView: React.FC = () => {
 // ─── Paper Card Component ──────────────────────────────────
 
 const DailyPaperCard: React.FC<{ paper: DailyPaper; index: number }> = ({ paper, index }) => {
+  const { t } = useTranslation();
   return (
     <div className="daily-reader-paper-card">
       <div className="daily-reader-paper-rank">#{index}</div>

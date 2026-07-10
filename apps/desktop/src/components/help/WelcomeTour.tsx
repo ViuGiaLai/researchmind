@@ -160,8 +160,8 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ onComplete, onOpenHelp
         <button type="button" className="welcome-tour-skip" onClick={finish} aria-label={t("help.skip")}>
           <IconClose size={16} />
         </button>
-        <h2 id="welcome-tour-title" className="welcome-tour-title">{current.title}</h2>
-        <p className="welcome-tour-body">{current.body}</p>
+        <h2 id="welcome-tour-title" className="welcome-tour-title">{t(current.title)}</h2>
+        <p className="welcome-tour-body">{t(current.body)}</p>
         <div className="welcome-tour-actions">
           {step > 0 && (
             <button type="button" className="rm-btn rm-btn--ghost" onClick={() => setStep((s) => s - 1)}>

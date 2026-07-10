@@ -402,7 +402,7 @@ export const GraphView: React.FC = () => {
                         <div className="entity-title">{e.title}</div>
                         <div className="entity-meta">
                           <span className="entity-type">{e.type || t("graph.entity_type_fallback")}</span>
-                          <span className="entity-rank">điểm: {e.rank.toFixed(1)}</span>
+                          <span className="entity-rank">{t("graph.entity_rank_label", { rank: e.rank.toFixed(1) })}</span>
                         </div>
                         {e.description && (
                           <div className="entity-desc">{e.description.slice(0, 200)}</div>

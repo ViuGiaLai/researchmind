@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { IconRefresh, IconSpinner, IconCheck, IconFileText, IconError } from "../Icons";
 
 interface QualityIssue {
@@ -72,7 +73,7 @@ function renderContentWithCitations(
               onCitationClick?.(citation.paper_id, citation.paper_title);
             }}
             style={{ cursor: "pointer" }}
-            title={"Mo: " + citation.paper_title}
+            title={i18n.t("review_builder.open_citation", { label: citation.paper_title })}
           >
             [{num}]
           </span>
@@ -93,7 +94,7 @@ function renderContentWithCitations(
               onCitationClick?.(paperId, label, page);
             }}
             style={{ cursor: "pointer" }}
-            title={"Mo: " + label + (page ? " trang " + page : "")}
+            title={i18n.t("review_builder.open_citation_page", { label, page: page || "" })}
           >
             {page ? "[" + page + "]" : "[" + label.slice(0, 20) + "...]"}
           </span>

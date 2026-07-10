@@ -249,7 +249,40 @@
     "embedding_instruction_used": "RAGに{query} + {passage}指示を使用",
     "data_clear_confirm": "警告：この操作はインポートしたPDF文書、チャット履歴、メモ、ベクターデータベースをすべて削除します。設定とAPIキーは保持されます。\n\n続行してもよろしいですか？",
     "data_reset_confirm": "危険な警告：この操作は設定、APIキー、PDF文書、チャット履歴、ベクターデータベースを完全に削除します。アプリは初期状態に戻ります。\n\nアプリケーション全体をリセットしてもよろしいですか？",
-    "change_storage_confirm": "既存のデータをすべて新しいフォルダに移動してもよろしいですか？\n\n警告：ターゲットディスクの容量が少なくなっています（10GB未満）。続行してもよろしいですか？"
+    "change_storage_confirm": "既存のデータをすべて新しいフォルダに移動してもよろしいですか？\n\n警告：ターゲットディスクの容量が少なくなっています（10GB未満）。続行してもよろしいですか？",
+    "move_storage_confirm": "既存のデータをすべて新しいフォルダに移動しますか？\n{path}\n\nターゲットディスクの空き容量: {free_gb} GB\n\n移動してもよろしいですか？",
+    "move_storage_confirm_warning": "既存のデータをすべて新しいフォルダに移動しますか？\n{path}\n\nターゲットディスクの空き容量: {free_gb} GB\n\n警告：ターゲットディスクの容量が少なくなっています（10GB未満）。続行してもよろしいですか？",
+    "model_desc": {
+      "deepseek_chat": "バランス、高速、スマート",
+      "deepseek_reasoner": "深い推論、RAGに優れる",
+      "gemini_25_flash": "高速、軽量、大規模コンテキスト",
+      "gemini_20_flash": "新世代、非常にスマート",
+      "gemini_15_pro": "パワフル、分析に優れる",
+      "claude_sonnet_4": "バランス",
+      "claude_haiku_35": "高速、低コスト",
+      "claude_opus_4": "最もパワフル",
+      "llama_33_70b_versatile": "超高速、軽量",
+      "llama_33_70b_specdec": "パワフル、スマート",
+      "mixtral_8x7b": "大規模コンテキスト",
+      "kimi_k26": "ベトナム語に優れる",
+      "deepseek_v3": "スマート、多用途",
+      "llama_33_70b_instruct": "分析に優れる",
+      "gpt_4o_mini_standard": "標準、高速",
+      "claude_35_haiku": "スマート",
+      "gemini_25_flash_freemodel": "フレキシブル",
+      "gpt_4o_mini_github": "軽量、高速、無料",
+      "gpt_4o_mini_full": "フルパス"
+    },
+    "label_gguf_model": "モデル名 (GGUF)",
+    "system_info_ai_mode": "AIモード:",
+    "system_info_embedding": "埋め込み:",
+    "system_info_mmr": "MMR:",
+    "system_info_reranker": "リランカー:",
+    "system_info_papers": "論文:",
+    "system_info_chunks_sqlite": "チャンク (SQLite):",
+    "system_info_chunks_chromadb": "チャンク (ChromaDB):",
+    "system_info_tokens_unit": "トークン",
+    "diag_papers_line": "論文: {total} ({indexed} インデックス済み)"
   },
   "language": {
     "vi": "ベトナム語",
@@ -402,7 +435,10 @@
     "quick_verify_query": "外部の学術データに基づいて、これらの論文の研究結果を検証",
     "quick_debate_query": "AI討論を作成：賛成と反対の議論",
     "quick_related_query": "この論文のトピックに関連する研究を検索",
-    "quick_insight_query": "研究ギャップ、長所、短所、将来の方向性を分析"
+    "quick_insight_query": "研究ギャップ、長所、短所、将来の方向性を分析",
+    "error_prefix": "エラー: {msg}",
+    "error_backend_not_running": "エラー: {err}\n\n> FastAPIバックエンドが実行されていることを確認してください: `cd backend && uvicorn main:app --reload --port 8765`",
+    "deep_research_failed": "Deep Researchが失敗しました: {msg}"
   },
   "startup": {
     "starting_backend": "バックエンドを起動中...",
@@ -610,6 +646,36 @@
     "next": "次へ",
     "other": "その他"
   },
+  "help_nav": {
+    "home": "ヘルプセンター",
+    "getting_started": "はじめに",
+    "user_guide": "ユーザーガイド",
+    "ai_features": "AI機能",
+    "import_export": "インポート＆エクスポート",
+    "settings": "設定",
+    "faq": "FAQ",
+    "shortcuts": "ショートカット",
+    "release_notes": "新機能",
+    "troubleshooting": "トラブルシューティング",
+    "about": "ResearchMindについて"
+  },
+  "help_group": {
+    "overview": "概要",
+    "docs": "ドキュメント",
+    "support": "サポート"
+  },
+  "welcome_tour": {
+    "title_library": "ライブラリ",
+    "body_library": "論文、PDF、ハイライト、セマンティック検索を管理 — すべての研究ワークフローの出発点。",
+    "title_chat": "Chat AI",
+    "body_chat": "選択した論文に基づいてAIに質問。重要な結論には素早く検証できる引用が必要です。",
+    "title_review": "レビュー＆エビデンス",
+    "body_review": "インサイト、スクリーニング、レビュービルダー、エビデンスマトリックスで論文を検証可能な結果に。",
+    "title_labs": "ラボ",
+    "body_labs": "詳細分析、パーソナル脳、デイリーリーダー、論文関係グラフ。",
+    "title_help": "ヘルプ",
+    "body_help": "右上の？をクリックして、ヘルプセンター、ドキュメント、ショートカットをいつでも表示。"
+  },
   "import": {
     "tab_documents": "ドキュメント",
     "tab_bibtex": "BibTeX",
@@ -694,7 +760,8 @@
     "ask_more": "この結果についてさらに質問",
     "open_pdf_title": "クリックしてPDFを開く",
     "select_min_two": "比較を進めるには少なくとも2件のドキュメントを選択してください。",
-    "toast_export_failed": "ファイルのエクスポートに失敗しました: {{msg}}"
+    "toast_export_failed": "ファイルのエクスポートに失敗しました: {{msg}}",
+    "export_filename": "比較マトリックス_{count}_文書"
   },
   "review_source": {
     "sources": "ソース",
@@ -894,7 +961,11 @@
     "layout_multi": "{avg}カラム（平均）· {multi}/{total}ページがマルチカラム",
     "similarity_detail_title": "類似性の詳細",
     "loading_matches": "類似チャンクを検索中...",
-    "view_document": "ドキュメントを見る"
+    "view_document": "ドキュメントを見る",
+    "similar_chunks_title": "類似チャンク ({count})",
+    "no_similar_chunks": "詳細な類似チャンクが見つかりません。",
+    "match_chunk_page": "{page}ページ",
+    "similarity_load_error": "類似データを読み込めません。"
   },
   "highlights": {
     "select_doc": "ドキュメントを選択",
@@ -1063,7 +1134,11 @@
     "section_count": "セクション",
     "severity_high": "高",
     "severity_medium": "中",
-    "severity_low": "低"
+    "severity_low": "低",
+    "generated_by": "レビューはResearchMindによってエビデンス優先アプローチに従って作成されました（検証可能な結論を優先）。",
+    "pdf_page_label": "{page}ページ",
+    "open_citation": "開く: {label}",
+    "open_citation_page": "開く: {label} {page}ページ"
   },
   "screening": {
     "title": "論文スクリーニング",
@@ -1194,7 +1269,8 @@
     "build_cancelling_short": "キャンセル中...",
     "delete_graph": "グラフを削除中...",
     "running_strategy": "{strategy}を実行中...",
-    "query_failed": "クエリに失敗しました"
+    "query_failed": "クエリに失敗しました",
+    "entity_rank_label": "スコア: {rank}"
   },
   "scan": {
     "stop": "スキャン停止",
@@ -1237,6 +1313,13 @@
     "ordered_list": "番号付きリスト",
     "blockquote": "引用ブロック",
     "code_block": "コードブロック",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "edit": "編集",
+    "generating": "生成中...",
+    "regenerate": "再生成",
+    "generating_content": "コンテンツを生成中...",
+    "hint_generate": "「再生成」を押してこのセクションのコンテンツを生成",
     "content_placeholder": "何かを書く..."
   },
   "setup": {

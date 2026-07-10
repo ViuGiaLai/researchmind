@@ -119,7 +119,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
           <nav className="help-center-nav-list">
             {groups.map((group) => (
               <div key={group} className="help-nav-group">
-                <div className="help-nav-group-label">{group}</div>
+                  <div className="help-nav-group-label">{t(group)}</div>
                 {HELP_NAV.filter((n) => (n.group ?? t("help.other")) === group).map((item) => (
                   <button
                     key={item.id}
@@ -127,7 +127,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
                     className={`help-nav-item${sectionId === item.id ? " active" : ""}`}
                     onClick={() => onNavigate(item.id)}
                   >
-                    {item.label}
+                    {t(item.label)}
                   </button>
                 ))}
               </div>

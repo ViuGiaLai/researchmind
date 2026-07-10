@@ -249,7 +249,40 @@
     "embedding_instruction_used": "Use {query} + {passage} instructions for RAG",
     "data_clear_confirm": "WARNING: This will delete ALL imported PDF documents, chat history, notes and vector database. Your configuration and API keys will be KEPT.\n\nAre you sure you want to continue?",
     "data_reset_confirm": "DANGER WARNING: This will COMPLETELY DELETE your configuration, API keys, PDF documents, chat history and vector database. The app will return to its initial state.\n\nAre you sure you want to reset the entire application?",
-    "change_storage_confirm": "Are you sure you want to move all existing data to the new folder?\n\nDANGER: Target disk space is low (< 10GB). Are you sure you want to continue?"
+    "change_storage_confirm": "Are you sure you want to move all existing data to the new folder?\n\nDANGER: Target disk space is low (< 10GB). Are you sure you want to continue?",
+    "move_storage_confirm": "Move all existing data to the new folder:\n{path}\n\nTarget disk space: {free_gb} GB free.\n\nAre you sure you want to move?",
+    "move_storage_confirm_warning": "Move all existing data to the new folder:\n{path}\n\nTarget disk space: {free_gb} GB free.\n\nWARNING: Target disk space is low (< 10GB). Are you sure you want to continue?",
+    "model_desc": {
+      "deepseek_chat": "balanced, fast, smart",
+      "deepseek_reasoner": "deep reasoning, good at RAG",
+      "gemini_25_flash": "fast, lightweight, huge context",
+      "gemini_20_flash": "new generation, very smart",
+      "gemini_15_pro": "powerful, good analysis",
+      "claude_sonnet_4": "balanced",
+      "claude_haiku_35": "fast, cheap",
+      "claude_opus_4": "most powerful",
+      "llama_33_70b_versatile": "ultra-fast, lightweight",
+      "llama_33_70b_specdec": "powerful, smart",
+      "mixtral_8x7b": "large context",
+      "kimi_k26": "good for Vietnamese",
+      "deepseek_v3": "smart, versatile",
+      "llama_33_70b_instruct": "good analysis",
+      "gpt_4o_mini_standard": "standard, fast",
+      "claude_35_haiku": "smart",
+      "gemini_25_flash_freemodel": "flexible",
+      "gpt_4o_mini_github": "lightweight, fast, free",
+      "gpt_4o_mini_full": "full path"
+    },
+    "label_gguf_model": "Model name (GGUF)",
+    "system_info_ai_mode": "AI Mode:",
+    "system_info_embedding": "Embedding:",
+    "system_info_mmr": "MMR:",
+    "system_info_reranker": "Reranker:",
+    "system_info_papers": "Papers:",
+    "system_info_chunks_sqlite": "Chunks (SQLite):",
+    "system_info_chunks_chromadb": "Chunks (ChromaDB):",
+    "system_info_tokens_unit": "tokens",
+    "diag_papers_line": "Papers: {total} ({indexed} indexed)"
   },
   "language": {
     "vi": "Tiếng Việt",
@@ -402,7 +435,10 @@
     "quick_verify_query": "Verify the research results in these papers against external academic data",
     "quick_debate_query": "Create AI debate: pro and con arguments on key points",
     "quick_related_query": "Find related research on the topic of this paper",
-    "quick_insight_query": "Analyze research gaps, strengths, weaknesses, and future directions"
+    "quick_insight_query": "Analyze research gaps, strengths, weaknesses, and future directions",
+    "error_prefix": "Error: {msg}",
+    "error_backend_not_running": "Error: {err}\n\n> Ensure the FastAPI backend is running: `cd backend && uvicorn main:app --reload --port 8765`",
+    "deep_research_failed": "Deep Research failed: {msg}"
   },
   "startup": {
     "starting_backend": "Starting backend...",
@@ -610,6 +646,36 @@
     "next": "Next",
     "other": "Other"
   },
+  "help_nav": {
+    "home": "Help Center",
+    "getting_started": "Getting Started",
+    "user_guide": "User Guide",
+    "ai_features": "AI Features",
+    "import_export": "Import & Export",
+    "settings": "Settings",
+    "faq": "FAQ",
+    "shortcuts": "Keyboard Shortcuts",
+    "release_notes": "What's New",
+    "troubleshooting": "Troubleshooting",
+    "about": "About ResearchMind"
+  },
+  "help_group": {
+    "overview": "Overview",
+    "docs": "Documentation",
+    "support": "Support"
+  },
+  "welcome_tour": {
+    "title_library": "Library",
+    "body_library": "Manage papers, PDFs, highlights and semantic search — the starting point for every research workflow.",
+    "title_chat": "Chat AI",
+    "body_chat": "Ask AI questions based on your selected papers. Every important conclusion should have a citation for quick verification.",
+    "title_review": "Review & Evidence",
+    "body_review": "Insights, screening, review builder and evidence matrix to turn papers into verifiable results.",
+    "title_labs": "Labs",
+    "body_labs": "Deep analysis, personal brain, daily reader and paper relationship graph.",
+    "title_help": "Help",
+    "body_help": "Click ? in the top right corner to open Help Center, documentation and shortcuts anytime."
+  },
   "import": {
     "tab_documents": "Documents",
     "tab_bibtex": "BibTeX",
@@ -694,7 +760,8 @@
     "export_html": "Export HTML",
     "ask_more": "Ask more about this result",
     "open_pdf_title": "Click to open PDF",
-    "toast_export_failed": "File export failed: {{msg}}"
+    "toast_export_failed": "File export failed: {{msg}}",
+    "export_filename": "Comparison_Matrix_{count}_documents"
   },
   "review_source": {
     "sources": "Sources",
@@ -894,7 +961,11 @@
     "layout_multi": "{avg} columns (avg) · {multi}/{total} multi-column pages",
     "similarity_detail_title": "Similarity Details",
     "loading_matches": "Searching for similar chunks...",
-    "view_document": "View Document"
+    "view_document": "View Document",
+    "similar_chunks_title": "Similar chunks ({count})",
+    "no_similar_chunks": "No detailed similar chunks found.",
+    "match_chunk_page": "Page {page}",
+    "similarity_load_error": "Cannot load similarity data."
   },
   "highlights": {
     "select_doc": "Select Document",
@@ -1063,7 +1134,11 @@
     "section_count": "sections",
     "severity_high": "high",
     "severity_medium": "medium",
-    "severity_low": "low"
+    "severity_low": "low",
+    "generated_by": "Review created by ResearchMind following an evidence-first approach (prioritizing verifiable conclusions).",
+    "pdf_page_label": "Page {page}",
+    "open_citation": "Open: {label}",
+    "open_citation_page": "Open: {label} page {page}"
   },
   "screening": {
     "title": "Paper Screening",
@@ -1194,7 +1269,8 @@
     "build_cancelling_short": "Cancelling...",
     "delete_graph": "Deleting graph...",
     "running_strategy": "Running {strategy}...",
-    "query_failed": "Query failed"
+    "query_failed": "Query failed",
+    "entity_rank_label": "score: {rank}"
   },
   "scan": {
     "stop": "Stop Scan",
@@ -1237,6 +1313,13 @@
     "ordered_list": "Ordered list",
     "blockquote": "Blockquote",
     "code_block": "Code block",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "generating": "Generating...",
+    "regenerate": "Regenerate",
+    "generating_content": "Generating content...",
+    "hint_generate": "Press \"Regenerate\" to create content for this section",
     "content_placeholder": "Write something..."
   },
   "setup": {

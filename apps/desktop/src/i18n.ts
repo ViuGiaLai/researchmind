@@ -13,9 +13,36 @@ export function isValidLang(lang: string | null): lang is SupportedLang {
   return lang !== null && SUPPORTED_LANGS.includes(lang as SupportedLang);
 }
 
+const singleBracePostProcessor = {
+  type: "postProcessor" as const,
+  name: "singleBraceInterpolator",
+  process(value: any, _key: string | string[], options: any): any {
+    if (typeof value === "string") {
+      return value.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, varName) => {
+        if (options && options[varName] !== undefined) {
+          return String(options[varName]);
+        }
+        return match;
+      });
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.process(item, _key, options));
+    }
+    if (value !== null && typeof value === "object") {
+      const result: any = {};
+      for (const k of Object.keys(value)) {
+        result[k] = this.process(value[k], _key, options);
+      }
+      return result;
+    }
+    return value;
+  },
+};
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
+  .use(singleBracePostProcessor)
   .init({
     resources: {
       vi: { common: vi },
@@ -35,6 +62,7 @@ i18n
       lookupLocalStorage: "researchmind:lang",
       caches: ["localStorage"],
     },
+    postProcess: ["singleBraceInterpolator"],
     returnObjects: true,
   });
 
