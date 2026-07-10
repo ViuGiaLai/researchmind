@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, BASE_URL } from "../../lib/api";
 import {
   getThemePreference,
   setThemePreference,
   type ThemePreference,
 } from "../../lib/theme";
+import { LanguageSwitcher } from "../shared/LanguageSwitcher";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
@@ -62,6 +64,7 @@ interface SpecsResult {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartTour, onReplaySetup }) => {
+  const { t } = useTranslation();
   // ── LLM Mode ────────────────────────────────────────────────
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
@@ -95,7 +98,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
 
   // ── UI State ────────────────────────────────────────────────
-  const [healthStatus, setHealthStatus] = useState<string>("Chưa kiểm tra");
+  type HealthStatusKey = "not_checked" | "checking" | "connected" | "not_responding" | "cannot_connect";
+  const [healthStatusKey, setHealthStatusKey] = useState<HealthStatusKey>("not_checked");
   const [healthColor, setHealthColor] = useState("var(--color-text-muted)");
   const [checking, setChecking] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -136,12 +140,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     cohere: "Cohere", cloudflare: "Cloudflare", cerebras: "Cerebras", local: "Local",
   };
   const TASK_LABELS: Record<string, string> = {
-    summary: "Tóm tắt", daily_reader: "Đọc hôm nay", chat: "Chat",
-    quality_check: "Kiểm tra chất lượng", insight: "Phân tích sâu",
-    entity: "Trích xuất thực thể", rag: "RAG (có context)",
-    critique: "Phản biện", verify: "Xác minh", gap: "Phân tích khoảng trống",
-    debate: "Tranh luận", review: "Trình tạo review",
-    research: "Nghiên cứu sâu", synthesis: "Tổng hợp", graph: "GraphRAG",
+    summary: t("chat.quick_summary"), daily_reader: t("labs.daily_read"), chat: t("nav.chat"),
+    quality_check: t("settings.advanced_quality_check"), insight: t("settings.advanced_insight"),
+    entity: t("settings.advanced_entity"), rag: t("settings.advanced_rag"),
+    critique: t("settings.advanced_critique"), verify: t("settings.advanced_verify"), gap: t("settings.advanced_gap"),
+    debate: t("settings.advanced_debate"), review: t("nav.review"),
+    research: t("settings.advanced_research"), synthesis: t("settings.advanced_synthesis"), graph: t("settings.advanced_graph"),
   };
   const [taskProviderMapStr, setTaskProviderMapStr] = useState("{}");
   const [taskFallbackMapStr, setTaskFallbackMapStr] = useState("{}");
@@ -248,14 +252,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       const res = await api.testEmbedding();
       if (res.success) {
         setEmbeddingTestResult("success");
-        setEmbeddingTestMsg(res.message || "Kết nối thành công!");
+        setEmbeddingTestMsg(res.message || t("settings.embedding_test_success"));
       } else {
         setEmbeddingTestResult("error");
-        setEmbeddingTestMsg(res.error || "Kết nối thất bại.");
+        setEmbeddingTestMsg(res.error || t("settings.embedding_test_fail"));
       }
     } catch (e) {
       setEmbeddingTestResult("error");
-      setEmbeddingTestMsg(e instanceof Error ? e.message : "Lỗi kết nối backend.");
+      setEmbeddingTestMsg(e instanceof Error ? e.message : t("settings.embedding_backend_error"));
     } finally {
       setTestingEmbedding(false);
     }
@@ -292,9 +296,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     setStorageMsg(null);
     try {
       const res = await api.openDataFolder();
-      setStorageMsg({ type: "success", text: res.message || "Đã mở thư mục dữ liệu." });
+      setStorageMsg({ type: "success", text: res.message || t("settings.storage_opened") });
     } catch (e) {
-      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Không thể mở thư mục." });
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : t("settings.storage_open_error") });
     } finally {
       setActionLoading(false);
     }
@@ -308,7 +312,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       if (!selected) return;
       
       // 1. Check disk space for the new folder
-      setStorageMsg({ type: "success", text: "Đang kiểm tra dung lượng ổ đĩa..." });
+      setStorageMsg({ type: "success", text: t("settings.storage_checking") });
       const space = await api.getDiskSpace(selected);
       
       let confirmMsg = `Bạn muốn di chuyển toàn bộ dữ liệu hiện tại sang thư mục mới:\n${selected}\n\n`;
@@ -328,15 +332,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       
       // 2. Perform moving storage
       setActionLoading(true);
-      setStorageMsg({ type: "success", text: "Đang di chuyển dữ liệu (vui lòng không tắt ứng dụng)..." });
+      setStorageMsg({ type: "success", text: t("settings.storage_moving") });
       
       const res = await api.moveStorage(selected);
-      setStorageMsg({ type: "success", text: res.message || "Đã chuyển thư mục thành công." });
+      setStorageMsg({ type: "success", text: res.message || t("settings.storage_moved") });
       
       // 3. Reload stats to show new path
       loadStats();
     } catch (e) {
-      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Lỗi chuyển thư mục dữ liệu." });
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : t("settings.storage_move_error") });
     } finally {
       setActionLoading(false);
     }
@@ -348,11 +352,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       const selected = await invoke<string | null>("select_folder");
       if (selected) {
         setZoteroDataDir(selected);
-        setStorageMsg({ type: "success", text: `Đã chọn thư mục Zotero: ${selected}` });
+        setStorageMsg({ type: "success", text: t("settings.zotero_selected", { path: selected }) });
       }
     } catch (e) {
       console.error("Failed to select Zotero directory:", e);
-      setStorageMsg({ type: "error", text: "Không thể mở hộp thoại chọn thư mục. Hãy nhập thủ công." });
+      setStorageMsg({ type: "error", text: t("settings.zotero_select_error") });
     }
   };
 
@@ -366,45 +370,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         setStorageMsg({ type: "error", text: res.message });
       }
     } catch (e: any) {
-      setStorageMsg({ type: "error", text: `Lỗi phát hiện Zotero: ${e.message || e}` });
+      setStorageMsg({ type: "error", text: t("settings.zotero_detect_error", { error: e.message || e }) });
     }
   };
 
   const handleClearData = async () => {
-    const confirmClear = window.confirm(
-      "CẢNH BÁO: Hành động này sẽ xoá TOÀN BỘ tài liệu PDF đã import, lịch sử chat, các ghi chú và cơ sở dữ liệu tìm kiếm vector. Cấu hình cài đặt và API Key của bạn vẫn được GIỮ LẠI.\n\nBạn có chắc chắn muốn tiếp tục?"
-    );
+    const confirmClear = window.confirm(t("settings.data_clear_confirm"));
     if (!confirmClear) return;
 
     setActionLoading(true);
     setStorageMsg(null);
     try {
       const res = await api.clearAllData();
-      setStorageMsg({ type: "success", text: res.message || "Đã xoá dữ liệu thành công." });
+      setStorageMsg({ type: "success", text: res.message || t("settings.data_cleared") });
       loadStats();
     } catch (e) {
-      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Xoá dữ liệu thất bại." });
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : t("settings.data_clear_error") });
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleResetApp = async () => {
-    const confirmReset = window.confirm(
-      "CẢNH BÁO NGUY HIỂM: Hành động này sẽ xoá SẠCH HOÀN TOÀN cấu hình cài đặt, API Key, tài liệu PDF, lịch sử chat và vector database. Ứng dụng sẽ quay trở về trạng thái ban đầu như lúc vừa mới cài đặt.\n\nBạn có chắc chắn muốn reset toàn bộ ứng dụng không?"
-    );
+    const confirmReset = window.confirm(t("settings.data_reset_confirm"));
     if (!confirmReset) return;
 
     setActionLoading(true);
     setStorageMsg(null);
     try {
       const res = await api.resetApp();
-      setStorageMsg({ type: "success", text: res.message || "Đã reset ứng dụng thành công. Đang khởi động lại..." });
+      setStorageMsg({ type: "success", text: res.message || t("settings.data_reset_success") });
       setTimeout(() => {
         window.location.reload();
       }, 2000);
     } catch (e) {
-      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : "Reset ứng dụng thất bại." });
+      setStorageMsg({ type: "error", text: e instanceof Error ? e.message : t("settings.data_reset_error") });
     } finally {
       setActionLoading(false);
     }
@@ -437,7 +437,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     } catch (e) {
       setDiagMsg({
         type: "error",
-        text: e instanceof Error ? e.message : "Không thể tải chẩn đoán hệ thống.",
+        text:        e instanceof Error ? e.message : t("settings.diag_load_system_error"),
       });
     } finally {
       setDiagLoading(false);
@@ -445,9 +445,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   };
 
   const handleRebuildFts = async () => {
-    const ok = window.confirm(
-      "Rebuild chỉ mục FTS từ bảng chunks? Thao tác này an toàn nhưng có thể mất vài giây với thư viện lớn."
-    );
+    const ok = window.confirm(t("settings.fts_rebuild_confirm"));
     if (!ok) return;
 
     setRebuildingFts(true);
@@ -459,7 +457,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     } catch (e) {
       setDiagMsg({
         type: "error",
-        text: e instanceof Error ? e.message : "Rebuild FTS thất bại.",
+        text:        e instanceof Error ? e.message : t("settings.rebuild_fts_error"),
       });
     } finally {
       setRebuildingFts(false);
@@ -469,7 +467,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const handleCopyDiagnostics = async () => {
     if (!diagnostics) return;
     const lines = [
-      "Chẩn đoán ResearchMind",
+      t("settings.diag_report_header"),
       `Version: ${diagnostics.version}`,
       `Backend: ${diagnostics.backend_ready ? "OK" : "NOT READY"} — ${diagnostics.init_message}`,
       `Embedder: ${diagnostics.embedder_ready ? "OK" : "Warming up"}`,
@@ -483,26 +481,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     ];
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
-      setDiagMsg({ type: "success", text: "Đã sao chép báo cáo chẩn đoán." });
+      setDiagMsg({ type: "success", text: t("settings.diag_copy_success") });
     } catch {
-      setDiagMsg({ type: "error", text: "Không thể sao chép vào clipboard." });
+      setDiagMsg({ type: "error", text: t("settings.diag_copy_error") });
     }
   };
 
   const handleReplayWelcomeTour = () => {
     resetWelcomeTourSeen();
     onStartTour?.();
-    setDiagMsg({ type: "success", text: "Đang mở Welcome Tour..." });
+    setDiagMsg({ type: "success", text: t("settings.diag_tour_launch") });
   };
 
   const handleReplaySetupWizard = () => {
     if (!onReplaySetup) {
-      setDiagMsg({ type: "error", text: "Không thể mở Setup Wizard từ đây." });
+      setDiagMsg({ type: "error", text: t("settings.diag_wizard_unavailable") });
       return;
     }
-    const ok = window.confirm(
-      "Chạy lại trình thiết lập AI ban đầu? Cài đặt hiện tại vẫn được giữ — chỉ mở lại wizard để xem lại hoặc đổi chế độ AI."
-    );
+    const ok = window.confirm(t("settings.wizard_confirm"));
     if (!ok) return;
     onReplaySetup();
   };
@@ -510,38 +506,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const diagStatus = (ok: boolean) => (ok ? "ok" : "warn");
 
   const handleClearCache = async () => {
-    const confirmClear = window.confirm("Bạn có chắc chắn muốn xoá bộ nhớ đệm LLM và Embedding? Hành động này sẽ khiến hệ thống phải gọi lại mô hình AI/API từ đầu ở lần chạy kế tiếp.");
+    const confirmClear = window.confirm(t("settings.confirm_clear_cache"));
     if (!confirmClear) return;
 
     setClearingCache(true);
     setCacheMsg(null);
     try {
       const res = await api.clearCache();
-      setCacheMsg(res.message || "Đã xoá bộ nhớ đệm.");
+      setCacheMsg(res.message || t("settings.cache_cleared"));
       loadCacheStats();
       loadDiagnostics();
     } catch (e) {
-      alert("Xoá bộ nhớ đệm thất bại: " + (e instanceof Error ? e.message : String(e)));
+      alert(t("settings.clear_cache_failed", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setClearingCache(false);
     }
   };
 
+  const healthStatusLabel: Record<HealthStatusKey, string> = {
+    not_checked: t("settings.health_not_checked"),
+    checking: t("settings.health_checking"),
+    connected: t("settings.health_connected"),
+    not_responding: t("settings.health_not_responding"),
+    cannot_connect: t("settings.health_cannot_connect"),
+  };
+
+  const isHealthConnected = healthStatusKey === "connected";
+  const isHealthError = healthStatusKey === "not_responding" || healthStatusKey === "cannot_connect";
+
   const checkHealth = async () => {
     setChecking(true);
-    setHealthStatus("Đang kiểm tra...");
+    setHealthStatusKey("checking");
     setHealthColor("var(--color-text-muted)");
     try {
       const h = await api.health();
       if (h.status === "ok") {
-        setHealthStatus("Kết nối thành công");
+        setHealthStatusKey("connected");
         setHealthColor("var(--color-success, #22c55e)");
       } else {
-        setHealthStatus("Backend không phản hồi");
+        setHealthStatusKey("not_responding");
         setHealthColor("var(--color-error, #ef4444)");
       }
     } catch {
-      setHealthStatus("Không kết nối được backend");
+      setHealthStatusKey("cannot_connect");
       setHealthColor("var(--color-error, #ef4444)");
     } finally {
       setChecking(false);
@@ -584,10 +591,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             : githubModel;
 
         if (activeKey.trim() !== "") {
-          setSaveMsg({ type: "success", text: "Đang kiểm tra kết nối API Key..." });
+          setSaveMsg({ type: "success", text: t("settings.validate_connecting") });
           const val = await api.validateApiKey(customCloudProvider, activeKey, activeModel);
           if (!val.valid) {
-            setSaveMsg({ type: "error", text: `Lỗi kết nối API Key: ${val.error || "Không xác định"}` });
+            setSaveMsg({ type: "error", text: t("settings.validate_error", { error: val.error || t("error.unknown") }) });
             setSaving(false);
             return;
           }
@@ -629,11 +636,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       if (zoteroDataDir.trim()) {
         await api.saveZoteroPath(zoteroDataDir.trim());
       }
-      setSaveMsg({ type: "success", text: "Đã lưu cấu hình!" });
+      setSaveMsg({ type: "success", text: t("settings.save_success") });
       loadSettings();
       loadUsage();
     } catch (e) {
-      setSaveMsg({ type: "error", text: `Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}` });
+      setSaveMsg({ type: "error", text: t("settings.save_error", { error: e instanceof Error ? e.message : "Cannot save" }) });
     } finally {
       setSaving(false);
     }
@@ -641,9 +648,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
   const modeSuggestions = specs
     ? [
-        { mode: "cloud_free" as LlmMode, label: "Miễn phí đám mây", desc: "Miễn phí, chạy ngay", highlight: true },
-        { mode: "cloud_custom" as LlmMode, label: "API Key tùy chỉnh", desc: "Gemini, DeepSeek hoặc Claude API của riêng bạn", highlight: false },
-        { mode: "local" as LlmMode, label: "Riêng tư tuyệt đối", desc: `Tải ~${specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "2" : "8"}GB, chạy offline`, highlight: false },
+        { mode: "cloud_free" as LlmMode, label: t("settings.ai_cloud_free"), desc: t("settings.ai_cloud_free_desc"), highlight: true },
+        { mode: "cloud_custom" as LlmMode, label: t("settings.ai_cloud_custom"), desc: t("settings.ai_cloud_custom_desc"), highlight: false },
+        { mode: "local" as LlmMode, label: t("settings.ai_local"), desc: t("settings.ai_local_desc", { gb: specs.suggested_tier === "weak" ? "2" : specs.suggested_tier === "medium" ? "2" : "8" }), highlight: false },
       ]
     : [];
 
@@ -651,28 +658,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
 
   const settingsTabs = [
-    { key: "general" as const, label: "Tổng quan", icon: IconMonitor },
-    { key: "diagnostics" as const, label: "Chẩn đoán", icon: IconActivity },
-    { key: "ai" as const, label: "Chế độ AI", icon: IconBrain },
-    { key: "data" as const, label: "Dữ liệu", icon: IconFolder },
-    { key: "advanced" as const, label: "Nâng cao", icon: IconZap },
+    { key: "general" as const, label: t("settings.section_general"), icon: IconMonitor },
+    { key: "diagnostics" as const, label: t("settings.section_diagnostics"), icon: IconActivity },
+    { key: "ai" as const, label: t("settings.section_ai"), icon: IconBrain },
+    { key: "data" as const, label: t("settings.section_data"), icon: IconFolder },
+    { key: "advanced" as const, label: t("settings.section_advanced"), icon: IconZap },
   ];
 
   const sectionMeta: Record<SettingsSection, { desc: string }> = {
     general: {
-      desc: "Thiết lập nền tảng để ResearchMind chạy ổn định và kiểm chứng được.",
+      desc: t("settings.section_general_desc"),
     },
     diagnostics: {
-      desc: "Trạng thái hệ thống, bảo trì, onboarding và báo cáo hỗ trợ.",
+      desc: t("settings.section_diagnostics_desc"),
     },
     ai: {
-      desc: "Chọn mô hình AI phù hợp để tạo kết quả có bằng chứng và citation rõ ràng.",
+      desc: t("settings.section_ai_desc"),
     },
     data: {
-      desc: "Thư mục lưu trữ, Zotero, bộ nhớ đệm và tài nguyên hệ thống.",
+      desc: t("settings.section_data_desc"),
     },
     advanced: {
-      desc: "Định tuyến provider theo tác vụ, embedding, reranker và thống kê.",
+      desc: t("settings.section_advanced_desc"),
     },
   };
 
@@ -687,15 +694,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       <div className="settings-shell">
         <header className="settings-toolbar">
           <div className="settings-toolbar-text">
-            <h2 className="settings-page-title">Cài đặt</h2>
+            <h2 className="settings-page-title">{t("settings.title")}</h2>
             <p className="settings-page-desc">{sectionMeta[activeSection].desc}</p>
             <p className="settings-page-desc" style={{ marginTop: 4, fontSize: "0.8rem", opacity: 0.88 }}>
-              Workspace nghiên cứu ưu tiên bằng chứng
+              {t("app.tagline")}
             </p>
           </div>
           <div className="settings-toolbar-meta">
             {stats && (
-              <span className="settings-meta-chip">{stats.total_papers} tài liệu</span>
+              <span className="settings-meta-chip">{t("settings.stats_papers", { count: stats.total_papers })}</span>
             )}
             <span className="settings-meta-chip">v0.6.0</span>
             {activeSection === "ai" && (
@@ -706,7 +713,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 disabled={saving}
               >
                 {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
-                <span>{saving ? "Đang lưu..." : "Lưu"}</span>
+                <span>{saving ? t("common.loading") : t("common.save")}</span>
               </button>
             )}
           </div>
@@ -725,7 +732,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       <div className="settings-section settings-section--span">
         <h3 className="settings-section-title">
           <IconBrain size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
-          Backend
+          {t("settings.backend_title")}
         </h3>
         <div className="settings-health" style={{ borderColor: healthColor }}>
           <div className="settings-health-indicator" style={{ background: healthColor }} />
@@ -733,12 +740,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             <span className="settings-health-label" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
               {checking ? (
                 <IconSpinner size={14} />
-              ) : healthStatus === "Kết nối thành công" ? (
+              ) : isHealthConnected ? (
                 <IconCheck size={14} style={{ color: "var(--color-success, #22c55e)" }} />
-              ) : healthStatus.includes("không") || healthStatus.includes("Không") ? (
+              ) : isHealthError ? (
                 <IconError size={14} style={{ color: "var(--color-error, #ef4444)" }} />
               ) : null}
-              {healthStatus}
+              {healthStatusLabel[healthStatusKey]}
             </span>
             <span className="settings-health-hint">
               FastAPI backend: {BASE_URL}
@@ -746,7 +753,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           </div>
           <button className="settings-health-btn" onClick={checkHealth} disabled={checking}>
             {checking ? <IconSpinner size={16} /> : <IconSearch size={16} />}
-            <span>Kiểm tra</span>
+            <span>{t("common.retry")}</span>
           </button>
         </div>
       </div>
@@ -754,21 +761,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       <div className="settings-section">
         <h3 className="settings-section-title">
           <IconSparkle size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-          Giao diện
+          {t("settings.theme_title")}
         </h3>
         <div className="settings-field">
-          <label className="settings-label">Chế độ giao diện</label>
+          <label className="settings-label">{t("settings.theme_label")}</label>
           <p className="settings-desc" style={{ marginBottom: 10 }}>
-            Sáng, tối hoặc theo hệ thống — giao diện AI với accent xanh ngọc.
+            {t("settings.theme_desc")}
           </p>
-          <div className="settings-theme-options" role="group" aria-label="Chế độ giao diện">
+          <div className="settings-theme-options" role="group" aria-label={t("settings.theme_label")}>
             <button
               type="button"
               className={`settings-theme-option${themePref === "light" ? " active" : ""}`}
               onClick={() => selectTheme("light")}
             >
               <IconSun size={16} />
-              Sáng
+              {t("settings.theme_light")}
             </button>
             <button
               type="button"
@@ -776,7 +783,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               onClick={() => selectTheme("dark")}
             >
               <IconMoon size={16} />
-              Tối
+              {t("settings.theme_dark")}
             </button>
             <button
               type="button"
@@ -784,37 +791,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               onClick={() => selectTheme("system")}
             >
               <IconMonitor size={16} />
-              Hệ thống
+              {t("settings.theme_system")}
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <LanguageSwitcher />
       </div>
 
       {onOpenHelp && (
         <div className="settings-section">
           <h3 className="settings-section-title">
             <IconHelp size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-            Trợ giúp & Tài liệu
+            {t("settings.help_title")}
           </h3>
           <p className="settings-desc" style={{ marginBottom: 10 }}>
-            Tài liệu chi tiết nằm trong Help Center — không chiếm sidebar chính.
+            {t("settings.help_desc")}
           </p>
           <div className="settings-help-links">
             <button type="button" className="settings-help-link" onClick={() => onOpenHelp("user-guide")}>
               <IconBookOpen size={16} />
-              Tài liệu hướng dẫn
+              {t("settings.help_user_guide")}
             </button>
             <button type="button" className="settings-help-link" onClick={() => onOpenHelp("faq")}>
               <IconHelp size={16} />
-              FAQ
+              {t("settings.help_faq")}
             </button>
             <button type="button" className="settings-help-link" onClick={() => onOpenHelp("release-notes")}>
               <IconSparkle size={16} />
-              Có gì mới
+              {t("settings.help_whats_new")}
             </button>
             <button type="button" className="settings-help-link" onClick={() => onOpenHelp("about")}>
               <IconInfo size={16} />
-              Về ResearchMind
+              {t("settings.help_about")}
             </button>
           </div>
         </div>
@@ -822,29 +833,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
       <div className="settings-section">
         <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <IconMonitor size={18} /> Thông số máy
+          <IconMonitor size={18} /> {t("settings.specs_title")}
         </h3>
         {specsLoading ? (
           <div className="aiwizard-loading">
-            <IconSpinner size={16} /> Đang phát hiện cấu hình...
+            <IconSpinner size={16} /> {t("settings.specs_loading")}
           </div>
         ) : specs ? (
           <div className="settings-specs">
             <div className="settings-spec-row">
-              <span className="settings-spec-label">RAM</span>
+              <span className="settings-spec-label">{t("settings.specs_ram")}</span>
               <span className="settings-spec-value">{specs.total_ram_gb} GB</span>
             </div>
             <div className="settings-spec-row">
-              <span className="settings-spec-label">CPU</span>
+              <span className="settings-spec-label">{t("settings.specs_cpu")}</span>
               <span className="settings-spec-value">{specs.cpu_cores} cores</span>
             </div>
             <div className="settings-spec-row">
-              <span className="settings-spec-label">Local model</span>
+              <span className="settings-spec-label">{t("settings.specs_local_model")}</span>
               <span className="settings-spec-value">{localModel}</span>
             </div>
           </div>
         ) : (
-          <p className="settings-desc">Không thể phát hiện cấu hình máy.</p>
+          <p className="settings-desc">{t("settings.specs_error")}</p>
         )}
       </div>
               </div>
@@ -857,9 +868,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <div className="settings-diag-toolbar-head">
                       <h3 className="settings-section-title settings-diag-title" style={{ margin: 0 }}>
                         <IconActivity size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                        Trạng thái hệ thống
+                        {t("settings.diag_title")}
                       </h3>
-                      <p className="settings-diag-intro">Theo dõi sức khoẻ backend, chỉ mục và bộ nhớ theo thời gian thực.</p>
+                      <p className="settings-diag-intro">{t("settings.diag_desc")}</p>
                     </div>
                     <div className="settings-diag-toolbar-actions">
                       <button
@@ -869,7 +880,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                         disabled={diagLoading}
                       >
                         {diagLoading ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
-                        Làm mới
+                        {t("settings.diag_refresh")}
                       </button>
                       <button
                         type="button"
@@ -878,66 +889,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                         disabled={!diagnostics}
                       >
                         <IconCopy size={14} />
-                        Sao chép báo cáo
+                        {t("settings.diag_copy_report")}
                       </button>
                     </div>
                   </div>
 
                   {diagLoading && !diagnostics ? (
                     <div className="aiwizard-loading" style={{ padding: "24px 0" }}>
-                      <IconSpinner size={18} /> Đang quét hệ thống...
+                      <IconSpinner size={18} /> {t("settings.diag_scanning")}
                     </div>
                   ) : diagnostics ? (
                     <>
                       <div className="settings-diag-grid">
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.backend_ready)}`}>
                           <span className="settings-diag-label">Backend</span>
-                          <strong>{diagnostics.backend_ready ? "Sẵn sàng" : "Đang khởi động"}</strong>
+                          <strong>{diagnostics.backend_ready ? t("settings.diag_ready") : t("settings.diag_starting")}</strong>
                           <span className="settings-diag-hint">{diagnostics.init_message || BASE_URL}</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.embedder_ready)}`}>
                           <span className="settings-diag-label">Embedder</span>
-                          <strong>{diagnostics.embedder_ready ? "Sẵn sàng" : "Đang tải"}</strong>
+                          <strong>{diagnostics.embedder_ready ? t("settings.diag_ready") : t("settings.diag_loading_model")}</strong>
                           <span className="settings-diag-hint">{diagnostics.embedding_model}</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.bm25_ready)}`}>
                           <span className="settings-diag-label">FTS / BM25</span>
-                          <strong>{diagnostics.bm25_ready ? "Hoạt động" : "Chưa sẵn sàng"}</strong>
+                          <strong>{diagnostics.bm25_ready ? t("settings.diag_active") : t("settings.diag_not_ready")}</strong>
                           <span className="settings-diag-hint">SQLite full-text search</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.vector_ready)}`}>
                           <span className="settings-diag-label">ChromaDB</span>
-                          <strong>{diagnostics.vector_ready ? "Kết nối" : "Chưa sẵn sàng"}</strong>
+                          <strong>{diagnostics.vector_ready ? t("settings.diag_connected") : t("settings.diag_not_ready")}</strong>
                           <span className="settings-diag-hint">{diagnostics.chroma_chunks} vectors</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.chunk_sync_ok)}`}>
-                          <span className="settings-diag-label">Đồng bộ chunk</span>
-                          <strong>{diagnostics.chunk_sync_ok ? "Khớp" : "Lệch"}</strong>
+                          <span className="settings-diag-label">{t("settings.diag_chunk_sync")}</span>
+                          <strong>{diagnostics.chunk_sync_ok ? t("settings.diag_matched") : t("settings.diag_mismatched")}</strong>
                           <span className="settings-diag-hint">
                             {diagnostics.total_chunks} SQLite / {diagnostics.chroma_chunks} Chroma
                           </span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(!diagnostics.disk.warning)}`}>
-                          <span className="settings-diag-label">Ổ đĩa</span>
+                          <span className="settings-diag-label">{t("settings.diag_disk")}</span>
                           <strong>
-                            {diagnostics.disk.free_gb != null ? `${diagnostics.disk.free_gb} GB trống` : "Không rõ"}
+                            {diagnostics.disk.free_gb != null ? t("settings.diag_disk_free", { gb: diagnostics.disk.free_gb }) : t("settings.diag_disk_unknown")}
                           </strong>
                           <span className="settings-diag-hint">
-                            {diagnostics.disk.warning ? "Cảnh báo: dung lượng thấp" : diagnostics.data_dir}
+                            {diagnostics.disk.warning ? t("settings.diag_disk_warning") : diagnostics.data_dir}
                           </span>
                         </div>
                       </div>
 
                       <div className="settings-diag-stats">
                         <span className="settings-diag-stat-chip">{diagnostics.total_papers} papers</span>
-                        <span className="settings-diag-stat-chip">{diagnostics.indexed_papers} đã index</span>
-                        <span className="settings-diag-stat-chip">{diagnostics.total_size_mb} MB dữ liệu</span>
+                        <span className="settings-diag-stat-chip">{t("settings.diag_indexed", { count: diagnostics.indexed_papers })}</span>
+                        <span className="settings-diag-stat-chip">{t("settings.diag_data_size", { mb: diagnostics.total_size_mb })}</span>
                         <span className="settings-diag-stat-chip">LLM: {diagnostics.llm_mode}</span>
-                        <span className="settings-diag-stat-chip">Setup: {diagnostics.setup_completed ? "Hoàn tất" : "Chưa xong"}</span>
+                        <span className="settings-diag-stat-chip">{t("settings.diag_setup_complete")}: {diagnostics.setup_completed ? t("settings.diag_setup_complete") : t("settings.diag_setup_incomplete")}</span>
                       </div>
                     </>
                   ) : (
-                    <p className="settings-desc">Không thể tải dữ liệu chẩn đoán. Kiểm tra backend rồi thử lại.</p>
+                    <p className="settings-desc">{t("settings.diag_load_error")}</p>
                   )}
 
                   {diagMsg && (
@@ -960,10 +971,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-section">
                   <h3 className="settings-section-title">
                     <IconRefresh size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                    Bảo trì
+                    {t("settings.maintenance_title")}
                   </h3>
                   <p className="settings-desc" style={{ marginBottom: 12 }}>
-                    Các thao tác an toàn để khắc phục tìm kiếm chậm hoặc cache lỗi thời.
+                    {t("settings.maintenance_desc")}
                   </p>
                   <div className="settings-diag-actions">
                     <button
@@ -973,7 +984,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                       disabled={rebuildingFts || diagLoading}
                     >
                       {rebuildingFts ? <IconSpinner size={14} /> : <IconSearch size={14} />}
-                      Rebuild chỉ mục FTS
+                      {t("settings.maintenance_rebuild_fts")}
                     </button>
                     <button
                       type="button"
@@ -982,11 +993,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                       disabled={clearingCache || actionLoading}
                     >
                       {clearingCache ? <IconSpinner size={14} /> : <IconTrash size={14} />}
-                      Xoá cache LLM & Embedding
+                      {t("settings.maintenance_clear_cache")}
                     </button>
                     <button type="button" className="settings-btn-secondary" onClick={handleOpenFolder} disabled={actionLoading}>
                       <IconFolderOpen size={14} />
-                      Mở thư mục dữ liệu
+                      {t("settings.maintenance_open_folder")}
                     </button>
                   </div>
                   {cacheMsg && (
@@ -997,19 +1008,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <div className="settings-section">
                   <h3 className="settings-section-title">
                     <IconRocket size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
-                    Onboarding
+                    {t("settings.onboarding_title")}
                   </h3>
                   <p className="settings-desc" style={{ marginBottom: 12 }}>
-                    Chạy lại hướng dẫn ban đầu hoặc trình thiết lập AI.
+                    {t("settings.onboarding_desc")}
                   </p>
                   <div className="settings-diag-actions">
                     <button type="button" className="settings-btn-secondary" onClick={handleReplayWelcomeTour}>
                       <IconRocket size={14} />
-                      Tour giới thiệu
+                      {t("settings.onboarding_tour")}
                     </button>
                     <button type="button" className="settings-btn-secondary" onClick={handleReplaySetupWizard}>
                       <IconSparkle size={14} />
-                      Setup Wizard AI
+                      {t("settings.onboarding_setup_wizard")}
                     </button>
                   </div>
                 </div>
@@ -1021,10 +1032,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       <div className="settings-section settings-section--flat">
         <h3 className="settings-section-title">
           <IconSparkle size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
-          Chế độ AI
+          {t("settings.ai_title")}
         </h3>
         <p className="settings-desc">
-          Chọn cách AI hoạt động. Bạn có thể đổi bất cứ lúc nào.
+          {t("settings.ai_desc")}
         </p>
 
         <div className="settings-mode-cards">
@@ -1047,7 +1058,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 </div>
               </div>
               {m.highlight && llmMode === m.mode && (
-                <span className="settings-mode-badge">Khuyên dùng</span>
+                <span className="settings-mode-badge">{t("settings.ai_recommended")}</span>
               )}
             </button>
           ))}
@@ -1059,17 +1070,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             <div className="settings-usage-banner-inner">
               <div>
                 <span className="settings-usage-title">
-                  <IconZap size={16} /> Lượt sử dụng miễn phí
+                  <IconZap size={16} /> {t("settings.ai_usage_title")}
                 </span>
               </div>
               <div className="settings-usage-count">
                 {usage ? (
                   <>
                     <strong>{usage.used} / {usage.limit}</strong>
-                    <span>câu hỏi đã dùng</span>
+                    <span>{t("settings.ai_usage_questions")}</span>
                   </>
                 ) : (
-                  <span>Đang tải...</span>
+                  <span>{t("settings.ai_usage_loading")}</span>
                 )}
               </div>
             </div>
@@ -1118,15 +1129,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
-                  </div>
-                  <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
+                  </div>                    <p className="settings-field-hint">
+                    <IconWithText icon={IconLock} size={12}>{t("settings.api_key_saved_locally")}</IconWithText>
                     <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy key tại đây →
+                      {" "}{t("settings.get_key_here")}
                     </a>
                   </p>
                 </div>
@@ -1155,15 +1165,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
+                    <IconWithText icon={IconLock} size={12}>{t("settings.api_key_saved_locally")}</IconWithText>
                     <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy key tại đây →
+                      {" "}{t("settings.get_key_here")}
                     </a>
                   </p>
                 </div>
@@ -1193,15 +1203,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
+                    <IconWithText icon={IconLock} size={12}>{t("settings.api_key_saved_locally")}</IconWithText>
                     <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy key tại đây →
+                      {" "}{t("settings.get_key_here")}
                     </a>
                   </p>
                 </div>
@@ -1231,15 +1241,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn.</IconWithText>
+                    <IconWithText icon={IconLock} size={12}>{t("settings.api_key_saved_locally")}</IconWithText>
                     <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy key tại đây →
+                      {" "}{t("settings.get_key_here")}
                     </a>
                   </p>
                 </div>
@@ -1269,15 +1279,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn.</IconWithText>
+                    <IconWithText icon={IconLock} size={12}>{t("settings.api_key_saved_locally")}</IconWithText>
                     <a href="https://build.nvidia.com/" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy key tại đây →
+                      {" "}{t("settings.get_key_here")}
                     </a>
                   </p>
                 </div>
@@ -1307,15 +1317,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>API key được lưu trên máy bạn.</IconWithText>
+                    <IconWithText icon={IconLock} size={12}>{t("settings.api_key_saved_locally")}</IconWithText>
                     <a href="https://freemodel.dev/" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy key tại đây →
+                      {" "}{t("settings.get_key_here")}
                     </a>
                   </p>
                 </div>
@@ -1345,18 +1355,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <button
                       className="settings-toggle-key-btn"
                       onClick={() => setShowApiKey(!showApiKey)}
-                      title={showApiKey ? "Ẩn key" : "Hiện key"}
+                      title={showApiKey ? t("settings.toggle_hide_key") : t("settings.toggle_show_key")}
                     >
                       {showApiKey ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                     </button>
                   </div>
                   <p className="settings-field-hint">
-                    <IconWithText icon={IconLock} size={12}>Token được lưu trên máy bạn, không gửi đi đâu.</IconWithText>
+                    <IconWithText icon={IconLock} size={12}>{t("settings.token_saved_locally")}</IconWithText>
                     <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="settings-link">
-                      {" "}Lấy token tại đây →
+                      {" "}{t("settings.get_token_here")}
                     </a>
                     <br />
-                    Cần cấp quyền <strong>AI Models (Read-only)</strong> trong phần Account permissions.
+                    {t("settings.github_permissions_hint")}
                   </p>
                 </div>
                 <div className="settings-field">
@@ -1395,10 +1405,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               />
             </div>
             <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
-              Khởi chạy CPU: <code>llama-server.exe -m path/to/{localModel} --port 8080 -c 4096 -np 1 -t 6 --cache-ram 1024</code>
+              {t("settings.local_cpu_startup")} <code>llama-server.exe -m path/to/{localModel} --port 8080 -c 4096 -np 1 -t 6 --cache-ram 1024</code>
             </p>
             <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
-              Tải tại 
+              {t("settings.download_at")} 
               <a href="#" onClick={(e) => { e.preventDefault(); open("https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main"); }} style={{ marginLeft: 4 }}>
                 https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main
               </a>
@@ -1408,13 +1418,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
         <div className="settings-actions settings-actions--sticky">
           <button type="button" className="settings-save-btn" onClick={saveSettings} disabled={saving}>
-            {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
-            <span>{saving ? "Đang lưu..." : "Lưu cấu hình AI"}</span>
+              {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
+            <span>{saving ? t("settings.ai_saving") : t("settings.ai_save_config")}</span>
           </button>
           {saveMsg && (
             <span className={`settings-save-msg settings-save-msg--${saveMsg.type}`}>
               {saveMsg.type === "success" ? (
-                saveMsg.text.includes("Đang kiểm tra") ? <IconSpinner size={14} /> : <IconCheck size={14} />
+                saveMsg.type === "success" && saveMsg.text === t("settings.validate_connecting") ? <IconSpinner size={14} /> : <IconCheck size={14} />
               ) : (
                 <IconError size={14} />
               )}
@@ -1432,27 +1442,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       <div className="settings-section settings-section--flat">
         <div className="settings-storage-box">
           <div className="settings-storage-info">
-            <span className="settings-storage-label">Thư mục lưu trữ:</span>
+            <span className="settings-storage-label">{t("settings.data_storage_dir")}</span>
             <code className="settings-storage-path">
-              {stats?.data_dir || "Đang tải..."}
+              {stats?.data_dir || t("common.loading")}
             </code>
             <p className="settings-storage-hint">
-              Nơi lưu trữ cơ sở dữ liệu SQLite, vector ChromaDB và các tài liệu PDF đã import của bạn.
+              {t("settings.data_storage_desc")}
             </p>
           </div>
           
           <div className="settings-storage-actions">
             <button className="settings-btn-secondary" onClick={handleOpenFolder} disabled={actionLoading}>
-              <IconFolderOpen size={16} /> Mở thư mục
+              <IconFolderOpen size={16} /> {t("settings.data_open_folder")}
             </button>
             <button className="settings-btn-secondary" onClick={handleChangeStoragePath} disabled={actionLoading}>
-              <IconFolder size={16} /> Di chuyển thư mục
+              <IconFolder size={16} /> {t("settings.data_move_folder")}
             </button>
             <button className="settings-btn-danger-outline" onClick={handleClearData} disabled={actionLoading}>
-              <IconTrash size={16} /> Xoá dữ liệu tài liệu
+              <IconTrash size={16} /> {t("settings.data_clear_documents")}
             </button>
             <button className="settings-btn-danger" onClick={handleResetApp} disabled={actionLoading}>
-              <IconRefresh size={16} /> Reset ứng dụng
+              <IconRefresh size={16} /> {t("settings.data_reset_app")}
             </button>
           </div>
           
@@ -1465,9 +1475,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
           {/* Zotero Sync settings */}
           <div className="settings-storage-info" style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
-            <span className="settings-storage-label" style={{ fontWeight: 600 }}>Tích hợp thư viện Zotero (SQLite):</span>
+            <span className="settings-storage-label" style={{ fontWeight: 600 }}>{t("settings.data_zotero_title")}</span>
             <p className="settings-storage-hint" style={{ marginBottom: 12 }}>
-              Đồng bộ tự động các tài liệu và tệp PDF từ thư mục dữ liệu Zotero cục bộ của bạn.
+              {t("settings.data_zotero_desc")}
             </p>
             <div style={{ display: "flex", gap: "8px", marginTop: "8px", marginBottom: "8px" }}>
               <input
@@ -1475,7 +1485,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 className="settings-input"
                 value={zoteroDataDir}
                 onChange={(e) => setZoteroDataDir(e.target.value)}
-                placeholder="Đường dẫn đến thư mục Zotero data (chứa zotero.sqlite)..."
+                placeholder={t("settings.zotero_data_dir_placeholder")}
                 style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem" }}
               />
               <button 
@@ -1483,31 +1493,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 onClick={handleSelectZoteroPath}
                 style={{ padding: "6px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
               >
-                <IconWithText icon={IconFolder} size={14}>Chọn thư mục</IconWithText>
+                <IconWithText icon={IconFolder} size={14}>{t("settings.data_zotero_select")}</IconWithText>
               </button>
               <button 
                 className="settings-btn-secondary" 
                 onClick={handleDetectZotero}
                 style={{ padding: "6px 12px", fontSize: "0.85rem", whiteSpace: "nowrap" }}
               >
-                <IconWithText icon={IconZap} size={14}>Tự động tìm</IconWithText>
+                <IconWithText icon={IconZap} size={14}>{t("settings.data_zotero_detect")}</IconWithText>
               </button>
             </div>
           </div>
 
           <div className="settings-storage-info" style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
-            <span className="settings-storage-label" style={{ fontWeight: 600 }}>Bộ nhớ đệm offline (Cache):</span>
+            <span className="settings-storage-label" style={{ fontWeight: 600 }}>{t("settings.data_cache_title")}</span>
             <p className="settings-storage-hint" style={{ marginBottom: 8 }}>
-              Lưu giữ các kết quả Embedding và câu trả lời LLM để tăng tốc độ truy xuất không độ trễ (&lt; 5ms).
+              {t("settings.data_cache_desc")}
             </p>
             <div style={{ display: "flex", gap: "16px", marginTop: "8px", marginBottom: "8px" }}>
               <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: "var(--radius-md)" }}>
-                <span style={{ display: "block", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Câu trả lời AI</span>
-                <strong>{cacheStats?.llm_cache_count ?? 0} bản ghi</strong>
+                <span style={{ display: "block", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{t("settings.data_ai_responses")}</span>
+                <strong>{t("settings.data_records", { count: cacheStats?.llm_cache_count ?? 0 })}</strong>
               </div>
               <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", padding: "8px 12px", borderRadius: "var(--radius-md)" }}>
-                <span style={{ display: "block", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>Vector Embedding</span>
-                <strong>{cacheStats?.embedding_cache_count ?? 0} bản ghi</strong>
+                <span style={{ display: "block", fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{t("settings.data_vector_embeddings")}</span>
+                <strong>{t("settings.data_records", { count: cacheStats?.embedding_cache_count ?? 0 })}</strong>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px" }}>
@@ -1518,7 +1528,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 style={{ padding: "6px 12px", fontSize: "0.85rem" }}
               >
                 {clearingCache ? <IconSpinner size={14} /> : <IconTrash size={14} />}
-                <span>{clearingCache ? "Đang xoá..." : "Xoá bộ nhớ đệm"}</span>
+                <span>{clearingCache ? t("settings.data_cache_clearing") : t("settings.data_cache_clear")}</span>
               </button>
               {cacheMsg && (
                 <span style={{ fontSize: "0.85rem", color: "var(--color-success)" }}>
@@ -1529,43 +1539,42 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           </div>
 
           <div className="settings-storage-info" style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 16 }}>
-            <span className="settings-storage-label" style={{ fontWeight: 600 }}>Quản lý Tài nguyên & Tiết kiệm Điện (Power Saver):</span>
+            <span className="settings-storage-label" style={{ fontWeight: 600 }}>{t("settings.data_resource_title")}:</span>
             <p className="settings-storage-hint" style={{ marginBottom: 12 }}>
-              Tự động giải phóng bộ nhớ RAM/VRAM của các mô hình AI cục bộ sau 5 phút không hoạt động để tối ưu hiệu năng máy tính.
+              {t("settings.data_resource_desc")}
             </p>
             
             {modelStatus && (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
                   <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Mô hình Embedding</span>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{t("settings.data_embedding_model")}</span>
                     <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{modelStatus.embedder.model_name || "bge-m3"}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {modelStatus.embedder.loaded ? (
                       <>
-                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>Hoạt động</IconWithText></span>
-                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>Chờ: {modelStatus.embedder.idle_seconds}s</span>
+                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>{t("settings.data_model_active")}</IconWithText></span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{t("settings.data_model_idle", { seconds: modelStatus.embedder.idle_seconds })}</span>
                       </>
                     ) : (
-                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>Tạm dừng</IconWithText></span>
+                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>{t("settings.data_model_paused")}</IconWithText></span>
                     )}
                   </div>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
                   <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>Mô hình Reranker</span>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{t("settings.data_reranker_model")}</span>
                     <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{modelStatus.reranker.model_name}</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {modelStatus.reranker.loaded ? (
-                      <>
-                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>Hoạt động</IconWithText></span>
-                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>Chờ: {modelStatus.reranker.idle_seconds}s</span>
+                      <>                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>{t("settings.data_model_active")}</IconWithText></span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{t("settings.data_model_idle", { seconds: modelStatus.reranker.idle_seconds })}</span>
                       </>
                     ) : (
-                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>Tạm dừng</IconWithText></span>
+                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>{t("settings.data_model_paused")}</IconWithText></span>
                     )}
                   </div>
                 </div>
@@ -1584,10 +1593,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              <IconZap size={18} /> Định tuyến Provider
+              <IconZap size={18} /> {t("settings.advanced_provider_routing")}
             </h3>
             <p className="settings-desc">
-              Cấu hình provider cho từng tác vụ AI. Khi provider chính gặp lỗi, hệ thống tự động chuyển sang fallback.
+              {t("settings.advanced_provider_desc")}
             </p>
           </div>
           <button
@@ -1614,9 +1623,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               borderRadius: "var(--radius-sm)", color: "var(--color-text-muted)",
               cursor: "pointer",
             }}
-            title="Đặt lại mapping provider về mặc định"
+            title={t("settings.reset_provider_mapping_title")}
           >
-            Đặt lại gốc
+            {t("settings.advanced_reset_defaults")}
           </button>
         </div>
 
@@ -1624,9 +1633,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
             <thead>
               <tr>
-                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Tác vụ</th>
-                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Provider chính</th>
-                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>Fallback</th>
+                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>{t("settings.advanced_task")}</th>
+                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>{t("settings.advanced_primary_provider")}</th>
+                <th style={{ textAlign: "left", padding: "8px 6px", borderBottom: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>{t("settings.advanced_fallback")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1662,7 +1671,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                           borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer",
                         }}
                       >
-                        <option value="">— Mặc định —</option>
+                        <option value="">{t("settings.advanced_default")}</option>
                         {ALL_PROVIDERS.map((prov) => (
                           <option key={prov} value={prov}>{PROVIDER_LABELS[prov]}</option>
                         ))}
@@ -1678,7 +1687,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                           borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer",
                         }}
                       >
-                        <option value="">— Không có —</option>
+                        <option value="">{t("settings.advanced_none")}</option>
                         {ALL_PROVIDERS.map((prov) => (
                           <option key={prov} value={prov}>{PROVIDER_LABELS[prov]}</option>
                         ))}
@@ -1692,7 +1701,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         </div>
 
         <details className="settings-advanced-details">
-          <summary>Xem JSON gốc (task_provider_map)</summary>
+          <summary>{t("settings.advanced_json_view")}</summary>
           <div style={{ marginTop: 8 }}>
             <label style={{ display: "block", marginBottom: 4, fontWeight: 600 }}>task_provider_map</label>
             <textarea
@@ -1726,11 +1735,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       <div className="settings-section">
         <h3 className="settings-section-title">
           <IconSparkle size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
-          Hệ thống
+          {t("settings.advanced_system_title")}
         </h3>
         <div className="settings-about">
-          <p>Phiên bản: <strong>0.6.0</strong></p>
-          <p>Phát triển bởi: <strong>Viu Gia Lai</strong></p>
+          <p>{t("settings.advanced_version")}: <strong>0.6.0</strong></p>
+          <p>{t("settings.advanced_built_by")}: <strong>Viu Gia Lai</strong></p>
           <p>
             Chế độ AI:{" "}
             <strong style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
@@ -1758,12 +1767,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             </strong>
           </p>
           <p>
-            Embedding:{" "}
-            <strong>
-              {embeddingMode === "cloud"
-                ? <IconWithText icon={IconCloud} size={12}>Gemini</IconWithText>
-                : <IconWithText icon={IconLaptop} size={12}>{`${embeddingModel || "bge-m3"} (local)`}</IconWithText>}
-            </strong>
+            Embedding:{" "}                <strong>
+                  {embeddingMode === "cloud"
+                    ? <IconWithText icon={IconCloud} size={12}>Gemini</IconWithText>
+                    : <IconWithText icon={IconLaptop} size={12}>{`${embeddingModel || "bge-m3"} (${t("settings.embedding_local_option")})`}</IconWithText>}
+                </strong>
             <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <select
                 value={embeddingMode}
@@ -1794,7 +1802,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 <button
                   onClick={testEmbedding}
                   disabled={testingEmbedding}
-                  title="Kiểm tra kết nối Gemini Embedding"
+                  title={t("settings.test_gemini_embedding_title")}
                   style={{
                     fontSize: "0.7rem",
                     padding: "2px 6px",
@@ -1815,9 +1823,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   ) : embeddingTestResult === "error" ? (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                       <IconError size={14} /> Lỗi
-                    </span>
-                  ) : (
-                    "Kết nối"
+                    </span>                    ) : (
+                    t("settings.embedding_test_connection")
                   )}
                 </button>
               )}
@@ -1838,7 +1845,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               {mmrLambda !== "" ? (
                 <IconWithText icon={IconRotateCcw} size={12}>{`λ=${mmrLambda}`}</IconWithText>
               ) : (
-                <IconWithText icon={IconSkipForward} size={12}>Tắt</IconWithText>
+                <IconWithText icon={IconSkipForward} size={12}>{t("settings.mmr_off")}</IconWithText>
               )}
             </strong>
           </p>
@@ -1846,9 +1853,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             Reranker:{" "}
             <strong>
               {enableReranker ? (
-                <IconWithText icon={IconPlug} size={12}>Bật (Chậm, chính xác hơn)</IconWithText>
+                <IconWithText icon={IconPlug} size={12}>{t("settings.reranker_on")}</IconWithText>
               ) : (
-                <IconWithText icon={IconZap} size={12}>Tắt (Nhanh, nhẹ)</IconWithText>
+                <IconWithText icon={IconZap} size={12}>{t("settings.reranker_off")}</IconWithText>
               )}
             </strong>
             <span style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -1871,21 +1878,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   cursor: "pointer",
                 }}
               >
-                <option value="false">Tắt (Tốc độ cao)</option>
-                <option value="true">Bật (Chính xác cao)</option>
+                <option value="false">{t("settings.reranker_speed")}</option>
+                <option value="true">{t("settings.reranker_accuracy")}</option>
               </select>
             </span>
           </p>
           {embeddingMode === "local" && (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
-                Hướng dẫn Embedding (query instruction)
+                {t("settings.advanced_embedding_query")}
               </label>
               <input
                 type="text"
                 value={embeddingQueryInstruction}
                 onChange={e => setEmbeddingQueryInstruction(e.target.value)}
-                placeholder="VD: Hãy biểu diễn câu hỏi này để tìm kiếm tài liệu: "
+                placeholder={t("settings.query_instruction_placeholder")}
                 style={{
                   fontSize: "0.75rem", padding: "4px 8px",
                   background: "var(--color-surface)", border: "1px solid var(--color-border)",
@@ -1894,13 +1901,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 }}
               />
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: 4 }}>
-                Hướng dẫn Passage (passage instruction)
+                {t("settings.advanced_embedding_passage")}
               </label>
               <input
                 type="text"
                 value={embeddingPassageInstruction}
                 onChange={e => setEmbeddingPassageInstruction(e.target.value)}
-                placeholder="VD: Hãy biểu diễn đoạn văn này: "
+                placeholder={t("settings.passage_instruction_placeholder")}
                 style={{
                   fontSize: "0.75rem", padding: "4px 8px",
                   background: "var(--color-surface)", border: "1px solid var(--color-border)",
@@ -1910,12 +1917,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
               />
               <span style={{ fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
                 {embeddingQueryInstruction || embeddingPassageInstruction
-                  ? `Dùng ${embeddingQueryInstruction ? "query + " : ""}${embeddingPassageInstruction ? "passage" : ""} instruction cho RAG`
-                  : "Để trống = không dùng instruction (mặc định)"}
+                  ? t("settings.embedding_instruction_used", { query: embeddingQueryInstruction ? "query + " : "", passage: embeddingPassageInstruction ? "passage" : "" })
+                  : t("settings.embedding_instruction_empty_hint")}
               </span>
               <div style={{ display: "flex", gap: 16, marginTop: 8, alignItems: "center" }}>
                 <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                  Pooling:
+                  {t("settings.advanced_embedding_pooling")}
                   <select
                     value={embeddingPooling}
                     onChange={e => setEmbeddingPooling(e.target.value)}
@@ -1923,7 +1930,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   >
                     <option value="cls">CLS</option>
                     <option value="mean">Mean</option>
-                    <option value="last_token">Token cuối</option>
+                    <option value="last_token">{t("settings.pooling_last_token")}</option>
                   </select>
                 </label>
                 <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
@@ -1933,7 +1940,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     onChange={e => setNormalizeEmbeddings(e.target.checked)}
                     style={{ cursor: "pointer" }}
                   />
-                  Chuẩn hóa embeddings
+                  {t("settings.advanced_embedding_normalize")}
                 </label>
               </div>
               <div style={{ display: "flex", gap: 16, marginTop: 8, alignItems: "center" }}>
@@ -1943,7 +1950,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     type="number"
                     value={mmrLambda}
                     onChange={e => setMmrLambda(e.target.value)}
-                    placeholder="Tắt"
+                    placeholder={t("settings.off_placeholder")}
                     min={0} max={1} step={0.05}
                     style={{ width: 70, fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
                   />
@@ -1956,14 +1963,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           )}
           <div style={{ marginTop: 16, borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
             <span style={{ fontWeight: 600, fontSize: "0.85rem", display: "inline-flex", alignItems: "center", gap: 4 }}>
-              Bộ định tuyến Model
+              {t("settings.advanced_model_router")}
             </span>
             <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: 8 }}>
-              Tự động chuyển sang model context lớn khi vượt ngưỡng token
+              {t("settings.advanced_model_router_desc")}
             </p>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                Ngưỡng context:
+                {t("settings.advanced_context_threshold")}
                 <input
                   type="number"
                   value={largeContextThreshold}
@@ -1974,7 +1981,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 tokens
               </label>
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                Fallback model:
+                {t("settings.advanced_fallback_model_label")}
                 <input
                   type="text"
                   value={largeContextModel}
@@ -1984,13 +1991,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 />
               </label>
               <label style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
-                Provider:
+                {t("settings.advanced_provider_label")}
                 <select
                   value={largeContextProvider}
                   onChange={e => setLargeContextProvider(e.target.value)}
                   style={{ fontSize: "0.75rem", padding: "2px 4px", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", cursor: "pointer" }}
                 >
-                  <option value="">Mặc định</option>
+                  <option value="">{t("settings.advanced_default")}</option>
                   <option value="claude">Claude</option>
                   <option value="deepseek">DeepSeek</option>
                   <option value="gemini">Gemini</option>
@@ -2010,12 +2017,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           )}
           <p style={{ marginTop: 16, color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
             <IconLock size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
-            Dữ liệu hoàn toàn trên máy bạn. Không gửi ra ngoài nếu không được phép.
+            {t("settings.advanced_data_local")}
           </p>
           <div className="settings-actions settings-actions--footer">
             <button type="button" className="settings-save-btn" onClick={saveSettings} disabled={saving}>
               {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
-              <span>{saving ? "Đang lưu..." : "Lưu cấu hình nâng cao"}</span>
+              <span>{saving ? t("settings.ai_saving") : t("settings.ai_save_advanced")}</span>
             </button>
           </div>
         </div>

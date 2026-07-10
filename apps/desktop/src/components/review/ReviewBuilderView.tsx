@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, BASE_URL } from "../../lib/api";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
@@ -20,26 +21,29 @@ import {
   IconZap,
 } from "../Icons";
 
-const DEFAULT_SECTIONS: OutlineSection[] = [
-  { key: "background", title: "1. Tổng quan", description: "Tổng quan về lĩnh vực nghiên cứu" },
-  { key: "related_work", title: "2. Công trình liên quan", description: "Các công trình liên quan" },
-  { key: "methodology_comparison", title: "3. So sánh phương pháp", description: "So sánh phương pháp" },
-  { key: "findings", title: "4. Kết quả", description: "Kết quả nghiên cứu chính" },
-  { key: "limitations", title: "5. Hạn chế", description: "Hạn chế của các nghiên cứu" },
-  { key: "research_gaps", title: "6. Khoảng trống nghiên cứu", description: "Khoảng trống nghiên cứu" },
-  { key: "future_directions", title: "7. Hướng phát triển tương lai", description: "Hướng phát triển tương lai" },
-  { key: "bibliography", title: "8. Danh mục tài liệu tham khảo", description: "Danh mục tài liệu tham khảo" },
-];
+function getDefaultSections(t: (key: string) => string): OutlineSection[] {
+  return [
+    { key: "background", title: t("review_builder.section_overview"), description: t("review_builder.section_overview_desc") },
+    { key: "related_work", title: t("review_builder.section_related"), description: t("review_builder.section_related_desc") },
+    { key: "methodology_comparison", title: t("review_builder.section_methods"), description: t("review_builder.section_methods_desc") },
+    { key: "findings", title: t("review_builder.section_results"), description: t("review_builder.section_results_desc") },
+    { key: "limitations", title: t("review_builder.section_limitations"), description: t("review_builder.section_limitations_desc") },
+    { key: "research_gaps", title: t("review_builder.section_gaps"), description: t("review_builder.section_gaps_desc") },
+    { key: "future_directions", title: t("review_builder.section_future"), description: t("review_builder.section_future_desc") },
+    { key: "bibliography", title: t("review_builder.section_references"), description: t("review_builder.section_references_desc") },
+  ];
+}
 
 type Step = "select" | "outline" | "review";
 
 export function ReviewBuilderView() {
+  const { t } = useTranslation();
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [title, setTitle] = useState("Tổng quan tài liệu ưu tiên bằng chứng");
+  const [title, setTitle] = useState(t("review_builder.default_title"));
   const [step, setStep] = useState<Step>("select");
   const [sections, setSections] = useState<Record<string, ReviewSection>>({});
-  const [outlineSections, setOutlineSections] = useState<OutlineSection[]>(DEFAULT_SECTIONS);
+  const [outlineSections, setOutlineSections] = useState<OutlineSection[]>(getDefaultSections(t));
   const [fullText, setFullText] = useState("");
   const [paperTitles, setPaperTitles] = useState<string[]>([]);
   const [generatingSections, setGeneratingSections] = useState<Set<string>>(new Set());
@@ -94,10 +98,10 @@ export function ReviewBuilderView() {
       }
       return true;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Lỗi lưu draft";
+      const msg = e instanceof Error ? e.message : t("review_builder.error_save_draft");
       setSaveError(msg);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      toast.addToast("error", `Lưu thất bại: ${msg}`);
+      toast.addToast("error", t("review_builder.toast_save_failed", { msg }));
       if (saveErrorTimerRef.current) clearTimeout(saveErrorTimerRef.current);
       saveErrorTimerRef.current = setTimeout(() => setSaveError(null), 5000);
       return false;
@@ -118,7 +122,7 @@ export function ReviewBuilderView() {
 
   const handleManualSave = async () => {
     const ok = await doSave(true);
-    if (ok) toast.addToast("success", "Đã lưu draft.");
+    if (ok) toast.addToast("success", t("review_builder.toast_saved"));
   };
 
   // ─── Version History ───────────────────────────────────────
@@ -141,7 +145,7 @@ export function ReviewBuilderView() {
 
   const handleRestoreVersion = async (versionIdx: number) => {
     if (!currentDraftId) return;
-    if (!window.confirm("Bạn có chắc muốn khôi phục phiên bản này? Bản hiện tại sẽ được lưu lại trong version history.")) return;
+    if (!window.confirm(t("review_builder.confirm_restore_version"))) return;
     try {
       const res = await api.restoreDraftVersion(currentDraftId, versionIdx);
       if (res.error) {
@@ -162,9 +166,9 @@ export function ReviewBuilderView() {
       setFullText(data.full_text || "");
       setShowVersions(false);
       loadVersions(currentDraftId);
-      toast.addToast("success", "Đã khôi phục phiên bản cũ.");
+      toast.addToast("success", t("review_builder.toast_restored"));
     } catch (e) {
-      toast.addToast("error", "Khôi phục thất bại: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.toast_restore_failed", { msg: e instanceof Error ? e.message : String(e) }));
     }
   };
 
@@ -197,9 +201,9 @@ export function ReviewBuilderView() {
       setStep("review");
       setShowVersions(false);
       loadVersions(draftId);
-      toast.addToast("success", `Đã tải draft: ${data.title}`);
+      toast.addToast("success", t("review_builder.toast_draft_loaded", { title: data.title }));
     } catch (e) {
-      toast.addToast("error", "Lỗi khi tải draft: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.toast_load_failed", { msg: e instanceof Error ? e.message : String(e) }));
     }
   };
 
@@ -215,14 +219,14 @@ export function ReviewBuilderView() {
         setCurrentDraftId(null);
         setLastSaved(null);
       }
-      toast.addToast("success", "Đã xoá draft.");
+      toast.addToast("success", t("review_builder.toast_deleted"));
     } catch {
-      toast.addToast("error", "Lỗi khi xoá draft.");
+      toast.addToast("error", t("review_builder.toast_delete_failed"));
     }
   };
 
   const handleRenameDraft = async (draftId: string, currentTitle: string) => {
-    const nextTitle = window.prompt("Đổi tên bản nháp", currentTitle)?.trim();
+    const nextTitle = window.prompt(t("review_builder.rename_prompt"), currentTitle)?.trim();
     if (!nextTitle || nextTitle === currentTitle) return;
     try {
       const res = await api.renameReviewDraft(draftId, nextTitle);
@@ -234,13 +238,13 @@ export function ReviewBuilderView() {
       if (currentDraftId === draftId) {
         setTitle(nextTitle);
       }
-      toast.addToast("success", "Đã đổi tên draft.");
+      toast.addToast("success", t("review_builder.toast_renamed"));
     } catch {
-      toast.addToast("error", "Lỗi khi đổi tên draft.");
+      toast.addToast("error", t("review_builder.toast_rename_failed"));
     }
   };
 
-  // ─── Init ──────────────────────────────────────────────────
+  // Init ──────────────────────────────────────────────────
   useEffect(() => {
     loadPapers();
     loadDrafts();
@@ -271,7 +275,7 @@ export function ReviewBuilderView() {
 
   const handleContinueToOutline = async () => {
     if (selectedIds.length === 0) {
-      toast.addToast("error", "Vui lòng chọn ít nhất 1 tài liệu.");
+      toast.addToast("error", t("review_builder.error_select_one"));
       return;
     }
     setStep("outline");
@@ -282,10 +286,10 @@ export function ReviewBuilderView() {
         toast.addToast("error", res.error);
         return;
       }
-      setOutlineSections(res.sections);
+      setOutlineSections(res.sections || getDefaultSections(t));
       setPaperTitles(res.paper_titles);
     } catch (e) {
-      toast.addToast("error", "Lỗi khi sinh outline: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.error_outline", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setGeneratingOutline(false);
     }
@@ -349,7 +353,7 @@ export function ReviewBuilderView() {
         },
       });
     } catch (e) {
-      toast.addToast("error", "Lỗi khi tạo draft: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.error_create_draft", { msg: e instanceof Error ? e.message : String(e) }));
       setGeneratingAll(false);
       setGeneratingSections(new Set());
     }
@@ -367,7 +371,7 @@ export function ReviewBuilderView() {
       setFullText(rebuildFullText(title, { ...sections, [sectionKey]: res }, outlineSections));
       loadEvidence(sectionKey);
     } catch (e) {
-      toast.addToast("error", "Lỗi khi tạo section: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.error_create_section", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setGeneratingSections((prev) => {
         const next = new Set(prev);
@@ -395,7 +399,7 @@ export function ReviewBuilderView() {
 
   const handleGenerateMatrix = async () => {
     if (selectedIds.length < 2) {
-      toast.addToast("error", "Cần ít nhất 2 tài liệu để tạo ma trận so sánh.");
+      toast.addToast("error", t("review_builder.error_matrix_min"));
       return;
     }
     setMatrixLoading(true);
@@ -406,7 +410,7 @@ export function ReviewBuilderView() {
         return;
       }
     } catch (e) {
-      toast.addToast("error", "Lỗi khi tạo ma trận: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.error_matrix", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setMatrixLoading(false);
     }
@@ -417,7 +421,7 @@ export function ReviewBuilderView() {
     try {
       const content = fullText || rebuildFullText(title, sections, outlineSections);
       if (!content.trim()) {
-        toast.addToast("error", "Không có nội dung để xuất.");
+        toast.addToast("error", t("review_builder.error_export_empty"));
         return;
       }
       const blob = await api.exportReview(title, content, format);
@@ -430,9 +434,9 @@ export function ReviewBuilderView() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.addToast("success", `Đã tải xuống định dạng ${format.toUpperCase()}`);
+      toast.addToast("success", t("review_builder.toast_export_success", { format: format.toUpperCase() }));
     } catch (e) {
-      toast.addToast("error", "Xuất thất bại: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.toast_export_failed", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setExporting(false);
     }
@@ -440,7 +444,7 @@ export function ReviewBuilderView() {
 
   const handleCheckQuality = async () => {
     if (Object.keys(sections).length === 0) {
-      toast.addToast("error", "Chưa có nội dung để kiểm tra.");
+      toast.addToast("error", t("review_builder.error_quality_empty"));
       return;
     }
     setQualityLoading(true);
@@ -457,13 +461,13 @@ export function ReviewBuilderView() {
         const mediumCount = res.issues.filter((i) => i.severity === "medium").length;
         toast.addToast(
           highCount > 0 ? "error" : "warning",
-          `Tìm thấy ${res.issues.length} vấn đề (${highCount} nghiêm trọng, ${mediumCount} trung bình)`
+          t("review_builder.toast_quality_issues", { count: res.issues.length, high: highCount, medium: mediumCount })
         );
       } else {
-        toast.addToast("success", "Không tìm thấy vấn đề nào! Chất lượng tốt.");
+        toast.addToast("success", t("review_builder.toast_quality_ok"));
       }
     } catch (e) {
-      toast.addToast("error", "Kiểm tra chất lượng thất bại: " + (e instanceof Error ? e.message : String(e)));
+      toast.addToast("error", t("review_builder.toast_quality_failed", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setQualityLoading(false);
     }
@@ -489,18 +493,18 @@ export function ReviewBuilderView() {
         setActiveSection(sectionKey);
         setShowSource(true);
         if (!evidence[sectionKey]) loadEvidence(sectionKey);
-        toast.addToast("info", "Mở source panel — thêm citation từ evidence bên phải.");
+        toast.addToast("info", t("review_builder.issue_add_citation"));
         break;
       case "trim_content":
         setActiveSection(sectionKey);
-        toast.addToast("info", "Mở section để rút gọn nội dung.");
+        toast.addToast("info", t("review_builder.issue_trim_content"));
         break;
       case "expand_content":
         handleGenerateSection(sectionKey);
-        toast.addToast("info", "Đang tạo lại section với nội dung mở rộng.");
+        toast.addToast("info", t("review_builder.issue_expand_content"));
         break;
       case "review_conflict":
-        toast.addToast("info", "Xem xét mâu thuẫn — kiểm tra manual.");
+        toast.addToast("info", t("review_builder.issue_review_conflict"));
         break;
       default:
         handleGenerateSection(sectionKey);
@@ -533,7 +537,7 @@ export function ReviewBuilderView() {
         }}
       >
         <IconBookOpen size={22} className="icon-gradient" />
-        <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>Trình tạo đánh giá ưu tiên bằng chứng</span>
+        <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>{t("review_builder.header_title")}</span>
         <div style={{ flex: 1 }} />
 
         {step === "review" && (
@@ -541,17 +545,17 @@ export function ReviewBuilderView() {
             {saveError ? (
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "#ef4444" }}>
                 <IconError size={11} />
-                Lỗi lưu
+                {t("review_builder.error_save_draft")}
               </div>
             ) : saving ? (
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
                 <IconSpinner size={11} />
-                Đang lưu...
+                {t("review_builder.saving")}
               </div>
             ) : lastSaved ? (
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "#22c55e" }}>
                 <IconCheck size={11} />
-                Đã lưu
+                {t("review_builder.saved")}
               </div>
             ) : null}
             <button
@@ -567,7 +571,7 @@ export function ReviewBuilderView() {
               }}
             >
               <IconDownload size={12} />
-              Lưu
+              {t("review_builder.save")}
             </button>
             {currentDraftId && (
               <div style={{ position: "relative" }}>
@@ -586,7 +590,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   <IconClock size={11} />
-                  Phiên bản
+                  {t("review_builder.versions")}
                 </button>
                 {showVersions && (
                   <div style={{
@@ -598,7 +602,7 @@ export function ReviewBuilderView() {
                     zIndex: 100, padding: 8,
                   }}>
                     <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", padding: "4px 8px 8px", borderBottom: "1px solid var(--color-border, rgba(148,163,184,0.08))", marginBottom: 4 }}>
-                      Lịch sử phiên bản ({versions.length})
+                      {t("review_builder.version_history", { count: versions.length })}
                     </div>
                     {versionsLoading ? (
                       <div style={{ padding: 12, textAlign: "center" }}>
@@ -606,7 +610,7 @@ export function ReviewBuilderView() {
                       </div>
                     ) : versions.length === 0 ? (
                       <div style={{ padding: "12px 8px", textAlign: "center", fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
-                        Chưa có phiên bản cũ
+                        {t("review_builder.no_versions")}
                       </div>
                     ) : (
                       versions.slice().reverse().map((v) => (
@@ -637,7 +641,7 @@ export function ReviewBuilderView() {
                               cursor: "pointer", fontSize: "0.65rem", fontWeight: 500,
                               flexShrink: 0,
                             }}
-                          >Khôi phục</button>
+                          >{t("review_builder.restore")}</button>
                         </div>
                       ))
                     )}
@@ -651,7 +655,7 @@ export function ReviewBuilderView() {
         {step !== "select" && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
-              {selectedCount} bài báo
+              {t("review_builder.papers_count", { count: selectedCount })}
             </span>
             <button
               onClick={() => setStep("select")}
@@ -665,7 +669,7 @@ export function ReviewBuilderView() {
               }}
             >
               <IconClose size={12} />
-              Đổi
+              {t("review_builder.change")}
             </button>
           </div>
         )}
@@ -680,9 +684,9 @@ export function ReviewBuilderView() {
           flexShrink: 0,
         }}>
           {[
-            { step: "select", label: "Chọn paper" },
-            { step: "outline", label: "Dàn ý" },
-            { step: "review", label: "Review" },
+            { step: "select", label: t("review_builder.step_select") },
+            { step: "outline", label: t("review_builder.step_outline") },
+            { step: "review", label: t("review_builder.step_review") },
           ].map((s, i) => {
             const isActive = s.step === step;
             const isDone = s.step === "select" || (s.step === "outline" && step === "review");
@@ -729,7 +733,7 @@ export function ReviewBuilderView() {
               <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <label style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 4 }}>
-                    Tiêu đề review
+                    {t("review_builder.title_placeholder")}
                   </label>
                   <input
                     type="text"
@@ -741,7 +745,7 @@ export function ReviewBuilderView() {
                       background: "var(--color-bg, rgba(0,0,0,0.05))",
                       color: "var(--color-text, #e2e8f0)", fontSize: "0.85rem",
                     }}
-                    placeholder="Nhập tiêu đề..."
+                    placeholder={t("review_builder.title_placeholder")}
                   />
                 </div>
                 <div style={{ display: "flex", gap: 6, alignSelf: "flex-end" }}>
@@ -750,13 +754,13 @@ export function ReviewBuilderView() {
                     border: "1px solid rgba(148, 163, 184, 0.2)",
                     background: "transparent", color: "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "0.78rem",
-                  }}>Chọn tất cả</button>
+                  }}>{t("common.select_all")}</button>
                   <button onClick={deselectAll} style={{
                     padding: "6px 12px", borderRadius: 6,
                     border: "1px solid rgba(148, 163, 184, 0.2)",
                     background: "transparent", color: "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "0.78rem",
-                  }}>Bỏ chọn</button>
+                  }}>{t("chat.paper_picker_deselect_all")}</button>
                 </div>
               </div>
 
@@ -787,14 +791,14 @@ export function ReviewBuilderView() {
                 })}
                 {papers.length === 0 && (
                   <div style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", padding: 20 }}>
-                    Chưa có tài liệu nào trong thư viện.
+                    {t("library_view.empty_library")}
                   </div>
                 )}
               </div>
 
               {selectedCount > 0 && (
                 <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 12 }}>
-                  Đã chọn <strong>{selectedCount}</strong> tài liệu
+                  {t("review_builder.papers_selected_count", { count: selectedCount })}
                 </div>
               )}
 
@@ -810,7 +814,7 @@ export function ReviewBuilderView() {
                     display: "flex", alignItems: "center", gap: 6,
                   }}
                 >
-                  Tiếp tục → Tạo dàn ý
+                  {t("review_builder.continue_outline")}
                 </button>
                 <button
                   onClick={handleGenerateMatrix}
@@ -825,7 +829,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   {matrixLoading ? <IconSpinner size={16} /> : <IconChart size={16} />}
-                  {matrixLoading ? "Đang tạo..." : "Tạo ma trận so sánh"}
+                  {matrixLoading ? t("review_builder.editor_generating") : t("review_builder.create_matrix")}
                 </button>
               </div>
 
@@ -838,7 +842,7 @@ export function ReviewBuilderView() {
                     color: "var(--color-text, #e2e8f0)",
                   }}>
                     <IconClock size={16} className="icon-gradient" />
-                    Drafts đã lưu ({savedDrafts.length})
+                    {t("evidence.drafts_label", { n: savedDrafts.length })}
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {savedDrafts.map((d) => (
@@ -854,8 +858,8 @@ export function ReviewBuilderView() {
                             {d.title}
                           </div>
                           <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", display: "flex", gap: 8, marginTop: 2 }}>
-                            <span>{d.paper_count} bài báo</span>
-                            <span>{d.section_count} phần</span>
+                            <span>{d.paper_count} {t("evidence.papers_unit")}</span>
+                            <span>{d.section_count} {t("review_builder.section_count")}</span>
                             <span>{d.updated_at ? new Date(d.updated_at).toLocaleDateString("vi-VN") : ""}</span>
                           </div>
                         </div>
@@ -867,22 +871,21 @@ export function ReviewBuilderView() {
                             background: "rgba(var(--color-primary-rgb), 0.08)",
                             color: "var(--color-primary)",
                             cursor: "pointer", fontSize: "0.72rem", fontWeight: 500,
-                          }}
-                        >
-                          Mở
-                        </button>
-                        <button
-                          onClick={() => handleRenameDraft(d.id, d.title)}
-                          style={{
-                            padding: "4px 8px", borderRadius: 4,
-                            border: "1px solid rgba(148, 163, 184, 0.2)",
-                            background: "transparent",
-                            color: "var(--color-text-muted)",
-                            cursor: "pointer", fontSize: "0.72rem",
-                          }}
-                          title="Đổi tên draft"
-                        >
-                          Đổi
+                          }}                          >
+                            {t("common.open")}
+                          </button>
+                          <button
+                            onClick={() => handleRenameDraft(d.id, d.title)}
+                            style={{
+                              padding: "4px 8px", borderRadius: 4,
+                              border: "1px solid rgba(148, 163, 184, 0.2)",
+                              background: "transparent",
+                              color: "var(--color-text-muted)",
+                              cursor: "pointer", fontSize: "0.72rem",
+                            }}
+                            title={t("review_builder.rename_draft_title")}
+                          >
+                            {t("evidence.rename_btn")}
                         </button>
                         <button
                           onClick={() => handleDeleteDraft(d.id)}
@@ -911,10 +914,10 @@ export function ReviewBuilderView() {
               <div style={{ marginBottom: 16 }}>
                 <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
                   <IconBookOpen size={18} className="icon-gradient" />
-                  Dàn ý review theo bằng chứng
+                  {t("review_builder.outline_header")}
                 </h2>
                 <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4 }}>
-                  {paperTitles.length} bài báo đã chọn — dàn ý do AI tạo
+                  {t("review_builder.outline_selected_info", { count: paperTitles.length })}
                 </div>
               </div>
 
@@ -925,7 +928,7 @@ export function ReviewBuilderView() {
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}>
                   <IconSpinner size={18} />
-                  <span>Đang phân tích tài liệu và sinh outline...</span>
+                  <span>{t("review_builder.generating_outline")}</span>
                 </div>
               ) : (
                 <div style={{ marginBottom: 20 }}>
@@ -958,7 +961,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   {generatingAll ? <IconSpinner size={16} /> : <IconBookOpen size={16} />}
-                  {generatingAll ? "Đang tạo draft..." : "Tạo bản review đầy đủ"}
+                  {generatingAll ? t("review_builder.generating_draft_all") : t("review_builder.generate_full_review")}
                 </button>
                 <button
                   onClick={handleContinueToOutline}
@@ -972,7 +975,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   <IconRefresh size={16} />
-                  Tạo lại dàn ý
+                  {t("review_builder.regenerate_outline")}
                 </button>
               </div>
             </>
@@ -1058,7 +1061,7 @@ export function ReviewBuilderView() {
                   }}
                 >
                   {qualityLoading ? <IconSpinner size={14} /> : <IconZap size={14} />}
-                  {qualityLoading ? "Đang kiểm tra..." : "Kiểm tra chất lượng"}
+                  {qualityLoading ? t("review_builder.checking_quality") : t("review_builder.check_quality")}
                 </button>
                 {qualityIssues.length > 0 && (
                   <span style={{
@@ -1067,17 +1070,17 @@ export function ReviewBuilderView() {
                   }}>
                     {qualityIssues.filter((i) => i.severity === "high").length > 0 && (
                       <span style={{ color: "#ef4444", fontWeight: 600 }}>
-                        {qualityIssues.filter((i) => i.severity === "high").length} cao
+                        {qualityIssues.filter((i) => i.severity === "high").length} {t("review_builder.severity_high")}
                       </span>
                     )}
                     {qualityIssues.filter((i) => i.severity === "medium").length > 0 && (
                       <span style={{ color: "#f59e0b", fontWeight: 600 }}>
-                        {qualityIssues.filter((i) => i.severity === "medium").length} trung bình
+                        {qualityIssues.filter((i) => i.severity === "medium").length} {t("review_builder.severity_medium")}
                       </span>
                     )}
                     {qualityIssues.filter((i) => i.severity === "low").length > 0 && (
                       <span>
-                        {qualityIssues.filter((i) => i.severity === "low").length} thấp
+                        {qualityIssues.filter((i) => i.severity === "low").length} {t("review_builder.severity_low")}
                       </span>
                     )}
                   </span>
@@ -1095,7 +1098,7 @@ export function ReviewBuilderView() {
                   display: "flex", alignItems: "center", gap: 6, marginRight: 8,
                 }}>
                   <IconDownload size={16} />
-                  Xuất báo cáo:
+                  {t("review_builder.export_label")}
                 </span>
                 {["markdown", "html", "docx"].map((fmt) => (
                   <button
@@ -1139,7 +1142,7 @@ export function ReviewBuilderView() {
             ) : (
               <button
                 onClick={() => setShowSidebar(true)}
-                title="Show outline"
+                title={t("review_builder.show_outline")}
                 style={{
                   width: 24, flexShrink: 0,
                   border: "none",
@@ -1155,7 +1158,7 @@ export function ReviewBuilderView() {
                   letterSpacing: 2,
                 }}
               >
-                Dàn ý ▸
+                {t("review_builder.outline_toggle")}
               </button>
             )}
           </>
@@ -1184,7 +1187,7 @@ export function ReviewBuilderView() {
               <iframe
                 src={`${BASE_URL}/api/papers/${activePdf.paperId}/file${activePdf.page ? `#page=${activePdf.page}` : ""}`}
                 style={{ flex: 1, border: "none" }}
-                title="Xem trước PDF"
+                title={t("review_builder.pdf_preview")}
               />
             </div>
           </div>

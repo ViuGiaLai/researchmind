@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, Collection, SavedSearch, SearchFilters, SearchResult, SearchResultCluster } from "../../lib/api";
 import {
   IconSearch,
@@ -24,12 +25,12 @@ import {
 } from "../Icons";
 
 const SUGGESTED_QUERIES = [
-  { icon: <IconBrain size={18} />, text: "Tổng hợp các ý tưởng chính trong thư viện" },
-  { icon: <IconChart size={18} />, text: "So sánh phương pháp giữa các paper" },
-  { icon: <IconSearch size={18} />, text: "Paper nào nói về transformer" },
-  { icon: <IconBulb size={18} />, text: "Xu hướng nghiên cứu gần đây" },
-  { icon: <IconFileText size={18} />, text: "Tóm tắt đóng góp chính của các paper" },
-  { icon: <IconZap size={18} />, text: "Điểm mạnh và yếu điểm của các phương pháp" },
+  { icon: <IconBrain size={18} />, key: "suggest_main_ideas" },
+  { icon: <IconChart size={18} />, key: "suggest_compare_methods" },
+  { icon: <IconSearch size={18} />, key: "suggest_transformer" },
+  { icon: <IconBulb size={18} />, key: "suggest_recent_trends" },
+  { icon: <IconFileText size={18} />, key: "suggest_key_contributions" },
+  { icon: <IconZap size={18} />, key: "suggest_strengths_weaknesses" },
 ];
 
 const searchSessionCache = new Map<string, SearchResult[]>();
@@ -37,6 +38,7 @@ const makeSearchCacheKey = (query: string, filters: SearchFilters) =>
   JSON.stringify({ query: query.trim().toLowerCase(), filters });
 
 export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }> = ({ onStartChat }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [clustered, setClustered] = useState<SearchResultCluster[]>([]);
@@ -140,7 +142,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
   }, []);
 
   const handleSuggestionClick = (text: string, isTag = false) => {
-    const queryVal = isTag ? `thẻ:"${text}"` : text;
+    const queryVal = isTag ? `${t("search.tag_prefix")}:"${text}"` : text;
     setQuery(queryVal);
     performSearch(queryVal);
     setShowSuggestions(false);
@@ -153,7 +155,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
 
   const saveCurrentSearch = async () => {
     if (!query.trim()) return;
-    const name = prompt("Tên saved search:", query.slice(0, 40));
+    const name = prompt(t("search.save_search_prompt"), query.slice(0, 40));
     if (!name) return;
     const saved = await api.createSavedSearch(name, query, filters);
     setSavedSearches((prev) => [saved, ...prev]);
@@ -196,24 +198,24 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
           <div className="search-hero-content">
             <div className="search-hero-badge">
               <IconSparkle size={14} />
-              <span>AI Research Assistant</span>
+              <span>{t("search.hero_badge")}</span>
             </div>
             <h1 className="search-hero-title">
               <IconBrain size={32} className="icon-gradient" />
-              <span>ResearchMind VN</span>
+              <span>{t("search.hero_title")}</span>
             </h1>
             <p className="search-hero-desc">
-              Tìm kiếm ngữ nghĩa thông minh trong toàn bộ thư viện PDF của bạn
+              {t("search.hero_desc")}
             </p>
             <div className="search-hero-stats">
               <div className="hero-stat">
                 <span className="hero-stat-value">{collections.length}</span>
-                <span className="hero-stat-label">Bộ sưu tập</span>
+                <span className="hero-stat-label">{t("search.stat_saved")}</span>
               </div>
               <div className="hero-stat-divider" />
               <div className="hero-stat">
                 <span className="hero-stat-value">{savedSearches.length}</span>
-                <span className="hero-stat-label">Tìm kiếm đã lưu</span>
+                <span className="hero-stat-label">{t("search.stat_saved")}</span>
               </div>
               <div className="hero-stat-divider" />
               <div className="hero-stat">
@@ -221,7 +223,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                   {embeddingInfo?.mode === "cloud" ? <IconCloud size={22} /> : <IconLaptop size={22} />}
                 </span>
                 <span className="hero-stat-label">
-                  {embeddingInfo?.mode === "cloud" ? "Đám mây" : "Cục bộ"}
+                  {embeddingInfo?.mode === "cloud" ? t("search.stat_cloud") : t("search.stat_local")}
                 </span>
               </div>
             </div>
@@ -237,7 +239,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             <input
               type="text"
               className="search-bar-input"
-              placeholder='Tìm kiếm ngữ nghĩa... Ví dụ: "phương pháp đánh giá độ trễ mạng 5G"'
+              placeholder={t("search.placeholder")}
               value={query}
               onChange={(e) => {
                 handleQueryChange(e.target.value);
@@ -263,7 +265,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
               onClick={handleSearch} 
               disabled={searching}
             >
-              {searching ? <IconSpinner size={18} /> : "Tìm kiếm"}
+              {searching ? <IconSpinner size={18} /> : t("search.search_btn")}
             </button>
           </div>
         </div>
@@ -273,11 +275,11 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
           <div className="search-suggest-dropdown-modern">
             <div className="suggest-header">
               <IconBulb size={14} />
-              <span>Gợi ý tìm kiếm</span>
+              <span>{t("search.suggestions")}</span>
             </div>
             {suggestions.map((s, idx) => {
-              const isTag = s.startsWith("Thẻ: ");
-              const displayText = isTag ? s.substring(5) : s;
+              const isTag = s.startsWith(`${t("search.tag_prefix")}: `);
+              const displayText = isTag ? s.substring(t("search.tag_prefix").length + 2) : s;
               return (
                 <div
                   key={idx}
@@ -290,7 +292,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                     <IconFileText size={14} className="suggest-icon-file" />
                   )}
                   <span className="suggest-text">{displayText}</span>
-                  <span className="suggest-action">→</span>
+                  <span className="suggest-action">{"\u2192"}</span>
                 </div>
               );
             })}
@@ -306,7 +308,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             onClick={() => setShowFilters(!showFilters)}
           >
             <IconSettings size={16} />
-            <span>Bộ lọc</span>
+            <span>{t("search.filters_toggle")}</span>
             {hasActiveFilters() && <span className="filter-dot" />}
           </button>
           
@@ -331,7 +333,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
           disabled={!query.trim()}
         >
           <IconBookmark size={14} />
-          <span>Lưu tìm kiếm</span>
+          <span>{t("search.save_search")}</span>
         </button>
       </div>
 
@@ -339,20 +341,20 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
       {showFilters && (
         <div className="filter-panel-modern">
           <div className="filter-panel-header">
-            <span className="filter-panel-title">Bộ lọc nâng cao</span>
+            <span className="filter-panel-title">{t("search.filters_panel")}</span>
             <button className="filter-clear-btn" onClick={clearFilters}>
-              Xóa tất cả
+              {t("search.clear_all")}
             </button>
           </div>
           <div className="filter-panel-grid">
             <div className="filter-group">
-              <label><IconFolder size={14} /> Bộ sưu tập</label>
+              <label><IconFolder size={14} /> {t("search.filter_collection")}</label>
               <select
                 className="filter-select"
                 value={filters.collection_id || ""}
                 onChange={(e) => setFilters((prev) => ({ ...prev, collection_id: e.target.value || undefined }))}
               >
-                <option value="">Toàn thư viện</option>
+                <option value="">{t("search.all_library")}</option>
                 {collections.map((collection) => (
                   <option key={collection.id} value={collection.id}>{collection.name}</option>
                 ))}
@@ -360,24 +362,24 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             </div>
 
             <div className="filter-group">
-              <label><IconUser size={14} /> Tác giả</label>
+              <label><IconUser size={14} /> {t("search.filter_author")}</label>
               <input
                 className="filter-input"
                 value={filters.author || ""}
                 onChange={(e) => setFilters((prev) => ({ ...prev, author: e.target.value }))}
-                placeholder="Nhập tên tác giả"
+                placeholder={t("search.author_placeholder")}
               />
             </div>
 
             <div className="filter-group">
-              <label><IconCalendar size={14} /> Năm xuất bản</label>
+              <label><IconCalendar size={14} /> {t("search.filter_year")}</label>
               <div className="filter-year-group">
                 <input
                   className="filter-input compact"
                   type="number"
                   value={filters.year_from || ""}
                   onChange={(e) => setFilters((prev) => ({ ...prev, year_from: e.target.value ? Number(e.target.value) : null }))}
-                  placeholder="Từ"
+                  placeholder={t("search.year_from")}
                 />
                 <span className="filter-year-sep">-</span>
                 <input
@@ -385,65 +387,65 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                   type="number"
                   value={filters.year_to || ""}
                   onChange={(e) => setFilters((prev) => ({ ...prev, year_to: e.target.value ? Number(e.target.value) : null }))}
-                  placeholder="Đến"
+                  placeholder={t("search.year_to")}
                 />
               </div>
             </div>
 
             <div className="filter-group">
-              <label><IconBookmark size={14} /> Thẻ</label>
+              <label><IconBookmark size={14} /> {t("search.filter_tags")}</label>
               <input
                 className="filter-input"
                 value={(filters.tags || []).join(", ")}
                 onChange={(e) => setFilters((prev) => ({ ...prev, tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }))}
-                placeholder="Thẻ cách nhau bằng dấu phẩy"
+                placeholder={t("search.tags_placeholder")}
               />
             </div>
 
             <div className="filter-group">
-              <label><IconBookOpen size={14} /> Trạng thái đọc</label>
+              <label><IconBookOpen size={14} /> {t("search.filter_read_status")}</label>
               <select
                 className="filter-select"
                 value={filters.read_status || ""}
                 onChange={(e) => setFilters((prev) => ({ ...prev, read_status: e.target.value || undefined }))}
               >
-                <option value="">Tất cả</option>
-                <option value="unread">Chưa đọc</option>
-                <option value="reading">Đang đọc</option>
-                <option value="read">Đã đọc</option>
+                <option value="">{t("search.all_status")}</option>
+                <option value="unread">{t("search.status_unread")}</option>
+                <option value="reading">{t("search.status_reading")}</option>
+                <option value="read">{t("search.status_read")}</option>
               </select>
             </div>
 
             <div className="filter-group">
-              <label><IconStar size={14} /> Yêu thích</label>
+              <label><IconStar size={14} /> {t("search.filter_favorite")}</label>
               <select
                 className="filter-select"
                 value={filters.starred === true ? "true" : filters.starred === false ? "false" : ""}
                 onChange={(e) => setFilters((prev) => ({ ...prev, starred: e.target.value === "" ? null : e.target.value === "true" }))}
               >
-                <option value="">Tất cả</option>
-                <option value="true">Đã đánh dấu</option>
-                <option value="false">Chưa đánh dấu</option>
+                <option value="">{t("search.all_status")}</option>
+                <option value="true">{t("search.option_marked")}</option>
+                <option value="false">{t("search.option_unmarked")}</option>
               </select>
             </div>
 
             <div className="filter-group">
-              <label><IconChart size={14} /> Sắp xếp</label>
+              <label><IconChart size={14} /> {t("search.sort")}</label>
               <select
                 className="filter-select"
                 value={filters.sort_by || "relevance"}
                 onChange={(e) => setFilters((prev) => ({ ...prev, sort_by: e.target.value }))}
               >
-                <option value="relevance">Độ liên quan</option>
-                <option value="year">Năm xuất bản</option>
-                <option value="title">Tiêu đề</option>
-                <option value="created_at">Ngày nhập</option>
+                <option value="relevance">{t("search.sort_relevance")}</option>
+                <option value="year">{t("search.sort_year")}</option>
+                <option value="title">{t("search.sort_title")}</option>
+                <option value="created_at">{t("search.sort_date")}</option>
               </select>
             </div>
           </div>
           <div className="filter-panel-actions">
             <button className="filter-apply-btn" onClick={() => performSearch(query)}>
-              Áp dụng bộ lọc
+              {t("search.apply_filters")}
             </button>
           </div>
         </div>
@@ -456,7 +458,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             <div className="search-loading-spinner">
               <IconSpinner size={32} />
             </div>
-            <p>Đang tìm kiếm trong thư viện...</p>
+            <p>{t("search.loading")}</p>
           </div>
         )}
 
@@ -465,14 +467,14 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
             <div className="search-empty-icon">
               <IconBrain size={56} className="icon-gradient" />
             </div>
-            <h3>Không tìm thấy kết quả</h3>
-            <p>Thử với từ khóa khác hoặc import thêm PDF vào thư viện.</p>
+            <h3>{t("search.no_results_title")}</h3>
+            <p>{t("search.no_results_desc")}</p>
             <div className="search-empty-tips">
-              <IconWithText icon={IconBulb} size={14}>Gợi ý:</IconWithText>
+              <IconWithText icon={IconBulb} size={14}>{t("search.tips_label")}</IconWithText>
               <ul>
-                <li>Sử dụng từ khóa cụ thể hơn</li>
-                <li>Kiểm tra chính tả</li>
-                <li>Thử tìm kiếm bằng tiếng Anh</li>
+                <li>{t("search.tip_specific")}</li>
+                <li>{t("search.tip_spelling")}</li>
+                <li>{t("search.tip_english")}</li>
               </ul>
             </div>
           </div>
@@ -484,18 +486,17 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
               <div className="results-header-left">
                 <IconSearch size={16} className="results-icon" />
                 <span className="results-count">
-                  Tìm thấy <strong>{results.length}</strong> đoạn trích
-                </span>
+                  {t("search.results_found", { count: results.length })}</span>
                 {embeddingInfo && (
                   <span className="embedding-badge-modern">
                     <IconSparkle size={12} />
-                    {embeddingInfo.mode === "cloud" ? "AI Đám mây" : "Mô hình cục bộ"}
+                    {embeddingInfo.mode === "cloud" ? t("search.embedding_cloud") : t("search.embedding_local")}
                   </span>
                 )}
               </div>
               <button className="chat-with-results-btn" onClick={chatWithResults}>
                 <IconChat size={16} />
-                <span>Chat với kết quả</span>
+                <span>{t("search.chat_with_results")}</span>
               </button>
             </div>
 
@@ -513,16 +514,16 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                         setExpandedPapers(next);
                       }}
                     >
-                      <span className="search-paper-toggle">{isExpanded ? "▼" : "▶"}</span>
+                      <span className="search-paper-toggle">{isExpanded ? "\u25bc" : "\u25b6"}</span>
                       <IconFileText size={16} className="paper-icon" />
                       <span className="search-paper-title-modern">
                         {cluster.paper_title
                           .replace(/^[0-9a-f-]{36}_/, '')
                           .replace(/\+/g, ' ')
                           .replace(/%[0-9a-fA-F]{2}/g, '')
-                          || "Không có tiêu đề"}
+                          || t("search.no_title")}
                       </span>
-                      <span className="search-paper-badge">{cluster.chunks.length} đoạn</span>
+                      <span className="search-paper-badge">{t("search.chunks_count", { count: cluster.chunks.length })}</span>
                       <span className="search-paper-score">
                         <IconStar size={12} />
                         {Math.max(...cluster.chunks.map(c => Math.abs(c.score))).toFixed(2)}
@@ -536,7 +537,7 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                               {r.page_number && (
                                 <span className="result-page-badge">
                                   <IconBookOpen size={12} />
-                                  Trang {r.page_number}
+                                  {t("search.page_label", { n: r.page_number })}
                                 </span>
                               )}
                               <span className="result-score-badge">
@@ -563,14 +564,14 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
                           .replace(/^[0-9a-f-]{36}_/, '')
                           .replace(/\+/g, ' ')
                           .replace(/%[0-9a-fA-F]{2}/g, '')
-                          || "Không có tiêu đề"}
+                          || t("search.no_title")}
                       </span>
                     </div>
                     <div className="result-card-meta">
                       {r.page_number && (
                         <span className="result-page">
                           <IconBookOpen size={12} />
-                          Trang {r.page_number}
+                          {t("search.page_label", { n: r.page_number })}
                         </span>
                       )}
                       <span className="result-score">
@@ -590,18 +591,18 @@ export const SearchView: React.FC<{ onStartChat: (paperIds: string[]) => void }>
           <div className="search-suggestions-modern">
             <div className="suggestions-header">
               <IconBulb size={20} className="suggestions-icon" />
-              <span>Gợi ý tìm kiếm thông minh</span>
+              <span>{t("search.smart_suggestions")}</span>
             </div>
             <div className="suggestions-grid">
               {SUGGESTED_QUERIES.map((s, i) => (
                 <button
                   key={i}
                   className="suggestion-card-modern"
-                  onClick={() => handleSuggestionClick(s.text)}
+                  onClick={() => handleSuggestionClick(t(`search.${s.key}`))}
                 >
                   <span className="suggestion-card-icon">{s.icon}</span>
-                  <span className="suggestion-card-text">{s.text}</span>
-                  <span className="suggestion-card-arrow">→</span>
+                  <span className="suggestion-card-text">{t(`search.${s.key}`)}</span>
+                  <span className="suggestion-card-arrow">{"\u2192"}</span>
                 </button>
               ))}
             </div>

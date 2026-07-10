@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { initTheme } from "./lib/theme";
+import "./i18n";
 import "./styles/variables.css";
 import "./styles/globals.css";
 import "./styles/daily-reader.css";

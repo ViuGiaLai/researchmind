@@ -1,4 +1,5 @@
 import React from "react";
+import i18n from "../../i18n";
 
 interface Props {
   children: React.ReactNode;
@@ -13,7 +14,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false, message: "" };
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, message: error.message || "Lỗi không xác định" };
+    return { hasError: true, message: error.message || i18n.t("error.unknown") };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
@@ -25,14 +26,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="app-loading" style={{ minHeight: "100dvh" }}>
           <div className="app-loading-content">
-            <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Đã xảy ra lỗi giao diện</h2>
+            <h2 style={{ margin: 0, fontSize: "1.1rem" }}>{i18n.t("error.ui_error")}</h2>
             <p style={{ fontSize: "0.85rem", opacity: 0.8 }}>{this.state.message}</p>
             <button
               type="button"
               className="app-retry-btn"
               onClick={() => window.location.reload()}
             >
-              Tải lại ứng dụng
+              {i18n.t("error.reload")}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-shell";
 import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter } from "./components/Icons";
 import { LibraryView } from "./components/library/LibraryView";
@@ -29,12 +30,14 @@ type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" |
 const LABS_TABS = ["wow", "brain", "daily", "graph"] as const;
 type LabsTab = (typeof LABS_TABS)[number];
 
-const LABS_TAB_ITEMS: { tab: LabsTab; icon: React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>; label: string }[] = [
-  { tab: "wow", icon: IconSparkle, label: "Phân tích sâu" },
-  { tab: "brain", icon: IconBrain, label: "Bộ não" },
-  { tab: "daily", icon: IconCalendar, label: "Đọc hôm nay" },
-  { tab: "graph", icon: IconGraph, label: "Biểu đồ" },
-];
+function getLabsTabItems(t: (key: string) => string): { tab: LabsTab; icon: React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>; label: string }[] {
+  return [
+    { tab: "wow", icon: IconSparkle, label: t("labs.deep_analysis") },
+    { tab: "brain", icon: IconBrain, label: t("labs.brain") },
+    { tab: "daily", icon: IconCalendar, label: t("labs.daily_read") },
+    { tab: "graph", icon: IconGraph, label: t("labs.graph") },
+  ];
+}
 
 function isLabsTab(tab: Tab): tab is LabsTab {
   return (LABS_TABS as readonly string[]).includes(tab);
@@ -48,12 +51,13 @@ const LibraryHub: React.FC<{
   onStartVerify?: (paperIds: string[]) => void;
   onStartWow?: (paperId: string) => void;
 }> = (props) => {
+  const { t } = useTranslation();
   const [subTab, setSubTab] = useState<"library" | "highlights" | "search" | "discovery">("library");
   const tabs = [
-    { key: "library" as const, icon: IconLibrary, label: "Thư viện" },
-    { key: "highlights" as const, icon: IconBookmark, label: "Đoạn trích" },
-    { key: "search" as const, icon: IconSearch, label: "Tìm kiếm" },
-    { key: "discovery" as const, icon: IconSparkle, label: "Khám phá" },
+    { key: "library" as const, icon: IconLibrary, label: t("library.title") },
+    { key: "highlights" as const, icon: IconBookmark, label: t("library.highlights") },
+    { key: "search" as const, icon: IconSearch, label: t("library.search") },
+    { key: "discovery" as const, icon: IconSparkle, label: t("library.discovery") },
   ];
   return (
     <div className="hub-shell">
@@ -71,11 +75,12 @@ const LibraryHub: React.FC<{
 const ReviewHub: React.FC<{
   onStartChat: (paperIds: string[]) => void;
 }> = ({ onStartChat }) => {
+  const { t } = useTranslation();
   const [subTab, setSubTab] = useState<"review" | "insights" | "screening">("review");
   const tabs = [
-    { key: "review" as const, icon: IconBookOpen, label: "Đánh giá" },
-    { key: "insights" as const, icon: IconBulb, label: "Nhận định" },
-    { key: "screening" as const, icon: IconFilter, label: "Sàng lọc" },
+    { key: "review" as const, icon: IconBookOpen, label: t("review.title") },
+    { key: "insights" as const, icon: IconBulb, label: t("review.insights") },
+    { key: "screening" as const, icon: IconFilter, label: t("review.screening") },
   ];
   return (
     <div className="hub-shell">
@@ -90,6 +95,7 @@ const ReviewHub: React.FC<{
 };
 
 function App() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     try {
       return (localStorage.getItem("researchmind:last-tab") as Tab) || "library";
@@ -105,7 +111,7 @@ function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [backendUnavailable, setBackendUnavailable] = useState(false);
-  const [initMessage, setInitMessage] = useState("Đang khởi động backend...");
+  const [initMessage, setInitMessage] = useState(t("startup.starting_backend"));
   const retryCountRef = React.useRef(0);
   const mountedRef = React.useRef(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -195,7 +201,7 @@ function App() {
       setShowSetup(true);
     } catch (e) {
       console.error("Replay setup failed:", e);
-      window.alert(e instanceof Error ? e.message : "Không thể mở lại Setup Wizard.");
+      window.alert(e instanceof Error ? e.message : t("startup.replay_setup_error"));
     }
   }, []);
 
@@ -242,8 +248,8 @@ function App() {
       setBackendUnavailable(false);
       setInitMessage(
         h.backend_ready
-          ? "Sẵn sàng"
-          : (h.init_message || "Đang khởi tạo AI engine...")
+          ? t("startup.ready")
+          : (h.init_message || t("startup.initializing_ai"))
       );
 
       try {
@@ -285,8 +291,8 @@ function App() {
       const waitSeconds = Math.min(120, retryCountRef.current * 2);
       setInitMessage(
         retryCountRef.current <= 3
-          ? "Đang kết nối backend... (chạy `uvicorn main:app --port 8765` hoặc `pnpm tauri:external`)"
-          : `Đang khởi động backend... (${waitSeconds}s)`
+          ? t("startup.connecting_backend")
+          : t("startup.starting_backend_retry", { seconds: waitSeconds })
       );
 
       const delayMs = retryCountRef.current <= 5 ? 500 : 2000;
@@ -298,9 +304,7 @@ function App() {
         if (!mountedRef.current) return;
         setCheckingSetup(false);
         setBackendUnavailable(true);
-        setInitMessage(
-          "Backend không phản hồi sau 4 phút. Lần đầu mở app có thể cần 1–3 phút để giải nén AI engine."
-        );
+        setInitMessage(t("startup.backend_timeout"));
       }
     }
   };
@@ -309,7 +313,7 @@ function App() {
     retryCountRef.current = 0;
     setBackendUnavailable(false);
     setCheckingSetup(true);
-    setInitMessage("Đang khởi động backend...");
+    setInitMessage(t("startup.starting_backend"));
     checkFirstRun();
   };
 
@@ -322,7 +326,7 @@ function App() {
   };
 
   const handleStartReview = (paperIds: string[]) => {
-    setInitialQuery("Tóm tắt giúp tôi các paper này theo cấu trúc: Background, Related Work, Methods, Key Findings, Research Gaps, và Insights.");
+    setInitialQuery(t("chat.review_mode"));
     setInitialMode("review");
     setChatPaperIds(paperIds);
     setChatSessionKey((k) => k + 1);
@@ -330,7 +334,7 @@ function App() {
   };
 
   const handleStartCritique = (paperIds: string[]) => {
-    setInitialQuery("Phản biện giúp tôi các paper này: liệt kê giả thiết sai hoặc chưa hợp lý, thiếu sót dữ liệu, hạn chế phương pháp, nguy cơ overclaim, và 3 đề xuất cải thiện.");
+    setInitialQuery(t("chat.critique_mode"));
     setInitialMode("critique");
     setChatPaperIds(paperIds);
     setChatSessionKey((k) => k + 1);
@@ -338,7 +342,7 @@ function App() {
   };
 
   const handleStartDebate = (paperIds: string[]) => {
-    setInitialQuery("Hãy tạo một cuộc tranh luận giữa hai AI (AI A và AI B) về chủ đề liên quan đến các paper này. Mỗi bên nêu luận điểm và phản biện, có trích dẫn và kết luận ngắn. Cuối cùng đưa ra 3 đề xuất kiểm chứng.");
+    setInitialQuery(t("chat.debate_mode"));
     setInitialMode("debate");
     setChatPaperIds(paperIds);
     setChatSessionKey((k) => k + 1);
@@ -346,7 +350,7 @@ function App() {
   };
 
   const handleStartVerify = (paperIds: string[]) => {
-    setInitialQuery("Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài.");
+    setInitialQuery(t("chat.verify_mode"));
     setInitialMode("verify");
     setChatPaperIds(paperIds);
     setChatSessionKey((k) => k + 1);
@@ -365,15 +369,15 @@ function App() {
         <div className="app-loading">
           <div className="app-loading-content">
             <IconBrain size={56} className="icon-gradient" style={{ marginBottom: 16 }} />
-            <p>Không thể kết nối đến backend tại {BASE_URL}.</p>
+            <p>{t("startup.cannot_connect", { url: BASE_URL })}</p>
             <p style={{ opacity: 0.72, fontSize: 14 }}>
-              Nếu đang chạy bản web/dev, hãy khởi động FastAPI hoặc chạy ứng dụng qua Tauri.
+              {t("startup.web_dev_hint")}
             </p>
             <button
               onClick={retryBackendConnection}
               className="app-retry-btn"
             >
-              Thử kết nối lại
+              {t("startup.retry_connection")}
             </button>
           </div>
         </div>
@@ -393,7 +397,7 @@ function App() {
                 <span className="brand-text">ResearchMind</span>
               </div>
               <nav className="sidebar-menu">
-                {["Thư viện", "Tìm kiếm", "Chat AI", "Trình tạo review", "Cài đặt"].map((label) => (
+                {[t("nav.library"), t("library.search"), t("nav.chat"), t("nav.review"), t("nav.settings")].map((label) => (
                   <button key={label} className="sidebar-menu-btn" disabled>
                     <IconSpinner size={16} style={{ marginRight: 12 }} />
                     <span>{label}</span>
@@ -429,7 +433,7 @@ function App() {
           <button
             className={`sidebar-collapse-btn${sidebarCollapsed ? " collapsed" : ""}`}
             onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+            title={sidebarCollapsed ? t("nav.sidebar_expand") : t("nav.sidebar_collapse")}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <polyline points={sidebarCollapsed ? "9 18 15 12 9 6" : "15 18 9 12 15 6"} />
@@ -438,11 +442,11 @@ function App() {
         </div>
         
         <nav className="sidebar-menu">
-          {[
-            { tab: "library" as Tab, icon: IconLibrary, label: "Thư viện" },
-            { tab: "chat" as Tab, icon: IconChat, label: "Chat AI" },
-            { tab: "review" as Tab, icon: IconBookOpen, label: "Trình tạo review" },
-            { tab: "evidence" as Tab, icon: IconChart, label: "Bằng chứng" },
+            {[
+            { tab: "library" as Tab, icon: IconLibrary, label: t("nav.library") },
+            { tab: "chat" as Tab, icon: IconChat, label: t("nav.chat") },
+            { tab: "review" as Tab, icon: IconBookOpen, label: t("nav.review") },
+            { tab: "evidence" as Tab, icon: IconChart, label: t("nav.evidence") },
           ].map(({ tab, icon: Icon, label }) => (
             <button
               key={tab}
@@ -474,19 +478,19 @@ function App() {
             id="sidebar-labs"
             className={`sidebar-menu-btn sidebar-menu-btn-labs ${isLabsTab(activeTab) ? "active" : ""}`}
             onClick={() => setActiveTab(isLabsTab(activeTab) ? activeTab : "wow")}
-            title={sidebarCollapsed ? "Thí nghiệm" : undefined}
+            title={sidebarCollapsed ? t("nav.labs") : undefined}
           >
             <IconSparkle size={20} />
-            <span className="sidebar-label">Thí nghiệm</span>
+            <span className="sidebar-label">{t("nav.labs")}</span>
           </button>
 
           <button
             className={`sidebar-menu-btn ${activeTab === "settings" ? "active" : ""}`}
             onClick={() => setActiveTab("settings")}
-            title={sidebarCollapsed ? "Cài đặt" : undefined}
+            title={sidebarCollapsed ? t("nav.settings") : undefined}
           >
             <IconSettings size={20} />
-            <span className="sidebar-label">Cài đặt</span>
+            <span className="sidebar-label">{t("nav.settings")}</span>
           </button>
         </nav>
 
@@ -495,9 +499,9 @@ function App() {
             <div className="sidebar-core-value">
               <div className="sidebar-local-info">
                 <IconLock size={12} style={{ marginRight: 6 }} />
-                <span>Dữ liệu cục bộ</span>
+                <span>{t("common.data_local")}</span>
               </div>
-              <div className="sidebar-core-value-text">Nền tảng nghiên cứu ưu tiên bằng chứng</div>
+              <div className="sidebar-core-value-text">{t("app.tagline")}</div>
             </div>
             <div className="sidebar-version">
               v0.6.0
@@ -515,11 +519,11 @@ function App() {
         {isLabsTab(activeTab) ? (
           <div className="hub-shell">
             <SubTabBar
-              tabs={LABS_TAB_ITEMS.map(({ tab, icon, label }) => ({ key: tab, icon, label }))}
+              tabs={getLabsTabItems(t).map(({ tab, icon, label }) => ({ key: tab, icon, label }))}
               active={activeTab}
               onChange={setActiveTab}
               variant="pills"
-              label="Phòng thí nghiệm"
+              label={t("labs.title")}
             />
             <div className="hub-shell__content labs-content">
               {activeTab === "wow" && (

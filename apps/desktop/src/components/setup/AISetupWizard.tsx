@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import {
   IconBrain,
@@ -29,6 +30,7 @@ interface SpecsResult {
 type Step = "welcome" | "mode" | "cloud_custom" | "storage" | "local" | "done";
 
 export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>("welcome");
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
   const [specsLoading, setSpecsLoading] = useState(true);
@@ -92,9 +94,9 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
   };
 
   const handleSaveStorage = async () => {
-    if (!storagePath) { setSaveMsg("Vui lòng chọn thư mục lưu trữ."); return; }
+    if (!storagePath) { setSaveMsg(t("setup.select_storage_error")); return; }
     setSaving(true);
-    setSaveMsg("Đang thiết lập thư mục lưu trữ...");
+    setSaveMsg(t("setup.saving_storage"));
     try {
       await api.moveStorage(storagePath);
       if (chosenMode === "local") {
@@ -105,7 +107,7 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         setStep("done");
       }
     } catch (e) {
-      setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không xác định"}`);
+      setSaveMsg(t("settings.save_error", { error: e instanceof Error ? e.message : t("error.unknown") }));
     } finally { setSaving(false); }
   };
 
@@ -120,14 +122,14 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
   const handleSaveCustom = async () => {
     const activeKey = customProvider === "deepseek" ? deepseekApiKey : customProvider === "gemini" ? geminiApiKey : claudeApiKey;
     if (!activeKey.trim()) {
-      setSaveMsg(`Vui lòng nhập API Key cho ${customProvider}`);
+      setSaveMsg(t("setup.need_api_key", { provider: customProvider }));
       return;
     }
     setSaving(true);
-    setSaveMsg("Đang kiểm tra...");
+    setSaveMsg(t("setup.checking_custom"));
     try {
       const val = await api.validateApiKey(customProvider, activeKey);
-      if (!val.valid) { setSaveMsg(`API Key không hợp lệ: ${val.error}`); setSaving(false); return; }
+      if (!val.valid) {      setSaveMsg(t("setup.invalid_api_key", { error: val.error })); setSaving(false); return; }
       await api.updateSettings({
         llm_mode: "cloud_custom", custom_cloud_provider: customProvider,
         deepseek_api_key: deepseekApiKey, gemini_api_key: geminiApiKey, claude_api_key: claudeApiKey,
@@ -136,13 +138,13 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
       setStep("storage");
       setSaveMsg(null);
     } catch (e) {
-      setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không thể lưu"}`);
+      setSaveMsg(t("settings.save_error", { error: e instanceof Error ? e.message : t("error.unknown") }));
     } finally { setSaving(false); }
   };
 
   const handleSaveLocal = async () => {
     setSaving(true);
-    setSaveMsg("Đang kiểm tra kết nối llama-server...");
+    setSaveMsg(t("setup.checking_llama"));
     try {
       const status = await api.getLocalStatus();
       setLocalConnected(status.connected);
@@ -150,10 +152,10 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         await api.updateSettings({ llm_mode: "local", llama_server_url: llamaServerUrl, local_model: localModel, setup_completed: true });
         setStep("done");
       } else {
-        setSaveMsg(`Không thể kết nối đến llama-server tại ${llamaServerUrl}.`);
+        setSaveMsg(t("setup.cannot_connect_llama", { url: llamaServerUrl }));
       }
     } catch (e) {
-      setSaveMsg(`Lỗi: ${e instanceof Error ? e.message : "Không xác định"}`);
+      setSaveMsg(t("settings.save_error", { error: e instanceof Error ? e.message : t("error.unknown") }));
     } finally { setSaving(false); }
   };
 
@@ -163,15 +165,15 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
         {step === "welcome" && (
           <div className="aiwizard-step welcome-step">
             <div className="aiwizard-logo"><IconBrain size={48} className="icon-gradient" /></div>
-            <h1 className="aiwizard-title">Chào mừng đến với ResearchMind</h1>
-            <p className="aiwizard-desc">Nền tảng nghiên cứu ưu tiên bằng chứng: chuyển paper thành câu trả lời và review có thể kiểm chứng.</p>
+            <h1 className="aiwizard-title">{t("setup.welcome_title")}</h1>
+            <p className="aiwizard-desc">{t("setup.welcome_desc")}</p>
             {specsLoading ? <IconSpinner size={24} className="icon-spin" /> : (
               <div className="aiwizard-scan-hud">
                 <div className="scan-hud-grid">
-                  <div className="scan-hud-item scanned"><IconCpu size={20} /><span>{specs?.cpu_cores} Cores</span></div>
-                  <div className="scan-hud-item scanned"><IconMonitor size={20} /><span>{specs?.total_ram_gb} GB RAM</span></div>
+                  <div className="scan-hud-item scanned"><IconCpu size={20} /><span>{t("setup.cores_count", { count: specs?.cpu_cores })}</span></div>
+                  <div className="scan-hud-item scanned"><IconMonitor size={20} /><span>{t("setup.ram_gb", { gb: specs?.total_ram_gb })}</span></div>
                 </div>
-                <button className="aiwizard-btn-primary" onClick={() => setStep("mode")}>Bắt đầu thiết lập →</button>
+                <button className="aiwizard-btn-primary" onClick={() => setStep("mode")}>{t("setup.start_setup")} →</button>
               </div>
             )}
           </div>
@@ -179,73 +181,73 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
 
         {step === "mode" && (
           <div className="aiwizard-step mode-step">
-            <h2 className="aiwizard-title">Chọn chế độ AI</h2>
+            <h2 className="aiwizard-title">{t("setup.choose_ai_mode")}</h2>
             <div className="aiwizard-mode-cards-grid">
               <div className={`aiwizard-mode-card-premium ${chosenMode === "cloud_free" ? "active" : ""}`} onClick={() => setChosenMode("cloud_free")}>
-                <IconZap size={28} /><h3>Cloud Free</h3><p>Gemini API miễn phí</p>
+                <IconZap size={28} /><h3>{t("setup.cloud_free_title")}</h3><p>{t("setup.cloud_free_desc")}</p>
               </div>
               <div className={`aiwizard-mode-card-premium ${chosenMode === "cloud_custom" ? "active" : ""}`} onClick={() => setChosenMode("cloud_custom")}>
-                <IconKey size={28} /><h3>API Key riêng</h3><p>API Key cá nhân</p>
+                <IconKey size={28} /><h3>{t("setup.custom_key_title")}</h3><p>{t("setup.custom_key_desc")}</p>
               </div>
               <div className={`aiwizard-mode-card-premium ${chosenMode === "local" ? "active" : ""}`} onClick={() => setChosenMode("local")}>
-                <IconLock size={28} /><h3>Local GGUF</h3><p>llama-server + model cục bộ</p>
+                <IconLock size={28} /><h3>{t("setup.local_title")}</h3><p>{t("setup.local_desc")}</p>
               </div>
             </div>
-            <button className="aiwizard-btn-primary" onClick={handleNextFromMode} disabled={!chosenMode}>Tiếp tục →</button>
+            <button className="aiwizard-btn-primary" onClick={handleNextFromMode} disabled={!chosenMode}>{t("common.continue")} →</button>
           </div>
         )}
 
         {step === "cloud_custom" && (
           <div className="aiwizard-step">
-            <h2 className="aiwizard-title">Cấu hình API Key</h2>
+            <h2 className="aiwizard-title">{t("setup.configure_api_key")}</h2>
             <div className="provider-tabs">
               {["deepseek", "gemini", "claude"].map(p => (
                 <button key={p} className={`provider-tab-btn-premium ${customProvider === p ? "active" : ""}`} onClick={() => { setCustomProvider(p as any); setSaveMsg(null); }}>{p}</button>
               ))}
             </div>
             <div className="aiwizard-field-premium">
-                  <input type="password" className="aiwizard-input-premium" value={customProvider === "deepseek" ? deepseekApiKey : customProvider === "gemini" ? geminiApiKey : claudeApiKey} onChange={e => { const v = e.target.value; if (customProvider === "deepseek") setDeepseekApiKey(v); else if (customProvider === "gemini") setGeminiApiKey(v); else setClaudeApiKey(v); }} placeholder="Nhập API Key..." />
+                  <input type="password" className="aiwizard-input-premium" value={customProvider === "deepseek" ? deepseekApiKey : customProvider === "gemini" ? geminiApiKey : claudeApiKey} onChange={e => { const v = e.target.value; if (customProvider === "deepseek") setDeepseekApiKey(v); else if (customProvider === "gemini") setGeminiApiKey(v); else setClaudeApiKey(v); }} placeholder={t("setup.api_key_placeholder")} />
             </div>
             {saveMsg && <p className="aiwizard-error-message"><IconError size={16} /> {saveMsg}</p>}
-            <button className="aiwizard-btn-primary" onClick={handleSaveCustom} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} Xác nhận</button>
+            <button className="aiwizard-btn-primary" onClick={handleSaveCustom} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} {t("common.save")}</button>
           </div>
         )}
 
         {step === "local" && (
           <div className="aiwizard-step local-setup-step">
-            <h2 className="aiwizard-title">Cấu hình llama-server</h2>
+            <h2 className="aiwizard-title">{t("setup.configure_llama")}</h2>
             <div className="aiwizard-field-premium">
-              <label>llama-server URL:</label>
+              <label>{t("setup.llama_server_url")}</label>
               <input className="aiwizard-input-premium" value={llamaServerUrl} onChange={e => setLlamaServerUrl(e.target.value)} />
             </div>
             <div className="aiwizard-field-premium">
-              <label>Tên model (GGUF):</label>
+              <label>{t("setup.model_name")}</label>
               <input className="aiwizard-input-premium" value={localModel} onChange={e => setLocalModel(e.target.value)} />
             </div>
-            {localConnected === false && <LocalErrorBanner title="Không thể kết nối đến llama-server" message={`Đảm bảo llama-server.exe đang chạy tại ${llamaServerUrl}`} />}
+            {localConnected === false && <LocalErrorBanner title={t("error.llama_connect")} message={t("setup.llama_server_hint", { url: llamaServerUrl })} />}
             {saveMsg && <p className="aiwizard-error-message"><IconError size={16} /> {saveMsg}</p>}
-            <button className="aiwizard-btn-primary" onClick={handleSaveLocal} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} Kết nối & Hoàn tất</button>
+            <button className="aiwizard-btn-primary" onClick={handleSaveLocal} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} {t("setup.connect_finish")}</button>
           </div>
         )}
 
         {step === "storage" && (
           <div className="aiwizard-step storage-step">
-            <h2 className="aiwizard-title">Chọn thư mục lưu trữ</h2>
+            <h2 className="aiwizard-title">{t("setup.choose_storage")}</h2>
             <div className="storage-path-selector-box">
               <input type="text" className="storage-path-input-read" value={storagePath} readOnly onClick={handleSelectStorageDir} />
-              <button onClick={handleSelectStorageDir} disabled={saving}>Thay đổi</button>
+              <button onClick={handleSelectStorageDir} disabled={saving}>{t("common.edit")}</button>
             </div>
-            {diskSpace && <p>{diskSpace.free_gb} GB trống</p>}
+            {diskSpace && <p>{t("setup.disk_free", { gb: diskSpace.free_gb })}</p>}
             {saveMsg && <p className="aiwizard-error-message"><IconError size={16} /> {saveMsg}</p>}
-            <button className="aiwizard-btn-primary" onClick={handleSaveStorage} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} Hoàn tất</button>
+            <button className="aiwizard-btn-primary" onClick={handleSaveStorage} disabled={saving}>{saving ? <IconSpinner size={18} className="icon-spin" /> : <IconCheck size={18} />} {t("setup.finish")}</button>
           </div>
         )}
 
         {step === "done" && (
           <div className="aiwizard-step done-step">
             <IconSparkle size={40} className="icon-gradient" />
-            <h2 className="aiwizard-title">Sẵn sàng!</h2>
-            <button className="aiwizard-btn-primary" onClick={onComplete}>Khởi chạy ResearchMind</button>
+            <h2 className="aiwizard-title">{t("setup.ready")}</h2>
+            <button className="aiwizard-btn-primary" onClick={onComplete}>{t("setup.launch")}</button>
           </div>
         )}
       </div>

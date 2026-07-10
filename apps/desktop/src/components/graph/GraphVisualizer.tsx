@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Network, type Options } from "vis-network";
 import { DataSet } from "vis-data";
 import { api, GraphEntity, GraphVisualizationData } from "../../lib/api";
@@ -78,6 +79,7 @@ function EntityDetailPanel({
   detail: EntityDetail;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="graph-detail-panel">
       <div className="graph-detail-header">
@@ -88,24 +90,24 @@ function EntityDetailPanel({
       </div>
       <div className="graph-detail-body">
         <div className="graph-detail-field">
-          <span className="graph-detail-label">Type</span>
+          <span className="graph-detail-label">{t("graph.entity_type")}</span>
           <span className="graph-detail-value">
             <span className="entity-type">{detail.entity.type || "concept"}</span>
           </span>
         </div>
         <div className="graph-detail-field">
-          <span className="graph-detail-label">Rank</span>
+          <span className="graph-detail-label">{t("graph.entity_rank")}</span>
           <span className="graph-detail-value">{detail.entity.rank.toFixed(2)}</span>
         </div>
         {detail.entity.description && (
           <div className="graph-detail-field">
-            <span className="graph-detail-label">Description</span>
+            <span className="graph-detail-label">{t("graph.entity_description")}</span>
             <p className="graph-detail-desc">{detail.entity.description}</p>
           </div>
         )}
         {detail.entity.community_ids.length > 0 && (
           <div className="graph-detail-field">
-            <span className="graph-detail-label">Communities</span>
+            <span className="graph-detail-label">{t("graph.entity_communities")}</span>
             <div className="graph-detail-communities">
               {detail.entity.community_ids.map((cid) => (
                 <span
@@ -121,9 +123,7 @@ function EntityDetailPanel({
         )}
         {detail.relationships.length > 0 && (
           <div className="graph-detail-field">
-            <span className="graph-detail-label">
-              Relationships ({detail.relationships.length})
-            </span>
+            <span className="graph-detail-label">{t("graph.entity_relationships", { count: detail.relationships.length })}</span>
             <div className="graph-detail-rels">
               {detail.relationships.slice(0, 20).map((r, i) => (
                 <div key={i} className="graph-detail-rel">

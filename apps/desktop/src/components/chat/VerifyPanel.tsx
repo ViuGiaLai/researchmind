@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CheckCircle2, AlertCircle, ExternalLink, RefreshCw, BarChart2, BookOpen, Calendar, HelpCircle as InfoIcon } from "lucide-react";
 import { ExternalSource, api } from "../../lib/api";
 
@@ -8,13 +9,8 @@ interface VerifyPanelProps {
   onRefresh?: (doi: string) => void;
 }
 
-const STATUS_MESSAGES: Record<string, string> = {
-  full: "Đã xác thực thông tin qua OpenAlex, Crossref & Semantic Scholar",
-  partial: "Xác thực một phần — một số nguồn cơ sở dữ liệu không phản hồi",
-  local_only: "Không đủ bằng chứng học thuật bên ngoài để đối chiếu claim này.",
-};
-
 export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
+  const { t } = useTranslation();
   const [refreshingDoi, setRefreshingDoi] = useState<string | null>(null);
   const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
 
@@ -29,7 +25,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
         }}
       >
         <InfoIcon size={16} className="text-text-muted mt-0.5 flex-shrink-0" />
-        <span className="leading-relaxed">{STATUS_MESSAGES.local_only}</span>
+        <span className="leading-relaxed">{t("verify.local_only")}</span>
       </div>
     );
   }
@@ -52,7 +48,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
     >
       <div className="flex items-center gap-2 font-medium leading-none" style={{ color: alertText }}>
         <AlertIcon size={16} className="flex-shrink-0" />
-        <span>{STATUS_MESSAGES[status]}</span>
+        <span>{t(`verify.${status}`)}</span>
       </div>
 
       <div className="flex flex-col gap-3 mt-1">
@@ -89,16 +85,16 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
                   setRefreshMsg(null);
                   try {
                     await api.invalidateAcademicCache(src.doi);
-                    setRefreshMsg("Đã xoá cache. Hãy gửi lại câu hỏi để cập nhật.");
+                    setRefreshMsg(t("verify.cache_cleared"));
                     onRefresh?.(src.doi);
                   } catch {
-                    setRefreshMsg("Lỗi khi xoá cache");
+                    setRefreshMsg(t("verify.cache_error"));
                   } finally {
                     setRefreshingDoi(null);
                   }
                 }}
                 disabled={refreshingDoi === src.doi}
-                title="Xoá cache và làm mới metadata"
+                title={t("verify.refresh_title")}
                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-border text-text-muted hover:text-text hover:bg-surface transition-all disabled:opacity-50"
                 style={{
                   background: "transparent",
@@ -107,7 +103,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
                 }}
               >
                 <RefreshCw size={11} className={refreshingDoi === src.doi ? "animate-spin" : ""} />
-                <span>{refreshingDoi === src.doi ? "Đang xóa..." : "Làm mới"}</span>
+                <span>{refreshingDoi === src.doi ? t("verify.refreshing") : t("verify.refresh_btn")}</span>
               </button>
 
               {refreshMsg && refreshingDoi !== src.doi && (
@@ -122,16 +118,16 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
               {src.openalex && (
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border bg-primary/5 text-primary" style={{ background: "rgba(45, 212, 191, 0.05)", borderColor: "rgba(45, 212, 191, 0.15)", color: "var(--color-primary, #2dd4bf)" }}>
                   <BarChart2 size={11} />
-                  <span>{src.openalex.citation_count.toLocaleString()} trích dẫn (OA)</span>
+                  <span>{t("verify.citations_oa", { count: src.openalex.citation_count.toLocaleString() })}</span>
                 </span>
               )}
               {src.semantic_scholar && (
                 <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border" style={{ background: "rgba(139, 92, 246, 0.05)", borderColor: "rgba(139, 92, 246, 0.15)", color: "#a78bfa" }}>
                   <BookOpen size={11} />
                   <span>
-                    {src.semantic_scholar.citation_count} trích dẫn (S2)
+                    {t("verify.citations_s2", { count: src.semantic_scholar.citation_count })}
                     {src.semantic_scholar.influential_citation_count > 0 &&
-                      ` · ${src.semantic_scholar.influential_citation_count} quan trọng`}
+                      ` · ${t("verify.citations_influential", { count: src.semantic_scholar.influential_citation_count })}`}
                   </span>
                 </span>
               )}
@@ -153,7 +149,7 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
             {src.recent_citing.length > 0 && (
               <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.03)" }}>
                 <div className="text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wider">
-                  Nghiên cứu gần đây trích dẫn (từ 2022)
+                  {t("verify.recent_citing")}
                 </div>
                 <div className="flex flex-col gap-2">
                   {src.recent_citing.slice(0, 3).map((cite, i) => (
@@ -182,14 +178,14 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
             {src.s2_citations && src.s2_citations.length > 0 && (
               <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.03)" }}>
                 <div className="text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wider">
-                  Trích dẫn nổi bật (S2)
+                  {t("verify.s2_citations")}
                 </div>
                 <div className="flex flex-col gap-2">
                   {src.s2_citations.slice(0, 3).map((cite, i) => (
                     <div key={i} className="flex gap-2 text-xs text-text-muted">
                       <span className="flex-1 leading-normal">{cite.title}</span>
                       <span className="font-semibold text-primary flex-shrink-0" style={{ color: "var(--color-primary, #2dd4bf)" }}>
-                        ({cite.citation_count} trích dẫn)
+                        {t("verify.citations_s2_count", { count: cite.citation_count })}
                       </span>
                     </div>
                   ))}
@@ -201,14 +197,14 @@ export function VerifyPanel({ sources, status, onRefresh }: VerifyPanelProps) {
             {src.s2_recommendations && src.s2_recommendations.length > 0 && (
               <div className="mt-3 pt-3 border-t" style={{ borderColor: "rgba(255,255,255,0.03)" }}>
                 <div className="text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wider">
-                  Nghiên cứu tương đồng đề xuất
+                  {t("verify.s2_recommendations")}
                 </div>
                 <div className="flex flex-col gap-2">
                   {src.s2_recommendations.slice(0, 2).map((rec, i) => (
                     <div key={i} className="flex gap-2 text-xs text-text-muted">
                       <span className="flex-1 leading-normal">{rec.title}</span>
                       <span className="font-semibold text-primary flex-shrink-0" style={{ color: "var(--color-primary, #2dd4bf)" }}>
-                        ({rec.citation_count} cit)
+                        {t("verify.citations_s2_count", { count: rec.citation_count })}
                       </span>
                     </div>
                   ))}

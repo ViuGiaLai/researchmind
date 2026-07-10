@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { IconBrain } from "../Icons";
 
@@ -8,6 +9,7 @@ interface ThinkingBlockProps {
 }
 
 const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(!isThinking);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
         {isCollapsed ? <ChevronRight size={14} style={{ display: "inline" }} /> : <ChevronDown size={14} style={{ display: "inline" }} />}
         <IconBrain size={16} style={{ display: "inline" }} className={isThinking ? "brain-icon-loading" : ""} />
         <span>
-          {isThinking ? "AI đang suy nghĩ..." : "Chuỗi suy luận (Thinking Process)"}
+          {isThinking ? t("chat.thinking_in_progress") : t("chat.thinking_process")}
         </span>
         {isThinking && (
           <span
@@ -54,7 +56,7 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ text, isThinking }) => {
               fontStyle: "italic",
             }}
           >
-            (đang tạo...)
+            {t("chat.thinking_creating")}
           </span>
         )}
       </div>
@@ -185,10 +187,10 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
     case "ref_citation":
       const citeData = allCitations?.find(c => c.ref_id === seg.refId);
       const tooltipLines = [
-        citeData?.paper_title || `Nguồn ${seg.refId}`,
-        citeData?.page ? `Trang ${citeData.page}` : null,
+        citeData?.paper_title || t("cite.source_fallback", { refId: seg.refId }),
+        citeData?.page ? t("cite.page_label", { page: citeData.page }) : null,
         citeData?.text_snippet ? `"${citeData.text_snippet}"` : null,
-        citeData ? "Nhấp để mở PDF" : null,
+        citeData ? t("cite.open_pdf") : null,
       ].filter(Boolean).join(" | ");
       return React.createElement(
         "span",
@@ -196,7 +198,7 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
           key: i,
           className: "citation-ref",
           onClick: () => onCitationClick?.(seg.refId!),
-          title: tooltipLines || `Nguồn ${seg.refId}`,
+          title: tooltipLines || t("cite.source_fallback", { refId: seg.refId }),
           style: {
             color: "var(--color-primary)",
             fontWeight: 600,
@@ -218,9 +220,9 @@ function renderSegment(seg: string | Segment, i: number, onCitationClick?: (refI
             fontWeight: 500,
             fontSize: "0.85em",
           },
-          title: seg.page ? `Trang ${seg.page}` : seg.text,
+          title: seg.page ? t("cite.page_label", { page: seg.page }) : seg.text,
         },
-        `[${seg.text}${seg.page ? `, tr.${seg.page}` : ""}]`
+        `[${seg.text}${seg.page ? `, ${t("cite.page_short", { page: seg.page })}` : ""}]`
       );
     default:
       return seg.text;

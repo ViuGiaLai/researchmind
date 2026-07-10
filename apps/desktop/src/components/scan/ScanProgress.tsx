@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { IconFileText, IconError, IconCheck, IconStop } from "../Icons";
 
 interface ScanProgress {
@@ -20,6 +21,7 @@ const formatPercent = (pct: number): string => {
 };
 
 export const ScanProgress: React.FC<ScanProgressProps> = ({ progress, status }) => {
+  const { t } = useTranslation();
   if (status === "idle") return null;
 
   const isScanning = status === "scanning";
@@ -60,23 +62,20 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({ progress, status }) 
             </span>
           </>
         )}
-        {!isScanning && status === "completed" && (
-          <span className="scan-progress-done">
-            <IconCheck size={14} style={{ marginRight: 4 }} />
-            Đã hoàn thành! {progress.indexed_files} file đã được index.
-          </span>
+        {!isScanning && status === "completed" && (            <span className="scan-progress-done">
+              <IconCheck size={14} style={{ marginRight: 4 }} />
+              {t("scan_progress.done", { count: progress.indexed_files })}
+            </span>
         )}
-        {!isScanning && status === "error" && (
-          <span className="scan-progress-error">
-            <IconError size={14} style={{ marginRight: 4 }} />
-            {progress.current_file || "Có lỗi xảy ra."}
-          </span>
+        {!isScanning && status === "error" && (            <span className="scan-progress-error">
+              <IconError size={14} style={{ marginRight: 4 }} />
+              {progress.current_file || t("scan_progress.error_generic")}
+            </span>
         )}
-        {!isScanning && status === "stopped" && (
-          <span className="scan-progress-stopped">
-            <IconStop size={14} style={{ marginRight: 4 }} />
-            Đã dừng. {progress.indexed_files} file đã được index.
-          </span>
+        {!isScanning && status === "stopped" && (            <span className="scan-progress-stopped">
+              <IconStop size={14} style={{ marginRight: 4 }} />
+              {t("scan_progress.stopped", { count: progress.indexed_files })}
+            </span>
         )}
       </div>
     </div>

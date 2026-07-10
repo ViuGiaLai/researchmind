@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { IconCheck, IconError, IconSearch, IconDownload, IconBrain, IconChart, IconWarning, IconFileText, IconLink, IconWithText } from "../Icons";
 
 interface ClaimAnalysis {
@@ -21,12 +22,6 @@ interface TrustPanelProps {
   onExport?: () => void;
 }
 
-const severityColor = (score: number): { bg: string; color: string; label: string } => {
-  if (score >= 80) return { bg: "rgba(16, 185, 129, 0.1)", color: "#10b981", label: "Đáng tin" };
-  if (score >= 60) return { bg: "rgba(251, 191, 36, 0.1)", color: "#f59e0b", label: "Trung bình" };
-  return { bg: "rgba(239, 68, 68, 0.1)", color: "#ef4444", label: "Thiếu tin cậy" };
-};
-
 export const TrustPanel: React.FC<TrustPanelProps> = ({
   analysis,
   onViewUncited,
@@ -34,6 +29,14 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
   onKeepOnlyCited,
   onExport,
 }) => {
+  const { t } = useTranslation();
+
+  const severityColor = (score: number): { bg: string; color: string; label: string } => {
+    if (score >= 80) return { bg: "rgba(16, 185, 129, 0.1)", color: "#10b981", label: t("trust.severity_high") };
+    if (score >= 60) return { bg: "rgba(251, 191, 36, 0.1)", color: "#f59e0b", label: t("trust.severity_medium") };
+    return { bg: "rgba(239, 68, 68, 0.1)", color: "#ef4444", label: t("trust.severity_low") };
+  };
+
   const severity = severityColor(analysis.confidence_score);
 
   if (!analysis || analysis.total_claims === 0) return null;
@@ -63,7 +66,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <IconBrain size={16} />
-          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Báo cáo kiểm chứng</span>
+          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{t("trust.report_title")}</span>
         </div>
         <div
           style={{
@@ -94,12 +97,12 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
         }}
       >
         {[
-          { label: "Tổng nhận định", value: analysis.total_claims, icon: IconChart },
-          { label: "Có trích dẫn", value: `${analysis.cited_claims}/${analysis.total_claims}`, icon: IconCheck, color: "#10b981" },
-          { label: "Thiếu nguồn", value: analysis.uncited_claims, icon: IconWarning, color: analysis.uncited_claims > 0 ? "#f59e0b" : undefined },
-          { label: "Nguồn trực tiếp", value: analysis.direct_sources, icon: IconFileText },
-          { label: "Nguồn gián tiếp", value: analysis.indirect_sources, icon: IconLink, color: "#94a3b8" },
-          { label: "Trích dẫn nghi ngờ", value: analysis.suspicious_citations, icon: IconSearch, color: analysis.suspicious_citations > 0 ? "#ef4444" : undefined },
+          { label: t("trust.total_claims"), value: analysis.total_claims, icon: IconChart },
+          { label: t("trust.cited_claims"), value: `${analysis.cited_claims}/${analysis.total_claims}`, icon: IconCheck, color: "#10b981" },
+          { label: t("trust.uncited_claims"), value: analysis.uncited_claims, icon: IconWarning, color: analysis.uncited_claims > 0 ? "#f59e0b" : undefined },
+          { label: t("trust.direct_sources"), value: analysis.direct_sources, icon: IconFileText },
+          { label: t("trust.indirect_sources"), value: analysis.indirect_sources, icon: IconLink, color: "#94a3b8" },
+          { label: t("trust.suspicious_citations"), value: analysis.suspicious_citations, icon: IconSearch, color: analysis.suspicious_citations > 0 ? "#ef4444" : undefined },
         ].map((stat, i) => (
           <div
             key={i}
@@ -151,7 +154,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
             }}
           >
             <IconWithText icon={IconWarning} size={12}>
-              Nhận định thiếu nguồn
+              {t("trust.uncited_heading")}
             </IconWithText>
           </div>
           {analysis.uncited_claim_texts.map((text, i) => (
@@ -185,7 +188,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
             }}
           >
             <IconWithText icon={IconSearch} size={12}>
-              Trích dẫn nghi ngờ
+              {t("trust.suspicious_heading")}
             </IconWithText>
           </div>
           {analysis.suspicious_citation_texts.map((text, i) => (
@@ -216,15 +219,15 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
         }}
       >
         {analysis.uncited_claims > 0 && (
-          <ActionButton label="Xem nhận định thiếu nguồn" icon={<IconError size={12} />} onClick={onViewUncited} />
+          <ActionButton label={t("trust.action_view_uncited")} icon={<IconError size={12} />} onClick={onViewUncited} />
         )}
         {analysis.uncited_claims > 0 && (
-          <ActionButton label="Tìm thêm nguồn" icon={<IconSearch size={12} />} onClick={onFindMoreSources} />
+          <ActionButton label={t("trust.action_find_sources")} icon={<IconSearch size={12} />} onClick={onFindMoreSources} />
         )}
         {analysis.uncited_claims > 0 && (
-          <ActionButton label="Giữ nhận định có bằng chứng" icon={<IconCheck size={12} />} onClick={onKeepOnlyCited} />
+          <ActionButton label={t("trust.action_keep_cited")} icon={<IconCheck size={12} />} onClick={onKeepOnlyCited} />
         )}
-        <ActionButton label="Xuất báo cáo" icon={<IconDownload size={12} />} onClick={onExport} />
+        <ActionButton label={t("trust.action_export_report")} icon={<IconDownload size={12} />} onClick={onExport} />
       </div>
     </div>
   );

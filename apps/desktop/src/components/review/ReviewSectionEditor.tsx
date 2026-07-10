@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -40,7 +41,7 @@ interface ReviewSectionEditorProps {
   onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void;
 }
 
-function EditorToolbar({ editor }: { editor: any }) {
+function EditorToolbar({ editor, t }: { editor: any; t: (key: string, options?: Record<string, unknown>) => string }) {
   if (!editor) return null;
   const btnStyle = (active: boolean, disabled = false): React.CSSProperties => ({
     padding: "4px 8px",
@@ -65,62 +66,62 @@ function EditorToolbar({ editor }: { editor: any }) {
         style={btnStyle(false, !editor.can().undo())}
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
-        title="Undo"
+        title={t("review_editor.undo")}
       >↩ Undo</button>
       <button
         style={btnStyle(false, !editor.can().redo())}
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
-        title="Redo"
+        title={t("review_editor.redo")}
       >↪ Redo</button>
       <div style={{ width: 1, height: 16, background: "var(--color-border, rgba(148,163,184,0.2))", margin: "0 4px" }} />
       <button
         style={btnStyle(editor.isActive("bold"))}
         onClick={() => editor.chain().focus().toggleBold().run()}
-        title="Bold"
+        title={t("review_editor.bold")}
       ><strong>B</strong></button>
       <button
         style={btnStyle(editor.isActive("italic"))}
         onClick={() => editor.chain().focus().toggleItalic().run()}
-        title="Italic"
+        title={t("review_editor.italic")}
       ><em>I</em></button>
       <div style={{ width: 1, height: 16, background: "var(--color-border, rgba(148,163,184,0.2))", margin: "0 4px" }} />
       <button
         style={btnStyle(editor.isActive("heading", { level: 1 }))}
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        title="Heading 1"
+        title={t("review_editor.heading1")}
       >H1</button>
       <button
         style={btnStyle(editor.isActive("heading", { level: 2 }))}
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        title="Heading 2"
+        title={t("review_editor.heading2")}
       >H2</button>
       <button
         style={btnStyle(editor.isActive("heading", { level: 3 }))}
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        title="Heading 3"
+        title={t("review_editor.heading3")}
       >H3</button>
       <div style={{ width: 1, height: 16, background: "var(--color-border, rgba(148,163,184,0.2))", margin: "0 4px" }} />
       <button
         style={btnStyle(editor.isActive("bulletList"))}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        title="Bullet List"
+        title={t("review_editor.bullet_list")}
       >• List</button>
       <button
         style={btnStyle(editor.isActive("orderedList"))}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        title="Ordered List"
+        title={t("review_editor.ordered_list")}
       >1. List</button>
       <div style={{ width: 1, height: 16, background: "var(--color-border, rgba(148,163,184,0.2))", margin: "0 4px" }} />
       <button
         style={btnStyle(editor.isActive("blockquote"))}
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        title="Blockquote"
+        title={t("review_editor.blockquote")}
       >"</button>
       <button
         style={btnStyle(editor.isActive("codeBlock"))}
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        title="Code Block"
+        title={t("review_editor.code_block")}
       >{"</>"}</button>
     </div>
   );
@@ -149,7 +150,7 @@ function renderContentWithCitations(
               onCitationClick?.(citation.paper_id, citation.paper_title);
             }}
             style={{ cursor: "pointer" }}
-            title={`Mở: ${citation.paper_title}`}
+            title={citation.paper_title}
           >
             [{num}]
           </span>
@@ -170,9 +171,9 @@ function renderContentWithCitations(
               onCitationClick?.(paperId, label, page);
             }}
             style={{ cursor: "pointer" }}
-            title={`Mở: ${label}${page ? ` trang ${page}` : ""}`}
+            title={page ? `${label} ${page}` : label}
           >
-            {page ? `[${page}]` : `[${label.slice(0, 20)}…]`}
+            {page ? `[${page}]` : `[${label.slice(0, 20)}...]`}
           </span>
         );
       }
@@ -199,6 +200,7 @@ export function ReviewSectionEditor({
   onClose,
   onCitationClick,
 }: ReviewSectionEditorProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const editorRef = useRef(content);
 
@@ -207,7 +209,7 @@ export function ReviewSectionEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
-      Placeholder.configure({ placeholder: "Nhập nội dung..." }),
+      Placeholder.configure({ placeholder: t("review_editor.content_placeholder") }),
     ],
     content: "",
     editable: false,
@@ -366,9 +368,8 @@ export function ReviewSectionEditor({
                   border: "1px solid var(--color-primary)",
                   background: "var(--color-primary)", color: "#fff",
                   cursor: "pointer", fontSize: "0.75rem", fontWeight: 500,
-                }}
-              >
-                Lưu
+                }}                >
+                {t("review_editor.save")}
               </button>
               <button
                 onClick={handleCancel}
@@ -377,9 +378,8 @@ export function ReviewSectionEditor({
                   border: "1px solid rgba(148, 163, 184, 0.2)",
                   background: "transparent", color: "var(--color-text-muted)",
                   cursor: "pointer", fontSize: "0.75rem",
-                }}
-              >
-                Huỷ
+                }}                >
+                {t("review_editor.cancel")}
               </button>
             </>
           ) : (
@@ -393,9 +393,8 @@ export function ReviewSectionEditor({
                   background: "transparent", color: "var(--color-text-muted)",
                   cursor: "pointer", fontSize: "0.75rem",
                   opacity: loading ? 0.5 : 1,
-                }}
-              >
-                Sửa
+                }}                >
+                {t("review_editor.edit")}
               </button>
               <button
                 onClick={handleRegenerate}
@@ -415,7 +414,7 @@ export function ReviewSectionEditor({
                 ) : (
                   <IconRefresh size={12} />
                 )}
-                {loading ? "Đang tạo..." : "Tạo lại"}
+                {loading ? t("review_editor.generating") : t("review_editor.regenerate")}
               </button>
             </>
           )}
@@ -423,7 +422,7 @@ export function ReviewSectionEditor({
       </div>
       {isEditing ? (
         <div>
-          <EditorToolbar editor={editor} />
+          <EditorToolbar editor={editor} t={t} />
           <EditorContent editor={editor} />
         </div>
       ) : loading ? (
@@ -433,7 +432,7 @@ export function ReviewSectionEditor({
           display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         }}>
           <IconSpinner size={14} />
-          <span>Đang tạo nội dung...</span>
+          <span>{t("review_editor.generating_content")}</span>
         </div>
       ) : content ? (
         <div style={{ padding: "10px 14px" }}>
@@ -448,7 +447,7 @@ export function ReviewSectionEditor({
         </div>
       ) : (
         <div style={{ padding: "20px 0", textAlign: "center", color: "var(--color-text-muted)", fontSize: "0.85rem" }}>
-          Nhấn "Tạo lại" để tạo nội dung cho phần này
+          {t("review_editor.hint_generate")}
         </div>
       )}
 
@@ -479,7 +478,7 @@ export function ReviewSectionEditor({
                   fontSize: "0.72rem", color: "var(--color-primary)",
                   cursor: onCitationClick ? "pointer" : "default",
                 }}
-                title="Mở tài liệu"
+                title={t("review_builder.open_doc")}
               >
                 <span style={{ fontWeight: 700 }}>[{i + 1}]</span>
                 {c.paper_title}
