@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconFileText, IconClose } from "../Icons";
 
 interface Citation {
@@ -23,6 +24,7 @@ interface SourcePanelProps {
 }
 
 export function SourcePanel({ citations, evidence, onClose, onCitationClick }: SourcePanelProps) {
+  const { t } = useTranslation();
   const papers = new Map<string, { title: string; chunks: EvidenceItem[] }>();
   for (const ev of evidence) {
     if (!papers.has(ev.paper_id)) {
@@ -52,7 +54,7 @@ export function SourcePanel({ citations, evidence, onClose, onCitationClick }: S
           borderBottom: "1px solid var(--color-border, rgba(148, 163, 184, 0.1))",
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: "0.82rem" }}>Sources</span>
+        <span style={{ fontWeight: 600, fontSize: "0.82rem" }}>{t("review_source.sources")}</span>
         <button
           onClick={onClose}
           style={{
@@ -73,7 +75,7 @@ export function SourcePanel({ citations, evidence, onClose, onCitationClick }: S
         {citations.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Citations
+              {t("review_source.citations")}
             </div>
             {citations.map((c, i) => (
               <div
@@ -90,7 +92,7 @@ export function SourcePanel({ citations, evidence, onClose, onCitationClick }: S
                   background: "rgba(var(--color-primary-rgb), 0.06)",
                   cursor: onCitationClick ? "pointer" : "default",
                 }}
-                title="Mở tài liệu"
+                title={t("review_builder.open_doc")}
               >
                 <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>
                   [{i + 1}]
@@ -106,7 +108,7 @@ export function SourcePanel({ citations, evidence, onClose, onCitationClick }: S
         {evidence.length > 0 && (
           <div>
             <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              Evidence Chunks
+              {t("review_source.evidence_chunks")}
             </div>
             {Array.from(papers.entries()).map(([paperId, paper]) => (
               <div key={paperId} style={{ marginBottom: 12 }}>
@@ -140,7 +142,7 @@ export function SourcePanel({ citations, evidence, onClose, onCitationClick }: S
                         flexDirection: "column",
                         cursor: onCitationClick ? "pointer" : "default",
                       }}
-                      title={ev.page_number ? `Mở trang ${ev.page_number}` : "Mở tài liệu"}
+                      title={ev.page_number ? t("review_builder.open_doc") + " p." + ev.page_number : t("review_builder.open_doc")}
                     >
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         {ev.content.length > 120 ? ev.content.slice(0, 120) + "..." : ev.content}
@@ -164,7 +166,7 @@ export function SourcePanel({ citations, evidence, onClose, onCitationClick }: S
             color: "var(--color-text-muted)",
             fontSize: "0.78rem",
           }}>
-            Generate a section to see sources
+            {t("review_source.empty")}
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   HELP_SECTIONS,
   HELP_NAV,
@@ -92,9 +93,10 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
   onClose,
   onNavigate,
 }) => {
+  const { t } = useTranslation();
   const section = HELP_SECTIONS[sectionId];
   const groups = HELP_NAV.reduce<string[]>((acc, item) => {
-    const g = item.group ?? "Khác";
+    const g = item.group ?? t("help.other");
     if (!acc.includes(g)) acc.push(g);
     return acc;
   }, []);
@@ -112,20 +114,20 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
       <div className="help-center-panel aw-fade-up" role="dialog" aria-labelledby="help-center-title">
         <aside className="help-center-nav">
           <div className="help-center-nav-header">
-            <span className="help-center-nav-brand">Trung tâm trợ giúp</span>
+            <span className="help-center-nav-brand">{t("help.center")}</span>
           </div>
           <nav className="help-center-nav-list">
             {groups.map((group) => (
               <div key={group} className="help-nav-group">
-                <div className="help-nav-group-label">{group}</div>
-                {HELP_NAV.filter((n) => (n.group ?? "Khác") === group).map((item) => (
+                  <div className="help-nav-group-label">{t(group)}</div>
+                {HELP_NAV.filter((n) => (n.group ?? t("help.other")) === group).map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     className={`help-nav-item${sectionId === item.id ? " active" : ""}`}
                     onClick={() => onNavigate(item.id)}
                   >
-                    {item.label}
+                    {t(item.label)}
                   </button>
                 ))}
               </div>
@@ -139,7 +141,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
               <h2 id="help-center-title" className="help-center-title">{section.title}</h2>
               <p className="help-center-subtitle">{section.subtitle}</p>
             </div>
-            <button type="button" className="help-center-close" onClick={onClose} aria-label="Đóng">
+            <button type="button" className="help-center-close" onClick={onClose} aria-label={t("common.close")}>
               <IconClose size={18} />
             </button>
           </header>

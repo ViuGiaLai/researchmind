@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { api, BASE_URL, EvidenceMatrixDraftSummary, EvidenceMatrixData } from "../../lib/api";
+import { useTranslation } from "react-i18next";
+import { api, BASE_URL, EvidenceMatrixDraftSummary } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText, IconRefresh } from "../Icons";
 
@@ -45,13 +46,14 @@ const CONFIDENCE_BADGE: Record<EvidenceCell["confidence"], string> = {
   low: "rm-badge--error",
 };
 
-const CONFIDENCE_LABEL: Record<EvidenceCell["confidence"], { icon: React.FC<{ size?: number }>; text: string }> = {
-  high: { icon: IconCheck, text: "Chắc chắn" },
-  medium: { icon: IconWarning, text: "Trung bình" },
-  low: { icon: IconError, text: "Thấp" },
+const CONFIDENCE_ICON: Record<EvidenceCell["confidence"], React.FC<{ size?: number }>> = {
+  high: IconCheck,
+  medium: IconWarning,
+  low: IconError,
 };
 
 export const EvidenceMatrixView: React.FC = () => {
+  const { t } = useTranslation();
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -113,7 +115,7 @@ export const EvidenceMatrixView: React.FC = () => {
       });
       setExpandedCell(null);
     } catch {
-      toast.addToast("error", "Không thể tải draft.");
+      toast.addToast("error", t("evidence.toast_load_error"));
     }
   };
 
@@ -127,7 +129,7 @@ export const EvidenceMatrixView: React.FC = () => {
   };
 
   const autoTitle = useCallback((paperNames: string[]) => {
-    if (paperNames.length === 0) return "Ma trận so sánh";
+    if (paperNames.length === 0) return t("evidence.title");
     const first = paperNames[0];
     const short = first.length > 40 ? first.slice(0, 40) + "..." : first;
     return paperNames.length > 1 ? `${short} +${paperNames.length - 1}` : short;
@@ -135,7 +137,7 @@ export const EvidenceMatrixView: React.FC = () => {
 
   const generateMatrix = useCallback(async () => {
     if (selectedIds.length < 2) {
-      toast.addToast("error", "Chọn ít nhất 2 bài báo để so sánh");
+      toast.addToast("error", t("evidence.select_min"));
       return;
     }
     setGenerating(true);
@@ -167,35 +169,35 @@ export const EvidenceMatrixView: React.FC = () => {
         await loadDraftList();
       }
     } catch {
-      toast.addToast("error", "Không thể tạo ma trận so sánh");
+      toast.addToast("error", t("evidence.toast_create_error"));
     } finally {
       setGenerating(false);
     }
-  }, [selectedIds, papers, toast, autoTitle]);
+  }, [selectedIds, papers, toast, autoTitle, t]);
 
   const renameHistoryEntry = useCallback(async (id: string) => {
     const entry = history.find((item) => item.id === id);
     if (!entry) return;
-    const nextTitle = window.prompt("Đổi tên bản nháp", entry.title)?.trim();
+    const nextTitle = window.prompt(t("evidence.rename_prompt"), entry.title)?.trim();
     if (!nextTitle || nextTitle === entry.title) return;
     try {
       await api.renameEvidenceMatrixDraft(id, nextTitle);
       setHistory((prev) => prev.map((item) => (item.id === id ? { ...item, title: nextTitle } : item)));
-      toast.addToast("success", "Đã đổi tên.");
+      toast.addToast("success", t("evidence.toast_rename_success"));
     } catch {
-      toast.addToast("error", "Không thể đổi tên.");
+      toast.addToast("error", t("evidence.toast_rename_error"));
     }
-  }, [history, toast]);
+  }, [history, toast, t]);
 
   const deleteHistoryEntry = useCallback(async (id: string) => {
     try {
       await api.deleteEvidenceMatrixDraft(id);
       setHistory((prev) => prev.filter((h) => h.id !== id));
-      toast.addToast("success", "Đã xoá draft khỏi server.");
+      toast.addToast("success", t("evidence.toast_delete_success"));
     } catch {
-      toast.addToast("error", "Không thể xoá draft.");
+      toast.addToast("error", t("evidence.toast_delete_error"));
     }
-  }, [toast]);
+  }, [toast, t]);
 
   const exportCsv = useCallback(() => {
     if (!matrix) return;
@@ -212,8 +214,8 @@ export const EvidenceMatrixView: React.FC = () => {
     a.download = "evidence-matrix.csv";
     a.click();
     URL.revokeObjectURL(url);
-    toast.addToast("success", "Đã tải CSV");
-  }, [matrix, toast]);
+    toast.addToast("success", t("evidence.toast_csv_success"));
+  }, [matrix, toast, t]);
 
   const openPdf = (paperId: string, page: number | null, quote: string) => {
     if (page === null) return;
@@ -228,10 +230,10 @@ export const EvidenceMatrixView: React.FC = () => {
         <div className="rm-page-header" style={{ marginBottom: 0 }}>
           <h2>
             <IconBrain size={22} className="icon-gradient" />
-            Ma trận so sánh
+            {t("evidence.title")}
           </h2>
           <p className="rm-page-subtitle" style={{ margin: "6px 0 0", color: "var(--color-text-secondary)", fontSize: "0.86rem" }}>
-            So sánh bằng chứng theo từng paper để xác minh claim, quote và mức độ tin cậy.
+            {t("evidence.description")}
           </p>
         </div>
         {matrix && (
@@ -241,7 +243,7 @@ export const EvidenceMatrixView: React.FC = () => {
               className="rm-btn rm-btn--sm rm-btn--outline"
               onClick={() => { setMatrix(null); setExpandedCell(null); }}
             >
-              <IconClose size={14} /> Tạo mới
+              <IconClose size={14} /> {t("evidence.new_matrix")}
             </button>
             <button
               type="button"
@@ -250,7 +252,7 @@ export const EvidenceMatrixView: React.FC = () => {
               disabled={generating}
             >
               {generating ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
-              {generating ? "Đang tạo lại..." : "Tạo lại"}
+              {generating ? t("evidence.regenerating") : t("evidence.regenerate")}
             </button>
           </div>
         )}
@@ -262,20 +264,20 @@ export const EvidenceMatrixView: React.FC = () => {
             <div className="rm-page-actions">
               <div className="rm-section-label" style={{ marginBottom: 0 }}>
                 <IconFileText size={16} />
-                <span>Bài báo ({selectedIds.length}/{papers.length})</span>
+                <span>{t("evidence.papers_count", { n: selectedIds.length, m: papers.length })}</span>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
                 <button type="button" className={`rm-btn rm-btn--xs rm-btn--chip${allSelected ? " active" : ""}`} onClick={selectAll}>
-                  Chọn tất cả
+                  {t("evidence.select_all")}
                 </button>
                 <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={deselectAll}>
-                  Bỏ chọn
+                  {t("evidence.deselect")}
                 </button>
               </div>
             </div>
             <div className="rm-chip-group">
               {papers.length === 0 ? (
-                <span className="rm-card-meta" style={{ padding: 4 }}>Chưa có bài báo trong thư viện...</span>
+                <span className="rm-card-meta" style={{ padding: 4 }}>{t("evidence.empty_library")}</span>
               ) : (
                 papers.map(p => (
                   <button
@@ -300,7 +302,7 @@ export const EvidenceMatrixView: React.FC = () => {
               disabled={generating || selectedIds.length < 2}
             >
               {generating ? <IconSpinner size={14} /> : <IconSearch size={14} />}
-              {generating ? "Đang phân tích..." : "Tạo ma trận so sánh"}
+              {generating ? t("evidence.analyzing") : t("evidence.create_matrix")}
             </button>
           </div>
         </>
@@ -310,13 +312,13 @@ export const EvidenceMatrixView: React.FC = () => {
         <div className="rm-table-wrap">
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
             <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportCsv}>
-              <IconDownload size={12} /> Xuất CSV
+              <IconDownload size={12} /> {t("evidence.export_csv")}
             </button>
           </div>
           <table className="rm-table evidence-matrix-table">
             <thead>
               <tr>
-                <th style={{ minWidth: 120 }}>Tiêu chí</th>
+                <th style={{ minWidth: 120 }}>{t("evidence.criteria_header")}</th>
                 {matrix.columns.map((col, i) => (
                   <th key={i} className="rm-table-th--primary" style={{ minWidth: 200 }}>
                     {col.length > 50 ? col.slice(0, 50) + "..." : col}
@@ -342,7 +344,7 @@ export const EvidenceMatrixView: React.FC = () => {
                         {cell.quote && (
                           <div className="rm-quote">
                             &ldquo;{cell.quote.length > 100 ? cell.quote.slice(0, 100) + "..." : cell.quote}&rdquo;
-                            {cell.page && <span style={{ display: "block", marginTop: 2, fontSize: "0.7rem" }}>Trang {cell.page}</span>}
+                            {cell.page && <span style={{ display: "block", marginTop: 2, fontSize: "0.7rem" }}>{t("evidence.page_label", { n: cell.page })}</span>}
                           </div>
                         )}
                         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
@@ -353,20 +355,20 @@ export const EvidenceMatrixView: React.FC = () => {
                               onClick={(e) => { e.stopPropagation(); openPdf(cell.paper_id, cell.page, cell.quote); }}
                             >
                               <IconWithText icon={IconFileText} size={12}>
-                                Mở PDF (tr.{cell.page})
+                                {t("evidence.open_pdf_page", { n: cell.page })}
                               </IconWithText>
                             </button>
                           )}
                           <span className={`rm-badge ${CONFIDENCE_BADGE[cell.confidence]}`}>
-                            <IconWithText icon={CONFIDENCE_LABEL[cell.confidence].icon} size={12}>
-                              {CONFIDENCE_LABEL[cell.confidence].text}
+                            <IconWithText icon={CONFIDENCE_ICON[cell.confidence]} size={12}>
+                              {t(`evidence.confidence_${cell.confidence}`)}
                             </IconWithText>
                           </span>
                           <span className={`rm-badge ${cell.status === "user_verified" ? "rm-badge--success" : "rm-badge--muted"}`}>
                             {cell.status === "user_verified" ? (
-                              <IconWithText icon={IconCheck} size={12}>Đã xác nhận</IconWithText>
+                              <IconWithText icon={IconCheck} size={12}>{t("evidence.confirmed_badge")}</IconWithText>
                             ) : (
-                              <IconWithText icon={IconBot} size={12}>AI trích xuất</IconWithText>
+                              <IconWithText icon={IconBot} size={12}>{t("evidence.ai_extracted_badge")}</IconWithText>
                             )}
                           </span>
                         </div>
@@ -383,10 +385,10 @@ export const EvidenceMatrixView: React.FC = () => {
       <div style={{ flexShrink: 0 }}>
         <div className="rm-section-label">
           <IconClock size={14} />
-          <span>Bản nháp đã lưu ({history.length})</span>
+          <span>{t("evidence.drafts_label", { n: history.length })}</span>
         </div>
         {history.length === 0 ? (
-          <div className="rm-section-hint">Chưa có bản nháp nào. Tạo ma trận so sánh để bắt đầu.</div>
+          <div className="rm-section-hint">{t("evidence.no_drafts")}</div>
         ) : (
           <div className="rm-history-list">
             {history.map(entry => (
@@ -396,8 +398,8 @@ export const EvidenceMatrixView: React.FC = () => {
                     {entry.title || entry.paperNames.join(" • ")}
                   </div>
                   <div className="rm-history-item-meta">
-                    <span>{entry.paperNames.length} bài báo</span>
-                    {entry.criterionCount !== undefined && <span>{entry.criterionCount} tiêu chí</span>}
+                    <span>{entry.paperNames.length} {t("evidence.papers_unit")}</span>
+                    {entry.criterionCount !== undefined && <span>{entry.criterionCount} {t("evidence.criteria_unit")}</span>}
                     <span>{formatServerDate(entry.updated_at)}</span>
                   </div>
                 </div>
@@ -406,7 +408,7 @@ export const EvidenceMatrixView: React.FC = () => {
                     type="button"
                     className="rm-btn rm-btn--icon rm-btn--ghost"
                     onClick={(e) => { e.stopPropagation(); renameHistoryEntry(entry.id); }}
-                    title="Đổi tên"
+                    title={t("evidence.rename_btn")}
                   >
                     <IconRefresh size={12} />
                   </button>
@@ -414,7 +416,7 @@ export const EvidenceMatrixView: React.FC = () => {
                     type="button"
                     className="rm-btn rm-btn--icon rm-btn--ghost"
                     onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
-                    title="Xóa"
+                    title={t("evidence.delete_btn")}
                   >
                     <IconClose size={12} />
                   </button>
@@ -430,7 +432,7 @@ export const EvidenceMatrixView: React.FC = () => {
           <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="rm-modal-header">
               <span className="rm-modal-title">
-                PDF — Trang {activePdf.page}
+                {t("evidence.pdf_modal", { n: activePdf.page })}
                 {activePdf.quote && (
                   <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", marginLeft: 8, fontSize: "0.78rem" }}>
                     &ldquo;{activePdf.quote.slice(0, 60)}...&rdquo;
@@ -442,7 +444,7 @@ export const EvidenceMatrixView: React.FC = () => {
             <iframe
               src={`${BASE_URL}/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`}
               style={{ flex: 1, border: "none" }}
-              title="Xem trước PDF"
+              title={t("pdf.preview_title")}
             />
           </div>
         </div>

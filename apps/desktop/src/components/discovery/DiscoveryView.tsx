@@ -1,10 +1,12 @@
 import React, { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, DiscoveredPaper } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { IconSearch, IconSpinner, IconDownload, IconCheck, IconSparkle, IconBrain, IconEye, IconLink, IconInfo, IconBookOpen } from "../Icons";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 
 export const DiscoveryView: React.FC = () => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<DiscoveredPaper[]>([]);
   const [searching, setSearching] = useState(false);
@@ -40,7 +42,7 @@ export const DiscoveryView: React.FC = () => {
       const res = await api.discoverPapers(q, 20);
       setResults(res.results);
     } catch {
-      toast.addToast("error", "Không thể tìm kiếm. Vui lòng thử lại.");
+      toast.addToast("error", t("discovery.toast_search_error"));
     } finally {
       setSearching(false);
     }
@@ -65,10 +67,10 @@ export const DiscoveryView: React.FC = () => {
       });
       setTranslations(map);
       setTranslateMode("vi");
-      toast.addToast("success", `Đã dịch ${res.translations.length} bài báo`);
+      toast.addToast("success", t("discovery.toast_translate_success", { count: res.translations.length }));
     } catch {
       if (translateRequestIdRef.current !== requestId) return;
-      toast.addToast("error", "Không thể dịch. Vui lòng kiểm tra API key Gemini trong .env");
+      toast.addToast("error", t("discovery.toast_translate_error"));
     } finally {
       if (translateRequestIdRef.current === requestId) {
         setTranslating(false);
@@ -90,13 +92,13 @@ export const DiscoveryView: React.FC = () => {
         abstract: paper.abstract,
       });
       setImported((prev) => new Set(prev).add(key));
-      toast.addToast("success", `Đã thêm "${paper.title.slice(0, 50)}..." vào thư viện`);
+      toast.addToast("success", t("discovery.toast_import_success", { title: `${paper.title.slice(0, 50)}...` }));
     } catch (e: any) {
       const msg = e?.message || "";
       if (msg.includes("File not found") || msg.includes("file not found") || msg.includes("not found on disk")) {
-        toast.addToast("error", `Không tìm thấy file PDF cho bài báo này trên hệ thống.`);
+        toast.addToast("error", t("discovery.toast_pdf_not_found"));
       } else {
-        toast.addToast("error", `Không thể thêm "${paper.title.slice(0, 40)}..."`);
+        toast.addToast("error", t("discovery.toast_import_error", { title: `${paper.title.slice(0, 40)}...` }));
       }
     } finally {
       setImporting((prev) => {
@@ -122,9 +124,9 @@ export const DiscoveryView: React.FC = () => {
       <div className="discovery-header">
         <h2>
           <IconSparkle size={22} className="icon-gradient" />
-          Khám phá học thuật
+          {t("discovery.title")}
         </h2>
-        <p>Tìm kiếm bài báo từ OpenAlex và Semantic Scholar</p>
+        <p>{t("discovery.description")}</p>
       </div>
 
       <div className="discovery-search-row">
@@ -134,7 +136,7 @@ export const DiscoveryView: React.FC = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-          placeholder="Nhập research question, ví dụ: 'machine learning for drug discovery'..."
+          placeholder={t("discovery.search_placeholder")}
         />
         <button
           type="button"
@@ -143,7 +145,7 @@ export const DiscoveryView: React.FC = () => {
           disabled={searching || !query.trim()}
         >
           {searching ? <IconSpinner size={14} /> : <IconSearch size={14} />}
-          {searching ? "Đang tìm..." : "Tìm kiếm"}
+          {searching ? t("discovery.search_btn_loading") : t("discovery.search_btn")}
         </button>
         {searched && results.length > 0 && (
           <button
@@ -151,7 +153,7 @@ export const DiscoveryView: React.FC = () => {
             className="discovery-translate-btn"
             onClick={handleTranslateAll}
             disabled={translating}
-            title={translateMode === "vi" ? "Hiển thị bản gốc" : "Dịch tất cả sang tiếng Việt"}
+            title={translateMode === "vi" ? t("discovery.translate_off") : t("discovery.translate_on")}
           >
             {translating ? <IconSpinner size={14} /> : <span>{translateMode === "vi" ? "EN" : "VI"}</span>}
           </button>
@@ -162,37 +164,37 @@ export const DiscoveryView: React.FC = () => {
         {searching && (
           <div className="discovery-loading">
             <IconSpinner size={20} />
-            <span>Đang tìm kiếm trên OpenAlex và Semantic Scholar...</span>
+            <span>{t("discovery.loading")}</span>
           </div>
         )}
 
         {!searching && searched && results.length === 0 && (
-          <div className="discovery-empty">Không tìm thấy kết quả. Thử từ khoá khác.</div>
+          <div className="discovery-empty">{t("discovery.no_results")}</div>
         )}
 
         {!searching && results.length > 0 && (
           <>
-            <div className="discovery-result-meta">{results.length} kết quả</div>
+            <div className="discovery-result-meta">{results.length} {t("discovery.results_count")}</div>
             {results.map((paper, i) => {
               const key = paper.doi || paper.title;
               const isImporting = importing.has(key);
               const isImported = imported.has(key);
-              const t = translations.get(key);
-              const showVi = translateMode === "vi" && t;
+              const paperTranslation = translations.get(key);
+              const showVi = translateMode === "vi" && paperTranslation;
               return (
                 <div key={`${key}-${i}`} className="discovery-result-card">
                   <div className="discovery-result-title">
-                    {showVi ? t!.title_vi : paper.title}
+                    {showVi ? paperTranslation!.title_vi : paper.title}
                   </div>
                   <div className="discovery-result-meta">
                     {paper.authors.slice(0, 4).join(", ")}{paper.authors.length > 4 ? " et al." : ""}
-                    {paper.year && <span> · {paper.year}</span>}
-                    {" · "}{paper.citation_count} trích dẫn
-                    {paper.journal && <span> · {paper.journal}</span>}
+                    {paper.year && <span> {"\u00b7"} {paper.year}</span>}
+                    {" \u00b7 "}{paper.citation_count} {t("discovery.citations_count")}
+                    {paper.journal && <span> {"\u00b7"} {paper.journal}</span>}
                   </div>
-                  {(showVi ? t!.abstract_vi : paper.abstract) && (
+                  {(showVi ? paperTranslation!.abstract_vi : paper.abstract) && (
                     <div className="discovery-result-abstract">
-                      {showVi ? t!.abstract_vi : paper.abstract}
+                      {showVi ? paperTranslation!.abstract_vi : paper.abstract}
                     </div>
                   )}
                   <div className="discovery-result-footer">
@@ -207,7 +209,7 @@ export const DiscoveryView: React.FC = () => {
                         disabled={isImporting || isImported}
                       >
                         {isImported ? <IconCheck size={12} /> : isImporting ? <IconSpinner size={12} /> : <IconDownload size={12} />}
-                        {isImported ? "Đã có trong thư viện" : isImporting ? "Đang thêm..." : "Thêm vào thư viện"}
+                        {isImported ? t("discovery.in_library") : isImporting ? t("discovery.importing") : t("discovery.add_to_library")}
                       </button>
                       <button
                         type="button"
@@ -215,16 +217,16 @@ export const DiscoveryView: React.FC = () => {
                         onClick={() => setDetailPaper(paper)}
                       >
                         <IconEye size={12} />
-                        Chi tiết
+                        {t("discovery.detail")}
                       </button>
                       <button
                         type="button"
                         className="discovery-action-btn discovery-pdf-btn"
                         onClick={() => handleOpenPdf(paper)}
-                        title={paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
+                        title={paper.pdf_url ? t("discovery.open_pdf") : t("discovery.open_source")}
                       >
                         <IconBookOpen size={12} />
-                        {paper.pdf_url ? "Mở PDF" : "Mở nguồn"}
+                        {paper.pdf_url ? t("discovery.open_pdf") : t("discovery.open_source")}
                       </button>
                     </div>
                   </div>
@@ -238,7 +240,7 @@ export const DiscoveryView: React.FC = () => {
           <div className="discovery-empty" style={{ flexDirection: "column" }}>
             <IconBrain size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
             <p style={{ textAlign: "center", maxWidth: 400 }}>
-              Nhập research question để khám phá bài báo từ các cơ sở dữ liệu học thuật.
+              {t("discovery.empty_instruction")}
             </p>
           </div>
         )}
@@ -250,48 +252,48 @@ export const DiscoveryView: React.FC = () => {
             <div className="rm-modal-header">
               <h3 className="rm-modal-title">
                 <IconInfo size={16} style={{ marginRight: 8 }} />
-                Chi tiết bài báo
+                {t("discovery.modal_title")}
               </h3>
               <button className="rm-modal-close" onClick={() => setDetailPaper(null)}>✕</button>
             </div>
             <div className="rm-modal-body">
               <div className="detail-section">
-                <div className="detail-label">Tiêu đề</div>
+                <div className="detail-label">{t("discovery.field_title")}</div>
                 <div className="detail-value detail-title">{translateMode === "vi" && translations.get(detailPaper.doi || detailPaper.title)?.title_vi || detailPaper.title}</div>
               </div>
               <div className="detail-section">
-                <div className="detail-label">Tác giả</div>
+                <div className="detail-label">{t("discovery.field_authors")}</div>
                 <div className="detail-value">{detailPaper.authors.join(", ")}</div>
               </div>
               <div className="detail-row">
                 <div className="detail-section">
-                  <div className="detail-label">Năm</div>
+                  <div className="detail-label">{t("discovery.field_year")}</div>
                   <div className="detail-value">{detailPaper.year || "N/A"}</div>
                 </div>
                 <div className="detail-section">
-                  <div className="detail-label">Trích dẫn</div>
+                  <div className="detail-label">{t("discovery.field_citations")}</div>
                   <div className="detail-value">{detailPaper.citation_count}</div>
                 </div>
                 <div className="detail-section">
-                  <div className="detail-label">Nguồn</div>
+                  <div className="detail-label">{t("discovery.field_source")}</div>
                   <div className="detail-value">{detailPaper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}</div>
                 </div>
               </div>
               {detailPaper.doi && (
                 <div className="detail-section">
-                  <div className="detail-label">DOI</div>
+                  <div className="detail-label">{t("discovery.field_doi")}</div>
                   <div className="detail-value"><code>{detailPaper.doi}</code></div>
                 </div>
               )}
               {detailPaper.journal && (
                 <div className="detail-section">
-                  <div className="detail-label">Tạp chí</div>
+                  <div className="detail-label">{t("discovery.field_journal")}</div>
                   <div className="detail-value">{detailPaper.journal}</div>
                 </div>
               )}
               {detailPaper.abstract && (
                 <div className="detail-section">
-                  <div className="detail-label">Tóm tắt</div>
+                  <div className="detail-label">{t("discovery.field_abstract")}</div>
                   <div className="detail-value detail-abstract">{translateMode === "vi" && translations.get(detailPaper.doi || detailPaper.title)?.abstract_vi || detailPaper.abstract}</div>
                 </div>
               )}
@@ -303,7 +305,7 @@ export const DiscoveryView: React.FC = () => {
                   className="detail-source-link"
                 >
                   <IconLink size={12} />
-                  Mở trên {detailPaper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}
+                  {detailPaper.source === "openalex" ? t("discovery.open_openalex") : t("discovery.open_semantic")}
                 </a>
               )}
             </div>

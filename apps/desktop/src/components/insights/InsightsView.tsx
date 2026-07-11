@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { api, Paper } from "../../lib/api";
 import {
   IconSpinner,
@@ -24,40 +25,40 @@ interface InsightResult {
   matrix?: { columns: string[]; rows: string[][] };
 }
 
-const INSIGHT_CARDS = [
+const INSIGHT_CARDS_FN = (t: (key: string) => string) => [
   {
     id: "gap",
     icon: <IconSearch size={22} />,
-    title: "Phát hiện khoảng trống",
-    description: "Tìm lỗ hổng nghiên cứu — chỗ nào chưa ai làm tốt",
+    title: t("insights.gap_title"),
+    description: t("insights.gap_desc"),
     color: "var(--color-success, #10b981)",
   },
   {
     id: "conflict",
     icon: <IconWarning size={22} />,
-    title: "Phát hiện mâu thuẫn",
-    description: "Phát hiện mâu thuẫn giữa các paper trong thư viện",
+    title: t("insights.conflict_title"),
+    description: t("insights.conflict_desc"),
     color: "var(--color-warning, #f59e0b)",
   },
   {
     id: "topic",
     icon: <IconBulb size={22} />,
-    title: "Đề xuất đề tài",
-    description: "AI đề xuất đề tài nghiên cứu dựa trên thư viện của bạn",
+    title: t("insights.topic_title"),
+    description: t("insights.topic_desc"),
     color: "var(--color-primary, #14b8a6)",
   },
   {
     id: "evolution",
     icon: <IconSparkle size={22} />,
-    title: "Bản đồ tiến hóa",
-    description: "Xem sự phát triển của các ý tưởng nghiên cứu qua thời gian",
+    title: t("insights.evolution_title"),
+    description: t("insights.evolution_desc"),
     color: "#06b6d4",
   },
   {
     id: "compare",
     icon: <IconChart size={22} />,
-    title: "Ma trận tài liệu",
-    description: "So sánh đối chiếu mục tiêu, phương pháp, kết quả, hạn chế giữa các bài báo",
+    title: t("insights.matrix_title"),
+    description: t("insights.matrix_desc"),
     color: "var(--color-primary)",
   },
 ];
@@ -65,6 +66,7 @@ const INSIGHT_CARDS = [
 export const InsightsView: React.FC<{
   onStartChat: (paperIds: string[]) => void;
 }> = ({ onStartChat }) => {
+  const { t } = useTranslation();
   const [activeInsight, setActiveInsight] = useState<string | null>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaperIds, setSelectedPaperIds] = useState<string[]>([]);
@@ -109,7 +111,7 @@ export const InsightsView: React.FC<{
     if (!result) return;
     setExporting(true);
     try {
-      const title = `Ma_tran_so_sanh_${selectedPaperIds.length}_tai_lieu`;
+      const title = t("insights.export_filename", { count: selectedPaperIds.length });
       const blob = await api.exportSynthesis(title, result.answer, format);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -121,7 +123,7 @@ export const InsightsView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e: any) {
       console.error("Export synthesis failed:", e);
-      alert("Xuất file thất bại: " + (e.message || String(e)));
+      alert(t("insights.toast_export_failed", { msg: e.message || String(e) }));
     } finally {
       setExporting(false);
     }
@@ -151,7 +153,7 @@ export const InsightsView: React.FC<{
         setResult(res);
       } else if (activeInsight === "compare") {
         if (selectedPaperIds.length < 2) {
-          setError("Vui lòng chọn ít nhất 2 tài liệu để tiến hành so sánh.");
+          setError(t("insights.select_min_two"));
           setLoading(false);
           return;
         }
@@ -160,7 +162,7 @@ export const InsightsView: React.FC<{
       }
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Lỗi không xác định"
+        e instanceof Error ? e.message : t("chat.error_unknown")
       );
     } finally {
       setLoading(false);
@@ -196,14 +198,14 @@ export const InsightsView: React.FC<{
               key={idx++}
               className="citation-ref"
               onClick={() => openPdf(paperId, page ? parseInt(page, 10) : 1)}
-              title="Nhấp để mở PDF"
+              title={t("insights.open_pdf_title")}
               style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.85em", cursor: "pointer", padding: "0 2px" }}
             >
-              [{display}{page ? `, tr.${page}` : ""}]
+              [{display}{page ? `, ${t("cite.page_short", { page })}` : ""}]
             </span>
           );
         } else {
-          parts.push(<span key={idx++} style={{ color: "var(--color-primary)", fontSize: "0.85em" }}>[{citeMatch[1]}{page ? `, tr.${page}` : ""}]</span>);
+          parts.push(<span key={idx++} style={{ color: "var(--color-primary)", fontSize: "0.85em" }}>[{citeMatch[1]}{page ? `, ${t("cite.page_short", { page })}` : ""}]</span>);
         }
         remaining = remaining.slice(citeMatch[0].length);
         continue;
@@ -284,7 +286,7 @@ export const InsightsView: React.FC<{
         </div> */}
 
         <div className="insights-cards-grid">
-          {INSIGHT_CARDS.map((card) => (
+          {INSIGHT_CARDS_FN(t).map((card) => (
             <button
               key={card.id}
               className="insight-type-card"
@@ -302,7 +304,7 @@ export const InsightsView: React.FC<{
   }
 
   // Paper selection + run view
-  const activeCard = INSIGHT_CARDS.find((c) => c.id === activeInsight);
+  const activeCard = INSIGHT_CARDS_FN(t).find((c) => c.id === activeInsight);
 
   return (
     <div className="insights-view">
@@ -317,7 +319,7 @@ export const InsightsView: React.FC<{
           style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           <IconArrowLeft size={14} />
-          <span>Quay lại</span>
+          <span>{t("help.back")}</span>
         </button>
         <h2 className="insights-title">
           <span>{activeCard?.icon}</span>
@@ -331,25 +333,25 @@ export const InsightsView: React.FC<{
           <div className="insights-paper-select-header">
             <span className="insights-paper-count">
               {selectedPaperIds.length > 0
-                ? `Đã chọn ${selectedPaperIds.length} paper`
+                ? t("insights.select_papers", { n: selectedPaperIds.length })
                 : activeInsight === "compare"
-                ? "Vui lòng chọn ít nhất 2 paper từ danh sách bên dưới để so sánh"
-                : `Chọn paper để phân tích (hoặc bỏ trống = tất cả ${papers.length} paper)`}
+                ? t("insights.select_prompt_generic")
+                : t("insights.select_prompt_all", { n: papers.length })}
             </span>
             <button className="insights-select-all-btn" onClick={selectAll}>
-              Chọn tất cả
+              {t("common.select_all")}
             </button>
           </div>
 
           {loadingPapers ? (
             <div className="insights-loading">
               <IconSpinner size={20} />
-              <span>Đang tải danh sách paper...</span>
+              <span>{t("insights.loading_papers")}</span>
             </div>
           ) : papers.length === 0 ? (
             <div className="insights-empty">
               <IconBulb size={40} className="icon-gradient" style={{ marginBottom: 8 }} />
-              <p>Chưa có paper nào được index. Hãy import PDF trước.</p>
+              <p>{t("insights.no_papers")}</p>
             </div>
           ) : (
             <div className="insights-paper-list">
@@ -380,21 +382,21 @@ export const InsightsView: React.FC<{
             {loading ? (
               <>
                 <IconSpinner size={18} />
-                <span>Đang phân tích...</span>
+                <span>{t("insights.analyzing")}</span>
               </>
             ) : (
               <>
                 <IconSearch size={18} />
                 <span>
                   {activeInsight === "gap"
-                    ? "Tìm khoảng trống"
+                    ? t("insights.find_gap")
                     : activeInsight === "conflict"
-                    ? "Tìm mâu thuẫn"
+                    ? t("insights.find_conflict")
                     : activeInsight === "topic"
-                    ? "Đề xuất đề tài"
+                    ? t("insights.suggest_topic")
                     : activeInsight === "evolution"
-                    ? "Phân tích tiến hóa"
-                    : "Lập ma trận so sánh"}
+                    ? t("insights.analyze_evolution")
+                    : t("insights.build_matrix")}
                 </span>
               </>
             )}
@@ -406,8 +408,8 @@ export const InsightsView: React.FC<{
       {loading && (
         <div className="insights-loading-large">
           <div className="insights-loading-spinner" />
-          <h3>AI đang phân tích thư viện của bạn...</h3>
-          <p>Quá trình này có thể mất 10-30 giây</p>
+          <h3>{t("insights.analysis_progress")}</h3>
+          <p>{t("insights.analysis_progress_desc")}</p>
         </div>
       )}
 
@@ -424,11 +426,11 @@ export const InsightsView: React.FC<{
       {result && (
         <div className="insights-result">
           <div className="insights-result-header">
-            <h3>{activeCard?.icon} Kết quả phân tích</h3>
+            <h3>{activeCard?.icon} {t("insights.analysis_result")}</h3>
             <div className="insights-result-meta">
-              <span>{result.papers_used.length} papers phân tích</span>
+              <span>{result.papers_used.length} {t("insights.papers_analyzed")}</span>
               <span>·</span>
-              <span>{result.chunks_used} chunks tham chiếu</span>
+              <span>{result.chunks_used} {t("insights.chunks_referenced")}</span>
               <span>·</span>
               <span>{result.model_used}</span>
             </div>
@@ -476,7 +478,7 @@ export const InsightsView: React.FC<{
 
           {result.citations.length > 0 && (
             <div className="insights-citations">
-              <h4>Nguồn tham chiếu:</h4>
+              <h4>{t("insights.references")}</h4>
               <div className="insights-citations-list">
                 {result.citations.map((c, i) => {
                   const paperId = c.paper_id || extractPaperId(c.source);
@@ -485,10 +487,10 @@ export const InsightsView: React.FC<{
                       key={i}
                       className={`insights-citation-tag${paperId ? " clickable" : ""}`}
                       onClick={paperId ? () => openPdf(paperId, c.page || 1) : undefined}
-                      title={paperId ? "Nhấp để mở PDF" : undefined}
+                      title={paperId ? t("insights.open_pdf_title") : undefined}
                     >
                       {c.source.replace(/^[0-9a-f-]{36}_?/, "").trim()}
-                      {c.page ? ` (trang ${c.page})` : ""}
+                      {c.page ? ` (${t("cite.page_label", { page: c.page })})` : ""}
                     </span>
                   );
                 })}
@@ -504,7 +506,7 @@ export const InsightsView: React.FC<{
                 setError(null);
               }}
             >
-              Phân tích lại
+              {t("insights.reanalyze")}
             </button>
             {result.matrix && (
               <>
@@ -515,7 +517,7 @@ export const InsightsView: React.FC<{
                   style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
                   {exporting ? <IconSpinner size={14} /> : <IconFileText size={14} />}
-                  Xuất Word (DOCX)
+                  {t("insights.export_word")}
                 </button>
                 <button
                   className="insights-action-btn primary"
@@ -524,7 +526,7 @@ export const InsightsView: React.FC<{
                   style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
                   {exporting ? <IconSpinner size={14} /> : <IconLink size={14} />}
-                  Xuất HTML
+                  {t("insights.export_html")}
                 </button>
               </>
             )}
@@ -533,7 +535,7 @@ export const InsightsView: React.FC<{
               onClick={() => onStartChat(result.papers_used)}
             >
               <IconChat size={16} />
-              Hỏi thêm về kết quả này
+              {t("insights.ask_more")}
             </button>
           </div>
         </div>
@@ -572,7 +574,7 @@ export const InsightsView: React.FC<{
                 key={`${pdfPaperId}-${pdfInitialPage}-${pdfRefreshKey}`}
                 src={`${(window as any).BASE_URL || "http://127.0.0.1:8765"}/api/papers/${pdfPaperId}/file#page=${pdfInitialPage}`}
                 style={{ width: "100%", height: "100%", border: "none" }}
-                title={papers.find(p => p.id === pdfPaperId)?.title || "Tài liệu"}
+                title={papers.find(p => p.id === pdfPaperId)?.title || t("common.loading")}
               />
             </div>
           </div>

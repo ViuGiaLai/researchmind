@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconFolder, IconClose, IconSpinner } from "../Icons";
 
 interface FolderListProps {
@@ -10,11 +11,12 @@ interface FolderListProps {
  * Displays the list of selected folders with a remove button for each.
  */
 export function FolderList({ folders, onRemoveFolder, isLoading }: FolderListProps) {
+  const { t } = useTranslation();
   if (isLoading) {
     return (
       <div className="folder-list-loading">
         <IconSpinner size={16} />
-        <span style={{ marginLeft: 8 }}>Đang tải...</span>
+        <span style={{ marginLeft: 8 }}>{t("common.loading")}</span>
       </div>
     );
   }
@@ -22,9 +24,9 @@ export function FolderList({ folders, onRemoveFolder, isLoading }: FolderListPro
   if (folders.length === 0) {
     return (
       <div className="folder-list-empty">
-        <p>Chưa có thư mục nào được chọn.</p>
+        <p>{t("folder.empty")}</p>
         <p className="folder-list-hint">
-          Nhấn "Chọn thư mục" để thêm thư mục cần index.
+          {t("folder.empty_hint")}
         </p>
       </div>
     );
@@ -46,7 +48,7 @@ export function FolderList({ folders, onRemoveFolder, isLoading }: FolderListPro
           <button
             className="folder-item-remove"
             onClick={() => onRemoveFolder(folder)}
-            title="Xóa thư mục này"
+            title={t("folder.remove_title")}
           >
             <IconClose size={12} />
           </button>

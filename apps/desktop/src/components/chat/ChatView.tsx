@@ -1,4 +1,6 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
 import { TrustPanel } from "./TrustPanel";
@@ -59,11 +61,10 @@ interface Message {
 type Scope = "current" | "library" | "collection" | "external";
 type CitationStyle = "apa" | "ieee" | "vancouver";
 
-const CITATION_STYLE_LABELS: Record<CitationStyle, string> = {
-  apa: "APA 7th",
-  ieee: "IEEE",
-  vancouver: "Vancouver",
-};
+const CITATION_STYLES: CitationStyle[] = ["apa", "ieee", "vancouver"];
+function getCitationStyleLabel(style: CitationStyle): string {
+  return i18n.t(`chat.citation_style_${style}`);
+}
 
 const OverflowAction: React.FC<{
   label: string;
@@ -103,6 +104,7 @@ export const ChatView: React.FC<{
   stream?: boolean;
   onGoToLibrary?: () => void;
 }> = ({ initialPaperIds, initialQuery, initialMode = "chat", stream = true, onGoToLibrary }) => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -188,12 +190,12 @@ export const ChatView: React.FC<{
           const quote = `> "${text.trim()}"\n\n`;
           return prev ? prev + quote : quote;
         });
-        toast.addToast("success", "Đã trích dẫn văn bản từ PDF/clipboard!");
+        toast.addToast("success", t("chat.toast_paste_quote"));
       } else {
-        toast.addToast("error", "Clipboard trống hoặc không chứa văn bản.");
+        toast.addToast("error", t("chat.toast_clipboard_empty"));
       }
     } catch (err) {
-      toast.addToast("error", "Không thể đọc clipboard. Vui lòng cấp quyền.");
+      toast.addToast("error", t("chat.toast_clipboard_error"));
     }
   };
 
@@ -350,10 +352,10 @@ export const ChatView: React.FC<{
     setLoading(false);
     setMessages((prev) => prev.map((m, i) =>
       i === prev.length - 1 && m.role === "assistant"
-        ? { ...m, content: `${m.content}\n\n[Đã dừng tạo phản hồi từ AI.]` }
+        ? { ...m, content: `${m.content}\n\n${t("chat.cancelled")}` }
         : m
     ));
-    toast.addToast("info", "Đã dừng tạo phản hồi từ AI.");
+    toast.addToast("info", t("chat.cancelled_toast"));
   };
 
   const handleSend = async (overrideText?: string) => {
@@ -376,7 +378,7 @@ export const ChatView: React.FC<{
       if (paperIds.length === 0) {
         const errMsg: Message = {
           role: "assistant",
-          content: "**Chưa chọn paper nào!**\n\nChế độ **Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.\n\nChuyển sang **Toàn bộ thư viện** để hỏi tất cả, hoặc quay lại thư viện chọn paper.",
+          content: t("chat.no_papers_selected"),
         };
         setMessages((prev) => [...prev, errMsg]);
         setLoading(false);
@@ -389,7 +391,7 @@ export const ChatView: React.FC<{
       if (!activeCollectionId) {
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: "**Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước khi chat theo phạm vi này.",
+          content: t("chat.no_collection"),
         }]);
         setLoading(false);
         return;
@@ -407,7 +409,7 @@ export const ChatView: React.FC<{
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = messages.length + 1;
 
-        const loadingMsg = scope === "external" ? "Đang xử lý câu hỏi..." : "Đang tra cứu tài liệu...";
+        const loadingMsg = scope === "external" ? t("chat.processing") : t("chat.searching_docs");
         setMessages((prev) => [...prev, { role: "assistant", content: loadingMsg }]);
         setIsStreaming(true);
 
@@ -423,7 +425,7 @@ export const ChatView: React.FC<{
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           releaseLoading();
-          const content = `Lỗi: ${errMsg}`;
+          const content = t("chat.error_prefix", { msg: errMsg });
           setMessages((prev) => prev.map((m, i) =>
             i === assistantIdx ? { ...m, content } : m
           ));
@@ -498,7 +500,7 @@ export const ChatView: React.FC<{
             activeChatStreamRef.current = streamCtrl;
             const assistantIdx = messages.length + 1;
 
-            setMessages((prev) => [...prev, { role: "assistant", content: "Đang tra cứu tài liệu..." }]);
+            setMessages((prev) => [...prev, { role: "assistant", content: t("chat.searching_docs") }]);
             setIsStreaming(true);
 
             let resolved = false;
@@ -519,7 +521,7 @@ export const ChatView: React.FC<{
               setMessages((prev) => prev.map((m, i) => {
                 if (i !== assistantIdx) return m;
                 const current = m.content;
-                if (current === "Đang tra cứu tài liệu...") {
+                if (current === t("chat.searching_docs")) {
                   return { ...m, content: chunk };
                 }
                 return { ...m, content: current + chunk };
@@ -555,7 +557,7 @@ export const ChatView: React.FC<{
               activeChatStreamRef.current = null;
               setIsStreaming(false);
               releaseLoading();
-              const content = `Lỗi: ${err}\n\n> Đảm bảo FastAPI backend đang chạy: \`cd backend && uvicorn main:app --reload --port 8765\``;
+              const content = t("chat.error_backend_not_running", { err });
               setMessages((prev) => prev.map((m, i) =>
                 i === assistantIdx ? { ...m, content } : m
               ));
@@ -586,8 +588,8 @@ export const ChatView: React.FC<{
         loadUsage();
       }
     } catch (e) {
-      const errorText = e instanceof Error ? e.message : "Không thể kết nối đến backend";
-      const content = `Lỗi: ${errorText}`;
+      const errorText = e instanceof Error ? e.message : t("chat.error_backend");
+      const content = t("chat.error_prefix", { msg: errorText });
       const errMsg: Message = {
         role: "assistant",
         content,
@@ -604,7 +606,7 @@ export const ChatView: React.FC<{
     if (action === "deep_research") {
       const q = input.trim();
       if (!q) {
-        toast.addToast("error", "Nhập câu hỏi trước khi dùng Deep Research.");
+        toast.addToast("error", t("chat.deep_research_need_question"));
         return;
       }
       setMessages((prev) => [...prev, { role: "user", content: q }]);
@@ -620,8 +622,8 @@ export const ChatView: React.FC<{
           model_used: "Deep Research",
         }]);
       } catch (e) {
-        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `Deep Research thất bại: ${errMsg}` }]);
+        const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.deep_research_failed", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -629,11 +631,11 @@ export const ChatView: React.FC<{
     }
 
     const actions: Record<string, { query: string; mode: string }> = {
-      summary: { query: "Tóm tắt các ý chính của paper này", mode: "chat" },
-      verify: { query: "Xác thực các kết quả nghiên cứu trong các paper này dựa trên dữ liệu học thuật bên ngoài", mode: "verify" },
-      debate: { query: "Tạo tranh luận AI: ủng hộ và phản biện các luận điểm chính", mode: "debate" },
-      related: { query: "Tìm các nghiên cứu liên quan đến chủ đề của paper này", mode: "chat" },
-      insight: { query: "Phân tích khoảng trống nghiên cứu, điểm mạnh điểm yếu và hướng phát triển", mode: "gap" },
+      summary: { query: t("chat.quick_summary_query"), mode: "chat" },
+      verify: { query: t("chat.quick_verify_query"), mode: "verify" },
+      debate: { query: t("chat.quick_debate_query"), mode: "debate" },
+      related: { query: t("chat.quick_related_query"), mode: "chat" },
+      insight: { query: t("chat.quick_insight_query"), mode: "gap" },
     };
     const act = actions[action];
     if (!act) return;
@@ -655,8 +657,8 @@ export const ChatView: React.FC<{
     if (quickIds === "error") {
       setMessages((prev) => [...prev, { role: "user", content: act.query }]);
       const errContent = scope === "collection"
-        ? "**Chưa chọn collection.** Hãy tạo hoặc chọn một collection/project trước."
-        : "**Chưa chọn paper nào!**\n\nChế độ **Paper hiện tại** yêu cầu bạn phải chọn ít nhất 1 paper từ thư viện trước.";
+        ? t("chat.no_collection_quick")
+        : t("chat.no_papers_quick");
       setMessages((prev) => [...prev, { role: "assistant", content: errContent }]);
       return;
     }
@@ -681,8 +683,8 @@ export const ChatView: React.FC<{
           model_used: vres.model_used,
         }]);
       } catch (e) {
-        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
+        const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.error_prefix", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -701,8 +703,8 @@ export const ChatView: React.FC<{
           model_used: res.model_used,
         }]);
       } catch (e) {
-        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
+        const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.error_prefix", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -721,8 +723,8 @@ export const ChatView: React.FC<{
           model_used: res.model_used,
         }]);
       } catch (e) {
-        const errMsg = e instanceof Error ? e.message : "Lỗi không xác định";
-        setMessages((prev) => [...prev, { role: "assistant", content: `Lỗi: ${errMsg}` }]);
+        const errMsg = e instanceof Error ? e.message : t("chat.error_unknown");
+        setMessages((prev) => [...prev, { role: "assistant", content: t("chat.error_prefix", { msg: errMsg }) }]);
       } finally {
         setLoading(false);
       }
@@ -831,7 +833,7 @@ export const ChatView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export synthesis report:", e);
-      toast.addToast("error", "Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.");
+      toast.addToast("error", t("chat.toast_export_report_error"));
     } finally {
       setExportingSynthesis(false);
     }
@@ -846,7 +848,7 @@ export const ChatView: React.FC<{
 
     const combinedContent = assistantMessages
       .map((msg, i) => {
-        const header = i === 0 ? "# Báo cáo tổng hợp" : `---\n## Phần ${i + 1}`;
+        const header = i === 0 ? t("chat.synthesis_header") : t("chat.synthesis_section", { number: i + 1 });
         const modelInfo = msg.model_used ? `*Model: ${msg.model_used}*` : "";
         return `${header}\n${modelInfo}\n\n${msg.content}`;
       })
@@ -857,12 +859,12 @@ export const ChatView: React.FC<{
 
       toast.addToast(
         "success",
-        `Đã tải ${format.toUpperCase()} thành công`
+        t("chat.toast_export_success", { format: format.toUpperCase() })
       );
     } catch (err) {
       toast.addToast(
         "error",
-        `Xuất ${format.toUpperCase()} thất bại`
+        t("chat.toast_export_error", { format: format.toUpperCase() })
       );
     }
   };
@@ -934,14 +936,14 @@ export const ChatView: React.FC<{
           const citation = msgCitations.find(c => c.ref_id === refId);
           if (!citation) {
             console.warn(`[Citation] ref_id=${refId} not found in citations`, msgCitations);
-            toast.addToast("error", `Không tìm thấy nguồn [${refId}]`);
+            toast.addToast("error", t("chat.toast_citation_not_found", { ref: refId }));
             return;
           }
           console.log("[Citation] Clicked:", citation);
           const paperId = citation.paper_id;
           if (!paperId) {
             console.warn("[Citation] paper_id is empty:", citation);
-            toast.addToast("error", `Không tìm thấy paper_id cho nguồn [${refId}]`);
+            toast.addToast("error", t("chat.toast_paper_id_missing", { ref: refId }));
             return;
           }
           const page = citation.page || 1;
@@ -951,7 +953,7 @@ export const ChatView: React.FC<{
           setPdfHighlightText(citation.text_snippet || citation.text || "");
           setShowPdfViewer(true);
           setPdfRefreshKey(k => k + 1);
-          toast.addToast("success", `Đã mở PDF trang ${page}`);
+          toast.addToast("success", t("chat.toast_pdf_open", { page }));
         }}
       />
     );
@@ -963,15 +965,15 @@ export const ChatView: React.FC<{
       <div className="debate-container">
         <div className="debate-columns">
           <div className="debate-column debate-a">
-            <h4>AI A (Ủng hộ)</h4>
+            <h4>{t("chat.debate_ai_a")}</h4>
             {parsed.aiA?.main && (
               <div className="debate-item">
-                <strong>Luận điểm:</strong> {parsed.aiA.main}
+                <strong>{t("chat.debate_argument")}</strong> {parsed.aiA.main}
               </div>
             )}
             {parsed.aiA?.rebuttal && (
               <div className="debate-item">
-                <strong>Phản biện:</strong> {parsed.aiA.rebuttal}
+                <strong>{t("chat.debate_rebuttal")}</strong> {parsed.aiA.rebuttal}
               </div>
             )}
             {parsed.aiA?.citations &&
@@ -981,7 +983,7 @@ export const ChatView: React.FC<{
                     <div key={i}>
                       <IconWithText icon={IconLibrary} size={14}>
                         {c.source}
-                        {c.page ? `, trang ${c.page}` : ""}
+                        {c.page ? `, ${t("chat.footnote_page", { page: c.page })}` : ""}
                       </IconWithText>
                     </div>
                   ))}
@@ -990,15 +992,15 @@ export const ChatView: React.FC<{
           </div>
 
           <div className="debate-column debate-b">
-            <h4>AI B (Phản biện)</h4>
+            <h4>{t("chat.debate_ai_b")}</h4>
             {parsed.aiB?.main && (
               <div className="debate-item">
-                <strong>Luận điểm:</strong> {parsed.aiB.main}
+                <strong>{t("chat.debate_argument")}</strong> {parsed.aiB.main}
               </div>
             )}
             {parsed.aiB?.rebuttal && (
               <div className="debate-item">
-                <strong>Phản biện:</strong> {parsed.aiB.rebuttal}
+                <strong>{t("chat.debate_rebuttal")}</strong> {parsed.aiB.rebuttal}
               </div>
             )}
             {parsed.aiB?.citations &&
@@ -1006,9 +1008,9 @@ export const ChatView: React.FC<{
                 <div className="debate-citations">
                   {parsed.aiB.citations.map((c, i) => (
                     <div key={i}>
-                      <IconWithText icon={IconLibrary} size={14}>
+                  <IconWithText icon={IconLibrary} size={14}>
                         {c.source}
-                        {c.page ? `, trang ${c.page}` : ""}
+                        {c.page ? `, ${t("chat.footnote_page", { page: c.page })}` : ""}
                       </IconWithText>
                     </div>
                   ))}
@@ -1019,14 +1021,14 @@ export const ChatView: React.FC<{
 
         {parsed.conclusion && (
           <div className="debate-conclusion">
-            <h4>Kết luận</h4>
+            <h4>{t("chat.debate_conclusion")}</h4>
             <div>{parsed.conclusion}</div>
           </div>
         )}
 
         {parsed.suggestions && parsed.suggestions.length > 0 && (
           <div className="debate-suggestions">
-            <h4>3 Đề xuất</h4>
+            <h4>{t("chat.debate_suggestions")}</h4>
             <ol>
               {parsed.suggestions.map((s, i) => (
                 <li key={i}>{s}</li>
@@ -1047,14 +1049,14 @@ export const ChatView: React.FC<{
         <PdfViewer
           key={`${pdfPaperId}-${pdfInitialPage}-${pdfRefreshKey}`}
           paperId={pdfPaperId}
-          paperTitle={paperTitles.get(pdfPaperId) || "Tài liệu"}
+          paperTitle={paperTitles.get(pdfPaperId) || t("pdf.preview_title")}
           initialPage={pdfInitialPage}
           highlightText={pdfHighlightText}
           onClose={() => setShowPdfViewer(false)}
           onCopyQuote={(text, page) => {
-            const quote = `> "${text}" (tr.${page})\n\n`;
+            const quote = t("chat.add_quote_prefix", { text, page });
             setInput(prev => prev ? prev + quote : quote);
-            toast.addToast("success", "Đã thêm trích dẫn vào input");
+            toast.addToast("success", t("chat.toast_pdf_quote"));
           }}
         />
       )}
@@ -1066,33 +1068,33 @@ export const ChatView: React.FC<{
               type="button"
               className={`chat-view-scope-tab ${scope === "current" ? "active" : ""}`}
               onClick={() => setScope("current")}
-              title="Bài báo hiện tại"
+              title={t("chat.scope_hint_current")}
             >
-              <IconFileText size={13} /> Bài báo
+              <IconFileText size={13} /> {t("chat.scope_current")}
             </button>
             <button
               type="button"
               className={`chat-view-scope-tab ${scope === "library" ? "active" : ""}`}
               onClick={() => setScope("library")}
-              title="Toàn bộ thư viện"
+              title={t("chat.scope_hint_library")}
             >
-              <IconLibrary size={13} /> Thư viện
+              <IconLibrary size={13} /> {t("chat.scope_library")}
             </button>
             <button
               type="button"
               className={`chat-view-scope-tab ${scope === "collection" ? "active" : ""}`}
               onClick={() => setScope("collection")}
-              title="Bộ sưu tập"
+              title={t("chat.scope_hint_collection")}
             >
-              <IconBook size={13} /> Bộ sưu tập
+              <IconBook size={13} /> {t("chat.scope_collection")}
             </button>
             <button
               type="button"
               className={`chat-view-scope-tab ${scope === "external" ? "active" : ""}`}
               onClick={() => setScope("external")}
-              title="Nghiên cứu bên ngoài"
+              title={t("chat.scope_hint_external")}
             >
-              <IconSearch size={13} /> Bên ngoài
+              <IconSearch size={13} /> {t("chat.scope_external")}
             </button>
           </div>
           <div className="chat-view-header-actions">
@@ -1101,7 +1103,7 @@ export const ChatView: React.FC<{
                 type="button"
                 className="chat-view-open-pdf-btn"
                 onClick={() => setShowPdfViewer(true)}
-                title="Mở trình xem PDF song song"
+                title={t("chat.open_pdf")}
               >
                 <IconWithText icon={IconBookOpen} size={13}>PDF</IconWithText>
               </button>
@@ -1111,14 +1113,14 @@ export const ChatView: React.FC<{
                 className="chat-view-cite-btn"
                 onClick={generateCitations}
                 disabled={citeLoading}
-                title="Tạo citation từ papers đã chọn"
+                title={t("chat.citation_dialog")}
               >
                 {citeLoading ? (
                   <IconSpinner size={13} />
                 ) : (
                   <IconStar size={13} />
                 )}
-                Citation
+                {t("chat.citation_dialog")}
               </button>
             )}
             {paperIds.length > 0 && (
@@ -1147,11 +1149,11 @@ export const ChatView: React.FC<{
                   border: "1px solid rgba(245, 158, 11, 0.2)",
                 }}
               >
-                <IconSearch size={13} /> Xác thực
+                <IconSearch size={13} /> {t("chat.quick_verify")}
               </span>
             )}
             {messages.length > 0 && (
-              <button type="button" className="chat-view-clear-btn" onClick={clearChat} title="Xoá cuộc trò chuyện">
+              <button type="button" className="chat-view-clear-btn" onClick={clearChat} title={t("chat.remove_paper_title")}>
                 <IconTrash size={14} />
               </button>
             )}
@@ -1166,7 +1168,7 @@ export const ChatView: React.FC<{
               onChange={(e) => setActiveCollectionId(e.target.value)}
             >
               {collections.length === 0 ? (
-                <option value="">Chưa có collection</option>
+                <option value="">{t("chat.no_collection_option")}</option>
               ) : collections.map((collection) => (
                 <option key={collection.id} value={collection.id}>
                   {collection.name} ({collection.paper_count})
@@ -1181,7 +1183,7 @@ export const ChatView: React.FC<{
             {paperIds.length > 0 ? (
               <div className="selected-papers-list">
                 {paperIds.map(id => {
-                  const title = paperTitles.get(id) || "Đang tải...";
+                  const title = paperTitles.get(id) || t("common.loading");
                   return (
                     <div key={id} className="selected-paper-badge" title={title}>
                       <IconFileText size={12} className="paper-badge-icon" />
@@ -1193,7 +1195,7 @@ export const ChatView: React.FC<{
                           e.stopPropagation();
                           setPaperIds(prev => prev.filter(x => x !== id));
                         }}
-                        title="Bỏ chọn"
+                        title={t("chat.remove_paper_title")}
                       >
                         <IconClose size={12} />
                       </button>
@@ -1204,15 +1206,15 @@ export const ChatView: React.FC<{
                   type="button"
                   className="chat-view-paper-picker-trigger-btn"
                   onClick={openPaperPicker}
-                  title="Thay đổi hoặc thêm paper"
+                  title={t("chat.change_paper_title")}
                 >
                   <IconLibrary size={12} />
-                  Thay đổi
+                  {t("chat.change_paper")}
                 </button>
               </div>
             ) : (
               <div className="selected-papers-empty">
-                <span className="empty-hint">Chưa chọn paper để tạo câu trả lời có bằng chứng.</span>
+                <span className="empty-hint">{t("chat.no_paper_hint")}</span>
                 {availablePapers.length > 0 ? (
                   <button
                     type="button"
@@ -1220,17 +1222,17 @@ export const ChatView: React.FC<{
                     onClick={openPaperPicker}
                   >
                     <IconLibrary size={12} />
-                    Chọn paper
+                    {t("chat.select_paper")}
                   </button>
                 ) : loadingPapers ? (
                   <span className="loading-hint">
-                    <IconWithText icon={IconSpinner} size={12}>Đang tải tài liệu...</IconWithText>
+                    <IconWithText icon={IconSpinner} size={12}>{t("chat.loading_papers")}</IconWithText>
                   </span>
                 ) : (
                   <span className="import-hint">
-                    Chưa có paper trong thư viện. {onGoToLibrary ? (
-                      <button type="button" onClick={onGoToLibrary} className="inline-import-btn">Import</button>
-                    ) : <strong>Import</strong>} ngay.
+                    {t("chat.import_prompt")} {onGoToLibrary ? (
+                      <button type="button" onClick={onGoToLibrary} className="inline-import-btn">{t("chat.import_now")}</button>
+                    ) : <strong>{t("chat.import_now")}</strong>} {t("chat.import_now_action")}
                   </span>
                 )}
               </div>
@@ -1247,10 +1249,9 @@ export const ChatView: React.FC<{
         {messages.length === 0 && !showCitePanel && (
           <div className="chat-view-empty">
             <IconBrain size={56} className="icon-gradient" />
-            <h3>Nghiên cứu có thể kiểm chứng</h3>
+            <h3>{t("chat.empty_title")}</h3>
             <p>
-              Chọn paper của bạn, hỏi một câu nghiên cứu, và nhận câu trả lời
-              có trích dẫn để kiểm chứng.
+              {t("chat.empty_desc")}
             </p>
             {displayQuestions && (
               <div className="chat-view-suggestions">
@@ -1277,19 +1278,17 @@ export const ChatView: React.FC<{
             <div className="cite-panel-header">
               <div className="cite-panel-title">
                 <IconBook size={18} />
-                <span>Bibliography ({CITATION_STYLE_LABELS[citeStyle]})</span>
+                <span>{t("chat.citation_dialog")} ({getCitationStyleLabel(citeStyle)})</span>
               </div>
               <div className="cite-panel-actions">
                 <div className="cite-style-selector">
-                  {(
-                    Object.keys(CITATION_STYLE_LABELS) as CitationStyle[]
-                  ).map((style) => (
+                  {CITATION_STYLES.map((style) => (
                     <button
                       key={style}
                       className={`cite-style-btn ${citeStyle === style ? "active" : ""}`}
                       onClick={() => changeCiteStyle(style)}
                     >
-                      {CITATION_STYLE_LABELS[style]}
+                      {getCitationStyleLabel(style)}
                     </button>
                   ))}
                 </div>
@@ -1298,15 +1297,15 @@ export const ChatView: React.FC<{
                   onClick={() => copyToClipboard(bibliography)}
                 >
                   {copiedAll ? (
-                    <IconWithText icon={IconCheck} size={14}>Đã copy</IconWithText>
+                    <IconWithText icon={IconCheck} size={14}>{t("chat.citation_copied")}</IconWithText>
                   ) : (
-                    "Sao chép tất cả"
+                    t("chat.citation_copy_all")
                   )}
                 </button>
                 <button
                   className="cite-export-bib-btn"
                   onClick={handleExportBibtex}
-                  title="Xuất BibTeX (.bib)"
+                  title={t("chat.export_bibtex")}
                 >
                   <IconDownload size={14} /> .bib
                 </button>
@@ -1350,7 +1349,7 @@ export const ChatView: React.FC<{
                   <button
                     className="cite-copy-btn"
                     onClick={() => copyToClipboard(c.formatted, i)}
-                    title="Copy citation"
+                    title={t("chat.copy_citation")}
                   >
                     {copiedIdx === i ? <IconCheck size={14} /> : <IconClipboard size={14} />}
                   </button>
@@ -1387,7 +1386,7 @@ export const ChatView: React.FC<{
                     {msg.citations && msg.citations.length > 0 && (
                       <div className="chat-view-footnotes">
                         <div className="chat-view-footnotes-title">
-                          Nguồn tham khảo
+                          {t("chat.footnote_title")}
                         </div>
                         <div className="chat-view-footnotes-list">
                           {msg.citations.map((c, j) => (
@@ -1398,7 +1397,7 @@ export const ChatView: React.FC<{
                                 console.log("[Citation] Footnote clicked:", c);
                                 if (!c.ref_id) {
                                   console.warn("[Citation] Footer: ref_id missing");
-                                  toast.addToast("error", "Thiếu ref_id");
+                                  toast.addToast("error", t("chat.toast_ref_id_missing"));
                                   return;
                                 }
                                 if (!c.paper_id) {
@@ -1428,7 +1427,7 @@ export const ChatView: React.FC<{
                                 </div>
                                 {c.page && (
                                   <div className="chat-view-footnote-meta">
-                                    Trang {c.page}
+                                    {t("chat.footnote_page", { page: c.page })}
                                   </div>
                                 )}
                                 {c.text_snippet && (
@@ -1438,7 +1437,7 @@ export const ChatView: React.FC<{
                                 )}
                                 {c.paper_id && (
                                   <div className="chat-view-footnote-link">
-                                    <IconWithText icon={IconFileText} size={14}>Mở PDF</IconWithText>
+                                    <IconWithText icon={IconFileText} size={14}>{t("chat.open_pdf")}</IconWithText>
                                     <IconArrowRight size={14} />
                                   </div>
                                 )}
@@ -1456,7 +1455,7 @@ export const ChatView: React.FC<{
                   sources={verifyResult.external_sources}
                   status={verifyResult.verify_status}
                   onRefresh={(doi) => {
-                    toast.addToast("success", `Đã xoá cache cho ${doi}. Hãy gửi lại truy vấn để làm mới dữ liệu.`);
+                    toast.addToast("success", t("chat.toast_verify_refresh", { doi }));
                   }}
                 />
               )}
@@ -1467,17 +1466,17 @@ export const ChatView: React.FC<{
                   onViewUncited={() => {
                     const uncited = claimAnalyses[i].uncited_claim_texts;
                     if (uncited.length > 0) {
-                      toast.addToast("info", `Có ${uncited.length} claim thiếu nguồn. Xem trong Trust Report.`);
+                      toast.addToast("info", t("chat.toast_uncited_claims", { count: uncited.length }));
                     }
                   }}
                   onFindMoreSources={() => {
-                    toast.addToast("info", "Tính năng tự động tìm nguồn sẽ có trong bản cập nhật sau.");
+                    toast.addToast("info", t("chat.toast_find_sources"));
                   }}
                   onKeepOnlyCited={() => {
-                    toast.addToast("info", "Tính năng lọc claim chỉ giữ bằng chứng sẽ có trong bản cập nhật sau.");
+                    toast.addToast("info", t("chat.toast_keep_cited"));
                   }}
                   onExport={() => {
-                    toast.addToast("info", "Xuất bản kiểm chứng sẽ có trong bản cập nhật sau.");
+                    toast.addToast("info", t("chat.toast_export_claim"));
                   }}
                 />
               )}
@@ -1523,7 +1522,7 @@ export const ChatView: React.FC<{
                         </>
                       );
                     })() : (
-                      <IconWithText icon={IconBot} size={14}>Trợ lý</IconWithText>
+                      <IconWithText icon={IconBot} size={14}>{t("chat.model_assistant")}</IconWithText>
                     )}
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
@@ -1531,9 +1530,9 @@ export const ChatView: React.FC<{
                       type="button"
                       className="chat-view-copy-btn"
                       onClick={() => copyToClipboard(msg.content)}
-                      title="Sao chép nội dung"
+                      title={t("chat.copy_content_title")}
                     >
-                      Sao chép
+                      {t("chat.copy_content")}
                     </button>
                   </div>
                 </div>
@@ -1563,23 +1562,23 @@ export const ChatView: React.FC<{
             className="chat-view-action-btn"
             onClick={() => handleQuickAction("summary")}
             disabled={loading}
-            title="Tóm tắt các ý chính"
+            title={t("chat.quick_summary")}
           >
-            <IconFileText size={13} /> Tóm tắt
+            <IconFileText size={13} /> {t("chat.quick_summary")}
           </button>
           <button
             className="chat-view-action-btn"
             onClick={() => handleQuickAction("verify")}
             disabled={loading}
-            title="Xác thực kết quả dựa trên dữ liệu học thuật"
+            title={t("chat.quick_verify")}
           >
-            <IconSearch size={13} /> Xác thực
+            <IconSearch size={13} /> {t("chat.quick_verify")}
           </button>
           <button
             className="chat-view-action-btn"
             onClick={() => handleQuickAction("deep_research")}
             disabled={loading || !input.trim()}
-            title="Phân tích câu hỏi thành nhiều hướng và tổng hợp kết quả"
+            title={t("chat.quick_deep_research")}
             style={{
               color: "var(--color-primary, #6366f1)",
               fontWeight: 600,
@@ -1587,7 +1586,7 @@ export const ChatView: React.FC<{
               background: "rgba(99, 102, 241, 0.05)"
             }}
           >
-            <IconZap size={13} /> Nghiên cứu sâu
+            <IconZap size={13} /> {t("chat.quick_deep_research")}
           </button>
 
           {/* Overflow menu */}
@@ -1595,7 +1594,7 @@ export const ChatView: React.FC<{
             <button
               className="chat-view-action-btn"
               onClick={() => setShowOverflowActions(!showOverflowActions)}
-              title="Thêm công cụ"
+              title={t("chat.quick_deep_research")}
             >
               <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>···</span>
             </button>
@@ -1627,47 +1626,47 @@ export const ChatView: React.FC<{
                   }}
                 >
                   <OverflowAction
-                    label="Tranh luận"
-                    title="Tranh luận AI đa chiều"
+                    label={t("chat.quick_debate")}
+                    title={t("chat.quick_debate")}
                     onClick={() => { handleQuickAction("debate"); setShowOverflowActions(false); }}
                   />
                   <OverflowAction
-                    label="Liên quan"
-                    title="Tìm nghiên cứu liên quan"
+                    label={t("chat.quick_related")}
+                    title={t("chat.quick_related")}
                     onClick={() => { handleQuickAction("related"); setShowOverflowActions(false); }}
                   />
                   <OverflowAction
-                    label="Phân tích"
-                    title="Phân tích chuyên sâu"
+                    label={t("chat.quick_insight")}
+                    title={t("chat.quick_insight")}
                     onClick={() => { handleQuickAction("insight"); setShowOverflowActions(false); }}
                   />
                   {paperIds.length === 1 && (
                     <OverflowAction
-                      label="Trích dẫn PDF"
-                      title="Trích dẫn văn bản đang chọn trong PDF"
+                      label={t("chat.quick_pdf_quote")}
+                      title={t("chat.quick_pdf_quote")}
                       onClick={() => { handlePasteHighlight(); setShowOverflowActions(false); }}
                       highlight
                     />
                   )}
                   <div style={{ height: "1px", background: "var(--color-border, #282828)", margin: "4px 0" }} />
                   <OverflowAction
-                    label="Tải Markdown"
-                    title="Tải báo cáo dạng Markdown"
+                    label={t("chat.export_markdown")}
+                    title={t("chat.export_markdown")}
                     onClick={() => { handleHeaderExport("md"); setShowOverflowActions(false); }}
                   />
                   <OverflowAction
-                    label="Tải Word"
-                    title="Tải báo cáo dạng Word"
+                    label={t("chat.export_word")}
+                    title={t("chat.export_word")}
                     onClick={() => { handleHeaderExport("docx"); setShowOverflowActions(false); }}
                   />
                   <OverflowAction
-                    label="Tải HTML"
-                    title="Tải báo cáo dạng HTML"
+                    label={t("chat.export_html")}
+                    title={t("chat.export_html")}
                     onClick={() => { handleHeaderExport("html"); setShowOverflowActions(false); }}
                   />
                   <OverflowAction
-                    label="Tải PDF"
-                    title="Tải báo cáo dạng PDF"
+                    label={t("chat.export_pdf")}
+                    title={t("chat.export_pdf")}
                     onClick={() => { handleHeaderExport("pdf"); setShowOverflowActions(false); }}
                   />
                 </div>
@@ -1683,14 +1682,14 @@ export const ChatView: React.FC<{
             type="button"
             className="chat-view-mode-select-trigger"
             onClick={() => setShowModeDropdown(!showModeDropdown)}
-            title="Chọn chế độ suy luận"
+            title={t("chat.mode_fast_desc")}
           >
             {reasoningMode === "fast" ? (
-              <IconWithText icon={IconZap} size={16}>Fast</IconWithText>
+              <IconWithText icon={IconZap} size={16}>{t("chat.mode_fast")}</IconWithText>
             ) : reasoningMode === "deep" ? (
-              <IconWithText icon={IconBrainAi} size={16}>Deep</IconWithText>
+              <IconWithText icon={IconBrainAi} size={16}>{t("chat.mode_deep")}</IconWithText>
             ) : (
-              <IconWithText icon={IconBrainAi} size={16}>Deep+</IconWithText>
+              <IconWithText icon={IconBrainAi} size={16}>{t("chat.mode_deep_plus")}</IconWithText>
             )}
             <span className="dropdown-arrow"></span>
           </button>
@@ -1708,8 +1707,8 @@ export const ChatView: React.FC<{
                 >
                   <span className="item-icon"><IconZap size={16} /></span>
                   <div className="item-text">
-                    <div className="item-title">Fast</div>
-                    <div className="item-desc">Trả lời nhanh, không hiển thị suy nghĩ</div>
+                    <div className="item-title">{t("chat.mode_fast")}</div>
+                    <div className="item-desc">{t("chat.mode_fast_desc")}</div>
                   </div>
                 </div>
                 <div
@@ -1721,8 +1720,8 @@ export const ChatView: React.FC<{
                 >
                   <span className="item-icon"><IconBrainAi size={16} /></span>
                   <div className="item-text">
-                    <div className="item-title">Deep</div>
-                    <div className="item-desc">Suy luận sâu với DeepSeek V4 Flash</div>
+                    <div className="item-title">{t("chat.mode_deep")}</div>
+                    <div className="item-desc">{t("chat.mode_deep_desc")}</div>
                   </div>
                 </div>
                 <div
@@ -1734,8 +1733,8 @@ export const ChatView: React.FC<{
                 >
                   <span className="item-icon"><IconBrainAi size={16} /></span>
                   <div className="item-text">
-                    <div className="item-title">Deep+</div>
-                    <div className="item-desc">Lập luận chuyên sâu với DeepSeek R1</div>
+                    <div className="item-title">{t("chat.mode_deep_plus")}</div>
+                    <div className="item-desc">{t("chat.mode_deep_plus_desc")}</div>
                   </div>
                 </div>
               </div>
@@ -1749,8 +1748,8 @@ export const ChatView: React.FC<{
           onKeyDown={handleKeyDown}
           placeholder={
             scope === "external"
-              ? "Hỏi về nghiên cứu bên ngoài thư viện..."
-              : "Hỏi để nhận câu trả lời có bằng chứng từ paper..."
+              ? t("chat.placeholder_external")
+              : t("chat.placeholder_current")
           }
           disabled={loading}
         />
@@ -1758,19 +1757,19 @@ export const ChatView: React.FC<{
           type="button"
           className={`chat-view-strict-evidence-toggle${strictEvidence ? " is-active" : ""}`}
           onClick={() => setStrictEvidence(!strictEvidence)}
-          title={strictEvidence ? "ĐANG BẬT: Model chỉ trả lời khi có bằng chứng trong tài liệu" : "ĐANG TẮT: Model có thể dùng kiến thức chung để trả lời"}
+          title={strictEvidence ? t("chat.strict_on_title") : t("chat.strict_off_title")}
         >
           <span className="chat-view-strict-evidence-icon">
             {strictEvidence ? <IconCheck size={14} /> : <IconClose size={14} />}
           </span>
-          <span>{strictEvidence ? "Chỉ bằng chứng" : "Tự do"}</span>
+          <span>{strictEvidence ? t("chat.strict_on") : t("chat.strict_off")}</span>
         </button>
         <button
           type="button"
           className="chat-view-send-btn"
           onClick={() => isStreaming ? handleCancelStream() : handleSend()}
           disabled={!isStreaming && (loading || !input.trim())}
-          title={isStreaming ? "Huy yeu cau dang chay" : "Gui"}
+          title={isStreaming ? t("chat.cancel_stream") : t("chat.send")}
         >
           {isStreaming ? <IconClose size={20} /> : loading ? <IconSpinner size={20} /> : <IconSend size={20} />}
         </button>
@@ -1786,7 +1785,7 @@ export const ChatView: React.FC<{
             <div className="paper-picker-header">
               <div className="paper-picker-title">
                 <IconLibrary size={18} />
-                Chọn paper để chat
+                {t("chat.paper_picker_title")}
               </div>
               <button
                 className="paper-picker-close"
@@ -1801,7 +1800,7 @@ export const ChatView: React.FC<{
                 ref={paperSearchRef}
                 type="text"
                 className="paper-picker-search-input"
-                placeholder="Tìm kiếm paper..."
+                placeholder={t("chat.paper_picker_search")}
                 value={paperSearch}
                 onChange={(e) => setPaperSearch(e.target.value)}
               />
@@ -1811,14 +1810,14 @@ export const ChatView: React.FC<{
                   className="picker-quick-btn"
                   onClick={handleSelectAllPapers}
                 >
-                  Chọn tất cả
+                  {t("chat.paper_picker_select_all")}
                 </button>
                 <button
                   type="button"
                   className="picker-quick-btn"
                   onClick={handleDeselectAllPapers}
                 >
-                  Bỏ chọn tất cả
+                  {t("chat.paper_picker_deselect_all")}
                 </button>
               </div>
             </div>
@@ -1826,7 +1825,7 @@ export const ChatView: React.FC<{
             <div className="paper-picker-list">
               {filteredPapers.length === 0 ? (
                 <div className="paper-picker-empty">
-                  {paperSearch ? "Không tìm thấy paper phù hợp." : "Chưa có paper nào trong thư viện."}
+                  {paperSearch ? t("chat.paper_picker_empty") : t("chat.paper_picker_empty_library")}
                 </div>
               ) : (
                 filteredPapers.map(p => {
@@ -1873,7 +1872,7 @@ export const ChatView: React.FC<{
 
             <div className="paper-picker-footer">
               <span className="paper-picker-count">
-                Đã chọn <strong>{tempPaperIds.length}</strong> / {availablePapers.length} papers
+                {t("chat.selected_papers", { count: tempPaperIds.length, total: availablePapers.length })}
               </span>
               <div className="paper-picker-footer-buttons">
                 <button
@@ -1883,7 +1882,7 @@ export const ChatView: React.FC<{
                     onGoToLibrary?.();
                   }}
                 >
-                  Vào Thư viện
+                  {t("chat.paper_picker_go_library")}
                 </button>
                 <button
                   className="paper-picker-confirm-btn"
@@ -1892,7 +1891,7 @@ export const ChatView: React.FC<{
                     setShowPaperPicker(false);
                   }}
                 >
-                  Xác nhận
+                  {t("chat.paper_picker_confirm")}
                 </button>
               </div>
             </div>

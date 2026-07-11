@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from "lucide-react";
+import i18n from "../../i18n";
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -89,12 +90,9 @@ const ACCENTS: Record<ToastType, string> = {
   warning: "var(--color-warning, #f59e0b)",
 };
 
-const TITLES: Record<ToastType, string> = {
-  success: "Thành công",
-  error: "Lỗi",
-  info: "Thông báo",
-  warning: "Cảnh báo",
-};
+export function getToastTitle(type: ToastType): string {
+  return i18n.t(`toast.${type}`);
+}
 
 // Safe helper to strip hardcoded emojis from standard/legacy toast messages
 function cleanMessage(msg: string): string {
@@ -262,7 +260,7 @@ const ToastItem: React.FC<{
         {/* Text Area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3, minWidth: 0, paddingRight: 4 }}>
           <span style={{ fontSize: "10.5px", textTransform: "uppercase", letterSpacing: "0.06em", color: accentColor, fontWeight: 700 }}>
-            {TITLES[type]}
+            {getToastTitle(type)}
           </span>
           <div style={{ color: "var(--color-text)", fontSize: "13px", fontWeight: 500, lineHeight: 1.45, wordBreak: "break-word" }}>
             {cleanedMessage}
@@ -273,7 +271,7 @@ const ToastItem: React.FC<{
         <button
           onClick={() => onDismiss(id)}
           className="toast-close-btn"
-          aria-label="Đóng thông báo"
+          aria-label={i18n.t("toast.dismiss")}
         >
           <X size={13} strokeWidth={1.5} />
         </button>

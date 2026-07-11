@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconHelp,
@@ -21,15 +22,15 @@ export interface HelpMenuItem {
   action?: "tour";
 }
 
-const MENU_ITEMS: HelpMenuItem[] = [
-  { id: "center", label: "Trung tâm trợ giúp", icon: IconHelp, section: "home" },
-  { id: "docs", label: "Tài liệu", icon: IconBookOpen, section: "user-guide" },
-  { id: "start", label: "Bắt đầu", icon: IconRocket, section: "getting-started" },
-  { id: "shortcuts", label: "Phím tắt", icon: IconKeyboard, section: "shortcuts" },
-  { id: "whats-new", label: "Có gì mới", icon: IconSparkle, section: "release-notes" },
-  { id: "bug", label: "Báo lỗi", icon: IconBug, external: BUG_REPORT_URL },
-  { id: "contact", label: "Liên hệ hỗ trợ", icon: IconMail, external: `mailto:${CONTACT_EMAIL}` },
-  { id: "about", label: "Về ResearchMind", icon: IconInfo, section: "about" },
+const getMenuItems = (t: (key: string) => string): HelpMenuItem[] => [
+  { id: "center", label: t("help.center"), icon: IconHelp, section: "home" },
+  { id: "docs", label: t("help.docs"), icon: IconBookOpen, section: "user-guide" },
+  { id: "start", label: t("help.getting_started"), icon: IconRocket, section: "getting-started" },
+  { id: "shortcuts", label: t("help.shortcuts"), icon: IconKeyboard, section: "shortcuts" },
+  { id: "whats-new", label: t("help.whats_new"), icon: IconSparkle, section: "release-notes" },
+  { id: "bug", label: t("help.report_bug"), icon: IconBug, external: BUG_REPORT_URL },
+  { id: "contact", label: t("help.contact"), icon: IconMail, external: `mailto:${CONTACT_EMAIL}` },
+  { id: "about", label: t("help.about"), icon: IconInfo, section: "about" },
 ];
 
 interface HelpMenuProps {
@@ -38,8 +39,10 @@ interface HelpMenuProps {
 }
 
 export const HelpMenu: React.FC<HelpMenuProps> = ({ onOpenSection, onStartTour }) => {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const MENU_ITEMS = getMenuItems(t);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -84,15 +87,15 @@ export const HelpMenu: React.FC<HelpMenuProps> = ({ onOpenSection, onStartTour }
         onClick={() => setMenuOpen((v) => !v)}
         aria-expanded={menuOpen}
         aria-haspopup="menu"
-        title="Trợ giúp"
-        data-tooltip="Trợ giúp"
+        title={t("help.menu_title")}
+        data-tooltip={t("help.menu_title")}
       >
         <IconHelp size={18} />
       </button>
 
       {menuOpen && (
         <div className="app-help-dropdown rm-dropdown-menu" role="menu">
-          <div className="app-help-dropdown-header">Trợ giúp</div>
+          <div className="app-help-dropdown-header">{t("help.menu_title")}</div>
           {MENU_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
@@ -112,11 +115,10 @@ export const HelpMenu: React.FC<HelpMenuProps> = ({ onOpenSection, onStartTour }
           <button
             type="button"
             className="app-help-dropdown-item rm-dropdown-item"
-            role="menuitem"
-            onClick={() => handleItem({ id: "tour", label: "Tour giới thiệu", icon: IconRocket, action: "tour" })}
-          >
+            role="menuitem"          onClick={() => handleItem({ id: "tour", label: t("help.tour"), icon: IconRocket, action: "tour" })}
+        >
             <IconRocket size={16} />
-            <span>Tour giới thiệu</span>
+            <span>{t("help.tour")}</span>
           </button>
         </div>
       )}

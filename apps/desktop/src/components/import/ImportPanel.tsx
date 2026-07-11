@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { api, ImportJob } from "../../lib/api";
 import {
   IconFileText,
@@ -62,6 +63,7 @@ interface ImportResult {
 }
 
 export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> = ({ onImported }) => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<ImportTab>("pdf");
   const [dragOver, setDragOver] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -243,7 +245,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
         newResults.push({
           filename: file.name,
           status: "error",
-          error: e instanceof Error ? e.message : "Lỗi không xác định",
+          error: e instanceof Error ? e.message : t("error.unknown"),
         });
       }
     }
@@ -273,7 +275,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       setResults([{
         filename: folderPath,
         status: "error",
-        error: e instanceof Error ? e.message : "Không thể import folder",
+        error: e instanceof Error ? e.message : t("import.error_folder"),
       }]);
       onImported();
     } finally {
@@ -301,7 +303,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       setResults([{
         filename: file.name,
         status: "error",
-        error: e instanceof Error ? e.message : "Lỗi import BibTeX",
+        error: e instanceof Error ? e.message : t("import.error_bibtex"),
       }]);
     } finally {
       setImporting(false);
@@ -402,7 +404,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       setResults([{
         filename: file.name,
         status: "error",
-        error: e instanceof Error ? e.message : "Lỗi import CSV",
+        error: e instanceof Error ? e.message : t("import.error_csv"),
       }]);
       onImported();
     } finally {
@@ -438,7 +440,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           onMouseEnter={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "rgba(var(--color-primary-rgb), 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2)"; } }}
           onMouseLeave={(e) => { if (tab !== "pdf") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
-          <IconUpload size={14} /> Tài liệu
+          <IconUpload size={14} /> {t("import.tab_documents")}
         </button>
         <button
           onClick={() => setTab("bibtex")}
@@ -454,7 +456,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           onMouseEnter={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "rgba(var(--color-primary-rgb), 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2)"; } }}
           onMouseLeave={(e) => { if (tab !== "bibtex") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
-          <IconBook size={14} /> BibTeX
+          <IconBook size={14} /> {t("import.tab_bibtex")}
         </button>
         <button
           onClick={() => setTab("zotero")}
@@ -470,7 +472,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           onMouseEnter={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "rgba(var(--color-primary-rgb), 0.08)"; e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(var(--color-primary-rgb), 0.2)"; } }}
           onMouseLeave={(e) => { if (tab !== "zotero") { e.currentTarget.style.background = "transparent"; e.currentTarget.style.boxShadow = "none"; } }}
         >
-          <IconLibrary size={14} /> Zotero CSV
+          <IconLibrary size={14} /> {t("import.tab_zotero")}
         </button>
       </div>
 
@@ -485,8 +487,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <div className="import-dropzone-icon">
             <IconUpload size={32} />
           </div>
-          <h3>Tải lên tài liệu</h3>
-          <p>Kéo thả file vào đây, hoặc</p>
+          <h3>{t("import.dropzone_title")}</h3>
+          <p>{t("import.dropzone_text")}</p>
           <div className="import-formats">
             {[...new Map(SUPPORTED_FORMATS.map(f => [f.label, f])).values()].map(fmt => (
               <span key={fmt.ext} className="import-format-badge">
@@ -501,7 +503,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               disabled={importing}
             >
               <IconFileText size={16} style={{ marginRight: 4 }} />
-              Chọn file
+              {t("import.select_file")}
             </button>
             <button
               className="import-btn import-btn-secondary"
@@ -509,7 +511,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               disabled={importing}
             >
               <IconFolderOpen size={16} style={{ marginRight: 4 }} />
-              Chọn thư mục
+              {t("import.select_folder")}
             </button>
           </div>
           <input
@@ -538,8 +540,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <div className="import-dropzone-icon">
             <IconBook size={32} />
           </div>
-          <h3>Import từ BibTeX (.bib)</h3>
-          <p>Chọn file .bib export từ Zotero, Google Scholar, hoặc Mendeley</p>
+          <h3>{t("import.bibtex_title")}</h3>
+          <p>{t("import.bibtex_desc")}</p>
           <div className="import-actions">
             <button
               className="import-btn"
@@ -547,12 +549,12 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               disabled={importing}
             >
               <IconFileText size={16} style={{ marginRight: 4 }} />
-              Chọn file .bib
+              {t("import.bibtex_btn")}
             </button>
           </div>
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
             <IconWithText icon={IconInfo} size={12}>
-              Dữ liệu sẽ được import dưới dạng metadata (không có file PDF kèm theo).
+              {t("import.bibtex_info")}
             </IconWithText>
           </p>
           <input
@@ -571,22 +573,22 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <div className="import-dropzone-icon">
             <IconLibrary size={32} />
           </div>
-          <h3>Import từ Zotero (CSV)</h3>
-          <p>Chọn file .csv export từ Zotero</p>
+          <h3>{t("import.zotero_title")}</h3>
+          <p>{t("import.zotero_desc")}</p>
 
           {/* Zotero data directory input */}
           <div style={{ width: "100%", maxWidth: 400, margin: "0 auto 12px", textAlign: "left" }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text, #1a1a1a)", display: "block", marginBottom: 4 }}>
-              Thư mục Zotero data:
+              {t("import.zotero_dir_label")}
               {detecting && (
                 <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-muted)", marginLeft: 6 }}>
                   <IconSpinner size={10} style={{ verticalAlign: "middle", marginRight: 3 }} />
-                  Đang phát hiện...
+                  {t("import.zotero_detecting")}
                 </span>
               )}
               {detected && zoteroDataDir && !detecting && (
                 <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-success, #22c55e)", marginLeft: 6 }}>
-                  ✓ Tự động phát hiện
+                  {t("import.zotero_detected")}
                 </span>
               )}
             </label>
@@ -595,7 +597,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                 type="text"
                 value={zoteroDataDir}
                 onChange={(e) => handleZoteroPathChange(e.target.value)}
-                placeholder={detecting ? "Đang phát hiện thư mục Zotero..." : "VD: C:\Users\YourName\Zotero"}
+                placeholder={detecting ? t("import.zotero_dir_placeholder") : t("import.zotero_dir_example")}
                 style={{
                   flex: 1, padding: "8px 10px", border: "1px solid var(--color-border, #d1d5db)",
                   borderRadius: 6, fontSize: 13, background: "var(--color-input, #fff)",
@@ -617,13 +619,13 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                   background: "var(--color-bg, #f9fafb)", color: "var(--color-text, #1a1a1a)",
                   transition: "all 0.15s ease",
                 }}
-                title="Chọn thư mục Zotero"
+                title={t("import.zotero_dir_btn")}
               >
               <IconFolderOpen size={16} />
               </button>
             </div>
             <p style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4 }}>
-              Đường dẫn đến thư mục Zotero (thường có chứa thư mục <code>storage</code>)
+              {t("import.zotero_dir_hint")}
             </p>
           </div>
 
@@ -639,7 +641,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                 onChange={(e) => setFindPdfs(e.target.checked)}
                 style={{ accentColor: "var(--color-primary)" }}
               />
-              Tự động tìm và import file PDF từ Zotero storage
+              {t("import.zotero_auto_find")}
             </label>
           </div>
 
@@ -649,16 +651,16 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
               className="import-btn"
               onClick={() => csvInputRef.current?.click()}
               disabled={importing}
-              title={findPdfs && !zoteroDataDir.trim() ? "Bạn cần nhập thư mục Zotero data để tìm PDF" : ""}
+              title={findPdfs && !zoteroDataDir.trim() ? t("import.zotero_needs_dir") : ""}
             >
               <IconFileText size={16} style={{ marginRight: 4 }} />
-              Chọn file CSV
+              {t("import.zotero_csv_btn")}
             </button>
           </div>
           <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
             <IconWithText icon={IconInfo} size={12}>
-              Cách export: Zotero → Chọn collection → File → Export Library... → Format: CSV
-              {findPdfs && zoteroDataDir.trim() ? " • PDF sẽ được tự động tìm và index" : ""}
+              {t("import.zotero_export_guide")}
+              {findPdfs && zoteroDataDir.trim() ? t("import.zotero_pdf_note") : ""}
             </IconWithText>
           </p>
           <input
@@ -675,7 +677,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
       {importing && (
         <div className="import-progress">
           <IconSpinner size={20} />
-          <span>Đang tải file lên...</span>
+          <span>{t("import.uploading")}</span>
         </div>
       )}
 
@@ -684,8 +686,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <IconSpinner size={20} />
           <span>
             {results.some((r) => r.stage === "ocr")
-              ? "Đang OCR hình ảnh (lần đầu có thể mất vài phút)..."
-              : "Đang lập chỉ mục..."}
+              ? t("import.ocr_processing")
+              : t("import.indexing")}
           </span>
         </div>
       )}
@@ -696,14 +698,14 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
           <div className="import-results-header">
             <span>
               {successCount > 0 && <IconCheck size={16} style={{ color: "var(--color-success)", marginRight: 4 }} />}
-              {successCount} thành công
-              {processingCount > 0 && `, ${processingCount} đang xử lý`}
-              {needsOcrCount > 0 && `, ${needsOcrCount} cần OCR`}
-              {duplicateCount > 0 && `, ${duplicateCount} trùng`}
-              {failedCount > 0 && `, ${failedCount} thất bại`}
-              {errorCount > 0 && `, ${errorCount} lỗi`}
-              {pdfIndexingCount > 0 && `, ${pdfIndexingCount} PDF`}
-              {pdfNotFoundCount > 0 && `, ${pdfNotFoundCount} không có PDF`}
+              {successCount} {t("import.status_success")}
+              {processingCount > 0 && `, ${processingCount} ${t("import.status_processing")}`}
+              {needsOcrCount > 0 && `, ${needsOcrCount} ${t("import.status_ocr")}`}
+              {duplicateCount > 0 && `, ${duplicateCount} ${t("import.status_duplicate")}`}
+              {failedCount > 0 && `, ${failedCount} ${t("import.status_failed")}`}
+              {errorCount > 0 && `, ${errorCount} ${t("import.status_error")}`}
+              {pdfIndexingCount > 0 && `, ${pdfIndexingCount} ${t("import.status_pdf")}`}
+              {pdfNotFoundCount > 0 && `, ${pdfNotFoundCount} ${t("import.status_no_pdf")}`}
             </span>
           </div>
           <div className="import-results-list">
@@ -765,7 +767,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       className="import-result-name"
                       style={{ cursor: r.paper_id ? "pointer" : "default" }}
                       onClick={() => r.paper_id && startEditing(i, r.title || r.filename)}
-                      title={r.paper_id ? "Nhấp để sửa tên" : ""}
+                      title={r.paper_id ? t("import.click_rename") : ""}
                     >
                       {r.title || r.filename}
                       {r.paper_id && (
@@ -773,18 +775,18 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       )}
                     </span>
                   )}
-                  {r.pages && <span className="import-result-pages">{r.pages} trang</span>}
+                  {r.pages && <span className="import-result-pages">{r.pages} {t("import.page")}</span>}
                   {isProcessing && <span className="import-result-pages">{r.stage || r.status} {typeof r.progress === "number" ? `${r.progress}%` : ""}</span>}
-                  {["indexed", "ready"].includes(r.status) && <span className="import-result-pages">sẵn sàng</span>}
-                  {r.status === "needs_ocr" && <span className="import-result-pages" style={{ color: "var(--color-warning, #f59e0b)" }}>cần OCR</span>}
-                  {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted)" }}>đã có</span>}
+                  {["indexed", "ready"].includes(r.status) && <span className="import-result-pages">{t("import.ready_status")}</span>}
+                  {r.status === "needs_ocr" && <span className="import-result-pages" style={{ color: "var(--color-warning, #f59e0b)" }}>{t("import.status_ocr")}</span>}
+                  {r.status === "duplicate" && <span className="import-result-pages" style={{ color: "var(--color-text-muted)" }}>{t("import.status_duplicate")}</span>}
                   {r.isScanned && (
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(245, 158, 11, 0.1)", color: "var(--color-warning, #f59e0b)",
                       whiteSpace: "nowrap",
                     }}>
-                      OCR {r.ocrPagesCount || 0} trang{r.ocrPagesFailed ? `, lỗi ${r.ocrPagesFailed}` : ""}
+                      {t("import.ocr_status", { n: r.ocrPagesCount || 0, m: r.ocrPagesFailed || "" })}
                     </span>
                   )}
                   {r.error && <span className="import-result-error">{r.error}</span>}
@@ -794,7 +796,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       className="import-retry-btn"
                       onClick={() => retryJob(r.job_id as string)}
                     >
-                      Thử lại
+                      {t("import.retry")}
                     </button>
                   )}
                   {/* PDF status badge */}
@@ -812,8 +814,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(234, 179, 8, 0.1)", color: "#a16207",
                       whiteSpace: "nowrap",
-                    }} title={pdfError || "Không tìm thấy PDF trong Zotero storage"}>
-                      <IconWithText icon={IconFileText} size={10}>Không có PDF</IconWithText>
+                    }} title={pdfError || t("import.pdf_not_found_title")}>
+                      <IconWithText icon={IconFileText} size={10}>{t("import.pdf_not_found_badge")}</IconWithText>
                     </span>
                   )}
                   {pdfStatus === "warning" && (
@@ -821,8 +823,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(249, 115, 22, 0.1)", color: "#c2410c",
                       whiteSpace: "nowrap",
-                    }} title={pdfError || "PDF có thể là scanned, cần OCR"}>
-                      <IconWithText icon={IconScanSearch} size={10}>PDF scanned</IconWithText>
+                    }} title={pdfError || t("import.pdf_scanned_title")}>
+                      <IconWithText icon={IconScanSearch} size={10}>{t("import.pdf_scanned_badge")}</IconWithText>
                     </span>
                   )}
                   {pdfStatus === "error" && (
@@ -830,8 +832,8 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(239, 68, 68, 0.1)", color: "var(--color-error, #ef4444)",
                       whiteSpace: "nowrap",
-                    }} title={pdfError || "Lỗi khi copy PDF"}>
-                      <IconWithText icon={IconError} size={10}>PDF lỗi</IconWithText>
+                    }} title={pdfError || t("import.pdf_error_title")}>
+                      <IconWithText icon={IconError} size={10}>{t("import.pdf_error_badge")}</IconWithText>
                     </span>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { api, Paper, Highlight, ChatResponse, BASE_URL } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { HighlightListSkeleton } from "../shared/Skeleton";
@@ -18,16 +19,6 @@ import {
   IconError,
 } from "../Icons";
 
-const CATEGORIES = [
-  { value: "all", label: "Tất cả" },
-  { value: "key_finding", label: "Kết quả" },
-  { value: "methodology", label: "Phương pháp" },
-  { value: "conclusion", label: "Kết luận" },
-  { value: "novel_contribution", label: "Đóng góp" },
-  { value: "limitation", label: "Hạn chế" },
-  { value: "important_claim", label: "Ý chính" },
-];
-
 const CATEGORY_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   key_finding: { bg: "rgba(16, 185, 129, 0.08)", color: "#34d399", border: "rgba(16, 185, 129, 0.2)" },
   methodology: { bg: "rgba(var(--color-primary-rgb), 0.08)", color: "#818cf8", border: "rgba(var(--color-primary-rgb), 0.2)" },
@@ -35,15 +26,6 @@ const CATEGORY_STYLES: Record<string, { bg: string; color: string; border: strin
   novel_contribution: { bg: "rgba(236, 72, 153, 0.08)", color: "#f472b6", border: "rgba(236, 72, 153, 0.2)" },
   limitation: { bg: "rgba(239, 68, 68, 0.08)", color: "#f87171", border: "rgba(239, 68, 68, 0.2)" },
   important_claim: { bg: "var(--color-surface-hover)", color: "var(--color-text-secondary)", border: "var(--color-border)" },
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  key_finding: "Kết quả chính",
-  methodology: "Phương pháp",
-  conclusion: "Kết luận",
-  novel_contribution: "Đóng góp mới",
-  limitation: "Hạn chế",
-  important_claim: "Ý chính",
 };
 
 function renderStars(importance: string): string {
@@ -67,9 +49,40 @@ function getPdfPageUrl(paperId: string, pageNumber: number | null): string {
   return base;
 }
 
+const getCategories = (t: (key: string) => string) => [
+  { value: "all", label: t("highlights.filter_all") },
+  { value: "key_finding", label: t("highlights.filter_results") },
+  { value: "methodology", label: t("highlights.filter_methods") },
+  { value: "conclusion", label: t("highlights.filter_conclusions") },
+  { value: "novel_contribution", label: t("highlights.filter_contributions") },
+  { value: "limitation", label: t("highlights.filter_limitations") },
+  { value: "important_claim", label: t("highlights.filter_key_points") },
+];
+
+const getCategoryLabels = (t: (key: string) => string): Record<string, string> => ({
+  key_finding: t("highlights.category_results"),
+  methodology: t("highlights.category_methods"),
+  conclusion: t("highlights.category_conclusions"),
+  novel_contribution: t("highlights.category_contributions"),
+  limitation: t("highlights.category_limitations"),
+  important_claim: t("highlights.category_key_points"),
+});
+
+const getGenerateOptions = (t: (key: string) => string) => [
+  { id: "summary", label: t("highlights.gen_summary"), desc: t("highlights.gen_summary_desc") },
+  { id: "compare", label: t("highlights.gen_compare"), desc: t("highlights.gen_compare_desc") },
+  { id: "debate", label: t("highlights.gen_debate"), desc: t("highlights.gen_debate_desc") },
+  { id: "gap", label: t("highlights.gen_gap"), desc: t("highlights.gen_gap_desc") },
+  { id: "litreview", label: t("highlights.gen_review"), desc: t("highlights.gen_review_desc") },
+] as const;
+
 export const HighlightsLibraryView: React.FC<{
   onStartChat: (paperIds: string[]) => void;
 }> = ({ onStartChat }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
+  const CATEGORY_LABELS = getCategoryLabels(t);
+  const GENERATE_OPTIONS = getGenerateOptions(t);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
@@ -98,13 +111,6 @@ export const HighlightsLibraryView: React.FC<{
   }, [showPdfOverlay]);
 
   // Generate section state
-  const GENERATE_OPTIONS = [
-    { id: "summary", label: "Tóm tắt", desc: "Tóm tắt tổng quan tài liệu" },
-    { id: "compare", label: "So sánh phương pháp", desc: "So sánh phương pháp với các tài liệu khác" },
-    { id: "debate", label: "Tranh luận", desc: "Tranh luận đa chiều về nội dung" },
-    { id: "gap", label: "Khoảng trống nghiên cứu", desc: "Phát hiện lỗ hổng nghiên cứu" },
-    { id: "litreview", label: "Tổng quan tài liệu", desc: "Viết literature review tự động" },
-  ] as const;
   const [generatingType, setGeneratingType] = useState<string | null>(null);
   const [generateResults, setGenerateResults] = useState<{ type: string; result: ChatResponse }[]>([]);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -167,7 +173,7 @@ export const HighlightsLibraryView: React.FC<{
 
   const handleCopyHighlight = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.addToast("success", "Đã sao chép đoạn trích vào clipboard!");
+    toast.addToast("success", t("highlights.toast_copied"));
   };
 
   const handleChatWithHighlight = () => {
@@ -220,19 +226,19 @@ export const HighlightsLibraryView: React.FC<{
       let res: ChatResponse;
       switch (optId) {
         case "summary":
-          res = await api.review("Tóm tắt chi tiết tài liệu này: mục tiêu, phương pháp, kết quả chính và kết luận.", [selectedPaper.id]);
+          res = await api.review(t("highlights.prompt_detailed_summary"), [selectedPaper.id]);
           break;
         case "compare":
           res = await api.comparePapers([selectedPaper.id]);
           break;
         case "debate":
-          res = await api.debate("Phân tích các luận điểm chính trong tài liệu này từ nhiều góc nhìn khác nhau.", [selectedPaper.id]);
+          res = await api.debate(t("highlights.prompt_debate"), [selectedPaper.id]);
           break;
         case "gap":
           res = await api.findResearchGap([selectedPaper.id]);
           break;
         case "litreview":
-          res = await api.review("Viết literature review ngắn dựa trên tài liệu này: bối cảnh, đóng góp chính, hướng phát triển.", [selectedPaper.id]);
+          res = await api.review(t("highlights.prompt_lit_review"), [selectedPaper.id]);
           break;
         default:
           return;
@@ -334,7 +340,7 @@ export const HighlightsLibraryView: React.FC<{
             className="hl-insight-summary-toggle"
             onClick={() => setSummaryExpanded(!summaryExpanded)}
           >
-            {summaryExpanded ? '▲ Thu gọn' : '▼ Xem thêm'}
+            {summaryExpanded ? t("highlights.collapse") : t("highlights.expand")}
           </button>
         )}
       </>
@@ -348,13 +354,13 @@ export const HighlightsLibraryView: React.FC<{
         <div className="hl-sidebar-header">
           <h3 className="hl-sidebar-title">
             <IconFileText size={16} />
-            <span>Chọn tài liệu</span>
+            <span>{t("highlights.select_doc")}</span>
           </h3>
           <div className="hl-sidebar-search">
             <IconSearch size={14} className="hl-sidebar-search-icon" />
             <input
               type="text"
-              placeholder="Tìm tài liệu..."
+              placeholder={t("highlights.search_doc")}
               value={searchPaperQuery}
               onChange={(e) => setSearchPaperQuery(e.target.value)}
               className="hl-sidebar-search-input"
@@ -366,11 +372,11 @@ export const HighlightsLibraryView: React.FC<{
           {loadingPapers ? (
             <div className="hl-sidebar-loading">
               <IconSpinner size={18} />
-              <span>Đang tải...</span>
+              <span>{t("highlights.loading")}</span>
             </div>
           ) : filteredPapers.length === 0 ? (
             <div className="hl-sidebar-empty">
-              Không tìm thấy tài liệu phù hợp.
+              {t("highlights.no_match")}
             </div>
           ) : (
             filteredPapers.map((p) => {
@@ -387,7 +393,7 @@ export const HighlightsLibraryView: React.FC<{
                   <div className="hl-paper-item-meta">
                     {p.authors && p.authors !== "[]"
                       ? p.authors.replace(/[\[\]"']/g, "")
-                      : "Chưa cập nhật tác giả"}
+                      : t("highlights.unknown_author")}
                   </div>
                 </div>
               );
@@ -403,15 +409,15 @@ export const HighlightsLibraryView: React.FC<{
             {/* Paper header */}
             <div className="hl-content-header">
               <div className="hl-content-header-info">
-                <span className="hl-content-header-badge">Đoạn trích</span>
+                <span className="hl-content-header-badge">{t("highlights.badge")}</span>
                 <h2 className="hl-content-header-title">
                   {selectedPaper.title || selectedPaper.filename}
                 </h2>
                 <p className="hl-content-header-meta">
-                  Tác giả: {selectedPaper.authors && selectedPaper.authors !== "[]"
+                  {t("highlights.author_fallback")}: {selectedPaper.authors && selectedPaper.authors !== "[]"
                     ? selectedPaper.authors.replace(/[\[\]"']/g, "")
-                    : "Không rõ"}{" "}
-                  • Năm: {selectedPaper.year || "N/A"}
+                    : t("highlights.author_fallback")}{" "}
+                  • {t("highlights.year", { year: selectedPaper.year || "N/A" })}
                 </p>
               </div>
               <div className="hl-content-header-actions">
@@ -419,19 +425,19 @@ export const HighlightsLibraryView: React.FC<{
                   <button
                     className="hl-chat-selected-btn"
                     onClick={handleChatWithSelected}
-                    title={`Hỏi AI về ${contextIncluded.size} đoạn đã chọn`}
+                    title={t("highlights.ask_ai_selected", { n: contextIncluded.size })}
                   >
                     <IconChat size={14} />
-                    <span>Hỏi AI ({contextIncluded.size})</span>
+                    <span>{t("highlights.ask_ai_btn", { n: contextIncluded.size })}</span>
                   </button>
                 )}
                 <button
                   className="hl-refresh-btn"
                   onClick={() => selectedPaper && loadHighlights(selectedPaper.id)}
-                  title="Phân tích lại"
+                  title={t("highlights.reanalyze_title")}
                 >
                   <IconSparkle size={14} />
-                  <span>Phân tích lại</span>
+                  <span>{t("highlights.reanalyze_title")}</span>
                 </button>
               </div>
             </div>
@@ -460,7 +466,7 @@ export const HighlightsLibraryView: React.FC<{
               <IconSearch size={14} className="hl-search-bar-icon" />
               <input
                 type="text"
-                placeholder="Tìm từ khoá trong đoạn trích..."
+                placeholder={t("highlights.search_placeholder")}
                 value={highlightQuery}
                 onChange={(e) => setHighlightQuery(e.target.value)}
                 className="hl-search-bar-input"
@@ -484,19 +490,19 @@ export const HighlightsLibraryView: React.FC<{
                 <div className="hl-overview-card">
                   <div className="hl-overview-card-header">
                     <IconBrain size={16} />
-                    <span className="hl-overview-card-title">Summary</span>
+                    <span className="hl-overview-card-title">{t("highlights.summary_card_title")}</span>
                   </div>
                   {loadingPaperDetail ? (
                     <div className="hl-insight-loading">
                       <IconSpinner size={14} />
-                      <span>Loading...</span>
+                      <span>{t("common.loading")}</span>
                     </div>
                   ) : paperDetail?.auto_summary ? (
                     <div className="hl-insight-summary">
                       {renderSummary(paperDetail.auto_summary)}
                     </div>
                   ) : (
-                    <p className="hl-insight-empty">Chưa có bản tóm tắt cho bài báo này.</p>
+                    <p className="hl-insight-empty">{t("highlights.no_summary")}</p>
                   )}
                 </div>
 
@@ -504,12 +510,12 @@ export const HighlightsLibraryView: React.FC<{
                 <div className="hl-overview-card">
                   <div className="hl-overview-card-header">
                     <IconFileText size={16} />
-                    <span className="hl-overview-card-title">Khái niệm & Siêu dữ liệu</span>
+                    <span className="hl-overview-card-title">{t("highlights.concepts_metadata")}</span>
                   </div>
                   {loadingPaperDetail ? (
                     <div className="hl-insight-loading">
                       <IconSpinner size={14} />
-                      <span>Loading...</span>
+                      <span>{t("common.loading")}</span>
                     </div>
                   ) : parsedTags.length > 0 ? (
                     <div className="hl-insight-tags">
@@ -520,26 +526,26 @@ export const HighlightsLibraryView: React.FC<{
                   ) : paperDetail?.chunk_count !== undefined ? (
                     <div className="hl-insight-paper-meta">
                       <div className="hl-insight-meta-item">
-                        <span className="hl-insight-meta-label">Chunks</span>
+                        <span className="hl-insight-meta-label">{t("highlights.chunks_label")}</span>
                         <span className="hl-insight-meta-value">{paperDetail.chunk_count}</span>
                       </div>
                       <div className="hl-insight-meta-item">
-                        <span className="hl-insight-meta-label">Pages</span>
+                        <span className="hl-insight-meta-label">{t("highlights.pages_label")}</span>
                         <span className="hl-insight-meta-value">{selectedPaper.page_count || "?"}</span>
                       </div>
                       {selectedPaper.language && (
                         <div className="hl-insight-meta-item">
-                          <span className="hl-insight-meta-label">Language</span>
+                          <span className="hl-insight-meta-label">{t("highlights.language_label")}</span>
                           <span className="hl-insight-meta-value">{selectedPaper.language.toUpperCase()}</span>
                         </div>
                       )}
                       <div className="hl-insight-meta-item">
-                        <span className="hl-insight-meta-label">File size</span>
+                        <span className="hl-insight-meta-label">{t("highlights.file_size_label")}</span>
                         <span className="hl-insight-meta-value">{(selectedPaper.file_size / 1024).toFixed(0)} KB</span>
                       </div>
                     </div>
                   ) : (
-                    <p className="hl-insight-empty">No tags or metadata available.</p>
+                    <p className="hl-insight-empty">{t("highlights.no_tags")}</p>
                   )}
                 </div>
 
@@ -548,19 +554,19 @@ export const HighlightsLibraryView: React.FC<{
                   <div className="hl-overview-card">
                     <div className="hl-overview-card-header">
                       <IconSparkle size={16} />
-                      <span className="hl-overview-card-title">Highlights Stats</span>
+                      <span className="hl-overview-card-title">{t("highlights.stats_card_title")}</span>
                     </div>
                     <div className="hl-insight-stats">
                       <div className="hl-insight-stat-row highlight">
-                        <span className="hl-insight-stat-label">Total</span>
+                        <span className="hl-insight-stat-label">{t("highlights.stat_total")}</span>
                         <span className="hl-insight-stat-value">{insightsStats.total}</span>
                       </div>
                       <div className="hl-insight-stat-row">
-                        <span className="hl-insight-stat-label">High importance</span>
+                        <span className="hl-insight-stat-label">{t("highlights.stat_high_importance")}</span>
                         <span className="hl-insight-stat-value high">{insightsStats.highCount}</span>
                       </div>
                       <div className="hl-insight-stat-row">
-                        <span className="hl-insight-stat-label">Important ratio</span>
+                        <span className="hl-insight-stat-label">{t("highlights.stat_importance_ratio")}</span>
                         <span className="hl-insight-stat-value">{insightsStats.importantRatio}%</span>
                       </div>
                       <div className="hl-insight-divider" />
@@ -587,15 +593,15 @@ export const HighlightsLibraryView: React.FC<{
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
                   <div style={{ fontSize: "12.5px", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                     <IconSpinner size={14} />
-                    <span>AI đang phân tích bài báo để trích xuất các điểm chính...</span>
+                    <span>{t("highlights.analyzing_progress")}</span>
                   </div>
                   <HighlightListSkeleton count={4} />
                 </div>
               ) : filteredHighlights.length === 0 && highlightQuery ? (
                 <div className="hl-empty-state">
                   <IconSparkle size={36} />
-                  <h4>Không có kết quả</h4>
-                  <p>Không tìm thấy đoạn trích phù hợp với từ khoá.</p>
+                  <h4>{t("highlights.no_results_heading")}</h4>
+                  <p>{t("highlights.no_results_text")}</p>
                 </div>
               ) : (
                 <>
@@ -605,7 +611,7 @@ export const HighlightsLibraryView: React.FC<{
                       {/* Context toggle bulk actions */}
                       <div className="hl-bulk-actions">
                         <span className="hl-bulk-label">
-                          Chọn đoạn để đưa vào Chat:
+                          {t("highlights.bulk_label")}
                         </span>
                         <button
                           type="button"
@@ -616,14 +622,14 @@ export const HighlightsLibraryView: React.FC<{
                             setContextIncluded(all);
                           }}
                         >
-                          Chọn tất cả
+                          {t("highlights.select_all")}
                         </button>
                         <button
                           type="button"
                           className="hl-bulk-btn"
                           onClick={() => setContextIncluded(new Set())}
                         >
-                          Bỏ chọn
+                          {t("highlights.deselect")}
                         </button>
                       </div>
 
@@ -642,7 +648,7 @@ export const HighlightsLibraryView: React.FC<{
                             <div
                               className={`hl-context-toggle ${isIncluded ? "active" : ""}`}
                               onClick={() => toggleContext(hid)}
-                              title={isIncluded ? "Bỏ khỏi ngữ cảnh Chat" : "Thêm vào ngữ cảnh Chat"}
+                              title={isIncluded ? t("highlights.remove_context") : t("highlights.add_context")}
                               role="checkbox"
                               aria-checked={isIncluded}
                               tabIndex={0}
@@ -670,11 +676,11 @@ export const HighlightsLibraryView: React.FC<{
                                   }}
                                 >
                                   {getCategoryIcon(h.category, 12)}
-                                  <span>{CATEGORY_LABELS[h.category] || "Ý chính"}</span>
+                                  <span>{CATEGORY_LABELS[h.category] || t("highlights.category_key_points")}</span>
                                 </span>
                                 {h.page_hint && (
                                   <span className="hl-evidence-page">
-                                    <IconFileText size={11} /> Trang {h.page_hint}
+                                    <IconFileText size={11} /> {t("highlights.page", { n: h.page_hint })}
                                   </span>
                                 )}
                               </div>
@@ -685,8 +691,8 @@ export const HighlightsLibraryView: React.FC<{
                                   }`}
                                   title={
                                     h.importance === "high"
-                                      ? "Độ quan trọng: Cao"
-                                      : "Độ quan trọng: Trung bình"
+                                      ? t("highlights.importance_high")
+                                      : t("highlights.importance_medium")
                                   }
                                 >
                                   {renderStars(h.importance)}
@@ -703,18 +709,18 @@ export const HighlightsLibraryView: React.FC<{
                              {h.note && (
                                <div className="hl-evidence-note" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                                  <IconChat size={12} style={{ color: "var(--color-text-muted)", flexShrink: 0 }} />
-                                 <span><strong>Phân tích:</strong> {h.note}</span>
+                                 <span><strong>{t("highlights.note_prefix")}</strong> {h.note}</span>
                                </div>
                              )}
 
                             {/* Source info bar */}
                             <div className="hl-evidence-source">
                               <span className="hl-evidence-source-label">
-                                Nguồn: {selectedPaper.title || selectedPaper.filename}
+                                {t("highlights.source_label", { title: selectedPaper.title || selectedPaper.filename })}
                               </span>
                               {h.page_hint && (
                                 <span className="hl-evidence-source-page">
-                                  Trang {h.page_hint}
+                                  {t("highlights.source_page", { n: h.page_hint })}
                                 </span>
                               )}
                             </div>
@@ -725,28 +731,28 @@ export const HighlightsLibraryView: React.FC<{
                                 type="button"
                                 className="hl-evidence-action-btn"
                                 onClick={() => handleCopyHighlight(h.text)}
-                                title="Sao chép đoạn trích"
+                                title={t("highlights.copy_quote_title")}
                               >
                                 <IconCopy size={13} />
-                                <span>Sao chép</span>
+                                <span>{t("highlights.copy")}</span>
                               </button>
                               <button
                                 type="button"
                                 className="hl-evidence-action-btn primary"
                                 onClick={() => handleChatWithHighlight()}
-                                title="Hỏi AI về đoạn này"
+                                title={t("highlights.ask_ai_quote_title")}
                               >
                                 <IconChat size={13} />
-                                <span>Hỏi AI</span>
+                                <span>{t("highlights.ask_ai")}</span>
                               </button>
                               <button
                                 type="button"
                                 className="hl-evidence-action-btn outline"
                                 onClick={() => handleOpenPdfPage(h.page_hint)}
-                                title={h.page_hint ? `Mở PDF trang ${h.page_hint}` : "Mở PDF"}
+                                title={h.page_hint ? t("highlights.open_pdf_page", { n: h.page_hint }) : t("highlights.open_pdf")}
                               >
                                 <IconFileText size={13} />
-                                <span>{h.page_hint ? `Trang ${h.page_hint}` : "Mở PDF"}</span>
+                                <span>{h.page_hint ? t("highlights.source_page", { n: h.page_hint }) : t("highlights.open_pdf")}</span>
                               </button>
                             </div>
                           </div>
@@ -759,14 +765,14 @@ export const HighlightsLibraryView: React.FC<{
                   {filteredHighlights.length === 0 && !highlightQuery && (
                     <div className="hl-empty-state">
                       <IconSparkle size={40} className="icon-gradient" />
-                      <h4>Chưa có bằng chứng nào</h4>
-                      <p>Trích xuất các phát hiện chính, phương pháp, hạn chế và đóng góp từ bài báo này bằng AI.</p>
+                      <h4>{t("highlights.no_evidence_heading")}</h4>
+                      <p>{t("highlights.no_evidence_text")}</p>
                       <button
                         type="button"
                         className="hl-extract-btn"
                         onClick={() => selectedPaper && loadHighlights(selectedPaper.id)}
                       >
-                        <IconSparkle size={16} /> Bắt đầu trích xuất.
+                        <IconSparkle size={16} /> {t("highlights.start_extract")}
                       </button>
                     </div>
                   )}
@@ -775,7 +781,7 @@ export const HighlightsLibraryView: React.FC<{
                   <div className="hl-generate-section">
                     <div className="hl-generate-header">
                       <IconBulb size={16} />
-                      <span className="hl-generate-title">Tạo từ bài báo.</span>
+                      <span className="hl-generate-title">{t("highlights.generate_section")}</span>
                     </div>
 
                     {/* Action cards */}
@@ -797,18 +803,18 @@ export const HighlightsLibraryView: React.FC<{
                                 disabled={generatingType !== null}
                               >
                                 {isGenerating ? (
-                                  <><IconSpinner size={13} /> Đang tạo</>
+                                  <><IconSpinner size={13} /> {t("highlights.generating")}</>
                                 ) : result ? (
-                                  "Tạo lại"
+                                  t("highlights.regenerate")
                                 ) : (
-                                  "Tạo"
+                                  t("highlights.generate")
                                 )}
                               </button>
                             </div>
                             {isGenerating && (
                               <div className="hl-generate-action-loading">
                                 <IconSpinner size={13} />
-                                <span>Generating {opt.label.toLowerCase()}...</span>
+                                <span>{t("highlights.generating_with_name", { name: opt.label.toLowerCase() })}</span>
                               </div>
                             )}
                             {result && (
@@ -816,10 +822,10 @@ export const HighlightsLibraryView: React.FC<{
                                 <div className="hl-generate-result-content">{result.result.answer}</div>
                                 {result.result.citations.length > 0 && (
                                   <div className="hl-generate-result-citations">
-                                    <span className="hl-generate-citations-label">Sources:</span>
+                                    <span className="hl-generate-citations-label">{t("highlights.sources_label")}</span>
                                     {result.result.citations.map((c, i) => (
                                       <span key={i} className="hl-generate-citation">
-                                        {c.source}{c.page ? ` (p. ${c.page})` : ""}
+                                        {c.source}{c.page ? ` (${t("highlights.page_prefix", { n: c.page })})` : ""}
                                       </span>
                                     ))}
                                   </div>
@@ -842,8 +848,8 @@ export const HighlightsLibraryView: React.FC<{
         ) : (
           <div className="hl-no-paper">
             <IconFileText size={48} />
-            <h3>Chưa chọn tài liệu</h3>
-            <p>Vui lòng chọn tài liệu ở thanh bên trái để xem các đoạn trích quan trọng.</p>
+            <h3>{t("highlights.no_doc_heading")}</h3>
+            <p>{t("highlights.no_doc_text")}</p>
           </div>
         )}
       </div>
@@ -869,7 +875,7 @@ export const HighlightsLibraryView: React.FC<{
                 </span>
                 {pdfOverlayUrl?.includes("#page=") && (
                   <span className="hl-pdf-overlay-page-badge">
-                    <IconFileText size={12} /> Trang {pdfOverlayUrl.split("#page=")[1]}
+                    <IconFileText size={12} /> {t("highlights.page", { n: pdfOverlayUrl.split("#page=")[1] })}
                   </span>
                 )}
               </div>
@@ -877,17 +883,15 @@ export const HighlightsLibraryView: React.FC<{
                 <button
                   type="button"
                   className="hl-pdf-overlay-open-btn"
-                  onClick={() => window.open(pdfOverlayUrl, "_blank")}
-                  title="Mở trong tab mới"
-                >
-                  <IconFileText size={13} />
-                  <span>Mở tab mới</span>
+                  onClick={() => window.open(pdfOverlayUrl, "_blank")}                                title={t("common.open_new_tab")}
+                              >
+                                <IconFileText size={13} />
+                                <span>{t("common.open_new_tab")}</span>
                 </button>
                 <button
                   type="button"
                   className="hl-pdf-overlay-close-btn"
-                  onClick={() => setShowPdfOverlay(false)}
-                  title="Đóng (Esc)"
+                  onClick={() => setShowPdfOverlay(false)}                                title={t("common.close_esc")}
                 >
                   ✕
                 </button>
@@ -896,7 +900,7 @@ export const HighlightsLibraryView: React.FC<{
             <iframe
               src={pdfOverlayUrl}
               className="hl-pdf-overlay-iframe"
-              title={selectedPaper?.title || "PDF Viewer"}
+              title={selectedPaper?.title || t("pdf.preview_title")}
             />
           </div>
         </div>

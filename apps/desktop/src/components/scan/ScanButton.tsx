@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { IconSearch, IconCheck, IconError, IconSpinner } from "../Icons";
 
 interface ScanButtonProps {
@@ -14,14 +15,15 @@ export const ScanButton: React.FC<ScanButtonProps> = ({
   onStart,
   onStop,
 }) => {
+  const { t } = useTranslation();
   const isScanning = status === "scanning";
   const canStart = !isScanning && folderCount > 0;
 
   if (isScanning) {
     return (
-      <button className="scan-btn scan-btn-stop" onClick={onStop} title="Dừng quét">
+      <button className="scan-btn scan-btn-stop" onClick={onStop} title={t("scan.stop")}>
         <IconSpinner size={18} />
-        <span>Đang quét...</span>
+        <span>{t("scan.scanning")}</span>
       </button>
     );
   }
@@ -33,8 +35,8 @@ export const ScanButton: React.FC<ScanButtonProps> = ({
       disabled={!canStart}
       title={
         folderCount === 0
-          ? "Chưa có thư mục nào. Vui lòng thêm thư mục trước."
-          : "Bắt đầu quét và index files"
+          ? t("scan.no_folder")
+          : t("scan.start_scan_title")
       }
     >
       <span className="scan-btn-icon">
@@ -48,10 +50,10 @@ export const ScanButton: React.FC<ScanButtonProps> = ({
       </span>
       <span>
         {status === "completed"
-          ? "Quét lại"
+          ? t("scan.rescan")
           : status === "error"
-          ? "Thử lại"
-          : "Bắt đầu quét"}
+          ? t("scan.retry")
+          : t("scan.start")}
       </span>
     </button>
   );

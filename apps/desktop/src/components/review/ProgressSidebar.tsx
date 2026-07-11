@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { IconCheck, IconSpinner } from "../Icons";
 
 interface OutlineSection {
@@ -28,6 +29,7 @@ export function ProgressSidebar({
   onSectionClick,
   onClose,
 }: ProgressSidebarProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -62,7 +64,7 @@ export function ProgressSidebar({
               cursor: "pointer", fontSize: "0.7rem",
               lineHeight: 1,
             }}
-            title="Collapse"
+            title={t("review_builder.collapse")}
           >▸</button>
         )}
       </div>

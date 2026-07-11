@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, BASE_URL } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
@@ -42,13 +43,13 @@ const renderStatusIcon = (status: string, size = 16) => {
 };
 
 
-const getIndexStatusLabel = (status: string) => {
-  if (status === "indexed") return "Đã trích xuất & vector hóa";
-  if (status === "needs_ocr") return "Cần OCR lại";
-  if (status === "failed") return "Index thất bại";
-  if (status === "summarizing") return "Đang tóm tắt";
-  if (status === "indexing") return "Đang lập chỉ mục";
-  return status || "Chưa rõ";
+const getIndexStatusLabel = (status: string, t: (key: string) => string) => {
+  if (status === "indexed") return t("library_view.status_extracted");
+  if (status === "needs_ocr") return t("library_view.status_need_ocr");
+  if (status === "failed") return t("library_view.status_failed");
+  if (status === "summarizing") return t("library_view.status_summarizing");
+  if (status === "indexing") return t("library_view.status_indexing");
+  return status || t("library_view.status_unknown");
 };
 
 const getCategoryIcon = (category: string, size = 12) => {
@@ -68,6 +69,7 @@ export const LibraryView: React.FC<{
   onStartVerify?: (paperIds: string[]) => void;
   onStartWow?: (paperId: string) => void;
 }> = ({ onStartChat, onStartReview, onStartCritique, onStartDebate, onStartVerify, onStartWow }) => {
+  const { t } = useTranslation();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(() => {
@@ -190,11 +192,10 @@ export const LibraryView: React.FC<{
       loadPapers();
       toast.addToast(
         "success",
-        `Đồng bộ Zotero thành công! Đã thêm ${res.imported} tài liệu mới, sao chép ${res.pdf_imported} tệp PDF. Bỏ qua ${res.duplicates} bản trùng lặp.`
+        t("library_view.toast_zotero_sync", { imported: res.imported, pdf: res.pdf_imported, duplicates: res.duplicates })
       );
     } catch (e: any) {
-      console.error("Zotero sync failed:", e);
-      toast.addToast("error", `Lỗi đồng bộ Zotero: ${e.message || e}`);
+      console.error("Zotero sync failed:", e);        toast.addToast("error", t("library_view.toast_zotero_error", { msg: e.message || e }));
     } finally {
       setSyncingZotero(false);
     }
@@ -305,7 +306,7 @@ export const LibraryView: React.FC<{
   };
 
   const deletePaper = async (id: string) => {
-    if (!confirm("Xoá paper này?")) return;
+    if (!confirm(t("library_view.confirm_delete"))) return;
     try {
       await api.deletePaper(id);
       if (activePaper?.id === id) {
@@ -318,16 +319,16 @@ export const LibraryView: React.FC<{
   };
 
   const createCollection = async () => {
-    const name = prompt("Tên collection/project:");
+    const name = prompt(t("library_view.prompt_collection_name"));
     if (!name?.trim()) return;
     try {
       const collection = await api.createCollection(name.trim());
       setCollections((prev) => [...prev, collection]);
       setActiveCollectionId(collection.id);
-      toast.addToast("success", "Đã tạo collection.");
+      toast.addToast("success", t("library_view.toast_created"));
     } catch (e) {
       console.error("Failed to create collection:", e);
-      toast.addToast("error", "Không thể tạo collection.");
+      toast.addToast("error", t("library_view.toast_create_error"));
     }
   };
 
@@ -335,24 +336,24 @@ export const LibraryView: React.FC<{
     if (!targetCollectionId || selected.size === 0) return;
     try {
       const res = await api.addPapersToCollection(targetCollectionId, Array.from(selected));
-      toast.addToast("success", `Đã thêm ${res.added} paper vào collection.`);
+      toast.addToast("success", t("library_view.toast_added", { n: res.added }));
       setSelected(new Set());
       loadCollections();
       loadPapers();
     } catch (e) {
       console.error("Failed to add papers to collection:", e);
-      toast.addToast("error", "Không thể thêm paper vào collection.");
+      toast.addToast("error", t("library_view.toast_add_error"));
     }
   };
 
   const retryOcr = async (paper: Paper) => {
     try {
       await api.retryPaperOcr(paper.id);
-      toast.addToast("success", "Đã đưa tài liệu vào hàng đợi OCR/index lại.");
+      toast.addToast("success", t("library_view.toast_ocr_queued"));
       loadPapers();
     } catch (e) {
       console.error("Failed to retry OCR:", e);
-      toast.addToast("error", "Không thể chạy OCR lại cho tài liệu này.");
+      toast.addToast("error", t("library_view.toast_ocr_error"));
     }
   };
 
@@ -363,10 +364,10 @@ export const LibraryView: React.FC<{
       const updated = await api.updatePaper(activePaper.id, { notes } as Partial<Paper>);
       setPapers((prev) => prev.map((p) => (p.id === activePaper.id ? updated : p)));
       setActivePaper(updated);
-      toast.addToast("success", "Đã lưu ghi chú!");
+      toast.addToast("success", t("library_view.toast_note_saved"));
     } catch (e) {
       console.error("Failed to save notes:", e);
-      toast.addToast("error", "Lỗi lưu ghi chú.");
+      toast.addToast("error", t("library_view.toast_note_error"));
     } finally {
       setSavingNotes(false);
     }
@@ -528,7 +529,7 @@ export const LibraryView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export HTML:", e);
-      toast.addToast("error", "Không thể export HTML. Vui lòng kiểm tra backend.");
+      toast.addToast("error", t("library_view.toast_export_html_error"));
     } finally {
       setExportingId(null);
     }
@@ -548,7 +549,7 @@ export const LibraryView: React.FC<{
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Failed to export DOCX:", e);
-      toast.addToast("error", "Không thể export DOCX. Vui lòng kiểm tra backend và cài python-docx.");
+      toast.addToast("error", t("library_view.toast_export_docx_error"));
     } finally {
       setExportingId(null);
     }
@@ -597,7 +598,7 @@ export const LibraryView: React.FC<{
         {showImport ? (
           <div className="library-import-section">
             <div className="library-import-header">
-              <h3><IconUpload size={18} style={{ marginRight: 6 }} /> Tải lên</h3>
+              <h3><IconUpload size={18} style={{ marginRight: 6 }} /> {t("library_view.upload_section")}</h3>
               <button className="library-import-close" onClick={() => setShowImport(false)}>✕</button>
             </div>
             <ImportPanel
@@ -614,7 +615,7 @@ export const LibraryView: React.FC<{
               <div className="library-title-left">
                 <h2 className="library-title">
                   <IconLibrary size={20} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 8 }} />
-                  Thư viện
+                  {t("library_view.title")}
                 </h2>
                 <span className="library-badge">{total} paper{total !== 1 ? 's' : ''}</span>
               </div>
@@ -623,17 +624,17 @@ export const LibraryView: React.FC<{
                   className={`library-icon-btn zotero-sync-btn ${syncingZotero ? "syncing" : ""}`}
                   onClick={handleZoteroSync} 
                   disabled={syncingZotero}
-                  title={syncingZotero ? "Đang đồng bộ..." : "Đồng bộ Zotero"}
+                  title={syncingZotero ? t("library_view.zotero_syncing") : t("library_view.zotero_sync")}
                 >
                   {syncingZotero ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
                 </button>
                 <button 
                   className="library-primary-btn" 
                   onClick={() => setShowImport(true)}
-                  title="Tải lên tài liệu"
+                  title={t("library_view.upload_title")}
                 >
                   <IconUpload size={14} />
-                  <span>Tải lên</span>
+                  <span>{t("library_view.upload_btn")}</span>
                 </button>
               </div>
             </div>
@@ -641,16 +642,16 @@ export const LibraryView: React.FC<{
             {/* Row 2 (Conditional): Bulk actions */}
             {selected.size > 0 && (
               <div className="library-bulk-row">
-                <span className="bulk-selection-count">Đã chọn {selected.size}</span>
+                <span className="bulk-selection-count">{t("library_view.bulk_selected", { n: selected.size })}</span>
                 <div className="bulk-actions-group">
                   <button className="library-bulk-action-btn primary" onClick={() => onStartChat(Array.from(selected))}>
                     <IconChat size={13} style={{ marginRight: 4 }} />
-                    <span>Chat</span>
+                    <span>{t("library_view.bulk_chat")}</span>
                   </button>
                   {onStartVerify && (
                     <button className="library-bulk-action-btn" onClick={() => onStartVerify(Array.from(selected))}>
                       <IconSearch size={13} style={{ marginRight: 4 }} />
-                      <span>Xác thực</span>
+                      <span>{t("library_view.bulk_verify")}</span>
                     </button>
                   )}
                   {collections.length > 0 && (
@@ -660,13 +661,13 @@ export const LibraryView: React.FC<{
                         value={targetCollectionId}
                         onChange={(e) => setTargetCollectionId(e.target.value)}
                       >
-                        <option value="">Thêm vào Project...</option>
+                        <option value="">{t("library_view.bulk_add_project")}</option>
                         {collections.map((collection) => (
                           <option key={collection.id} value={collection.id}>{collection.name}</option>
                         ))}
                       </select>
                       <button className="library-inline-btn" onClick={addSelectedToCollection} disabled={!targetCollectionId}>
-                        Thêm
+                        {t("library_view.bulk_add")}
                       </button>
                     </div>
                   )}
@@ -680,7 +681,7 @@ export const LibraryView: React.FC<{
                 <IconSearch size={13} className="search-icon" />
                 <input
                   type="text"
-                  placeholder="Tìm kiếm tài liệu..."
+                  placeholder={t("library_view.search")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="library-search-input"
@@ -694,29 +695,29 @@ export const LibraryView: React.FC<{
                   className="library-toolbar-select"
                   value={filter}
                   onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-                  title="Lọc trạng thái"
+                  title={t("library_view.filter_status_title")}
                 >
-                  <option value="all">Tất cả</option>
-                  <option value="indexed">Đã index</option>
-                  <option value="starred">Yêu thích</option>
-                  <option value="unread">Chưa đọc</option>
-                  <option value="reading">Đang đọc</option>
-                  <option value="read">Đã đọc</option>
+                  <option value="all">{t("library_view.filter_all")}</option>
+                  <option value="indexed">{t("library_view.filter_indexed")}</option>
+                  <option value="starred">{t("library_view.filter_favorites")}</option>
+                  <option value="unread">{t("library_view.filter_unread")}</option>
+                  <option value="reading">{t("library_view.filter_reading")}</option>
+                  <option value="read">{t("library_view.filter_read")}</option>
                 </select>
                 <select
                   className="library-toolbar-select project-select"
                   value={activeCollectionId}
                   onChange={(e) => { setActiveCollectionId(e.target.value); setPage(1); setSelected(new Set()); }}
-                  title="Project/Collection"
+                  title={t("library_view.project_collection_title")}
                 >
-                  <option value="">Projects</option>
+                  <option value="">{t("library_view.projects_select")}</option>
                   {collections.map((collection) => (
                     <option key={collection.id} value={collection.id}>
                       {collection.name} ({collection.paper_count})
                     </option>
                   ))}
                 </select>
-                <button className="library-add-project-btn" onClick={createCollection} title="Tạo Project mới">
+                <button className="library-add-project-btn" onClick={createCollection} title={t("library_view.new_project")}>
                   +
                 </button>
               </div>
@@ -732,11 +733,11 @@ export const LibraryView: React.FC<{
         ) : papers.length === 0 ? (
           <div className="library-empty">
             <IconBrain size={48} className="icon-gradient" />
-            <h3>Chưa có tài liệu nào</h3>
+            <h3>{t("library_view.empty_library")}</h3>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "16px" }}>
               <button className="library-import-btn library-empty-import" onClick={() => setShowImport(true)}>
                 <IconUpload size={16} style={{ marginRight: 4 }} />
-                Thêm tài liệu
+                {t("library_view.add_doc")}
               </button>
               <button 
                 className="library-secondary-btn" 
@@ -745,7 +746,7 @@ export const LibraryView: React.FC<{
                 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
                 {syncingZotero ? <IconSpinner size={16} /> : <IconRefresh size={16} />}
-                <span>{syncingZotero ? "Đang đồng bộ..." : "Đồng bộ Zotero"}</span>
+                <span>{syncingZotero ? t("library_view.zotero_syncing") : t("library_view.zotero_sync")}</span>
               </button>
             </div>
           </div>
@@ -779,9 +780,6 @@ export const LibraryView: React.FC<{
                 <div className="library-card-content">
                   <div className="library-card-header">
                     <span className="library-card-title">{p.title || p.filename}</span>
-                    {/* <span className="library-card-status" title={p.read_status === "read" ? "Đã đọc" : p.read_status === "reading" ? "Đang đọc" : "Chưa đọc"}>
-                      {renderStatusIcon(p.read_status)}
-                    </span> */}
                   </div>
                   <div className="library-card-meta">
                     {p.authors && p.authors !== "[]" && (
@@ -789,24 +787,24 @@ export const LibraryView: React.FC<{
                     )}
                     {p.year && <span>{p.year} · </span>}
                     <span>{p.language.toUpperCase()} · </span>
-                    <span>{p.page_count || "?"} trang</span>
-                    {p.is_scanned && <span className="library-mini-badge warning">PDF scan</span>}
-                    {p.status === "needs_ocr" && <span className="library-mini-badge danger">Cần OCR</span>}
+                    <span>{p.page_count || "?"} {t("library_view.page_unit")}</span>
+                    {p.is_scanned && <span className="library-mini-badge warning">{t("library_view.badge_scan")}</span>}
+                    {p.status === "needs_ocr" && <span className="library-mini-badge danger">{t("library_view.badge_ocr")}</span>}
                   </div>
                 </div>
                 <div className="library-card-actions" onClick={(e) => e.stopPropagation()}>
                   {p.status === "needs_ocr" && (
-                    <button className="library-action-btn" onClick={() => retryOcr(p)} title="Chạy OCR lại">
+                    <button className="library-action-btn" onClick={() => retryOcr(p)} title={t("library_view.run_ocr")}>
                       <IconRefresh size={16} />
                     </button>
                   )}
-                  <button className="library-action-btn" onClick={() => toggleReadStatus(p.id, p.read_status)} title="Đổi trạng thái đọc">
+                  <button className="library-action-btn" onClick={() => toggleReadStatus(p.id, p.read_status)} title={t("library_view.toggle_read_status")}>
                     {renderStatusIcon(p.read_status)}
                   </button>
-                  <button className="library-action-btn" onClick={() => toggleStar(p.id, p.starred)} title="Yêu thích">
+                  <button className="library-action-btn" onClick={() => toggleStar(p.id, p.starred)} title={t("library_view.favorite")}>
                     <IconStar size={16} className={p.starred ? "starred" : ""} />
                   </button>
-                  <button className="library-action-btn danger" onClick={() => deletePaper(p.id)} title="Xoá">
+                  <button className="library-action-btn danger" onClick={() => deletePaper(p.id)} title={t("library_view.delete")}>
                     <IconTrash size={16} />
                   </button>
                 </div>
@@ -820,9 +818,9 @@ export const LibraryView: React.FC<{
         {/* Pagination */}
         {totalPages > 1 && !showImport && (
           <div className="library-pagination">
-            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>← Trước</button>
-            <span>Trang {page} / {totalPages}</span>
-            <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Sau →</button>
+            <button disabled={page <= 1} onClick={() => setPage(page - 1)}>{t("library_view.pagination_prev")}</button>
+            <span>{t("library_view.pagination_page", { n: page, m: totalPages })}</span>
+            <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>{t("library_view.pagination_next")}</button>
           </div>
         )}
       </div>
@@ -846,16 +844,16 @@ export const LibraryView: React.FC<{
                     <button className="preview-btn wow-glow-btn" onClick={() => onStartWow(activePaper.id)}
                       style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
                       <IconSparkle size={14} />
-                      <span>Phân tích AI</span>
+                      <span>{t("library_view.ai_analyze")}</span>
                     </button>
                   )}
                   <button className="preview-btn" onClick={() => onStartChat([activePaper.id])}
                     style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
                     <IconChat size={14} />
-                    <span>Hỏi AI</span>
+                    <span>{t("library_view.ai_chat")}</span>
                   </button>
                   <div style={{ position: "relative" }}>
-                    <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title="Thao tác"
+                    <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title={t("library_view.actions")}
                       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
                       <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>⋮</span>
                     </button>
@@ -865,29 +863,29 @@ export const LibraryView: React.FC<{
                           <button className="narrow-action-btn" onClick={() => { onStartDebate([activePaper.id]); setShowNarrowMenu(false); }}
                             style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                             <IconBulb size={13} />
-                            <span>Tranh luận</span>
+                            <span>{t("library_view.debate")}</span>
                           </button>
                         )}
                         <button className="narrow-action-btn" onClick={() => { toggleReadStatus(activePaper.id, activePaper.read_status); setShowNarrowMenu(false); }}
                           style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                           {renderStatusIcon(activePaper.read_status, 13)}
-                          <span>{activePaper.read_status === "read" ? "Đã đọc" : activePaper.read_status === "reading" ? "Đang đọc" : "Chưa đọc"}</span>
+                          <span>{activePaper.read_status === "read" ? t("library_view.filter_read") : activePaper.read_status === "reading" ? t("library_view.filter_reading") : t("library_view.filter_unread")}</span>
                         </button>
                         <button className="narrow-action-btn" onClick={() => { toggleStar(activePaper.id, activePaper.starred); setShowNarrowMenu(false); }}
                           style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                           <IconStar size={13} className={activePaper.starred ? "starred" : ""} />
-                          <span>{activePaper.starred ? "Đã thích" : "Yêu thích"}</span>
+                          <span>{activePaper.starred ? t("library_view.favorite") : t("library_view.favorite")}</span>
                         </button>
                         <div className="narrow-menu-divider" />
                         <button className="narrow-action-btn" onClick={() => { handleExportHtml(activePaper.id); setShowNarrowMenu(false); }}
                           style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                           <IconLink size={13} />
-                          <span>Export HTML</span>
+                          <span>{t("library_view.export_html")}</span>
                         </button>
                         <button className="narrow-action-btn" onClick={() => { handleExportDocx(activePaper.id); setShowNarrowMenu(false); }}
                           style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                           <IconFileText size={13} />
-                          <span>Export DOCX</span>
+                          <span>{t("library_view.export_docx")}</span>
                         </button>
                       </div>
                     )}
@@ -901,7 +899,7 @@ export const LibraryView: React.FC<{
                       onClick={() => onStartWow(activePaper.id)}
                     >
                       <IconSparkle size={14} />
-                      <span>Phân tích</span>
+                      <span>{t("library_view.ai_analyze")}</span>
                     </button>
                   )}
                   <button
@@ -909,7 +907,7 @@ export const LibraryView: React.FC<{
                     onClick={() => onStartChat([activePaper.id])}
                   >
                     <IconChat size={14} />
-                    <span>Hỏi AI</span>
+                    <span>{t("library_view.ai_chat")}</span>
                   </button>
                   {onStartDebate && (
                     <button
@@ -917,7 +915,7 @@ export const LibraryView: React.FC<{
                       onClick={() => onStartDebate([activePaper.id])}
                     >
                       <IconBulb size={14} />
-                      <span>Tranh luận</span>
+                      <span>{t("library_view.debate")}</span>
                     </button>
                   )}
                   <button
@@ -927,10 +925,10 @@ export const LibraryView: React.FC<{
                     {renderStatusIcon(activePaper.read_status, 14)}
                     <span>
                       {activePaper.read_status === "read"
-                        ? "Đã đọc"
+                        ? t("library_view.filter_read")
                         : activePaper.read_status === "reading"
-                        ? "Đang đọc"
-                        : "Chưa đọc"}
+                        ? t("library_view.filter_reading")
+                        : t("library_view.filter_unread")}
                     </span>
                   </button>
                   <button
@@ -938,7 +936,7 @@ export const LibraryView: React.FC<{
                     onClick={() => toggleStar(activePaper.id, activePaper.starred)}
                   >
                     <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
-                    <span>Yêu thích</span>
+                    <span>{t("library_view.favorite")}</span>
                   </button>
 
                   {/* Export dropdown */}
@@ -948,14 +946,14 @@ export const LibraryView: React.FC<{
                       onClick={() => setShowExportMenu(!showExportMenu)}
                       onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
                       disabled={exportingId === activePaper.id}
-                      title="Export paper"
+                      title={t("library_view.export_paper")}
                     >
                       {exportingId === activePaper.id ? (
                         <IconSpinner size={14} />
                       ) : (
                         <IconDownload size={14} />
                       )}
-                      <span>Export</span>
+                      <span>{t("common.export")}</span>
                     </button>
                     {showExportMenu && (
                       <div
@@ -979,7 +977,7 @@ export const LibraryView: React.FC<{
                           onMouseEnter={highlightOn}
                           onMouseLeave={highlightOff}
                         >
-                          <IconLink size={13} style={{ marginRight: 6 }} /> Export HTML
+                          <IconLink size={13} style={{ marginRight: 6 }} /> {t("library_view.export_html")}
                         </button>
                         <button
                           onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
@@ -987,7 +985,7 @@ export const LibraryView: React.FC<{
                           onMouseEnter={highlightOn}
                           onMouseLeave={highlightOff}
                         >
-                          <IconFileText size={13} style={{ marginRight: 6 }} /> Export DOCX
+                          <IconFileText size={13} style={{ marginRight: 6 }} /> {t("library_view.export_docx")}
                         </button>
                       </div>
                     )}
@@ -1003,11 +1001,11 @@ export const LibraryView: React.FC<{
                   value={previewTab}
                   onChange={(e) => setPreviewTab(e.target.value as typeof previewTab)}
                 >
-                  <option value="info">Tóm tắt & Thông tin</option>
-                  <option value="ai">Phân tích AI</option>
-                  <option value="related">Papers liên quan</option>
-                  <option value="highlights">Đoạn quan trọng</option>
-                  <option value="pdf">Đọc tài liệu</option>
+                  <option value="info">{t("library_view.summary_tab_info")}</option>
+                  <option value="ai">{t("library_view.analysis_tab")}</option>
+                  <option value="related">{t("library_view.related_tab")}</option>
+                  <option value="highlights">{t("library_view.highlights_tab")}</option>
+                  <option value="pdf">{t("library_view.read_tab")}</option>
                 </select>
               </div>
             ) : (
@@ -1023,13 +1021,13 @@ export const LibraryView: React.FC<{
                   className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
                   onClick={() => setPreviewTab("info")}
                 >
-                  <IconFileText size={14} style={{ marginRight: 6 }} /> Tóm tắt
+                  <IconFileText size={14} style={{ marginRight: 6 }} /> {t("library_view.summary_tab")}
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "ai" ? "active" : ""}`}
                   onClick={() => setPreviewTab("ai")}
                 >
-                  <IconSparkle size={14} style={{ marginRight: 6 }} /> Phân tích AI
+                  <IconSparkle size={14} style={{ marginRight: 6 }} /> {t("library_view.analysis_tab_with_icon")}
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
@@ -1040,7 +1038,7 @@ export const LibraryView: React.FC<{
                     }
                   }}
                 >
-                  <IconGraph size={14} style={{ marginRight: 6 }} /> Liên quan
+                  <IconGraph size={14} style={{ marginRight: 6 }} /> {t("library_view.related_tab")}
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
@@ -1051,13 +1049,13 @@ export const LibraryView: React.FC<{
                     }
                   }}
                 >
-                  <IconStar size={14} style={{ marginRight: 6 }} /> Đoạn Q.trọng
+                  <IconStar size={14} style={{ marginRight: 6 }} /> {t("library_view.highlights_tab")}
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
                   onClick={() => setPreviewTab("pdf")}
                 >
-                  <IconBookOpen size={14} style={{ marginRight: 6 }} /> Đọc tài liệu
+                  <IconBookOpen size={14} style={{ marginRight: 6 }} /> {t("library_view.read_tab")}
                 </button>
               </div>
             )}
@@ -1071,7 +1069,7 @@ export const LibraryView: React.FC<{
                       <span className="preview-summary-icon">
                         <IconSparkle size={15} style={{ color: "var(--color-primary)" }} />
                       </span>
-                      <span className="preview-summary-label">Tóm tắt tự động bởi ResearchMind</span>
+                      <span className="preview-summary-label">{t("library_view.summary_label")}</span>
                     </div>
                     <div className="preview-summary-content">
                       {activePaper.auto_summary.split('\n').map((line, i) => {
@@ -1100,11 +1098,11 @@ export const LibraryView: React.FC<{
                     <span className="preview-user-notes-icon">
                       <IconEdit size={15} style={{ color: "var(--color-primary)" }} />
                     </span>
-                    <span className="preview-user-notes-label">Ghi chú cá nhân</span>
+                    <span className="preview-user-notes-label">{t("library_view.notes_label")}</span>
                   </div>
                   <textarea
                     className="notes-textarea"
-                    placeholder="Thêm ghi chú cá nhân của bạn tại đây..."
+                    placeholder={t("library_view.notes_placeholder")}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
@@ -1113,7 +1111,7 @@ export const LibraryView: React.FC<{
                     onClick={saveNotes}
                     disabled={savingNotes}
                   >
-                    {savingNotes ? "Đang lưu..." : "Lưu ghi chú"}
+                    {savingNotes ? t("library_view.saving_note") : t("library_view.save_note")}
                   </button>
                 </div>
 
@@ -1121,7 +1119,7 @@ export const LibraryView: React.FC<{
   
 
                   <div className="metadata-item">
-                    <span className="metadata-label">Thẻ (Tags)</span>
+                    <span className="metadata-label">{t("library_view.tags_label")}</span>
                     <div className="tags-input-container">
                       <div className="tags-list">
                         {parseTags(activePaper.tags).map((tag) => (
@@ -1135,7 +1133,7 @@ export const LibraryView: React.FC<{
                             <input
                               type="text"
                               className="tag-add-input"
-                              placeholder="Tag mới..."
+                              placeholder={t("library_view.tag_placeholder")}
                               value={tagInput}
                               onChange={(e) => setTagInput(e.target.value)}
                               onKeyDown={(e) => {
@@ -1144,43 +1142,43 @@ export const LibraryView: React.FC<{
                               }}
                               autoFocus
                             />
-                            <button className="tag-add-btn" onClick={handleAddTag}>Thêm</button>
+                            <button className="tag-add-btn" onClick={handleAddTag}>{t("library_view.tag_add")}</button>
                           </div>
                         ) : (
-                          <button className="tag-add-btn" onClick={() => setShowTagInput(true)}>+ Thêm tag</button>
+                          <button className="tag-add-btn" onClick={() => setShowTagInput(true)}>{t("library_view.tag_add_btn")}</button>
                         )}
                       </div>
                     </div>
                   </div>
 
                   <div className="metadata-item">
-                    <span className="metadata-label">Tác giả</span>
+                    <span className="metadata-label">{t("library_view.author_label")}</span>
                     <span className="metadata-value">
                       {activePaper.authors && activePaper.authors !== "[]"
                         ? activePaper.authors.replace(/[\[\]"']/g, "")
-                        : "Không có thông tin"}
+                        : t("library_view.info_missing")}
                     </span>
                   </div>
 
                   <div className="metadata-item">
-                    <span className="metadata-label">Năm xuất bản</span>
-                    <span className="metadata-value">{activePaper.year || "Không có thông tin"}</span>
+                    <span className="metadata-label">{t("library_view.year_label")}</span>
+                    <span className="metadata-value">{activePaper.year || t("library_view.info_missing")}</span>
                   </div>
 
                   <div className="metadata-item">
-                    <span className="metadata-label">Tên tệp gốc</span>
+                    <span className="metadata-label">{t("library_view.filename_label")}</span>
                     <span className="metadata-value" style={{ wordBreak: "break-all" }}>{activePaper.filename}</span>
                   </div>
 
                   <div className="metadata-item">
-                    <span className="metadata-label">Kích thước file</span>
+                    <span className="metadata-label">{t("library_view.filesize_label")}</span>
                     <span className="metadata-value">{(activePaper.file_size / 1024).toFixed(0)} KB</span>
                   </div>
 
                   <div className="metadata-item">
-                    <span className="metadata-label">Trạng thái index</span>
+                    <span className="metadata-label">{t("library_view.index_status_label")}</span>
                     <span className="metadata-value">
-                      {getIndexStatusLabel(activePaper.status)}
+                      {getIndexStatusLabel(activePaper.status, t)}
                     </span>
                   </div>
                   {(activePaper.is_scanned || activePaper.status === "needs_ocr") && (
@@ -1188,14 +1186,14 @@ export const LibraryView: React.FC<{
                       <span className="metadata-label">OCR</span>
                       <span className="metadata-value">
                         {activePaper.is_scanned
-                          ? `Đã OCR ${activePaper.ocr_pages_count || 0} trang${activePaper.ocr_pages_failed ? `, lỗi ${activePaper.ocr_pages_failed}` : ""}`
-                          : "Chưa có OCR metadata"}
+                          ? t("library_view.ocr_status", { n: activePaper.ocr_pages_count || 0, m: activePaper.ocr_pages_failed || 0 })
+                          : t("library_view.ocr_no_metadata")}
                         <button
                           className="metadata-inline-btn"
                           onClick={() => retryOcr(activePaper)}
                           style={{ marginLeft: 8 }}
                         >
-                          Chạy OCR lại
+                          {t("library_view.run_ocr")}
                         </button>
                       </span>
                     </div>
@@ -1203,7 +1201,7 @@ export const LibraryView: React.FC<{
 
                   {activePaper.layout_stats && (
                     <div className="metadata-item">
-                      <span className="metadata-label">Bố cục</span>
+                      <span className="metadata-label">{t("library_view.layout_label")}</span>
                       <span className="metadata-value">
                         {(() => {
                           const stats = activePaper.layout_stats;
@@ -1211,8 +1209,8 @@ export const LibraryView: React.FC<{
                           const colCounts = pages.map(p => stats[p].columns);
                           const avgCols = colCounts.reduce((a, b) => a + b, 0) / colCounts.length;
                           const multiPageCount = pages.filter(p => stats[p].multicolumn).length;
-                          if (avgCols <= 1) return "1 cột";
-                          return `${Math.round(avgCols * 10) / 10} cột (TB) · ${multiPageCount}/${pages.length} trang đa cột`;
+                          if (avgCols <= 1) return t("library_view.layout_single");
+                          return t("library_view.layout_multi", { avg: Math.round(avgCols * 10) / 10, multi: multiPageCount, total: pages.length });
                         })()}
                       </span>
                     </div>
@@ -1223,8 +1221,7 @@ export const LibraryView: React.FC<{
               <div className="preview-body">
                 <div className="related-papers-header">
                   <h4 className="related-papers-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <IconLink size={14} />
-                    <span>Papers liên quan (theo embedding similarity)</span>
+                    <IconLink size={14} />                      <span>{t("library_view.related_tab_subtitle")}</span>
                   </h4>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     {relatedModelInfo && (
@@ -1239,10 +1236,10 @@ export const LibraryView: React.FC<{
                           const top = relatedPapers[0];
                           showRelatedPaperMatches(top.paper_id, top.similarity, top.title);
                         }}
-                        title="Xem chi tiết tương đồng"
+                        title={t("library_view.view_similarity_title")}
                       >
                         <IconSearch size={12} />
-                        <span>Chi tiết</span>
+                        <span>{t("library_view.view_similarity_title")}</span>
                       </button>
                     )}
                     <button
@@ -1250,7 +1247,7 @@ export const LibraryView: React.FC<{
                       onClick={() => activePaper && loadRelatedPapers(activePaper.id)}
                       disabled={loadingRelated}
                   >
-                    {loadingRelated ? "Đang tải..." : "Làm mới"}
+                    {loadingRelated ? t("common.loading") : t("common.retry")}
                   </button>
                   </div>
                 </div>
@@ -1258,12 +1255,12 @@ export const LibraryView: React.FC<{
                 {loadingRelated ? (
                   <div className="related-papers-loading">
                     <div className="insights-loading-spinner" />
-                    <span>Đang tìm papers liên quan...</span>
+                    <span>{t("library_view.loading_related")}</span>
                   </div>
                 ) : relatedPapers.length === 0 ? (
                   <div className="related-papers-empty">
-                    <p>Chưa tìm thấy paper liên quan nào.</p>
-                    <p className="hint">Hãy import thêm paper để mở rộng mạng lưới kiến thức.</p>
+                    <p>{t("library_view.no_related")}</p>
+                    <p className="hint">{t("library_view.no_related_hint")}</p>
                   </div>
                 ) : (
                   <div className="related-papers-list">
@@ -1277,13 +1274,13 @@ export const LibraryView: React.FC<{
                           <span className="related-paper-score-value">
                             {(rp.similarity * 100).toFixed(0)}%
                           </span>
-                          <span className="related-paper-score-label">similarity</span>
+                          <span className="related-paper-score-label">{t("library_view.similarity_label")}</span>
                         </div>
                         <div className="related-paper-content">
-                          <div className="related-paper-title">{rp.title || "Không có tiêu đề"}</div>
+                          <div className="related-paper-title">{rp.title || t("search.no_title")}</div>
                           <div className="related-paper-snippet">{rp.snippet}...</div>
                           <div className="related-paper-meta">
-                            {rp.matching_chunks} chunks khớp
+                            {t("library_view.matching_chunks", { count: rp.matching_chunks })}
                           </div>
                         </div>
                       </div>
@@ -1296,27 +1293,27 @@ export const LibraryView: React.FC<{
                 <div className="highlights-header">
                   <h4 className="highlights-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                     <IconStar size={14} />
-                    <span>Đoạn quan trọng được AI xác định</span>
+                    <span>{t("library_view.highlights_subtitle")}</span>
                   </h4>
                   <button
                     className="highlights-refresh-btn"
                     onClick={() => activePaper && loadHighlights(activePaper.id)}
                     disabled={loadingHighlights}
                   >
-                    {loadingHighlights ? "Đang phân tích..." : "Phân tích lại"}
+                    {loadingHighlights ? t("library_view.highlights_analyzing") : t("library_view.highlights_reanalyze")}
                   </button>
                 </div>
 
                 {loadingHighlights ? (
                   <div className="highlights-loading">
                     <div className="insights-loading-spinner" />
-                    <span>AI đang phân tích nội dung paper...</span>
-                    <span className="highlights-loading-hint">Quá trình này có thể mất 10-20 giây</span>
+                    <span>{t("library_view.highlights_loading")}</span>
+                    <span className="highlights-loading-hint">{t("library_view.highlights_loading_hint")}</span>
                   </div>
                 ) : highlights.length === 0 ? (
                   <div className="highlights-empty">
-                    <p>Chưa có đoạn quan trọng nào được xác định.</p>
-                    <p className="hint">Nhấn "Phân tích lại" để AI phân tích nội dung paper.</p>
+                    <p>{t("library_view.highlights_empty")}</p>
+                    <p className="hint">{t("library_view.highlights_empty_hint")}</p>
                   </div>
                 ) : (
                   <div className="highlights-list">
@@ -1325,19 +1322,19 @@ export const LibraryView: React.FC<{
                         <div className="highlight-card-header">
                           <span className={`highlight-category highlight-cat-${h.category}`} style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                             {getCategoryIcon(h.category, 12)}
-                            <span>{h.category === "key_finding" ? "Kết quả chính"
-                              : h.category === "methodology" ? "Phương pháp"
-                              : h.category === "conclusion" ? "Kết luận"
-                              : h.category === "novel_contribution" ? "Đóng góp mới"
-                              : h.category === "limitation" ? "Hạn chế"
-                              : "Khái niệm quan trọng"}</span>
+                            <span>{h.category === "key_finding" ? t("highlights.category_results")
+                              : h.category === "methodology" ? t("highlights.category_methods")
+                              : h.category === "conclusion" ? t("highlights.category_conclusions")
+                              : h.category === "novel_contribution" ? t("highlights.category_contributions")
+                              : h.category === "limitation" ? t("highlights.category_limitations")
+                              : t("highlights.category_key_points")}</span>
                           </span>
                           {h.page_hint && (
-                            <span className="highlight-page">Trang {h.page_hint}</span>
+                            <span className="highlight-page">{t("library_view.page_unit")} {h.page_hint}</span>
                           )}
                           <span className={`highlight-importance badge-${h.importance}`} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                             <span className={`importance-dot ${h.importance}`} style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: h.importance === "high" ? "var(--color-danger, #ef4444)" : "var(--color-warning, #f59e0b)" }} />
-                            <span>{h.importance === "high" ? "Quan trọng" : "Trung bình"}</span>
+                            <span>{h.importance === "high" ? t("highlights.importance_high") : t("highlights.importance_medium")}</span>
                           </span>
                         </div>
                         <blockquote className="highlight-text">
@@ -1357,7 +1354,7 @@ export const LibraryView: React.FC<{
                 <div className="preview-ai-actions">
                   <h4 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                     <IconSparkle size={16} />
-                    <span>Phân tích tài liệu AI</span>
+                    <span>{t("library_view.ai_analyze")}</span>
                   </h4>
                   <button
                     className="preview-ai-btn"
@@ -1365,7 +1362,7 @@ export const LibraryView: React.FC<{
                     style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                   >
                     <IconFileText size={14} />
-                    <span>Review tự động</span>
+                    <span>{t("library_view.ai_review")}</span>
                   </button>
                   <button
                     className="preview-ai-btn"
@@ -1373,7 +1370,7 @@ export const LibraryView: React.FC<{
                     style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                   >
                     <IconSearch size={14} />
-                    <span>Phê bình</span>
+                    <span>{t("library_view.ai_critique")}</span>
                   </button>
                   {onStartDebate && (
                     <button
@@ -1382,7 +1379,7 @@ export const LibraryView: React.FC<{
                       style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                     >
                       <IconBulb size={14} />
-                      <span>Tranh luận AI</span>
+                      <span>{t("library_view.debate")}</span>
                     </button>
                   )}
                   {onStartWow && (
@@ -1392,7 +1389,7 @@ export const LibraryView: React.FC<{
                       style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                     >
                       <IconSparkle size={14} />
-                      <span>Wow Analysis</span>
+                      <span>{t("library_view.ai_wow")}</span>
                     </button>
                   )}
                   <button
@@ -1401,7 +1398,7 @@ export const LibraryView: React.FC<{
                     style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
                   >
                     <IconChat size={14} />
-                    <span>Hỏi AI về paper này</span>
+                    <span>{t("library_view.ai_chat")}</span>
                   </button>
                 </div>
               </div>
@@ -1418,8 +1415,8 @@ export const LibraryView: React.FC<{
         ) : (
           <div className="preview-empty">
             <IconFileText size={48} />
-            <h3>Chưa chọn tài liệu</h3>
-            <p>Chọn một tài liệu trong danh sách bên trái để xem thông tin chi tiết và đọc nội dung tài liệu.</p>
+            <h3>{t("library_view.no_doc_heading")}</h3>
+            <p>{t("library_view.no_doc_text")}</p>
           </div>
         )}
 
@@ -1430,7 +1427,7 @@ export const LibraryView: React.FC<{
               <div className="rm-modal-header">
                 <h3 className="rm-modal-title">
                   <IconGraph size={16} style={{ marginRight: 8 }} />
-                  Chi tiết tương đồng
+                  {t("library_view.similarity_detail_title")}
                 </h3>
                 <button className="rm-modal-close" onClick={() => setMatchModalOpen(false)}>✕</button>
               </div>
@@ -1438,7 +1435,7 @@ export const LibraryView: React.FC<{
                 {loadingMatches ? (
                   <div className="matches-loading">
                     <div className="insights-loading-spinner" />
-                    <span>Đang tìm các chunk tương đồng...</span>
+                    <span>{t("library_view.loading_matches")}</span>
                   </div>
                 ) : matchModalData ? (
                   <>
@@ -1467,10 +1464,10 @@ export const LibraryView: React.FC<{
                     <div className="matches-divider" />
                     <div className="matches-list">
                       <div className="matches-list-header">
-                        <span className="matches-list-title">Các chunk tương đồng ({matchModalData.matches.length})</span>
+                        <span className="matches-list-title">{t("library_view.similar_chunks_title", { count: matchModalData.matches.length })}</span>
                       </div>
                       {matchModalData.matches.length === 0 ? (
-                        <div className="matches-empty">Không tìm thấy chunk tương đồng chi tiết.</div>
+                        <div className="matches-empty">{t("library_view.no_similar_chunks")}</div>
                       ) : (
                         matchModalData.matches.map((m, i) => (
                           <div key={m.chunk_id || i} className="match-chunk-card">
@@ -1479,7 +1476,7 @@ export const LibraryView: React.FC<{
                                 {(m.similarity * 100).toFixed(1)}%
                               </span>
                               {m.page_number != null && (
-                                <span className="match-chunk-page">Trang {m.page_number}</span>
+                                <span className="match-chunk-page">{t("library_view.match_chunk_page", { page: m.page_number })}</span>
                               )}
                               {m.chunk_index != null && (
                                 <span className="match-chunk-index">Chunk #{m.chunk_index}</span>
@@ -1492,7 +1489,7 @@ export const LibraryView: React.FC<{
                     </div>
                   </>
                 ) : (
-                  <div className="matches-empty">Không thể tải dữ liệu tương đồng.</div>
+                  <div className="matches-empty">{t("library_view.similarity_load_error")}</div>
                 )}
               </div>
             </div>
@@ -1506,7 +1503,7 @@ export const LibraryView: React.FC<{
               <div className="rm-modal-header">
                 <h3 className="rm-modal-title">
                   <IconBookOpen size={16} style={{ marginRight: 8 }} />
-                  {papers.find(p => p.id === pdfPreviewId)?.title || "Xem tài liệu"}
+                  {papers.find(p => p.id === pdfPreviewId)?.title || t("library_view.view_document")}
                 </h3>
                 <button className="rm-modal-close" onClick={() => setPdfPreviewId(null)}>✕</button>
               </div>
@@ -1514,7 +1511,7 @@ export const LibraryView: React.FC<{
                 <iframe
                   src={`${BASE_URL}/api/papers/${pdfPreviewId}/file`}
                   className="pdf-iframe"
-                  title="PDF Preview"
+                  title={t("pdf.preview_title")}
                 />
               </div>
             </div>

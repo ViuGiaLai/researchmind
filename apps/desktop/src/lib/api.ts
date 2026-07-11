@@ -30,7 +30,8 @@ function parseApiError(status: number, text: string): string {
     // not JSON
   }
   if (status === 429) {
-    return "Đã hết lượt dùng miễn phí hôm nay. Thử lại vào ngày mai hoặc cấu hình API key riêng.";
+    // This is a fallback error string; the UI wraps it in an Error object
+    return "Free daily limit exhausted. Try again tomorrow or configure your own API key.";
   }
   return text || `HTTP ${status}`;
 }
@@ -114,7 +115,7 @@ async function request<T>(
     return JSON.parse(text) as T;
   } catch (e) {
     if (e instanceof TypeError) {
-      throw new Error("Không thể kết nối đến backend. Đảm bảo FastAPI đang chạy (cd backend && uvicorn main:app --reload --port 8765).");
+      throw new Error("Cannot connect to the backend. Make sure FastAPI is running (cd backend && uvicorn main:app --reload --port 8765).");
     }
     throw e;
   }
@@ -377,7 +378,7 @@ export const api = {
     }
     throw lastError instanceof Error
       ? lastError
-      : new Error("Rebuild FTS chưa khả dụng — hãy khởi động lại backend (uvicorn main:app --reload --port 8765).");
+      : new Error("Rebuild FTS not available — restart the backend (uvicorn main:app --reload --port 8765).");
   },
 
   // Papers

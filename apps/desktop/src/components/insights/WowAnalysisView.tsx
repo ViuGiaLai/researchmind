@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { api, Paper } from "../../lib/api";
 import {
   IconSpinner,
@@ -36,13 +37,13 @@ interface WowAnalysisViewProps {
   onClearInitialPaperId?: () => void;
 }
 
-const WOW_STEP_META = {
-  summary: { label: "Tóm tắt ngay", Icon: IconSparkle },
-  critique: { label: "Điểm yếu", Icon: IconWarning },
-  conflict: { label: "Mâu thuẫn", Icon: IconSwords },
-  gap: { label: "Khoảng trống", Icon: IconCircleDot },
-  debate: { label: "Tranh luận AI", Icon: IconBrainAi },
-} as const;
+const WOW_STEP_META_FN = (t: (key: string) => string) => ({
+  summary: { label: t("wow.step_summary"), Icon: IconSparkle },
+  critique: { label: t("wow.step_critique"), Icon: IconWarning },
+  conflict: { label: t("wow.step_conflict"), Icon: IconSwords },
+  gap: { label: t("wow.step_gap"), Icon: IconCircleDot },
+  debate: { label: t("wow.step_debate"), Icon: IconBrainAi },
+} as const);
 
 const WOW_STEPS = [
   { key: "summary" as const, color: "#10b981" },
@@ -52,37 +53,12 @@ const WOW_STEPS = [
   { key: "debate" as const, color: "#06b6d4" },
 ];
 
-const LOADER_MESSAGES: Record<string, string[]> = {
-  summary: [
-    "Đang trích xuất nội dung bài báo...",
-    "Đang xác định ý tưởng cốt lõi (Core Idea)...",
-    "Đang phân tích các đóng góp chính (Contributions)...",
-    "Đang tạo bản tóm tắt học thuật...",
-  ],
-  critique: [
-    "Đang kiểm tra các giả thiết học thuật...",
-    "Đang phân tích tính thực tiễn và bias của dữ liệu...",
-    "Đang đánh giá các hạn chế phương pháp...",
-    "Đang tìm kiếm nguy cơ overclaim...",
-  ],
-  conflict: [
-    "Đang tìm kiếm các quan điểm đối lập...",
-    "Đang so sánh phương pháp đo lường...",
-    "Đang kiểm tra sự mâu thuẫn về kết luận...",
-    "Đang phân tích khía cạnh đa chiều...",
-  ],
-  gap: [
-    "Đang rà soát phần kiến nghị nghiên cứu...",
-    "Đang tìm khoảng trống trong phương pháp...",
-    "Đang xác định hướng phát triển tương lai...",
-    "Đang tổng hợp cơ hội đóng góp mới...",
-  ],
-  debate: [
-    "Đang thiết lập AI Persona A (Ủng hộ)...",
-    "Đang thiết lập AI Persona B (Phản biện)...",
-    "Đang tạo lập lập luận và phản biện...",
-    "Đang đúc kết đề xuất kiểm chứng thực nghiệm...",
-  ],
+const LOADER_MESSAGES_KEYS: Record<string, string[]> = {
+  summary: ["wow.loader_summary_1", "wow.loader_summary_2", "wow.loader_summary_3", "wow.loader_summary_4"],
+  critique: ["wow.loader_critique_1", "wow.loader_critique_2", "wow.loader_critique_3", "wow.loader_critique_4"],
+  conflict: ["wow.loader_conflict_1", "wow.loader_conflict_2", "wow.loader_conflict_3", "wow.loader_conflict_4"],
+  gap: ["wow.loader_gap_1", "wow.loader_gap_2", "wow.loader_gap_3", "wow.loader_gap_4"],
+  debate: ["wow.loader_debate_1", "wow.loader_debate_2", "wow.loader_debate_3", "wow.loader_debate_4"],
 };
 
 export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
@@ -91,6 +67,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
   initialPaperId,
   onClearInitialPaperId,
 }) => {
+  const { t } = useTranslation();
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [libraryPapers, setLibraryPapers] = useState<Paper[]>([]);
   const [loadingLibrary, setLoadingLibrary] = useState(true);
@@ -120,11 +97,11 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
   const [regeneratingAll, setRegeneratingAll] = useState(false);
 
   const [activeStepMessage, setActiveStepMessage] = useState<Record<string, string>>({
-    summary: LOADER_MESSAGES.summary[0],
-    critique: LOADER_MESSAGES.critique[0],
-    conflict: LOADER_MESSAGES.conflict[0],
-    gap: LOADER_MESSAGES.gap[0],
-    debate: LOADER_MESSAGES.debate[0],
+    summary: t("wow.loader_summary_1"),
+    critique: t("wow.loader_critique_1"),
+    conflict: t("wow.loader_conflict_1"),
+    gap: t("wow.loader_gap_1"),
+    debate: t("wow.loader_debate_1"),
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,12 +167,12 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       clearInterval(messageIntervals.current[stepKey]);
     }
     let idx = 0;
-    const messages = LOADER_MESSAGES[stepKey];
-    setActiveStepMessage((prev) => ({ ...prev, [stepKey]: messages[0] }));
+    const messages = LOADER_MESSAGES_KEYS[stepKey];
+    setActiveStepMessage((prev) => ({ ...prev, [stepKey]: t(messages[0]) }));
 
     messageIntervals.current[stepKey] = setInterval(() => {
       idx = (idx + 1) % messages.length;
-      setActiveStepMessage((prev) => ({ ...prev, [stepKey]: messages[idx] }));
+      setActiveStepMessage((prev) => ({ ...prev, [stepKey]: t(messages[idx]) }));
     }, 2500);
   };
 
@@ -208,11 +185,11 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
 
   // ── Central step prompts (shared by pipeline + regeneration) ─
   const STEP_PROMPTS: Record<string, string> = {
-    summary: "Hãy tóm tắt paper này ngắn gọn: background, phương pháp, kết quả chính, kết luận. Trả lời tiếng Việt.",
-    critique: "Phân tích phản biện paper này: chỉ ra điểm mạnh, điểm yếu, hạn chế về phương pháp, và đề xuất cải thiện. Trả lời tiếng Việt.",
-    conflict: "Phân tích các mâu thuẫn (conflict) trong paper này: các kết quả trái ngược, quan điểm khác biệt với nghiên cứu trước. Trả lời tiếng Việt.",
-    gap: "Phân tích khoảng trống nghiên cứu (research gap) từ paper này: những vấn đề chưa được giải quyết, hướng nghiên cứu tương lai. Trả lời tiếng Việt.",
-    debate: "Tạo một cuộc tranh luận AI về paper này: góc nhìn ủng hộ vs góc nhìn phản biện, chỉ ra ưu điểm và hạn chế. Trả lời tiếng Việt.",
+    summary: t("wow.prompt_summary"),
+    critique: t("wow.prompt_critique"),
+    conflict: t("wow.prompt_conflict"),
+    gap: t("wow.prompt_gap"),
+    debate: t("wow.prompt_debate"),
   };
 
   const runSingleStep = async (stepKey: string, paperId: string, runId: string) => {
@@ -254,7 +231,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       if (activeAnalysisRunId.current !== runId) return;
       setSteps((prev) => ({
         ...prev,
-        [stepKey]: { status: "error", content: "", error: e.message || `Không thể tạo ${stepKey}` },
+        [stepKey]: { status: "error", content: "", error: e.message || t("wow.cannot_generate", { step: stepKey }) },
       }));
     }
     stopLoadingMessages(stepKey);
@@ -315,11 +292,11 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
       if (activeAnalysisRunId.current !== runId) return;
       const paper = await api.getPaper(paperId);
       if (paper.status === "indexed") return;
-      if (paper.status === "failed") throw new Error("Paper index thất bại. Vui lòng import lại.");
+      if (paper.status === "failed") throw new Error(t("wow.index_failed"));
       await new Promise((r) => setTimeout(r, 1500));
       attempts++;
     }
-    throw new Error("Paper xử lý quá lâu. Vui lòng thử lại sau.");
+    throw new Error(t("wow.index_timeout"));
   };
 
   const handleSelectPaper = (paper: Paper) => {
@@ -345,7 +322,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
     try {
       await waitForIndexed(paperId, runId);
     } catch (e: any) {
-      const errMsg = e.message || "Không thể index paper";
+      const errMsg = e.message || t("wow.index_failed");
       setSteps(() => ({
         summary: { status: "error", content: "", error: errMsg },
         critique: { status: "error", content: "", error: errMsg },
@@ -396,10 +373,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
 
   const uploadAndAnalyze = async (file: File) => {
     setImportingFile(true);
-    setImportProgress("Đang tải lên và phân tích tài liệu...");
+    setImportProgress(t("wow.upload_analyze"));
     try {
       const res = await api.importPaper(file);
-      setImportProgress("Đang vector hóa văn bản (quá trình này mất vài giây)...");
+      setImportProgress(t("wow.vectorizing"));
       
       // Wait for the paper status to be indexed
       let isIndexed = false;
@@ -414,16 +391,16 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
           loadLibrary(); // reload sidebar/library list
           break;
         } else if (paper.status === "failed") {
-          throw new Error("Quá trình trích xuất chỉ mục thất bại.");
+          throw new Error(t("wow.extract_failed"));
         }
         checkCount++;
       }
 
       if (!isIndexed) {
-        throw new Error("Tài liệu xử lý lâu hơn dự kiến. Vui lòng kiểm tra lại trong Thư viện.");
+        throw new Error(t("wow.extract_timeout"));
       }
     } catch (e: any) {
-      toast.addToast("error", `Lỗi import: ${e.message || e}`);
+      toast.addToast("error", t("wow.toast_import_error", { msg: e.message || e }));
       setImportingFile(false);
     }
   };
@@ -484,7 +461,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
 
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.addToast("success", "Đã sao chép nội dung vào Clipboard!");
+    toast.addToast("success", t("wow.copied_to_clipboard"));
   };
 
   return (
@@ -494,7 +471,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
         <div className="wow-loading-overlay">
           <div className="wow-loading-card">
             <IconSpinner size={48} className="wow-spin" />
-            <h3>Đang xử lý PDF của bạn</h3>
+            <h3>{t("wow.processing_pdf")}</h3>
             <p>{importProgress}</p>
           </div>
         </div>
@@ -506,10 +483,10 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
           <div className="wow-hero">
             <h1 className="wow-title">
               <IconBrain size={36} className="icon-gradient" style={{ marginRight: 12 }} />
-              Hiểu paper trong 10 giây
+              {t("wow.hero_title")}
             </h1>
             <p className="wow-subtitle">
-              AI phân tích tài liệu của bạn ngay lập tức
+              {t("wow.hero_subtitle")}
             </p>
           </div>
 
@@ -534,40 +511,40 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
             <div className="wow-dropzone-icon">
               <IconUpload size={48} className="icon-gradient" />
             </div>
-            <h2>Kéo thả file PDF vào đây</h2>
-            <p>hoặc nhấn để duyệt file từ máy tính</p>
-            <div className="wow-dropzone-badge">Hỗ trợ PDF</div>
+            <h2>{t("wow.dropzone_title")}</h2>
+            <p>{t("wow.dropzone_text")}</p>
+            <div className="wow-dropzone-badge">{t("wow.dropzone_badge")}</div>
           </div>
 
           {/* Action Buttons */}
           <div className="wow-action-buttons">
             <button className="wow-action-btn wow-action-summary" onClick={() => handleActionClick("summary")}>
               <span className="wow-action-icon"><IconFileText size={20} /></span>
-              <span className="wow-action-label">Tóm tắt ngay</span>
+              <span className="wow-action-label">{t("wow.action_summary")}</span>
             </button>
             <button className="wow-action-btn wow-action-critique" onClick={() => handleActionClick("critique")}>
               <span className="wow-action-icon"><IconWarning size={20} /></span>
-              <span className="wow-action-label">Xem điểm yếu</span>
+              <span className="wow-action-label">{t("wow.action_critique")}</span>
             </button>
             <button className="wow-action-btn wow-action-debate" onClick={() => handleActionClick("debate")}>
               <span className="wow-action-icon"><IconSwords size={20} /></span>
-              <span className="wow-action-label">So sánh</span>
+              <span className="wow-action-label">{t("wow.action_compare")}</span>
             </button>
           </div>
 
           {/* Quick Selection from library */}
           <div className="wow-quick-select">
-            <h3 className="wow-section-title">Hoặc chọn tài liệu từ thư viện của bạn</h3>
+            <h3 className="wow-section-title">{t("wow.library_papers")}</h3>
             {loadingLibrary ? (
               <div className="wow-library-loading">
                 <IconSpinner size={24} />
-                <span>Đang tải danh sách tài liệu...</span>
+                <span>{t("wow.loading_papers")}</span>
               </div>
             ) : libraryPapers.length === 0 ? (
               <div className="wow-library-empty">
-                <p>Chưa có tài liệu</p>
+                <p>{t("wow.no_papers")}</p>
                 <p className="wow-empty-hint">
-                  <IconWithText icon={IconArrowDown} size={14}>Kéo PDF vào để AI phân tích ngay</IconWithText>
+                  <IconWithText icon={IconArrowDown} size={14}>{t("wow.hint_drop")}</IconWithText>
                 </p>
               </div>
             ) : (
@@ -587,7 +564,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                       </h4>
                       <p className="wow-paper-meta-text">
                         {paper.year ? `${paper.year} · ` : ""}
-                        {paper.authors ? `${paper.authors.replace(/[\[\]"']/g, "").slice(0, 40)}...` : "Không rõ tác giả"}
+                        {paper.authors ? `${paper.authors.replace(/[\[\]"']/g, "").slice(0, 40)}...` : t("wow.unknown_author")}
                       </p>
                     </div>
                     <div className="wow-paper-hover-badge">
@@ -613,7 +590,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                   setFocusStep(null);
                 }}
               >
-                ← Chọn tài liệu khác
+                {t("wow.back")}
               </button>
               <h2 className="wow-report-paper-title">
                 <IconFileText size={24} className="wow-doc-icon" />
@@ -621,11 +598,11 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               </h2>
               <p className="wow-report-paper-meta">
                 {selectedPaper.authors && (
-                  <span>Tác giả: {selectedPaper.authors.replace(/[\[\]"']/g, "")} · </span>
+                  <span>{t("wow.author_label", { authors: selectedPaper.authors.replace(/[\[\]"']/g, "") })} · </span>
                 )}
-                {selectedPaper.year && <span>Năm: {selectedPaper.year} · </span>}
-                <span>Ngôn ngữ: {selectedPaper.language.toUpperCase()} · </span>
-                <span>{selectedPaper.page_count || "?"} trang</span>
+                {selectedPaper.year && <span>{t("wow.year_label", { year: selectedPaper.year })} · </span>}
+                <span>{t("wow.language_label", { lang: selectedPaper.language.toUpperCase() })} · </span>
+                <span>{t("wow.pages_label", { n: selectedPaper.page_count || "?" })}</span>
               </p>
             </div>
             <div className="wow-report-header-right">
@@ -635,9 +612,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 disabled={regeneratingAll || Object.values(regeneratingSteps).some(Boolean)}
               >
                 {regeneratingAll ? (
-                  <><IconSpinner size={14} /> Đang tạo lại...</>
+                  <><IconSpinner size={14} /> {t("wow.regenerating")}</>
                 ) : (
-                  <><IconRotateCcw size={14} /> Tạo lại tất cả</>
+                  <><IconRotateCcw size={14} /> {t("wow.regenerate_all")}</>
                 )}
               </button>
               <button
@@ -645,7 +622,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 onClick={() => onStartChat([selectedPaper.id])}
               >
                 <IconChat size={16} />
-                <span>Hỏi AI về paper này</span>
+                <span>{t("wow.ask_ai")}</span>
               </button>
             </div>
           </header>
@@ -653,7 +630,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
           {/* Stepper Status Bar */}
           <div className="wow-stepper">
             {WOW_STEPS.map((step, idx) => {
-              const meta = WOW_STEP_META[step.key];
+              const meta = WOW_STEP_META_FN(t)[step.key];
               const state = steps[step.key];
               return (
                 <div
@@ -663,7 +640,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     const element = document.getElementById(`wow-section-${step.key}`);
                     element?.scrollIntoView({ behavior: "smooth", block: "center" });
                   }}
-                  title={`Xem phần ${meta.label}`}
+                  title={t("wow.view_step", { label: meta.label })}
                 >
                   <div className="wow-step-indicator-number">
                     {state.status === "completed" ? (
@@ -694,13 +671,13 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               <header className="wow-card-header">
                 <div className="wow-card-title">
                   <span className="wow-card-icon-badge"><IconSparkle size={16} /></span>
-                  <h3>Tóm tắt học thuật cực nhanh</h3>
+                  <h3>{t("wow.card_summary")}</h3>
                 </div>
                 <div className="wow-card-status-label">
-                  {steps.summary.status === "running" && <span className="loader-span"><IconSpinner size={14} /> Đang trích xuất...</span>}
-                  {steps.summary.status === "completed" && <span className="badge-done">Hoàn thành</span>}
-                  {steps.summary.status === "error" && <span className="badge-error">Lỗi</span>}
-                  {steps.summary.status === "pending" && <span className="badge-pending">Đang chờ</span>}
+                  {steps.summary.status === "running" && <span className="loader-span"><IconSpinner size={14} /> {t("wow.status_extracting")}</span>}
+                  {steps.summary.status === "completed" && <span className="badge-done">{t("wow.status_completed")}</span>}
+                  {steps.summary.status === "error" && <span className="badge-error">{t("wow.status_error")}</span>}
+                  {steps.summary.status === "pending" && <span className="badge-pending">{t("wow.status_pending")}</span>}
                 </div>
               </header>
 
@@ -724,7 +701,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 )}
                 {steps.summary.status === "pending" && (
                   <div className="wow-card-pending-state">
-                    <p>Nhấp vào nút phân tích để bắt đầu tóm tắt</p>
+                    <p>{t("wow.pending_click")}</p>
                   </div>
                 )}
               </div>
@@ -735,7 +712,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     className="wow-card-action-btn"
                     onClick={() => handleCopyText(steps.summary.content)}
                   >
-                    Sao chép tóm tắt
+                    {t("wow.copy_summary")}
                   </button>
                   <button
                     className="wow-card-action-btn secondary"
@@ -743,9 +720,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     disabled={regeneratingSteps.summary}
                   >
                     {regeneratingSteps.summary ? (
-                      <><IconSpinner size={13} /> Đang tạo...</>
+                      <><IconSpinner size={13} /> {t("wow.generating")}</>
                     ) : (
-                      <><IconRotateCcw size={14} /> Tạo lại</>
+                      <><IconRotateCcw size={14} /> {t("wow.regenerate")}</>
                     )}
                   </button>
                 </footer>
@@ -760,13 +737,13 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               <header className="wow-card-header">
                 <div className="wow-card-title">
                   <span className="wow-card-icon-badge"><IconWarning size={16} /></span>
-                  <h3>Điểm yếu & Hạn chế cốt lõi</h3>
+                  <h3>{t("wow.card_critique")}</h3>
                 </div>
                 <div className="wow-card-status-label">
-                  {steps.critique.status === "running" && <span className="loader-span"><IconSpinner size={14} /> Đang phản biện...</span>}
-                  {steps.critique.status === "completed" && <span className="badge-done">Hoàn thành</span>}
-                  {steps.critique.status === "error" && <span className="badge-error">Lỗi</span>}
-                  {steps.critique.status === "pending" && <span className="badge-pending">Đang chờ</span>}
+                  {steps.critique.status === "running" && <span className="loader-span"><IconSpinner size={14} /> {t("wow.status_criticizing")}</span>}
+                  {steps.critique.status === "completed" && <span className="badge-done">{t("wow.status_completed")}</span>}
+                  {steps.critique.status === "error" && <span className="badge-error">{t("wow.status_error")}</span>}
+                  {steps.critique.status === "pending" && <span className="badge-pending">{t("wow.status_pending")}</span>}
                 </div>
               </header>
 
@@ -790,7 +767,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 )}
                 {steps.critique.status === "pending" && (
                   <div className="wow-card-pending-state">
-                    <p>Chờ hoàn thành bước trước...</p>
+                    <p>{t("wow.pending_wait")}</p>
                   </div>
                 )}
               </div>
@@ -801,7 +778,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     className="wow-card-action-btn"
                     onClick={() => handleCopyText(steps.critique.content)}
                   >
-                    Sao chép phản biện
+                    {t("wow.copy_critique")}
                   </button>
                   <button
                     className="wow-card-action-btn secondary"
@@ -809,9 +786,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     disabled={regeneratingSteps.critique}
                   >
                     {regeneratingSteps.critique ? (
-                      <><IconSpinner size={13} /> Đang tạo...</>
+                      <><IconSpinner size={13} /> {t("wow.generating")}</>
                     ) : (
-                      <><IconRotateCcw size={14} /> Tạo lại</>
+                      <><IconRotateCcw size={14} /> {t("wow.regenerate")}</>
                     )}
                   </button>
                 </footer>
@@ -826,13 +803,13 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               <header className="wow-card-header">
                 <div className="wow-card-title">
                   <span className="wow-card-icon-badge"><IconSwords size={16} /></span>
-                  <h3>Mâu thuẫn & Tranh chấp khoa học</h3>
+                  <h3>{t("wow.card_conflict")}</h3>
                 </div>
                 <div className="wow-card-status-label">
-                  {steps.conflict.status === "running" && <span className="loader-span"><IconSpinner size={14} /> Đang tìm mâu thuẫn...</span>}
-                  {steps.conflict.status === "completed" && <span className="badge-done">Hoàn thành</span>}
-                  {steps.conflict.status === "error" && <span className="badge-error">Lỗi</span>}
-                  {steps.conflict.status === "pending" && <span className="badge-pending">Đang chờ</span>}
+                  {steps.conflict.status === "running" && <span className="loader-span"><IconSpinner size={14} /> {t("wow.status_conflicting")}</span>}
+                  {steps.conflict.status === "completed" && <span className="badge-done">{t("wow.status_completed")}</span>}
+                  {steps.conflict.status === "error" && <span className="badge-error">{t("wow.status_error")}</span>}
+                  {steps.conflict.status === "pending" && <span className="badge-pending">{t("wow.status_pending")}</span>}
                 </div>
               </header>
 
@@ -856,7 +833,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 )}
                 {steps.conflict.status === "pending" && (
                   <div className="wow-card-pending-state">
-                    <p>Chờ hoàn thành bước trước...</p>
+                    <p>{t("wow.pending_wait")}</p>
                   </div>
                 )}
               </div>
@@ -867,7 +844,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     className="wow-card-action-btn"
                     onClick={() => handleCopyText(steps.conflict.content)}
                   >
-                    Sao chép phân tích mâu thuẫn
+                    {t("wow.copy_conflict")}
                   </button>
                   <button
                     className="wow-card-action-btn secondary"
@@ -875,9 +852,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     disabled={regeneratingSteps.conflict}
                   >
                     {regeneratingSteps.conflict ? (
-                      <><IconSpinner size={13} /> Đang tạo...</>
+                      <><IconSpinner size={13} /> {t("wow.generating")}</>
                     ) : (
-                      <><IconRotateCcw size={14} /> Tạo lại</>
+                      <><IconRotateCcw size={14} /> {t("wow.regenerate")}</>
                     )}
                   </button>
                 </footer>
@@ -892,13 +869,13 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               <header className="wow-card-header">
                 <div className="wow-card-title">
                   <span className="wow-card-icon-badge"><IconCircleDot size={16} /></span>
-                  <h3>Lỗ hổng nghiên cứu</h3>
+                  <h3>{t("wow.card_gap")}</h3>
                 </div>
                 <div className="wow-card-status-label">
-                  {steps.gap.status === "running" && <span className="loader-span"><IconSpinner size={14} /> Đang tìm lỗ hổng...</span>}
-                  {steps.gap.status === "completed" && <span className="badge-done">Hoàn thành</span>}
-                  {steps.gap.status === "error" && <span className="badge-error">Lỗi</span>}
-                  {steps.gap.status === "pending" && <span className="badge-pending">Đang chờ</span>}
+                  {steps.gap.status === "running" && <span className="loader-span"><IconSpinner size={14} /> {t("wow.status_gapping")}</span>}
+                  {steps.gap.status === "completed" && <span className="badge-done">{t("wow.status_completed")}</span>}
+                  {steps.gap.status === "error" && <span className="badge-error">{t("wow.status_error")}</span>}
+                  {steps.gap.status === "pending" && <span className="badge-pending">{t("wow.status_pending")}</span>}
                 </div>
               </header>
 
@@ -922,7 +899,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 )}
                 {steps.gap.status === "pending" && (
                   <div className="wow-card-pending-state">
-                    <p>Chờ hoàn thành bước trước...</p>
+                    <p>{t("wow.pending_wait")}</p>
                   </div>
                 )}
               </div>
@@ -933,7 +910,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     className="wow-card-action-btn"
                     onClick={() => handleCopyText(steps.gap.content)}
                   >
-                    Sao chép phân tích khoảng trống
+                    {t("wow.copy_gap")}
                   </button>
                   <button
                     className="wow-card-action-btn secondary"
@@ -941,9 +918,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     disabled={regeneratingSteps.gap}
                   >
                     {regeneratingSteps.gap ? (
-                      <><IconSpinner size={13} /> Đang tạo...</>
+                      <><IconSpinner size={13} /> {t("wow.generating")}</>
                     ) : (
-                      <><IconRotateCcw size={14} /> Tạo lại</>
+                      <><IconRotateCcw size={14} /> {t("wow.regenerate")}</>
                     )}
                   </button>
                 </footer>
@@ -958,13 +935,13 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               <header className="wow-card-header">
                 <div className="wow-card-title">
                   <span className="wow-card-icon-badge"><IconBrainAi size={16} /></span>
-                  <h3>Tranh luận AI đa chiều & Đề xuất</h3>
+                  <h3>{t("wow.card_debate")}</h3>
                 </div>
                 <div className="wow-card-status-label">
-                  {steps.debate.status === "running" && <span className="loader-span"><IconSpinner size={14} /> Đang tranh luận...</span>}
-                  {steps.debate.status === "completed" && <span className="badge-done">Hoàn thành</span>}
-                  {steps.debate.status === "error" && <span className="badge-error">Lỗi</span>}
-                  {steps.debate.status === "pending" && <span className="badge-pending">Đang chờ</span>}
+                  {steps.debate.status === "running" && <span className="loader-span"><IconSpinner size={14} /> {t("wow.status_debating")}</span>}
+                  {steps.debate.status === "completed" && <span className="badge-done">{t("wow.status_completed")}</span>}
+                  {steps.debate.status === "error" && <span className="badge-error">{t("wow.status_error")}</span>}
+                  {steps.debate.status === "pending" && <span className="badge-pending">{t("wow.status_pending")}</span>}
                 </div>
               </header>
 
@@ -988,7 +965,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                 )}
                 {steps.debate.status === "pending" && (
                   <div className="wow-card-pending-state">
-                    <p>Chờ hoàn thành bước trước...</p>
+                    <p>{t("wow.pending_wait")}</p>
                   </div>
                 )}
               </div>
@@ -999,7 +976,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     className="wow-card-action-btn"
                     onClick={() => handleCopyText(steps.debate.content)}
                   >
-                    Sao chép cuộc tranh luận
+                    {t("wow.copy_debate")}
                   </button>
                   <button
                     className="wow-card-action-btn secondary"
@@ -1007,9 +984,9 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                     disabled={regeneratingSteps.debate}
                   >
                     {regeneratingSteps.debate ? (
-                      <><IconSpinner size={13} /> Đang tạo...</>
+                      <><IconSpinner size={13} /> {t("wow.generating")}</>
                     ) : (
-                      <><IconRotateCcw size={14} /> Tạo lại</>
+                      <><IconRotateCcw size={14} /> {t("wow.regenerate")}</>
                     )}
                   </button>
                   {onStartDebate && (
@@ -1017,7 +994,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                       className="wow-card-action-btn primary"
                       onClick={() => onStartDebate([selectedPaper.id])}
                     >
-                      Mở rộng tranh luận full-screen
+                      {t("wow.expand_debate")}
                     </button>
                   )}
                 </footer>

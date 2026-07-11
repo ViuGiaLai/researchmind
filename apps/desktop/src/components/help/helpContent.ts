@@ -50,17 +50,17 @@ export type HelpBlock =
   | { type: "links"; items: { label: string; href: string }[] };
 
 export const HELP_NAV: HelpNavItem[] = [
-  { id: "home", label: "Trung tâm trợ giúp", group: "Tổng quan" },
-  { id: "getting-started", label: "Bắt đầu", group: "Tổng quan" },
-  { id: "user-guide", label: "Hướng dẫn sử dụng", group: "Tài liệu" },
-  { id: "ai-features", label: "Tính năng AI", group: "Tài liệu" },
-  { id: "import-export", label: "Nhập & Xuất", group: "Tài liệu" },
-  { id: "settings-help", label: "Cài đặt", group: "Tài liệu" },
-  { id: "faq", label: "Câu hỏi thường gặp", group: "Hỗ trợ" },
-  { id: "shortcuts", label: "Phím tắt", group: "Hỗ trợ" },
-  { id: "release-notes", label: "Có gì mới", group: "Hỗ trợ" },
-  { id: "troubleshooting", label: "Xử lý sự cố", group: "Hỗ trợ" },
-  { id: "about", label: "Về ResearchMind", group: "Hỗ trợ" },
+  { id: "home", label: "help_nav.home", group: "help_group.overview" },
+  { id: "getting-started", label: "help_nav.getting_started", group: "help_group.overview" },
+  { id: "user-guide", label: "help_nav.user_guide", group: "help_group.docs" },
+  { id: "ai-features", label: "help_nav.ai_features", group: "help_group.docs" },
+  { id: "import-export", label: "help_nav.import_export", group: "help_group.docs" },
+  { id: "settings-help", label: "help_nav.settings", group: "help_group.docs" },
+  { id: "faq", label: "help_nav.faq", group: "help_group.support" },
+  { id: "shortcuts", label: "help_nav.shortcuts", group: "help_group.support" },
+  { id: "release-notes", label: "help_nav.release_notes", group: "help_group.support" },
+  { id: "troubleshooting", label: "help_nav.troubleshooting", group: "help_group.support" },
+  { id: "about", label: "help_nav.about", group: "help_group.support" },
 ];
 
 export const APP_VERSION = "0.6.0";
@@ -354,32 +354,32 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
 export const WELCOME_TOUR_STEPS = [
   {
     id: "library",
-    title: "Thư viện",
-    body: "Quản lý paper, PDF, highlight và tìm kiếm semantic — điểm bắt đầu cho mọi workflow nghiên cứu.",
+    title: "welcome_tour.title_library",
+    body: "welcome_tour.body_library",
     target: "sidebar-library",
   },
   {
     id: "chat",
-    title: "Chat AI",
-    body: "Hỏi đáp với AI dựa trên paper bạn chọn. Mỗi kết luận quan trọng nên có citation để kiểm chứng nhanh.",
+    title: "welcome_tour.title_chat",
+    body: "welcome_tour.body_chat",
     target: "sidebar-chat",
   },
   {
     id: "review",
-    title: "Đánh giá & Bằng chứng",
-    body: "Insights, screening, review builder và ma trận evidence để biến paper thành kết quả có thể kiểm chứng.",
+    title: "welcome_tour.title_review",
+    body: "welcome_tour.body_review",
     target: "sidebar-review",
   },
   {
     id: "labs",
-    title: "Phòng thí nghiệm",
-    body: "Phân tích sâu, Bộ não cá nhân, Đọc hôm nay và biểu đồ quan hệ paper.",
+    title: "welcome_tour.title_labs",
+    body: "welcome_tour.body_labs",
     target: "sidebar-labs",
   },
   {
     id: "help",
-    title: "Trợ giúp",
-    body: "Bấm ? góc phải trên để mở Help Center, tài liệu và phím tắt bất cứ lúc nào.",
+    title: "welcome_tour.title_help",
+    body: "welcome_tour.body_help",
     target: "app-help-btn",
   },
 ];

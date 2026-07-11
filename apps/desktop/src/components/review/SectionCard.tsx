@@ -1,4 +1,6 @@
 import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { IconRefresh, IconSpinner, IconCheck, IconFileText, IconError } from "../Icons";
 
 interface QualityIssue {
@@ -71,7 +73,7 @@ function renderContentWithCitations(
               onCitationClick?.(citation.paper_id, citation.paper_title);
             }}
             style={{ cursor: "pointer" }}
-            title={`Mở: ${citation.paper_title}`}
+            title={i18n.t("review_builder.open_citation", { label: citation.paper_title })}
           >
             [{num}]
           </span>
@@ -92,9 +94,9 @@ function renderContentWithCitations(
               onCitationClick?.(paperId, label, page);
             }}
             style={{ cursor: "pointer" }}
-            title={`Mở: ${label}${page ? ` trang ${page}` : ""}`}
+            title={i18n.t("review_builder.open_citation_page", { label, page: page || "" })}
           >
-            {page ? `[${page}]` : `[${label.slice(0, 20)}…]`}
+            {page ? "[" + page + "]" : "[" + label.slice(0, 20) + "...]"}
           </span>
         );
       }
@@ -125,6 +127,8 @@ export function SectionCard({
   onIssueAction,
   onCitationClick,
 }: SectionCardProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <style>{sectionCardStyles}</style>
@@ -171,7 +175,7 @@ export function SectionCard({
             }}>
               <IconFileText size={11} />
               {evidenceCount} chunks
-              {paperCount ? ` · ${paperCount} papers` : ""}
+              {paperCount ? " . " + paperCount + " papers" : ""}
             </div>
           )}
           {issues && issues.length > 0 && (
@@ -219,7 +223,7 @@ export function SectionCard({
                 cursor: "pointer", fontSize: "0.75rem",
               }}
             >
-              Sửa
+              {t("review_builder.edit")}
             </button>
           ) : null}
           <button
@@ -241,7 +245,7 @@ export function SectionCard({
             ) : (
               <IconRefresh size={12} />
             )}
-            {loading ? "Đang tạo..." : status === "done" ? "Tạo lại" : "Tạo"}
+            {loading ? t("review_builder.editor_generating") : status === "done" ? t("review_builder.regenerate") : t("wow.generate")}
           </button>
         </div>
       </div>
@@ -278,7 +282,7 @@ export function SectionCard({
                       fontWeight: 700, flexShrink: 0,
                       color: iss.severity === "high" ? "#ef4444" : iss.severity === "medium" ? "#f59e0b" : "var(--color-text-muted)",
                     }}>
-                      {iss.severity === "high" ? "!" : iss.severity === "medium" ? "?" : "·"}
+                      {iss.severity === "high" ? "!" : iss.severity === "medium" ? "?" : "."}
                     </span>
                     <span style={{ color: "var(--color-text-muted)" }}>
                       {iss.message}
@@ -312,7 +316,7 @@ export function SectionCard({
           display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
         }}>
           <IconSpinner size={14} />
-          <span>Đang tạo nội dung...</span>
+          <span>{t("review_builder.editor_generating")}</span>
         </div>
       ) : description ? (
         <div style={{

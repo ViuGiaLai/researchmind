@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, DailyReaderResponse, DailyPaper } from "../../lib/api";
 import { IconBrain, IconSpinner, IconBook, IconStar, IconCalendar, IconBookOpen, IconLibrary, IconRefresh } from "../Icons";
 
 export const DailyReaderView: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [data, setData] = useState<DailyReaderResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export const DailyReaderView: React.FC = () => {
       setData(result);
     } catch (e) {
       console.error("Failed to load daily reader:", e);
-      setError("Không thể tải dữ liệu. Đảm bảo backend đang chạy.");
+      setError(t("daily_reader.error_loading"));
     } finally {
       setLoading(false);
     }
@@ -31,7 +33,7 @@ export const DailyReaderView: React.FC = () => {
       <div className="daily-reader-view">
         <div className="daily-reader-loading">
           <IconSpinner size={32} />
-          <span>AI đang phân tích và chuẩn bị gợi ý cho bạn...</span>
+          <span>{t("daily_reader.loading")}</span>
         </div>
       </div>
     );
@@ -43,7 +45,7 @@ export const DailyReaderView: React.FC = () => {
         <div className="daily-reader-error">
           <p>{error}</p>
           <button className="daily-reader-retry" onClick={loadDailyReader}>
-            Thử lại
+            {t("daily_reader.retry")}
           </button>
         </div>
       </div>
@@ -54,7 +56,7 @@ export const DailyReaderView: React.FC = () => {
 
   const { daily_suggestion, unread_papers, reading_streak, stats } = data;
 
-  const today = new Date().toLocaleDateString("vi-VN", {
+  const today = new Date().toLocaleDateString(i18n.language === "vi" ? "vi-VN" : i18n.language === "ja" ? "ja-JP" : "en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -69,7 +71,7 @@ export const DailyReaderView: React.FC = () => {
           <div>
             <h1 className="daily-reader-hero-title" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
               <IconBookOpen size={24} className="icon-gradient" />
-              <span>Đọc gì hôm nay?</span>
+              <span>{t("daily_reader.hero_title")}</span>
             </h1>
             <p className="daily-reader-hero-date">{today}</p>
           </div>
@@ -77,7 +79,7 @@ export const DailyReaderView: React.FC = () => {
             <div className="daily-reader-streak">
               <IconCalendar size={18} />
               <span className="daily-reader-streak-count">{reading_streak}</span>
-              <span className="daily-reader-streak-label">ngày liên tiếp</span>
+              <span className="daily-reader-streak-label">{t("daily_reader.streak_days")}</span>
             </div>
           )}
         </div>
@@ -87,19 +89,19 @@ export const DailyReaderView: React.FC = () => {
       <div className="daily-reader-stats">
         <div className="daily-reader-stat">
           <span className="daily-reader-stat-value">{stats.total}</span>
-          <span className="daily-reader-stat-label">Tổng papers</span>
+          <span className="daily-reader-stat-label">{t("daily_reader.stat_total")}</span>
         </div>
         <div className="daily-reader-stat">
           <span className="daily-reader-stat-value unread">{stats.unread}</span>
-          <span className="daily-reader-stat-label">Chưa đọc</span>
+          <span className="daily-reader-stat-label">{t("daily_reader.stat_unread")}</span>
         </div>
         <div className="daily-reader-stat">
           <span className="daily-reader-stat-value reading">{stats.reading}</span>
-          <span className="daily-reader-stat-label">Đang đọc</span>
+          <span className="daily-reader-stat-label">{t("daily_reader.stat_reading")}</span>
         </div>
         <div className="daily-reader-stat">
           <span className="daily-reader-stat-value read">{stats.read}</span>
-          <span className="daily-reader-stat-label">Đã đọc</span>
+          <span className="daily-reader-stat-label">{t("daily_reader.stat_read")}</span>
         </div>
       </div>
 
@@ -113,7 +115,7 @@ export const DailyReaderView: React.FC = () => {
           >
             <h3 className="daily-reader-section-title">
               <IconBrain size={20} className="icon-gradient" style={{ marginRight: 8 }} />
-              Gợi ý hôm nay từ AI
+              {t("daily_reader.ai_suggestion")}
             </h3>
             <span className="daily-reader-expand-icon">
               {expandedSuggestion ? "▼" : "▶"}
@@ -143,8 +145,8 @@ export const DailyReaderView: React.FC = () => {
       {unread_papers.length === 0 && !daily_suggestion && (
         <div className="daily-reader-empty">
           <IconBook size={48} style={{ color: "var(--color-text-muted)", opacity: 0.5 }} />
-          <h3>Thư viện trống</h3>
-          <p>Hãy import PDF đầu tiên để bắt đầu hành trình nghiên cứu!</p>
+          <h3>{t("daily_reader.empty_library")}</h3>
+          <p>{t("daily_reader.empty_library_hint")}</p>
         </div>
       )}
 
@@ -152,8 +154,7 @@ export const DailyReaderView: React.FC = () => {
       {unread_papers.length > 0 && (
         <div className="daily-reader-section">
           <h3 className="daily-reader-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-            <IconLibrary size={18} className="icon-gradient" />
-            <span>Paper nên đọc ({unread_papers.length})</span>
+            <IconLibrary size={18} className="icon-gradient" />              <span>{t("daily_reader.papers_to_read", { count: unread_papers.length })}</span>
           </h3>
           <div className="daily-reader-paper-list">
             {unread_papers.map((paper, i) => (
@@ -172,7 +173,7 @@ export const DailyReaderView: React.FC = () => {
           style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           {loading ? <IconSpinner size={16} /> : <IconRefresh size={16} />}
-          <span>Làm mới gợi ý</span>
+          <span>{t("daily_reader.refresh")}</span>
         </button>
       </div>
     </div>
@@ -182,6 +183,7 @@ export const DailyReaderView: React.FC = () => {
 // ─── Paper Card Component ──────────────────────────────────
 
 const DailyPaperCard: React.FC<{ paper: DailyPaper; index: number }> = ({ paper, index }) => {
+  const { t } = useTranslation();
   return (
     <div className="daily-reader-paper-card">
       <div className="daily-reader-paper-rank">#{index}</div>
@@ -195,8 +197,8 @@ const DailyPaperCard: React.FC<{ paper: DailyPaper; index: number }> = ({ paper,
         <div className="daily-reader-paper-meta">
           {paper.authors && <span>{paper.authors}</span>}
           {paper.year && <span>· {paper.year}</span>}
-          <span>· {paper.pages} trang</span>
-          {paper.has_summary && <span className="daily-reader-badge">✓ Có tóm tắt</span>}
+          <span>· {paper.pages} {t("daily_reader.pages_unit")}</span>
+          {paper.has_summary &&          <span className="daily-reader-badge">{t("daily_reader.has_summary")}</span>}
         </div>
         {paper.tags.length > 0 && (
           <div className="daily-reader-paper-tags">

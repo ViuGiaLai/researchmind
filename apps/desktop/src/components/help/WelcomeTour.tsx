@@ -1,4 +1,5 @@
 import React, { useCallback, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { WELCOME_TOUR_STEPS, WELCOME_STORAGE_KEY } from "./helpContent";
 import { IconArrowRight, IconClose } from "../Icons";
@@ -72,6 +73,7 @@ function computeCardStyle(rect: DOMRect, targetId: string): React.CSSProperties 
 }
 
 export const WelcomeTour: React.FC<WelcomeTourProps> = ({ onComplete, onOpenHelp, onPrepareStep }) => {
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
   const [spotlight, setSpotlight] = useState<SpotlightRect | null>(null);
   const [cardStyle, setCardStyle] = useState<React.CSSProperties>({});
@@ -155,22 +157,22 @@ export const WelcomeTour: React.FC<WelcomeTourProps> = ({ onComplete, onOpenHelp
             <span key={i} className={`welcome-tour-dot${i === step ? " active" : i < step ? " done" : ""}`} />
           ))}
         </div>
-        <button type="button" className="welcome-tour-skip" onClick={finish} aria-label="Bỏ qua">
+        <button type="button" className="welcome-tour-skip" onClick={finish} aria-label={t("help.skip")}>
           <IconClose size={16} />
         </button>
-        <h2 id="welcome-tour-title" className="welcome-tour-title">{current.title}</h2>
-        <p className="welcome-tour-body">{current.body}</p>
+        <h2 id="welcome-tour-title" className="welcome-tour-title">{t(current.title)}</h2>
+        <p className="welcome-tour-body">{t(current.body)}</p>
         <div className="welcome-tour-actions">
           {step > 0 && (
             <button type="button" className="rm-btn rm-btn--ghost" onClick={() => setStep((s) => s - 1)}>
-              Quay lại
+              {t("help.back")}
             </button>
           )}
           <button type="button" className="rm-btn rm-btn--outline" onClick={() => { finish(); onOpenHelp(); }}>
-            Mở tài liệu
+            {t("help.open_docs")}
           </button>
           <button type="button" className="rm-btn rm-btn--primary" onClick={next}>
-            {isLast ? "Bắt đầu" : "Tiếp"}
+            {isLast ? t("help.start") : t("help.next")}
             {!isLast && <IconArrowRight size={14} />}
           </button>
         </div>

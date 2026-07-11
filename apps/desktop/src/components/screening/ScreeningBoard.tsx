@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import { IconCheck, IconClose, IconMinus, IconSpinner, IconSearch, IconError, IconWithText } from "../Icons";
 
@@ -27,15 +28,19 @@ function saveDecisions(d: Record<string, ScreeningDecision>) {
 
 type FilterView = "all" | "pending" | "included" | "excluded" | "maybe";
 
-const FILTER_LABELS: Record<FilterView, React.ReactNode> = {
-  all: "Tất cả",
-  pending: "Chưa xử lý",
-  included: <IconWithText icon={IconCheck} size={12}>Bao gồm</IconWithText>,
-  excluded: <IconWithText icon={IconError} size={12}>Loại trừ</IconWithText>,
-  maybe: "🤔 Phân vân",
-};
+function getFilterLabel(t: (key: string) => string): Record<FilterView, React.ReactNode> {
+  return {
+    all: t("screening.filter_all"),
+    pending: t("screening.filter_pending"),
+    included: <IconWithText icon={IconCheck} size={12}>{t("screening.filter_include")}</IconWithText>,
+    excluded: <IconWithText icon={IconError} size={12}>{t("screening.filter_exclude")}</IconWithText>,
+    maybe: t("screening.filter_unsure"),
+  };
+}
 
 export const ScreeningBoard: React.FC = () => {
+  const { t } = useTranslation();
+  const filterLabels = getFilterLabel(t);
   const [papers, setPapers] = useState<PaperInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [decisions, setDecisions] = useState<Record<string, ScreeningDecision>>(loadDecisions);
@@ -95,19 +100,19 @@ export const ScreeningBoard: React.FC = () => {
   return (
     <div className="rm-page">
       <div className="rm-page-header">
-        <h2>Sàng lọc bài báo</h2>
-        <p>Bao gồm / Loại trừ / Phân vân để chọn bài báo cho đánh giá có hệ thống</p>
+        <h2>{t("screening.title")}</h2>
+        <p>{t("screening.desc")}</p>
       </div>
 
       <div className="rm-progress">
         <div className="rm-progress-label">
-          <span>{screened}/{total} bài đã sàng lọc ({progress}%)</span>
+          <span>{t("screening.progress", { screened, total, progress })}</span>
           <span>
-            <span className="rm-stat-include">{included} Bao gồm</span>
+            <span className="rm-stat-include">{included} {t("screening.stat_include")}</span>
             {" · "}
-            <span className="rm-stat-exclude">{excluded} Loại trừ</span>
+            <span className="rm-stat-exclude">{excluded} {t("screening.stat_exclude")}</span>
             {" · "}
-            <span className="rm-stat-maybe">{maybe} Phân vân</span>
+            <span className="rm-stat-maybe">{maybe} {t("screening.stat_unsure")}</span>
           </span>
         </div>
         <div className="rm-progress-track">
@@ -123,7 +128,7 @@ export const ScreeningBoard: React.FC = () => {
             className="rm-input rm-input--sm rm-input--search"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Tìm trong tiêu đề..."
+            placeholder={t("screening.search")}
           />
         </div>
         {(["all", "pending", "included", "excluded", "maybe"] as FilterView[]).map(v => (
@@ -133,7 +138,7 @@ export const ScreeningBoard: React.FC = () => {
             className={`rm-filter-pill${filterView === v ? " active" : ""}`}
             onClick={() => setFilterView(v)}
           >
-            {FILTER_LABELS[v]}
+            {filterLabels[v]}
           </button>
         ))}
       </div>
@@ -142,11 +147,11 @@ export const ScreeningBoard: React.FC = () => {
         {loading ? (
           <div className="rm-loading">
             <IconSpinner size={20} />
-            <span>Đang tải danh sách bài báo...</span>
+            <span>{t("screening.loading")}</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="rm-empty">
-            {searchText ? "Không tìm thấy bài báo nào." : "Chưa có bài báo nào. Import bài báo vào thư viện trước."}
+            {searchText ? t("screening.empty") : t("screening.empty_hint")}
           </div>
         ) : (
           <div className="rm-card-list">
@@ -166,7 +171,7 @@ export const ScreeningBoard: React.FC = () => {
                         type="button"
                         className={`rm-btn rm-btn--icon rm-btn--include${d?.decision === "include" ? " active" : ""}`}
                         onClick={() => setDecision(paper.id, "include")}
-                        title="Bao gồm"
+                        title={t("screening.filter_include")}
                       >
                         <IconCheck size={14} />
                       </button>
@@ -174,7 +179,7 @@ export const ScreeningBoard: React.FC = () => {
                         type="button"
                         className={`rm-btn rm-btn--icon rm-btn--exclude${d?.decision === "exclude" ? " active" : ""}`}
                         onClick={() => setDecision(paper.id, "exclude")}
-                        title="Loại trừ"
+                        title={t("screening.filter_exclude")}
                       >
                         <IconClose size={14} />
                       </button>
@@ -182,7 +187,7 @@ export const ScreeningBoard: React.FC = () => {
                         type="button"
                         className={`rm-btn rm-btn--icon rm-btn--maybe${d?.decision === "maybe" ? " active" : ""}`}
                         onClick={() => setDecision(paper.id, "maybe")}
-                        title="Phân vân"
+                        title={t("screening.filter_unsure")}
                       >
                         <IconMinus size={14} />
                       </button>
@@ -191,7 +196,7 @@ export const ScreeningBoard: React.FC = () => {
                           type="button"
                           className="rm-btn rm-btn--icon rm-btn--xs"
                           onClick={() => clearDecision(paper.id)}
-                          title="Xoá"
+                          title={t("screening.clear")}
                         >
                           ↺
                         </button>
@@ -216,7 +221,7 @@ export const ScreeningBoard: React.FC = () => {
                             });
                           }
                         }}
-                        placeholder="Lý do loại trừ..."
+                        placeholder={t("screening.reason_placeholder")}
                       />
                     </div>
                   )}

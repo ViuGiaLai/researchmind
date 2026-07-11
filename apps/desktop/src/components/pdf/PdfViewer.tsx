@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { BASE_URL } from "../../lib/api";
 import { IconSearch, IconClipboard, IconClose, IconWithText } from "../Icons";
 
@@ -19,6 +20,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   onClose,
   onCopyQuote,
 }) => {
+  const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages] = useState<number | null>(null);
   const [pageInput, setPageInput] = useState(String(initialPage));
@@ -195,7 +197,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             {paperTitle}
           </span>
           <span style={{ color: "var(--color-text-muted)", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-            Trang {currentPage}{totalPages ? ` / ${totalPages}` : ""}
+            {t("pdf.page", { n: currentPage, separator: totalPages ? " / " : "", total: totalPages || "" })}
           </span>
         </div>
 
@@ -204,7 +206,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             className="pdf-nav-btn"
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage <= 1}
-            title="Trang trước"
+            title={t("pdf.previous")}
             style={{
               background: "transparent",
               border: "1px solid var(--color-border, #333)",
@@ -238,7 +240,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
           <button
             className="pdf-nav-btn"
             onClick={() => goToPage(currentPage + 1)}
-            title="Trang sau"
+            title={t("pdf.next")}
             style={{
               background: "transparent",
               border: "1px solid var(--color-border, #333)",
@@ -257,7 +259,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
           <button
             className="pdf-action-btn"
             onClick={handleCopyQuote}
-            title="Trích dẫn văn bản đã chọn"
+            title={t("pdf.next")}
             style={{
               background: "rgba(var(--color-primary-rgb), 0.08)",
               border: "1px solid rgba(var(--color-primary-rgb), 0.2)",
@@ -270,12 +272,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
               whiteSpace: "nowrap",
             }}
           >
-            <IconWithText icon={IconClipboard} size={12}>Trích dẫn</IconWithText>
+            <IconWithText icon={IconClipboard} size={12}>{t("pdf.quote_btn")}</IconWithText>
           </button>
             <button
             className="pdf-close-btn"
             onClick={onClose}
-            title="Đóng PDF"
+            title={t("pdf.quote")}
             style={{
               background: "transparent",
               border: "none",
@@ -314,7 +316,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
           <button
             onClick={() => setShowHighlightBanner(false)}
             style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "0.8rem", display: "flex" }}
-            aria-label="Đóng"
+            aria-label={t("pdf.close_aria")}
           >
             <IconClose size={14} />
           </button>
@@ -333,7 +335,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             border: "none",
             pointerEvents: isResizing ? "none" : "auto",
           }}
-          title={`PDF - ${paperTitle}`}
+          title={`${t("pdf.preview_title")} - ${paperTitle}`}
         />
       </div>
 
@@ -342,7 +344,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         className="pdf-resize-handle"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Đổi kích thước panel PDF"
+        aria-label={t("pdf.resize")}
         onPointerDown={handleResizeStart}
         onPointerMove={handleResizeMove}
         onPointerUp={handleResizeEnd}
