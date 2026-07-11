@@ -907,6 +907,7 @@
     "export_docx": "DOCXエクスポート",
     "summary_tab": "要約",
     "analysis_tab": "AI分析",
+    "analysis_tab_with_icon": "AI分析",
     "related_tab": "関連",
     "highlights_tab": "ハイライト",
     "read_tab": "ドキュメントを読む",

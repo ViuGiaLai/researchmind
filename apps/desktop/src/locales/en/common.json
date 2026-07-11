@@ -907,6 +907,7 @@
     "export_docx": "Export DOCX",
     "summary_tab": "Summary",
     "analysis_tab": "AI Analysis",
+    "analysis_tab_with_icon": "AI Analysis",
     "related_tab": "Related",
     "highlights_tab": "Highlights",
     "read_tab": "Read Document",

@@ -888,15 +888,19 @@ def _index_paper(file_id: str, doc, job_id: str | None = None, lang: str = "vi")
                 summary_context += f"\n\nKết luận:\n{conclusion_chunk.content}"
 
             output_lang = get_output_language_name(lang)
-            summary_prompt = f"""Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này. 
+            summary_prompt = f"""Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này.
+
+⚠️ QUY TẮC NGÔN NGỮ NGHIÊM NGẶT:
+Bạn PHẢI viết TOÀN BỘ câu trả lời bằng {output_lang}.
+KHÔNG được viết tiếng Anh - kể cả phần mô tả, giải thích hay chú thích.
+Các thuật ngữ chuyên ngành, tên paper, citation giữ nguyên ngôn ngữ gốc.
+
 Trả về kết quả dưới định dạng Markdown như sau:
 
 ### 🧠 Tóm tắt tự động bởi ResearchMind:
 * **Ý tưởng cốt lõi (Core Idea)**: [Viết 1 câu mô tả ý tưởng/mục tiêu chính]
 * **Đóng góp chính (Contributions)**: [Viết 1-2 dòng về các đóng góp khoa học chính]
-* **Điểm yếu / Hạn chế (Weaknesses)**: [Viết 1 dòng về các hạn chế được thảo luận]
-
-Lưu ý: Viết bằng {output_lang} súc tích, chuyên nghiệp."""
+* **Điểm yếu / Hạn chế (Weaknesses)**: [Viết 1 dòng về các hạn chế được thảo luận]"""
 
             result = state.generator.generate(
                 query=summary_prompt,
