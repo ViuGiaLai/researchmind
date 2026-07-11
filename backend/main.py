@@ -1,6 +1,6 @@
 """ResearchMind VN — FastAPI Backend
 
-Trợ lý nghiên cứu AI — Local-first, tiếng Việt.
+ResearchMind AI Research Assistant — Local-first.
 
 Routes are organized into routers/:
 - routers/papers.py   Paper CRUD + Import + Citation + Highlights
@@ -38,6 +38,7 @@ from loguru import logger
 
 from app_state import state
 from config.settings import settings
+from common.i18n import get_language, t
 from db.database import get_engine, get_session
 from db.models import Base, Paper, Setting
 from ingestion.embedder import get_embedder
@@ -155,7 +156,7 @@ async def lifespan(app: FastAPI):
     """Initialize app state on startup, cleanup on shutdown."""
     startup_t0 = time.time()
     logger.info("Starting ResearchMind VN backend...")
-    state.init_message = "Đang khởi động cơ sở dữ liệu..."
+    state.init_message = t("startup.init_db", "vi")
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.papers_dir.mkdir(parents=True, exist_ok=True)
@@ -171,7 +172,7 @@ async def lifespan(app: FastAPI):
     load_persisted_settings()
     app.state.engine = state.engine
 
-    state.init_message = "Đang khởi tạo search & AI engine..."
+    state.init_message = t("startup.init_search", "vi")
 
     def _background_startup():
         try:
@@ -267,7 +268,7 @@ async def lifespan(app: FastAPI):
             logger.info("RAG pipeline initialized")
             recover_interrupted_import_jobs()
             state.backend_ready = True
-            state.init_message = "Sẵn sàng"
+            state.init_message = t("startup.ready", "vi")
             logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
 
             import httpx
@@ -278,7 +279,7 @@ async def lifespan(app: FastAPI):
             except Exception:
                 logger.warning(f"llama-server not detected at {settings.llama_server_url}")
         except Exception as e:
-            state.init_message = f"Lỗi khởi động backend: {e}"
+            state.init_message = t("startup.failed", "vi", error=str(e))
             logger.exception("Background startup failed")
 
     threading.Thread(target=_background_startup, daemon=True).start()
@@ -346,15 +347,24 @@ if frontend_dist.exists():
 
 # ─── Global Exception Handler ────────────────────────────────────
 
+@app.middleware("http")
+async def language_middleware(request: Request, call_next):
+    lang = get_language(request)
+    request.state.lang = lang
+    response = await call_next(request)
+    return response
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler to ensure CORS headers are returned on 500 errors."""
     logger.exception(f"Unhandled exception occurred: {exc}")
+    lang = getattr(request.state, "lang", "vi")
     from starlette.responses import Response
     return Response(
         status_code=500,
         content=json.dumps({
-            "detail": "Internal Server Error",
+            "detail": t("error.unknown", lang, error=str(exc)),
             "type": exc.__class__.__name__,
         }),
         media_type="application/json",

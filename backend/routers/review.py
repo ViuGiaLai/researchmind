@@ -16,6 +16,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from common.i18n import t, get_language, get_output_language_name
 from app_state import state
 from academic.paper_check import check_papers_ready
 from db.database import get_session
@@ -70,7 +71,7 @@ SECTION_TITLES = {
 SECTION_CONFIG = {
     "background": {
         "query": "background introduction overview context motivation problem statement survey",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Background" (Bối cảnh nghiên cứu) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Background" (Bối cảnh nghiên cứu) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - Giới thiệu lĩnh vực nghiên cứu và tầm quan trọng của nó
@@ -82,7 +83,7 @@ Viết khoảng 300-500 từ, văn phong học thuật. Sử dụng trích dẫn
     },
     "related_work": {
         "query": "related work existing approaches previous studies literature survey comparison state of the art",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Related Work" (Công trình liên quan) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Related Work" (Công trình liên quan) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - Tổng quan các phương pháp và cách tiếp cận hiện có
@@ -94,7 +95,7 @@ Viết khoảng 300-500 từ, văn phong học thuật. Sử dụng trích dẫn
     },
     "methodology_comparison": {
         "query": "methodology approach method framework model architecture algorithm technique experimental setup",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Methodology Comparison" (So sánh phương pháp) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Methodology Comparison" (So sánh phương pháp) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - So sánh các phương pháp nghiên cứu được sử dụng trong các paper
@@ -106,7 +107,7 @@ Viết khoảng 300-500 từ, văn phong học thuật. Sử dụng trích dẫn
     },
     "findings": {
         "query": "findings results experimental results performance evaluation benchmark comparison outcomes",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Findings" (Kết quả nghiên cứu) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Findings" (Kết quả nghiên cứu) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - Trình bày các kết quả chính từ các nghiên cứu
@@ -118,7 +119,7 @@ Viết khoảng 300-500 từ, văn phong học thuật. Sử dụng trích dẫn
     },
     "limitations": {
         "query": "limitations weaknesses challenges drawbacks assumptions constraints shortcomings",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Limitations" (Hạn chế) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Limitations" (Hạn chế) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - Phân tích các hạn chế và điểm yếu của các nghiên cứu hiện có
@@ -130,7 +131,7 @@ Viết khoảng 200-400 từ, văn phong học thuật. Sử dụng trích dẫn
     },
     "research_gaps": {
         "query": "research gaps open problems future work unexplored areas missing limitations opportunities",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Research Gaps" (Khoảng trống nghiên cứu) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Research Gaps" (Khoảng trống nghiên cứu) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - Xác định các khoảng trống nghiên cứu chính trong lĩnh vực
@@ -142,7 +143,7 @@ Viết khoảng 200-400 từ, văn phong học thuật. Sử dụng trích dẫn
     },
     "future_directions": {
         "query": "future directions recommendations emerging trends opportunities next steps outlook",
-        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Future Directions" (Hướng phát triển tương lai) cho một bài Literature Review bằng tiếng Việt.
+        "prompt": """Bạn là một chuyên gia viết Literature Review. Dựa trên các đoạn trích từ tài liệu nghiên cứu dưới đây, hãy viết một phần "Future Directions" (Hướng phát triển tương lai) cho một bài Literature Review bằng {output_language}.
 
 Yêu cầu:
 - Đề xuất các hướng nghiên cứu trong tương lai
@@ -183,10 +184,10 @@ def extract_citations(content: str, paper_titles: dict[str, str]) -> list[dict]:
 
 # ─── Section Generation ──────────────────────────────────────
 
-async def _generate_section(paper_ids: list[str], section: str, paper_titles: dict, use_cache: bool = True) -> dict:
+async def _generate_section(paper_ids: list[str], section: str, paper_titles: dict, use_cache: bool = True, lang: str = "vi") -> dict:
     """Generate a single section of the literature review."""
     if section == "bibliography":
-        return await _generate_bibliography(paper_ids, paper_titles)
+        return await _generate_bibliography(paper_ids, paper_titles, lang=lang)
 
     config = SECTION_CONFIG.get(section)
     if not config:
@@ -230,7 +231,7 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
         )
 
     paper_list_text = "\n".join([f"- {t}" for t in paper_titles.values()])
-    section_query = f"{config['prompt']}\n\nCác tài liệu tham khảo:\n{paper_list_text}"
+    section_query = f"{config['prompt'].replace('{output_language}', get_output_language_name(lang))}\n\nCác tài liệu tham khảo:\n{paper_list_text}"
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -274,7 +275,7 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
     }
 
 
-async def _generate_bibliography(paper_ids: list[str], paper_titles: dict) -> dict:
+async def _generate_bibliography(paper_ids: list[str], paper_titles: dict, lang: str = "vi") -> dict:
     """Generate a bibliography section from selected papers."""
     session = get_session(state.engine)
     try:
@@ -283,7 +284,7 @@ async def _generate_bibliography(paper_ids: list[str], paper_titles: dict) -> di
             return {
                 "section": "bibliography",
                 "title": SECTION_TITLES["bibliography"],
-                "content": "*Không có dữ liệu thư mục.*",
+                "content": t("review.bibliography_no_data", lang),
                 "papers_used": [],
                 "chunks_used": 0,
                 "citations": [],
@@ -336,15 +337,16 @@ async def _generate_bibliography(paper_ids: list[str], paper_titles: dict) -> di
 # ─── Outline Generation ──────────────────────────────────────
 
 @router.post("/outline")
-async def generate_outline(body: dict = Body(...)):
+async def generate_outline(request: Request, body: dict = Body(...)):
     """Generate a dynamic outline based on selected papers' content.
     STORM-inspired: analyze papers, suggest relevant sections.
     """
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
     existing_sections = body.get("existing_sections", None)
 
     if not paper_ids:
-        return {"error": "Vui lòng chọn ít nhất 1 tài liệu.", "sections": []}
+        return {"error": t("review.select_min_one", lang), "sections": []}
 
     paper_error = check_papers_ready(paper_ids)
     if paper_error:
@@ -357,12 +359,12 @@ async def generate_outline(body: dict = Body(...)):
         paper_abstracts = {}
         for p in papers_db:
             summary = p.auto_summary or p.abstract or ""
-            paper_abstracts[p.id] = summary[:500] if summary else "Không có tóm tắt."
+            paper_abstracts[p.id] = summary[:500] if summary else t("review.abstract_fallback", lang)
     finally:
         session.close()
 
     if not paper_titles:
-        return {"error": "Không tìm thấy tài liệu nào.", "sections": []}
+        return {"error": t("review.no_docs_found", lang), "sections": []}
 
     paper_info = "\n\n".join([
         f"Paper: {paper_titles[pid]}\nTóm tắt: {paper_abstracts.get(pid, 'N/A')}"
@@ -387,7 +389,7 @@ Trả về JSON array đúng định dạng sau, không kèm văn bản khác:
   {{"key": "methodology_comparison", "title": "2. Methodology Comparison", "description": "So sánh các phương pháp"}}
 ]
 
-Dùng tiếng Việt cho description. Key dùng tiếng Anh không dấu, viết thường, underscore."""
+Dùng {get_output_language_name(lang)} cho description. Key dùng tiếng Anh không dấu, viết thường, underscore."""
     if existing_sections:
         prompt += f"\n\nCác section hiện tại (có thể giữ hoặc đề xuất thay đổi): {json.dumps(existing_sections)}"
 
@@ -429,16 +431,17 @@ Dùng tiếng Việt cho description. Key dùng tiếng Anh không dấu, viết
 # ─── Evidence Retrieval ──────────────────────────────────────
 
 @router.post("/evidence")
-async def get_evidence(body: dict = Body(...)):
+async def get_evidence(request: Request, body: dict = Body(...)):
     """Get evidence chunks for a specific section query.
     Returns count, papers used, and sample chunks.
     """
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
     section = body.get("section", "")
     top_k = body.get("top_k", 10)
 
     if not paper_ids or not section:
-        return {"error": "Missing paper_ids or section", "evidence": [], "total_chunks": 0, "papers_used": []}
+        return {"error": t("review.missing_paper_ids", lang), "evidence": [], "total_chunks": 0, "papers_used": []}
 
     config = SECTION_CONFIG.get(section)
     if not config:
@@ -473,12 +476,13 @@ async def get_evidence(body: dict = Body(...)):
 # ─── Draft Generation ────────────────────────────────────────
 
 @router.post("/draft")
-async def generate_draft(body: dict = Body(...)):
+async def generate_draft(request: Request, body: dict = Body(...)):
     """Generate a full literature review draft (all sections)."""
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
 
     if not paper_ids:
-        return {"error": "Vui lòng chọn ít nhất 1 tài liệu.", "sections": [], "full_text": ""}
+        return {"error": t("review.select_min_one", lang), "sections": [], "full_text": ""}
 
     paper_error = check_papers_ready(paper_ids)
     if paper_error:
@@ -492,7 +496,7 @@ async def generate_draft(body: dict = Body(...)):
         session.close()
 
     if not paper_titles:
-        return {"error": "Không tìm thấy tài liệu nào.", "sections": [], "full_text": ""}
+        return {"error": t("review.no_docs_found", lang), "sections": [], "full_text": ""}
 
     title = body.get("title", "Literature Review")
     include_sections = body.get("sections", REVIEW_SECTIONS)
@@ -500,7 +504,7 @@ async def generate_draft(body: dict = Body(...)):
     tasks = []
     for section in include_sections:
         if section in SECTION_CONFIG or section == "bibliography":
-            tasks.append(_generate_section(paper_ids, section, paper_titles))
+            tasks.append(_generate_section(paper_ids, section, paper_titles, lang=lang))
 
     results = await asyncio.gather(*tasks)
 
@@ -508,7 +512,7 @@ async def generate_draft(body: dict = Body(...)):
     for res in results:
         full_parts.append(f"\n## {res['title']}\n\n{res['content']}\n")
 
-    full_parts.append(f"\n---\n*Bài Literature Review được tạo tự động bởi ResearchMind AI.*")
+    full_parts.append(f"\n---\n{t('review.footer_auto_generated', lang)}")
     full_text = "\n".join(full_parts)
 
     return {
@@ -522,13 +526,14 @@ async def generate_draft(body: dict = Body(...)):
 @router.post("/draft/stream")
 async def generate_draft_stream(req: Request, body: dict = Body(...)):
     """Stream a literature review draft section-by-section as SSE."""
+    lang = get_language(req)
     paper_ids = body.get("paper_ids", [])
     title = body.get("title", "Literature Review")
     include_sections = body.get("sections", REVIEW_SECTIONS)
 
     async def event_stream():
         if not paper_ids:
-            yield f"data: {json.dumps({'type': 'error', 'error': 'Vui lòng chọn ít nhất 1 tài liệu.'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'error': t('review.select_min_one', lang)}, ensure_ascii=False)}\n\n"
             return
 
         paper_error = check_papers_ready(paper_ids)
@@ -544,7 +549,7 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
             session.close()
 
         if not paper_titles:
-            yield f"data: {json.dumps({'type': 'error', 'error': 'Không tìm thấy tài liệu nào.'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'error': t('review.no_docs_found', lang)}, ensure_ascii=False)}\n\n"
             return
 
         valid_sections = [
@@ -556,7 +561,7 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
         started_at = datetime.utcnow()
         async def run_section(section: str):
             try:
-                return section, await _generate_section(paper_ids, section, paper_titles)
+                return section, await _generate_section(paper_ids, section, paper_titles, lang=lang)
             except Exception as e:
                 logger.exception(f"Review section generation failed for {section}: {e}")
                 return section, {
@@ -588,7 +593,7 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
             res = ordered.get(section)
             if res:
                 full_parts.append(f"\n## {res['title']}\n\n{res['content']}\n")
-        full_parts.append("\n---\n*Bài Literature Review được tạo tự động bởi ResearchMind AI.*")
+        full_parts.append(f"\n---\n{t('review.footer_auto_generated', lang)}")
         full_text = "\n".join(full_parts)
 
         logger.info(
@@ -601,17 +606,18 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
 
 
 @router.post("/section")
-async def generate_section(body: dict = Body(...)):
+async def generate_section(request: Request, body: dict = Body(...)):
     """Generate or regenerate a single section."""
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
     section = body.get("section", "")
     use_cache = body.get("use_cache", True)
 
     if not paper_ids:
-        return {"error": "Vui lòng chọn ít nhất 1 tài liệu.", "content": ""}
+        return {"error": t("review.select_min_one", lang), "content": ""}
 
     if section not in SECTION_CONFIG and section != "bibliography":
-        return {"error": f"Section '{section}' không hợp lệ.", "content": ""}
+        return {"error": t("review.invalid_section", lang, section=section), "content": ""}
 
     paper_error = check_papers_ready(paper_ids)
     if paper_error:
@@ -624,21 +630,22 @@ async def generate_section(body: dict = Body(...)):
     finally:
         session.close()
 
-    result = await _generate_section(paper_ids, section, paper_titles, use_cache=use_cache)
+    result = await _generate_section(paper_ids, section, paper_titles, use_cache=use_cache, lang=lang)
     return result
 
 
 # ─── Comparison Matrix ───────────────────────────────────────
 
 @router.post("/matrix")
-async def generate_matrix(body: dict = Body(...)):
+async def generate_matrix(request: Request, body: dict = Body(...)):
     """Generate a comparison matrix for selected papers."""
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
     use_cache = body.get("use_cache", False)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
-            "error": "Vui lòng chọn ít nhất 2 tài liệu để so sánh.",
+            "error": t("review.select_min_two", lang),
             "matrix": {"columns": [], "rows": []},
             "markdown": "",
         }
@@ -663,14 +670,14 @@ async def generate_matrix(body: dict = Body(...)):
         )
         if not retrieval.context_text.strip():
             return {"id": paper_id, "title": title, "data": {
-                "objective": "Không có dữ liệu.",
-                "methodology": "Không có dữ liệu.",
-                "dataset": "Không có dữ liệu.",
-                "findings": "Không có dữ liệu.",
-                "limitations": "Không có dữ liệu.",
+                "objective": t("review.no_data_objective", lang),
+                "methodology": t("review.no_data_methodology", lang),
+                "dataset": t("review.no_data_objective", lang),
+                "findings": t("review.no_data_methodology", lang),
+                "limitations": t("review.no_data_limitations", lang),
             }}
 
-        prompt = f"""Bạn là chuyên gia nghiên cứu khoa học. Đọc đoạn trích từ bài nghiên cứu "{title}" và trích xuất thông tin dưới dạng JSON. Mỗi phần từ 1-2 câu, viết bằng tiếng Việt.
+        prompt = f"""Bạn là chuyên gia nghiên cứu khoa học. Đọc đoạn trích từ bài nghiên cứu "{title}" và trích xuất thông tin dưới dạng JSON. Mỗi phần từ 1-2 câu, viết bằng {get_output_language_name(lang)}.
 
 Trả về đúng JSON sau, không kèm văn bản khác:
 {{
@@ -701,22 +708,22 @@ Trả về đúng JSON sau, không kèm văn bản khác:
             logger.warning(f"Matrix JSON parse failed for {title}: {e}")
         for key in ["objective", "methodology", "dataset", "findings", "limitations"]:
             if key not in data or not str(data.get(key, "")).strip():
-                data[key] = "Không thể trích xuất."
+                data[key] = t("review.no_data_objective", lang)
         return {"id": paper_id, "title": title, "data": data}
 
     tasks = [extract_paper(pid, paper_titles.get(pid, f"Paper {pid[:6]}")) for pid in paper_ids]
     results = await asyncio.gather(*tasks)
 
-    columns = ["Tiêu chí"] + [r["title"] for r in results]
+    columns = [t("review.column_criterion", lang)] + [r["title"] for r in results]
     rows = [
-        ["🎯 Mục tiêu"] + [r["data"]["objective"] for r in results],
-        ["⚙️ Phương pháp"] + [r["data"]["methodology"] for r in results],
-        ["📊 Dữ liệu"] + [r["data"]["dataset"] for r in results],
-        ["🔬 Kết quả"] + [r["data"]["findings"] for r in results],
-        ["⚠️ Hạn chế"] + [r["data"]["limitations"] for r in results],
+        [t("review.extract_title_objective", lang)] + [r["data"]["objective"] for r in results],
+        [t("review.extract_title_methodology", lang)] + [r["data"]["methodology"] for r in results],
+        [t("review.matrix_label_dataset", lang)] + [r["data"]["dataset"] for r in results],
+        [t("review.matrix_label_findings", lang)] + [r["data"]["findings"] for r in results],
+        [t("review.extract_title_limitations", lang)] + [r["data"]["limitations"] for r in results],
     ]
 
-    md = "## 📊 Ma trận so sánh tài liệu\n\n| " + " | ".join(columns) + " |\n"
+    md = t("review.matrix_md_title", lang) + "\n\n| " + " | ".join(columns) + " |\n"
     md += "| " + " | ".join(["---"] * len(columns)) + " |\n"
     for r in rows:
         cells = [c.replace("\n", " ") for c in r]
@@ -753,7 +760,7 @@ ISSUE_ACTIONS = {
 }
 
 
-def _rule_based_checks(sections: dict[str, dict]) -> list[dict]:
+def _rule_based_checks(sections: dict[str, dict], lang: str = "vi") -> list[dict]:
     """Run rule-based quality checks (deterministic, no LLM)."""
     issues = []
 
@@ -773,9 +780,9 @@ def _rule_based_checks(sections: dict[str, dict]) -> list[dict]:
                 "severity": "high",
                 "section": sec_key,
                 "type": "missing_citation",
-                "message": f"Section này không có trích dẫn nào.",
+                "message": t("review.section_no_citation", lang),
                 "action": action["action"],
-                "action_label": action["label"],
+                "action_label": t("review.action_add_citation", lang),
             })
 
     # Check: length_issue (relative to other sections)
@@ -790,9 +797,9 @@ def _rule_based_checks(sections: dict[str, dict]) -> list[dict]:
                         "severity": "medium",
                         "section": sec_key,
                         "type": "length_too_short",
-                        "message": f"Section quá ngắn ({wc} từ — trung bình {int(avg_words)} từ).",
+                        "message": t("review.section_too_short", lang, words=wc, avg=int(avg_words)),
                         "action": action["action"],
-                        "action_label": action["label"],
+                        "action_label": t("review.action_expand", lang),
                     })
                 elif wc > MAX_WORDS_PER_SECTION and wc > avg_words * 1.5:
                     action = ISSUE_ACTIONS["length_too_long"]
@@ -800,15 +807,15 @@ def _rule_based_checks(sections: dict[str, dict]) -> list[dict]:
                         "severity": "medium",
                         "section": sec_key,
                         "type": "length_too_long",
-                        "message": f"Section quá dài ({wc} từ — trung bình {int(avg_words)} từ).",
+                        "message": t("review.section_too_long", lang, words=wc, avg=int(avg_words)),
                         "action": action["action"],
-                        "action_label": action["label"],
+                        "action_label": t("review.action_trim", lang),
                     })
 
     return issues
 
 
-def _build_llm_input(sections: dict[str, dict], title: str, rule_issues: list[dict]) -> tuple[str, list[dict]]:
+def _build_llm_input(sections: dict[str, dict], title: str, rule_issues: list[dict], lang: str = "vi") -> tuple[str, list[dict]]:
     """Build input text for LLM-based checks (only sections that pass rules)."""
     sections_text = ""
     section_list = []
@@ -828,7 +835,7 @@ def _build_llm_input(sections: dict[str, dict], title: str, rule_issues: list[di
     return sections_text, section_list
 
 
-def _parse_llm_issues(content: str, section_list: list[str]) -> list[dict]:
+def _parse_llm_issues(content: str, section_list: list[str], lang: str = "vi") -> list[dict]:
     """Parse LLM JSON output into structured issues."""
     cleaned = content.strip()
     if cleaned.startswith("```"):
@@ -853,25 +860,32 @@ def _parse_llm_issues(content: str, section_list: list[str]) -> list[dict]:
         itype = iss.get("type", "unsourced_claim")
         action_key = itype if itype in ISSUE_ACTIONS else "unsourced_claim"
         action = ISSUE_ACTIONS[action_key]
+        _action_labels = {
+            "add_citation": t("review.action_add_citation", lang),
+            "trim_content": t("review.action_trim", lang),
+            "review_conflict": t("review.action_review_conflict", lang),
+            "expand_content": t("review.action_expand", lang),
+        }
         issues.append({
             "severity": iss.get("severity", "low"),
             "section": sec,
             "type": itype,
             "message": iss.get("message"),
             "action": action["action"],
-            "action_label": action["label"],
+            "action_label": _action_labels.get(action["action"], action["label"]),
         })
     return issues
 
 
 @router.post("/check-quality")
-async def check_quality(body: dict = Body(...)):
+async def check_quality(request: Request, body: dict = Body(...)):
     """Check quality of a review draft.
 
     Two-stage pipeline:
     1. Rule-based: citation detection, length heuristics (no LLM cost)
     2. LLM-based: repetition, contradiction, unsourced claims
     """
+    lang = get_language(request)
     title = body.get("title", "Literature Review")
     sections = body.get("sections", {})
 
@@ -881,14 +895,14 @@ async def check_quality(body: dict = Body(...)):
     all_issues = []
 
     # Stage 1: Rule-based checks
-    rule_issues = _rule_based_checks(sections)
+    rule_issues = _rule_based_checks(sections, lang=lang)
     all_issues.extend(rule_issues)
 
     # Sections that already have missing_citation flagged by rules
     sections_with_citation_issues = {i["section"] for i in all_issues if i["type"] == "missing_citation"}
 
     # Stage 2: LLM-based checks (repetition, contradiction, unsourced claims)
-    sections_text, section_list = _build_llm_input(sections, title, rule_issues)
+    sections_text, section_list = _build_llm_input(sections, title, rule_issues, lang=lang)
     if sections_text.strip() and section_list:
         # Tell LLM which sections already have rule issues to avoid duplicates
         skip_note = ""
@@ -907,7 +921,7 @@ Yêu cầu: Chỉ kiểm tra các vấn đề SAU (bỏ qua thiếu citation và
 3. **contradiction** — Hai section nói ngược nhau về cùng một vấn đề
 
 Trả về JSON array, mỗi issue định dạng:
-{{"severity": "high"|"medium"|"low", "section": "{{section_key}}", "type": "unsourced_claim"|"repetition"|"contradiction", "message": "Mô tả vấn đề cụ thể bằng tiếng Việt"}}
+{{"severity": "high"|"medium"|"low", "section": "{{section_key}}", "type": "unsourced_claim"|"repetition"|"contradiction", "message": "{t("review.description_hint", lang)}"}}
 
 Chỉ trả về JSON array hợp lệ, không kèm văn bản khác."""
 
@@ -918,7 +932,7 @@ Chỉ trả về JSON array hợp lệ, không kèm văn bản khác."""
                 context_text=sections_text,
                 task_type="quality_check",
             )
-            llm_issues = _parse_llm_issues(generation.content, section_list)
+            llm_issues = _parse_llm_issues(generation.content, section_list, lang=lang)
             all_issues.extend(llm_issues)
         except Exception as e:
             logger.exception(f"LLM quality check failed: {e}")
@@ -932,8 +946,9 @@ Chỉ trả về JSON array hợp lệ, không kèm văn bản khác."""
 # ─── Save / Load Drafts ─────────────────────────────────────
 
 @router.post("/save")
-async def save_draft(body: dict = Body(...)):
+async def save_draft(request: Request, body: dict = Body(...)):
     """Save or update a review draft. If id is provided, update existing draft."""
+    lang = get_language(request)
     draft_id = body.get("id")
     title = body.get("title", "Literature Review")
     paper_ids = body.get("paper_ids", [])
@@ -1009,13 +1024,13 @@ async def save_draft(body: dict = Body(...)):
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to save review draft: {e}")
-        return {"error": f"Không thể lưu draft: {str(e)}"}
+        return {"error": t("review.draft_save_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.get("/drafts")
-async def list_drafts():
+async def list_drafts(request: Request):
     """List all saved review drafts."""
     session = get_session(state.engine)
     try:
@@ -1039,13 +1054,14 @@ async def list_drafts():
 
 
 @router.get("/draft/{draft_id}")
-async def load_draft(draft_id: str):
+async def load_draft(request: Request, draft_id: str):
     """Load a saved review draft by ID."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
 
         return {
             "id": draft.id,
@@ -1060,49 +1076,51 @@ async def load_draft(draft_id: str):
         }
     except Exception as e:
         logger.error(f"Failed to load review draft: {e}")
-        return {"error": f"Không thể tải draft: {str(e)}"}
+        return {"error": t("review.draft_load_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.delete("/draft/{draft_id}")
-async def delete_draft(draft_id: str):
+async def delete_draft(request: Request, draft_id: str):
     """Delete a saved review draft."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
         session.delete(draft)
         session.commit()
         return {"status": "deleted", "id": draft_id}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to delete review draft: {e}")
-        return {"error": f"Không thể xoá draft: {str(e)}"}
+        return {"error": t("review.draft_delete_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.patch("/draft/{draft_id}/rename")
-async def rename_draft(draft_id: str, body: dict = Body(...)):
+async def rename_draft(request: Request, draft_id: str, body: dict = Body(...)):
     """Rename a saved review draft."""
+    lang = get_language(request)
     title = (body.get("title") or "").strip()
     if not title:
-        return {"error": "Tiêu đề không được để trống."}
+        return {"error": t("review.draft_title_empty", lang)}
 
     session = get_session(state.engine)
     try:
         draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
         draft.title = title
         session.commit()
         return {"status": "renamed", "id": draft_id, "title": title}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to rename review draft: {e}")
-        return {"error": f"Không thể đổi tên draft: {str(e)}"}
+        return {"error": t("review.draft_rename_fail", lang, error=str(e))}
     finally:
         session.close()
 
@@ -1110,13 +1128,14 @@ async def rename_draft(draft_id: str, body: dict = Body(...)):
 # ─── Version History ─────────────────────────────────────────
 
 @router.get("/draft/{draft_id}/versions")
-async def list_draft_versions(draft_id: str):
+async def list_draft_versions(request: Request, draft_id: str):
     """List all saved versions for a draft."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
 
         versions = json.loads(draft.versions or "[]")
         result = []
@@ -1137,17 +1156,18 @@ async def list_draft_versions(draft_id: str):
 
 
 @router.get("/draft/{draft_id}/versions/{version_idx}")
-async def load_draft_version(draft_id: str, version_idx: int):
+async def load_draft_version(request: Request, draft_id: str, version_idx: int):
     """Load a specific version of a draft."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
 
         versions = json.loads(draft.versions or "[]")
         if version_idx < 0 or version_idx >= len(versions):
-            return {"error": f"Version {version_idx} không tồn tại."}
+            return {"error": t("review.draft_version_not_found", lang, version=version_idx)}
 
         v = versions[version_idx]
         return {
@@ -1161,23 +1181,24 @@ async def load_draft_version(draft_id: str, version_idx: int):
         }
     except Exception as e:
         logger.error(f"Failed to load draft version: {e}")
-        return {"error": f"Không thể tải version: {str(e)}"}
+        return {"error": t("review.draft_version_load_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.post("/draft/{draft_id}/versions/{version_idx}/restore")
-async def restore_draft_version(draft_id: str, version_idx: int):
+async def restore_draft_version(request: Request, draft_id: str, version_idx: int):
     """Restore a draft to a previous version."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(ReviewDraft).filter(ReviewDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
 
         versions = json.loads(draft.versions or "[]")
         if version_idx < 0 or version_idx >= len(versions):
-            return {"error": f"Version {version_idx} không tồn tại."}
+            return {"error": t("review.draft_version_not_found", lang, version=version_idx)}
 
         v = versions[version_idx]
 
@@ -1207,7 +1228,7 @@ async def restore_draft_version(draft_id: str, version_idx: int):
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to restore draft version: {e}")
-        return {"error": f"Không thể khôi phục version: {str(e)}"}
+        return {"error": t("review.draft_version_restore_fail", lang, error=str(e))}
     finally:
         session.close()
 
@@ -1215,14 +1236,15 @@ async def restore_draft_version(draft_id: str, version_idx: int):
 # ─── Export ──────────────────────────────────────────────────
 
 @router.post("/export")
-async def export_review(body: dict = Body(...)):
+async def export_review(request: Request, body: dict = Body(...)):
     """Export the full review as DOCX/HTML/Markdown. Uses existing synthesis export."""
+    lang = get_language(request)
     title = body.get("title", "Literature Review")
     content = body.get("content", "")
     fmt = body.get("format", "markdown")
 
     if not content.strip():
-        return {"error": "Nội dung review trống, không thể xuất."}
+        return {"error": t("review.export_empty", lang)}
 
     import io
     import re
@@ -1253,7 +1275,7 @@ async def export_review(body: dict = Body(...)):
         except ImportError:
             raise HTTPException(
                 status_code=500,
-                detail="python-docx chưa được cài đặt. Chạy lệnh: pip install python-docx",
+                detail=t("review.docx_not_installed", lang),
             )
 
         doc = Document()
@@ -1428,18 +1450,19 @@ async def export_review(body: dict = Body(...)):
 # ─── Evidence Matrix ──────────────────────────────────────────
 
 @router.post("/evidence-matrix")
-async def generate_evidence_matrix(body: dict = Body(...)):
+async def generate_evidence_matrix(request: Request, body: dict = Body(...)):
     """Generate an evidence matrix comparing papers across dimensions.
     
     Extracts: methodology, dataset, result, limitation, finding
     Each cell includes: quote, page number, confidence score, extraction status.
     """
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
     use_cache = body.get("use_cache", False)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
-            "error": "Vui lòng chọn ít nhất 2 tài liệu.",
+            "error": t("review.select_min_two", lang),
             "matrix": {"columns": [], "rows": []},
         }
 
@@ -1455,7 +1478,7 @@ async def generate_evidence_matrix(body: dict = Body(...)):
         session.close()
 
     if not paper_titles:
-        return {"error": "Không tìm thấy tài liệu.", "matrix": {"columns": [], "rows": []}}
+        return {"error": t("review.no_docs_for_compare", lang), "matrix": {"columns": [], "rows": []}}
 
     dimensions = [
         ("methodology", "phương pháp methodology approach method framework model architecture algorithm"),
@@ -1478,7 +1501,7 @@ async def generate_evidence_matrix(body: dict = Body(...)):
         prompt = f"""Bạn là chuyên gia trích xuất bằng chứng học thuật. Đọc đoạn trích từ bài nghiên cứu "{title}" và trích xuất thông tin.
 
 Với MỖI mục dưới đây, trả về:
-- "value": giá trị trích xuất (2-3 câu tiếng Việt)
+- "value": giá trị trích xuất (2-3 câu {get_output_language_name(lang)})
 - "quote": câu trích dẫn gốc TIẾNG ANH từ paper (tối đa 200 ký tự)
 - "page": số trang (nếu có, để null nếu không)
 - "confidence": "high", "medium", hoặc "low" (dựa trên mức độ khớp)
@@ -1520,7 +1543,7 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
                 for dim_key, _ in dimensions:
                     dim_data = raw.get(dim_key, {})
                     cells[dim_key] = {
-                        "value": str(dim_data.get("value", "Không thể trích xuất.")),
+                        "value": str(dim_data.get("value", t("review.no_data_objective", lang))),
                         "quote": str(dim_data.get("quote", "")),
                         "page": dim_data.get("page"),
                         "confidence": dim_data.get("confidence", "low") if dim_data.get("confidence") in ("high", "medium", "low") else "low",
@@ -1530,7 +1553,7 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
             logger.warning(f"Evidence matrix JSON parse failed for {title}: {e}")
             for dim_key, _ in dimensions:
                 cells[dim_key] = {
-                    "value": "Lỗi trích xuất.",
+                    "value": t("review.no_data_objective", lang),
                     "quote": "", "page": None, "confidence": "low", "status": "ai_extracted",
                 }
 
@@ -1541,11 +1564,11 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
 
     columns = [r["title"] for r in results]
     dimension_labels = {
-        "methodology": "🔬 Phương pháp",
-        "dataset": "📊 Dữ liệu",
-        "result": "📈 Kết quả",
-        "limitation": "⚠️ Hạn chế",
-        "finding": "💡 Phát hiện chính",
+        "methodology": t("review.dimension_label_methodology", lang),
+        "dataset": t("review.dimension_label_dataset", lang),
+        "result": t("review.dimension_label_result", lang),
+        "limitation": t("review.dimension_label_limitation", lang),
+        "finding": t("review.dimension_label_finding", lang),
     }
 
     rows = []
@@ -1553,7 +1576,7 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
         cells = []
         for r in results:
             cell = r["cells"].get(dim_key, {
-                "value": "Không có dữ liệu.",
+                "value": t("review.no_data_objective", lang),
                 "quote": "", "page": None, "confidence": "low", "status": "ai_extracted",
             })
             cells.append({
@@ -1573,10 +1596,11 @@ Trả về JSON đúng định dạng, không kèm văn bản khác:
 # ─── Evidence Matrix Draft CRUD ──────────────────────────────
 
 @router.post("/evidence-matrix/save")
-async def save_evidence_matrix_draft(body: dict = Body(...)):
+async def save_evidence_matrix_draft(request: Request, body: dict = Body(...)):
     """Save or update an evidence matrix draft."""
+    lang = get_language(request)
     draft_id = body.get("id")
-    title = body.get("title", "Ma trận so sánh")
+    title = body.get("title", t("review.evidence_matrix_default_title", lang))
     paper_ids = body.get("paper_ids", [])
     paper_names = body.get("paper_names", [])
     columns = body.get("columns", [])
@@ -1608,13 +1632,13 @@ async def save_evidence_matrix_draft(body: dict = Body(...)):
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to save evidence matrix draft: {e}")
-        return {"error": f"Không thể lưu: {str(e)}"}
+        return {"error": t("review.draft_save_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.get("/evidence-matrix/drafts")
-async def list_evidence_matrix_drafts():
+async def list_evidence_matrix_drafts(request: Request):
     """List all saved evidence matrix drafts."""
     session = get_session(state.engine)
     try:
@@ -1641,13 +1665,14 @@ async def list_evidence_matrix_drafts():
 
 
 @router.get("/evidence-matrix/draft/{draft_id}")
-async def load_evidence_matrix_draft(draft_id: str):
+async def load_evidence_matrix_draft(request: Request, draft_id: str):
     """Load a saved evidence matrix draft by ID."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
         return {
             "id": draft.id,
             "title": draft.title,
@@ -1660,47 +1685,49 @@ async def load_evidence_matrix_draft(draft_id: str):
         }
     except Exception as e:
         logger.error(f"Failed to load evidence matrix draft: {e}")
-        return {"error": f"Không thể tải: {str(e)}"}
+        return {"error": t("review.draft_load_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.delete("/evidence-matrix/draft/{draft_id}")
-async def delete_evidence_matrix_draft(draft_id: str):
+async def delete_evidence_matrix_draft(request: Request, draft_id: str):
     """Delete a saved evidence matrix draft."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         draft = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
         session.delete(draft)
         session.commit()
         return {"status": "deleted", "id": draft_id}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to delete evidence matrix draft: {e}")
-        return {"error": f"Không thể xoá: {str(e)}"}
+        return {"error": t("review.draft_delete_fail", lang, error=str(e))}
     finally:
         session.close()
 
 
 @router.patch("/evidence-matrix/draft/{draft_id}/rename")
-async def rename_evidence_matrix_draft(draft_id: str, body: dict = Body(...)):
+async def rename_evidence_matrix_draft(request: Request, draft_id: str, body: dict = Body(...)):
     """Rename a saved evidence matrix draft."""
+    lang = get_language(request)
     title = (body.get("title") or "").strip()
     if not title:
-        return {"error": "Tiêu đề không được để trống."}
+        return {"error": t("review.draft_title_empty", lang)}
     session = get_session(state.engine)
     try:
         draft = session.query(EvidenceMatrixDraft).filter(EvidenceMatrixDraft.id == draft_id).first()
         if not draft:
-            return {"error": "Draft không tồn tại."}
+            return {"error": t("review.draft_not_found", lang)}
         draft.title = title
         session.commit()
         return {"status": "renamed", "id": draft_id, "title": title}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to rename evidence matrix draft: {e}")
-        return {"error": f"Không thể đổi tên: {str(e)}"}
+        return {"error": t("review.draft_rename_fail", lang, error=str(e))}
     finally:
         session.close()

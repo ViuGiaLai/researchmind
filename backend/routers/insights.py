@@ -1,6 +1,6 @@
 import asyncio
 import json
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from loguru import logger
 
 from app_state import state
@@ -9,6 +9,7 @@ from db.database import get_session
 from db.models import CollectionPaper
 from academic.paper_check import check_papers_ready
 from common.rag_ready import rag_unavailable_message
+from common.i18n import t, get_language, get_output_language_name
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
 
@@ -40,24 +41,25 @@ def _resolve_insight_paper_ids(body: dict) -> list[str] | None:
     return paper_ids
 
 
-def _insight_preflight(paper_ids) -> dict | None:
-    rag_error = rag_unavailable_message()
+def _insight_preflight(paper_ids, lang: str = "vi") -> dict | None:
+    rag_error = rag_unavailable_message(lang)
     if rag_error:
         return _empty_insight_answer(rag_error)
-    paper_error = check_papers_ready(paper_ids)
+    paper_error = check_papers_ready(paper_ids, lang)
     if paper_error:
         return _empty_insight_answer(paper_error)
     return None
 
 
 @router.post("/gap")
-async def find_research_gap(body: dict = Body(...)):
+async def find_research_gap(request: Request, body: dict = Body(...)):
     """
     Find research gaps across indexed papers.
     Uses RAG to retrieve relevant chunks, then LLM analyzes what's missing.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
-    preflight = _insight_preflight(paper_ids)
+    preflight = _insight_preflight(paper_ids, lang)
     if preflight:
         return preflight
 
@@ -70,14 +72,14 @@ async def find_research_gap(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
             "chunks_used": 0,
         }
 
-    gap_prompt = """Phân tích research gap từ các paper. Với mỗi gap, nêu vấn đề và nguyên nhân chưa giải quyết.
+    gap_prompt = f"""Phân tích research gap từ các paper. Với mỗi gap, nêu vấn đề và nguyên nhân chưa giải quyết.
 
 ## 🔍 Research Gap Analysis
 1. **Lỗ hổng nghiên cứu chính** — vấn đề chưa được giải quyết
@@ -85,7 +87,7 @@ async def find_research_gap(body: dict = Body(...)):
 3. **Hướng nghiên cứu mới** — 2-3 hướng dựa trên lỗ hổng
 4. **Cơ hội đóng góp** — nghiên cứu sinh có thể làm gì ngay
 
-Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
+Trích dẫn [Tên Paper] cho mỗi claim. Trả lời bằng {get_output_language_name(lang)}."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -104,13 +106,14 @@ Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
 
 
 @router.post("/conflict")
-async def find_conflicts(body: dict = Body(...)):
+async def find_conflicts(request: Request, body: dict = Body(...)):
     """
     Find contradictions and conflicts between papers.
     Uses RAG to retrieve diverse chunks, then LLM compares claims.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
-    preflight = _insight_preflight(paper_ids)
+    preflight = _insight_preflight(paper_ids, lang)
     if preflight:
         return preflight
 
@@ -123,14 +126,14 @@ async def find_conflicts(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
             "chunks_used": 0,
         }
 
-    conflict_prompt = """Phân tích mâu thuẫn và xung đột giữa các paper.
+    conflict_prompt = f"""Phân tích mâu thuẫn và xung đột giữa các paper.
 
 ## ⚠️ Conflict Analysis
 1. **Mâu thuẫn trực tiếp** — Paper nào đối lập nhau? Paper A nói X, Paper B nói Y
@@ -139,7 +142,7 @@ async def find_conflicts(body: dict = Body(...)):
 4. **Góc nhìn đa chiều** — Cách tiếp cận từ nhiều hướng?
 5. **Cơ hội từ mâu thuẫn** — Nên ưu tiên giải quyết mâu thuẫn nào?
 
-Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
+Trích dẫn [Tên Paper] cho mỗi claim. Trả lời bằng {get_output_language_name(lang)}."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -158,13 +161,14 @@ Trích dẫn [Tên Paper] cho mỗi claim. Trả lời tiếng Việt."""
 
 
 @router.post("/topic")
-async def suggest_topics(body: dict = Body(...)):
+async def suggest_topics(request: Request, body: dict = Body(...)):
     """
     Suggest research topics based on papers in the library.
     Uses RAG to retrieve diverse chunks, then LLM generates topic suggestions.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
-    preflight = _insight_preflight(paper_ids)
+    preflight = _insight_preflight(paper_ids, lang)
     if preflight:
         return preflight
 
@@ -177,14 +181,14 @@ async def suggest_topics(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để đề xuất đề tài. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
             "chunks_used": 0,
         }
 
-    topic_prompt = """Phân tích và đề xuất đề tài nghiên cứu dựa trên thư viện paper.
+    topic_prompt = f"""Phân tích và đề xuất đề tài nghiên cứu dựa trên thư viện paper.
 
 KHÔNG dùng **bold** hay markdown. Chỉ dùng plain text.
 Trả lời theo cấu trúc sau, dùng dấu xuống dòng để phân cách:
@@ -196,7 +200,7 @@ Research Topic Suggestions
 3. Top Pick — chọn 1 đề tài tốt nhất, giải thích chi tiết
 4. Bước tiếp theo — nên đọc thêm paper/phương pháp nào
 
-Trích dẫn [Tên Paper] khi cần. Trả lời tiếng Việt."""
+Trích dẫn [Tên Paper] khi cần. Trả lời bằng {get_output_language_name(lang)}."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -215,13 +219,14 @@ Trích dẫn [Tên Paper] khi cần. Trả lời tiếng Việt."""
 
 
 @router.post("/evolution")
-async def find_evolution_map(body: dict = Body(...)):
+async def find_evolution_map(request: Request, body: dict = Body(...)):
     """
     Analyze research evolution across papers.
     Uses RAG to retrieve diverse chunks, then LLM maps the evolution of ideas.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
-    preflight = _insight_preflight(paper_ids)
+    preflight = _insight_preflight(paper_ids, lang)
     if preflight:
         return preflight
 
@@ -234,14 +239,14 @@ async def find_evolution_map(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để phân tích evolution map. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
             "chunks_used": 0,
         }
 
-    evolution_prompt = """Phân tích và vẽ bản đồ phát triển nghiên cứu. Sắp xếp theo thời gian (cũ → mới).
+    evolution_prompt = f"""Phân tích và vẽ bản đồ phát triển nghiên cứu. Sắp xếp theo thời gian (cũ → mới).
 
 ## 🧬 Evolution Map
 1. **Tổng quan xu hướng** — sự phát triển của lĩnh vực
@@ -250,7 +255,7 @@ async def find_evolution_map(body: dict = Body(...)):
 4. **Sơ đồ quan hệ** — paper nào kế thừa/liên quan đến nhau
 5. **Dự đoán tương lai** — xu hướng tiếp theo, kỹ năng cần chuẩn bị
 
-Trích dẫn [Tên Paper] cho mỗi giai đoạn. Trả lời tiếng Việt."""
+Trích dẫn [Tên Paper] cho mỗi giai đoạn. Trả lời bằng {get_output_language_name(lang)}."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -269,16 +274,17 @@ Trích dẫn [Tên Paper] cho mỗi giai đoạn. Trả lời tiếng Việt."""
 
 
 @router.post("/compare")
-async def compare_papers(body: dict = Body(...)):
+async def compare_papers(request: Request, body: dict = Body(...)):
     """
     Compare multiple selected papers side-by-side.
     Uses concurrent LLM calls to extract Objective, Methodology, Dataset, Findings, and Limitations.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
-            "answer": "Vui lòng chọn ít nhất 2 tài liệu để tiến hành so sánh.",
+            "answer": t("insights.select_min_two", lang),
             "citations": [],
             "model_used": "",
             "papers_used": [],
@@ -286,7 +292,7 @@ async def compare_papers(body: dict = Body(...)):
             "matrix": {"columns": [], "rows": []}
         }
 
-    preflight = _insight_preflight(paper_ids)
+    preflight = _insight_preflight(paper_ids, lang)
     if preflight:
         preflight["matrix"] = {"columns": [], "rows": []}
         return preflight
@@ -314,11 +320,11 @@ async def compare_papers(body: dict = Body(...)):
                 "id": paper_id,
                 "title": title,
                 "data": {
-                    "objective": "Không có dữ liệu văn bản.",
-                    "methodology": "Không có dữ liệu văn bản.",
-                    "dataset": "Không có dữ liệu văn bản.",
-                    "findings": "Không có dữ liệu văn bản.",
-                    "limitations": "Không có dữ liệu văn bản."
+                    "objective": t("insights.no_text_data_objective", lang),
+                    "methodology": t("insights.no_text_data_methodology", lang),
+                    "dataset": t("insights.no_text_data_dataset", lang),
+                    "findings": t("insights.no_text_data_findings", lang),
+                    "limitations": t("insights.no_text_data_limitations", lang)
                 },
                 "model_used": "none"
             }
@@ -333,7 +339,7 @@ Bạn phải trả về đúng cấu trúc JSON sau:
   "limitations": "Hạn chế hoặc điểm yếu chính của nghiên cứu"
 }}
 
-Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, không có bất kỳ văn bản giải thích nào khác ở ngoài. Tất cả các nội dung trích xuất viết bằng tiếng Việt.
+Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, không có bất kỳ văn bản giải thích nào khác ở ngoài. Tất cả các nội dung trích xuất viết bằng {get_output_language_name(lang)}.
 
 Đoạn trích từ bài báo:\n{retrieval.context_text}"""
 
@@ -357,17 +363,18 @@ Yêu cầu quan trọng: CHỈ trả về duy nhất 1 JSON object hợp lệ, k
         except Exception as e:
             logger.warning(f"Failed to parse LLM comparison JSON for {title}: {e}")
             fallback_text = content.strip()
+            extract_failed = t("insights.extract_failed", lang)
             data = {
-                "objective": fallback_text[:500] if fallback_text else "Không thể trích xuất chi tiết.",
+                "objective": fallback_text[:500] if fallback_text else extract_failed,
                 "methodology": "LLM trả về JSON không hợp lệ; xem phần mục tiêu để đọc fallback text.",
-                "dataset": "Không thể trích xuất chi tiết.",
-                "findings": fallback_text[:500] if fallback_text else "Không thể trích xuất chi tiết.",
-                "limitations": "Không thể trích xuất chi tiết.",
+                "dataset": extract_failed,
+                "findings": fallback_text[:500] if fallback_text else extract_failed,
+                "limitations": extract_failed,
             }
             
         for key in ["objective", "methodology", "dataset", "findings", "limitations"]:
             if key not in data or not str(data[key]).strip():
-                data[key] = "Không thể trích xuất chi tiết."
+                data[key] = t("insights.extract_failed", lang)
                 
         return {
             "id": paper_id,

@@ -18,6 +18,8 @@ from typing import Awaitable, Callable, Optional
 
 from loguru import logger
 
+from common.i18n import get_output_language_name
+
 
 class ResponseMode(str, Enum):
     COMPACT = "compact"           # default — best balance
@@ -39,10 +41,12 @@ class ResponseSynthesizer:
         llm_predict: Callable[[str], str],
         llm_predict_async: Optional[Callable[[str], Awaitable[str]]] = None,
         compact_threshold: int = 3000,
+        lang: str = "vi",
     ):
         self._predict = llm_predict
         self._predict_async = llm_predict_async
         self.compact_threshold = compact_threshold
+        self.lang = lang
 
     def synthesize(
         self,
@@ -125,22 +129,24 @@ class ResponseSynthesizer:
         return compacted
 
     def _build_prompt(self, query: str, context: str) -> str:
-        return f"""Context từ tài liệu:
+        return f"""Context from documents:
 {context}
 
-Câu hỏi: {query}
+Question: {query}
 
-Trả lời dựa trên context trên. Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."""
+Answer based on the context above. Remember to cite sources [Paper Title] for each piece of information you provide.
+Answer in {get_output_language_name(self.lang)}."""
 
     def _build_refine_prompt(self, query: str, context: str, existing_answer: str) -> str:
-        return f"""Câu hỏi: {query}
+        return f"""Question: {query}
 
-Câu trả lời hiện tại: {existing_answer}
+Current answer: {existing_answer}
 
-Thông tin bổ sung:
+Additional information:
 {context}
 
-Dựa trên thông tin bổ sung, hãy cập nhật và cải thiện câu trả lời hiện tại. Nhớ trích dẫn nguồn [Tên Paper]."""
+Based on the additional information, update and improve the current answer. Remember to cite sources [Paper Title].
+Answer in {get_output_language_name(self.lang)}."""
 
     def _token_count(self, text: str) -> int:
         return len(text) // 4

@@ -7,7 +7,7 @@ Cung cáº¥p: metadata verification, citation analysis, related research, evolu
 import asyncio
 import json
 import re
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -24,6 +24,7 @@ from academic.semantic_scholar import S2Paper, get_paper_by_doi as s2_get_by_doi
 from academic.doi_extractor import extract_doi_from_paper, extract_multiple_dois
 from academic.paper_check import check_papers_ready
 from common.rag_ready import rag_unavailable_message
+from common.i18n import t, get_language
 from academic.context_builder import ExternalPaperData
 from academic.cache import cache_get, cache_set, TTL_OPENALEX, TTL_CROSSREF
 
@@ -56,25 +57,26 @@ def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
 
 
 @router.post("")
-async def verify_research(request: VerifyRequest = Body(...)):
+async def verify_research(http_request: Request, body: VerifyRequest = Body(...)):
     import time as time_mod
     t0 = time_mod.time()
+    lang = get_language(http_request)
 
-    if not request.message:
-        raise HTTPException(400, "message không được để trống")
+    if not body.message:
+        raise HTTPException(400, t("error.message_empty", lang))
 
-    query = request.message
-    paper_ids = request.paper_ids
-    if request.collection_id and not paper_ids:
-        paper_ids = _resolve_collection_paper_ids(request.collection_id)
-    session_id = request.session_id or "verify"
-    do_stream = request.stream
+    query = body.message
+    paper_ids = body.paper_ids
+    if body.collection_id and not paper_ids:
+        paper_ids = _resolve_collection_paper_ids(body.collection_id)
+    session_id = body.session_id or "verify"
+    do_stream = body.stream
 
-    rag_error = rag_unavailable_message()
+    rag_error = rag_unavailable_message(lang)
     if rag_error:
         return {"answer": rag_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0, "external_sources": [], "verify_status": "local_only"}
 
-    paper_error = check_papers_ready(paper_ids)
+    paper_error = check_papers_ready(paper_ids, lang)
     if paper_error:
         return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0, "external_sources": [], "verify_status": "local_only"}
 
@@ -166,6 +168,7 @@ async def verify_research(request: VerifyRequest = Body(...)):
                 verify_status=verify_status,
                 papers_used=retrieval.papers_used,
                 session_id=session_id,
+                lang=lang,
                 timing={
                     "start": t0,
                     "retrieve": t_retrieve,
@@ -183,6 +186,7 @@ async def verify_research(request: VerifyRequest = Body(...)):
         context_text=combined_context,
         external_data_text="",
         task_type="verify",
+        lang=lang,
     )
     t_generate = time_mod.time() - t_generate
 
@@ -481,7 +485,7 @@ def _serialize_external(ep: ExternalPaperData) -> dict:
     return result
 
 
-def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id, timing=None):
+def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id, lang="vi", timing=None):
     import time as time_mod
     t_stream = time_mod.time()
     timing = timing or {}
@@ -490,7 +494,7 @@ def _stream_verify_response(query, combined_context, external_sources_json, veri
 
     yield f"data: {json.dumps({'type': 'academic', 'data': external_sources_json, 'verify_status': verify_status})}\n\n"
 
-    for chunk in state.generator.stream_generate_verify(query, combined_context, task_type="verify"):
+    for chunk in state.generator.stream_generate_verify(query, combined_context, task_type="verify", lang=lang):
         full_response += chunk
         yield f"data: {json.dumps({'type': 'chunk', 'chunk': chunk})}\n\n"
 

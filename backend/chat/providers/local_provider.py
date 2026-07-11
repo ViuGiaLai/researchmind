@@ -8,6 +8,7 @@ from typing import Optional
 import json
 from loguru import logger
 import httpx
+from common.i18n import t as _t
 from ..types import GenerationResult
 
 
@@ -73,13 +74,15 @@ class LocalProviderMixin:
                 data = response.json()
                 content = (data.get("content") or "").strip()
             except httpx.ConnectError:
+                lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
                 logger.error("Cannot connect to llama-server.")
                 return GenerationResult(
-                    content="⚠️ Không thể kết nối đến llama-server. Vui lòng đảm bảo llama-server.exe đang chạy.",
+                    content=_t("provider.error.llama_connect", lang),
                     citations=[], model_used="local/error", finish_reason="error")
             except Exception as e:
+                lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
                 logger.error(f"Local generation failed: {e}")
-                return GenerationResult(content=f"⚠️ Lỗi llama-server: {str(e)}",
+                return GenerationResult(content=_t("provider.error.llama", lang, error=str(e)),
                                         citations=[], model_used="local/error", finish_reason="error")
 
         citations = self._extract_citations(content)

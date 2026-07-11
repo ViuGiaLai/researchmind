@@ -9,6 +9,7 @@ from typing import Optional
 from loguru import logger
 import httpx
 from common.text_utils import redact_api_key
+from common.i18n import t as _t
 from ..types import GenerationResult
 from config.settings import settings
 
@@ -49,17 +50,19 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"github/{model}", finish_reason=finish_reason)
         except httpx.HTTPStatusError as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"GitHub Models generation failed: {e}")
             detail = ""
             if e.response.status_code == 401:
-                detail = " GitHub Token không hợp lệ. Lấy PAT tại https://github.com/settings/tokens"
+                detail = " " + _t("provider.error.github_invalid_token", lang)
             elif e.response.status_code == 429:
-                detail = " Đã hết hạn mức GitHub Models."
-            return GenerationResult(content=f"⚠️ Lỗi GitHub Models (HTTP {e.response.status_code}): {e.response.text[:200]}{detail}",
+                detail = " " + _t("provider.error.github_quota", lang)
+            return GenerationResult(content=_t("provider.error.github_http", lang, status=e.response.status_code, detail=e.response.text[:200] + detail),
                                     citations=[], model_used="github/error", finish_reason="error")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"GitHub Models generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi GitHub Models: {str(e)}",
+            return GenerationResult(content=_t("provider.error.github", lang, error=str(e)),
                                     citations=[], model_used="github/error", finish_reason="error")
 
     def _generate_groq(self, prompt: str, api_key: str, model: str,
@@ -87,13 +90,15 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"groq/{model}", finish_reason=finish_reason)
         except httpx.HTTPStatusError as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Groq generation failed: {e}")
-            detail = " API Key không hợp lệ." if e.response.status_code == 401 else ""
-            return GenerationResult(content=f"⚠️ Lỗi Groq (HTTP {e.response.status_code}): {e.response.text[:200]}{detail}",
+            detail = " " + _t("provider.error.groq_auth", lang) if e.response.status_code == 401 else ""
+            return GenerationResult(content=_t("provider.error.groq_http", lang, status=e.response.status_code, detail=e.response.text[:200] + detail),
                                     citations=[], model_used="groq/error", finish_reason="error")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Groq generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Groq: {str(e)}",
+            return GenerationResult(content=_t("provider.error.groq", lang, error=str(e)),
                                     citations=[], model_used="groq/error", finish_reason="error")
 
     def _generate_nvidia(self, prompt: str, api_key: str, model: str,
@@ -119,8 +124,9 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"nvidia/{model}", finish_reason="stop")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"NVIDIA generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi NVIDIA: {str(e)}",
+            return GenerationResult(content=_t("provider.error.nvidia", lang, error=str(e)),
                                     citations=[], model_used="nvidia/error", finish_reason="error")
 
     def _generate_freemodel(self, prompt: str, api_key: str, model: str,
@@ -145,8 +151,9 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"freemodel/{model}", finish_reason="stop")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"FreeModel generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi FreeModel: {str(e)}",
+            return GenerationResult(content=_t("provider.error.freemodel", lang, error=str(e)),
                                     citations=[], model_used="freemodel/error", finish_reason="error")
 
     def _generate_openrouter(self, prompt: str, api_key: str, model: str,
@@ -171,12 +178,14 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"openrouter/{model}", finish_reason="stop")
         except httpx.HTTPStatusError as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"OpenRouter generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi OpenRouter (HTTP {e.response.status_code}): {e.response.text[:200]}",
+            return GenerationResult(content=_t("provider.error.openrouter", lang, status=e.response.status_code, detail=e.response.text[:200]),
                                     citations=[], model_used="openrouter/error", finish_reason="error")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"OpenRouter generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi OpenRouter: {str(e)}",
+            return GenerationResult(content=_t("provider.error.openrouter_generic", lang, error=str(e)),
                                     citations=[], model_used="openrouter/error", finish_reason="error")
 
     def _generate_cohere(self, prompt: str, api_key: str, model: str,
@@ -201,12 +210,14 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"cohere/{model}", finish_reason="stop")
         except httpx.HTTPStatusError as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Cohere generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Cohere (HTTP {e.response.status_code}): {e.response.text[:200]}",
+            return GenerationResult(content=_t("provider.error.cohere_http", lang, status=e.response.status_code, detail=e.response.text[:200]),
                                     citations=[], model_used="cohere/error", finish_reason="error")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Cohere generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Cohere: {str(e)}",
+            return GenerationResult(content=_t("provider.error.cohere", lang, error=str(e)),
                                     citations=[], model_used="cohere/error", finish_reason="error")
 
     def _generate_cloudflare(self, prompt: str, api_key: str, model: str,
@@ -231,17 +242,19 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"cloudflare/{model}", finish_reason="stop")
         except httpx.HTTPStatusError as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Cloudflare Workers AI generation failed: {e}")
             detail = ""
             if e.response.status_code == 401:
-                detail = " API Token không hợp lệ hoặc Account ID sai."
+                detail = " " + _t("provider.error.cloudflare_token", lang)
             elif e.response.status_code == 404:
-                detail = " Model không tìm thấy. Kiểm tra model name và Account ID."
-            return GenerationResult(content=f"⚠️ Lỗi Cloudflare (HTTP {e.response.status_code}): {e.response.text[:200]}{detail}",
+                detail = " " + _t("provider.error.cloudflare_model", lang)
+            return GenerationResult(content=_t("provider.error.cloudflare_http", lang, status=e.response.status_code, detail=e.response.text[:200] + detail),
                                     citations=[], model_used="cloudflare/error", finish_reason="error")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Cloudflare Workers AI generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Cloudflare: {str(e)}",
+            return GenerationResult(content=_t("provider.error.cloudflare", lang, error=str(e)),
                                     citations=[], model_used="cloudflare/error", finish_reason="error")
 
     def _generate_cerebras(self, prompt: str, api_key: str, model: str,
@@ -266,12 +279,14 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=f"cerebras/{model}", finish_reason="stop")
         except httpx.HTTPStatusError as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Cerebras generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Cerebras (HTTP {e.response.status_code}): {e.response.text[:200]}",
+            return GenerationResult(content=_t("provider.error.cerebras_http", lang, status=e.response.status_code, detail=e.response.text[:200]),
                                     citations=[], model_used="cerebras/error", finish_reason="error")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Cerebras generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Cerebras: {str(e)}",
+            return GenerationResult(content=_t("provider.error.cerebras", lang, error=str(e)),
                                     citations=[], model_used="cerebras/error", finish_reason="error")
 
     def _generate_deepseek(self, prompt: str, api_key: str, max_tokens: int = 1024,
@@ -299,8 +314,9 @@ class OpenAIProviderMixin:
             return GenerationResult(content=content, citations=citations,
                                     model_used=model_name, finish_reason=finish_reason)
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"DeepSeek generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi DeepSeek: {str(e)}",
+            return GenerationResult(content=_t("provider.error.deepseek", lang, error=str(e)),
                                     citations=[], model_used="deepseek/error", finish_reason="error")
 
     def _stream_openai(self, prompt: str, api_key: str, model: str,
@@ -392,7 +408,8 @@ class OpenAIProviderMixin:
                 if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"DeepSeek stream failed: {e}")
-            yield f"\n⚠️ DeepSeek gặp sự cố ({str(e)}). Đang chuyển sang Local model...\n"
+            yield _t("provider.error.deepseek_stream", lang, error=str(e))
             for chunk in self._stream_local(prompt):
                 yield chunk

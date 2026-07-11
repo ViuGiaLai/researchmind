@@ -15,6 +15,7 @@ Now supports perspective-guided decomposition (STORM-inspired):
 from typing import Optional
 from dataclasses import dataclass, field
 from loguru import logger
+from common.i18n import get_output_language_name
 
 from research.persona_generator import (
     Persona,
@@ -42,7 +43,7 @@ Hướng dẫn:
 2. Các câu hỏi phụ phải độc lập với nhau (có thể research riêng rẽ).
 3. Mỗi câu hỏi phụ phải đủ cụ thể để có thể tìm kiếm và trả lời.
 4. Nếu câu hỏi đơn giản (không cần chia nhỏ), chỉ trả về câu hỏi gốc.
-5. Viết bằng TIẾNG VIỆT (trừ khi câu hỏi gốc bằng tiếng Anh).
+5. Viết bằng {lang_name} (trừ khi câu hỏi gốc bằng tiếng Anh).
 
 Trả về JSON với format:
 {{
@@ -62,7 +63,7 @@ Nhiệm vụ của bạn:
 2. Giữ lại tất cả thông tin quan trọng, số liệu, trích dẫn.
 3. Sắp xếp theo chủ đề logic.
 4. Đánh dấu các điểm còn mâu thuẫn hoặc thiếu thông tin.
-5. Viết bằng TIẾNG VIỆT (trừ khi dữ liệu gốc bằng tiếng Anh).
+5. Viết bằng {lang_name} (trừ khi dữ liệu gốc bằng tiếng Anh).
 
 Đầu ra phải chi tiết và đầy đủ, sẵn sàng để viết báo cáo cuối cùng."""
 
@@ -79,12 +80,12 @@ Yêu cầu:
 2. Trích dẫn nguồn cho mỗi thông tin quan trọng [Tên Paper].
 3. Đưa ra phân tích cân bằng, đầy đủ.
 4. Kết luận rõ ràng ở cuối.
-5. Viết bằng TIẾNG VIỆT (trừ khi câu hỏi gốc bằng tiếng Anh).
+5. Viết bằng {lang_name} (trừ khi câu hỏi gốc bằng tiếng Anh).
 6. KHÔNG đề cập đến quá trình research, chỉ viết báo cáo thuần túy.
 """
 
 
-def decompose_query(query: str) -> ResearchPlan:
+def decompose_query(query: str, lang: str = "vi") -> ResearchPlan:
     """Break down a complex query into sub-questions using perspective-guided decomposition.
 
     STORM-inspired: generates diverse personas, each asks questions from their angle,
@@ -115,7 +116,7 @@ def decompose_query(query: str) -> ResearchPlan:
     else:
         # Fallback: standard decomposition
         logger.info("No personas generated, using standard decomposition")
-        prompt = DECOMPOSITION_PROMPT.format(query=query)
+        prompt = DECOMPOSITION_PROMPT.format(query=query, lang_name=get_output_language_name(lang))
         try:
             result = generator.generate_direct(
                 user_prompt=prompt,
@@ -154,7 +155,7 @@ def decompose_query(query: str) -> ResearchPlan:
     )
 
 
-def decompose_query_simple(query: str) -> ResearchPlan:
+def decompose_query_simple(query: str, lang: str = "vi") -> ResearchPlan:
     """Break down a complex query into sub-questions using standard LLM-based decomposition.
 
     Fallback method without perspective guidance.
@@ -168,7 +169,7 @@ def decompose_query_simple(query: str) -> ResearchPlan:
         logger.error(msg)
         return ResearchPlan(original_query=query, sub_questions=[query], brief=msg)
 
-    prompt = DECOMPOSITION_PROMPT.format(query=query)
+    prompt = DECOMPOSITION_PROMPT.format(query=query, lang_name=get_output_language_name(lang))
     try:
         result = generator.generate_direct(
             user_prompt=prompt,
@@ -186,7 +187,7 @@ def decompose_query_simple(query: str) -> ResearchPlan:
         return ResearchPlan(original_query=query, sub_questions=[query], brief="")
 
 
-def compress_findings(findings: list[str]) -> str:
+def compress_findings(findings: list[str], lang: str = "vi") -> str:
     """Compress raw research findings into a structured summary."""
     from chat.generator import Generator
     from app_state import state
@@ -196,7 +197,7 @@ def compress_findings(findings: list[str]) -> str:
         return "\n\n".join(findings)
 
     combined = "\n\n---\n\n".join(findings)
-    prompt = COMPRESSION_PROMPT.format(findings=combined)
+    prompt = COMPRESSION_PROMPT.format(findings=combined, lang_name=get_output_language_name(lang))
     try:
         result = generator.generate_direct(
             user_prompt=prompt,
@@ -209,7 +210,7 @@ def compress_findings(findings: list[str]) -> str:
         return combined
 
 
-def synthesize_answer(query: str, findings: str) -> str:
+def synthesize_answer(query: str, findings: str, lang: str = "vi") -> str:
     """Synthesize final answer from compressed findings."""
     from chat.generator import Generator
     from app_state import state
@@ -218,7 +219,7 @@ def synthesize_answer(query: str, findings: str) -> str:
     if not generator:
         return findings
 
-    prompt = SYNTHESIS_PROMPT.format(query=query, findings=findings)
+    prompt = SYNTHESIS_PROMPT.format(query=query, findings=findings, lang_name=get_output_language_name(lang))
     try:
         result = generator.generate_direct(
             user_prompt=prompt,

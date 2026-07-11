@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+
+from common.i18n import get_language, t
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -564,6 +566,7 @@ def _copy_and_index_pdf(
     paper_id: str,
     title: str,
     background_tasks: BackgroundTasks,
+    lang: str = "vi",
 ) -> dict:
     """
     Copy a PDF from Zotero storage to the app's papers directory,
@@ -586,7 +589,7 @@ def _copy_and_index_pdf(
         logger.info(f"Copied PDF from Zotero: {src.name} → {dest.name}")
     except Exception as e:
         logger.error(f"Failed to copy PDF: {e}")
-        return {"status": "error", "error": f"Không thể copy PDF: {str(e)}"}
+        return {"status": "error", "error": t("import.pdf_copy_fail", lang, error=str(e))}
 
     # Parse PDF to extract text and metadata
     doc = extract_pdf(str(dest))
@@ -604,7 +607,7 @@ def _copy_and_index_pdf(
             session.rollback()
         finally:
             session.close()
-        return {"status": "warning", "error": "Không thể parse PDF (có thể là scanned)"}
+        return {"status": "warning", "error": t("import.pdf_parse_fail", lang)}
 
     # Update paper with extracted data
     session = _get_db_session(state.engine)  # noqa: F821
@@ -714,14 +717,16 @@ def _index_paper_from_zotero(file_id: str, title: str, doc):
 
 @router.post("/bibtex")
 async def import_bibtex(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(_get_db),
 ):
     """Import papers from a BibTeX (.bib) file."""
+    lang = get_language(request)
     if not file.filename.lower().endswith(".bib"):
         raise HTTPException(
             status_code=400,
-            detail="Chỉ hỗ trợ file .bib. Vui lòng chọn file BibTeX từ Zotero.",
+            detail=t("import.bib_only", lang),
         )
 
     content = await file.read()
@@ -731,14 +736,14 @@ async def import_bibtex(
         try:
             text_content = content.decode("latin-1")
         except Exception:
-            raise HTTPException(status_code=400, detail="Không thể đọc file. Vui lòng kiểm tra encoding UTF-8.")
+            raise HTTPException(status_code=400, detail=t("import.bib_read_fail", lang))
 
     papers_data = _parse_bibtex(text_content)
 
     if not papers_data:
         raise HTTPException(
             status_code=400,
-            detail="Không tìm thấy entry nào trong file BibTeX. Vui lòng kiểm tra lại file.",
+            detail=t("import.bib_no_entries", lang),
         )
 
     results = []
@@ -767,7 +772,7 @@ async def import_bibtex(
             results.append({
                 "filename": f"{p['cite_key']}.bib",
                 "status": "error",
-                "error": "Lỗi khi lưu vào database",
+                "error": t("import.db_save_error", lang),
                 "title": p["title"],
             })
 
@@ -786,14 +791,16 @@ async def import_bibtex(
 
 @router.post("/zotero-csv")
 async def import_zotero_csv(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(_get_db),
 ):
     """Import papers from a Zotero CSV export file (metadata only, no PDF)."""
+    lang = get_language(request)
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=400,
-            detail="Chỉ hỗ trợ file .csv. Vui lòng export từ Zotero với định dạng CSV.",
+            detail=t("import.csv_only", lang),
         )
 
     content = await file.read()
@@ -803,14 +810,14 @@ async def import_zotero_csv(
         try:
             text_content = content.decode("utf-8")
         except Exception:
-            raise HTTPException(status_code=400, detail="Không thể đọc file CSV. Vui lòng kiểm tra encoding UTF-8.")
+            raise HTTPException(status_code=400, detail=t("import.csv_read_fail", lang))
 
     papers_data = _parse_zotero_csv(text_content)
 
     if not papers_data:
         raise HTTPException(
             status_code=400,
-            detail="Không tìm thấy dữ liệu trong file CSV. Vui lòng kiểm tra định dạng export từ Zotero (CSV).",
+            detail=t("import.csv_no_data", lang),
         )
 
     results = []
@@ -839,7 +846,7 @@ async def import_zotero_csv(
             results.append({
                 "filename": p.get("title", "unknown")[:50],
                 "status": "error",
-                "error": "Lỗi khi lưu vào database",
+                "error": t("import.db_save_error", lang),
                 "title": p["title"],
             })
 
@@ -858,6 +865,7 @@ async def import_zotero_csv(
 
 @router.post("/zotero-csv-pdf")
 async def import_zotero_csv_with_pdfs(
+    request: Request,
     file: UploadFile = File(...),
     zotero_data_dir: str = Form(default=""),
     background_tasks: BackgroundTasks = None,
@@ -870,10 +878,11 @@ async def import_zotero_csv_with_pdfs(
     - zotero_data_dir: Đường dẫn thư mục Zotero data (VD: C:\Users\name\Zotero)
       Nếu để trống, chỉ import metadata.
     """
+    lang = get_language(request)
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=400,
-            detail="Chỉ hỗ trợ file .csv. Vui lòng export từ Zotero với định dạng CSV.",
+            detail=t("import.csv_only", lang),
         )
 
     content = await file.read()
@@ -883,14 +892,14 @@ async def import_zotero_csv_with_pdfs(
         try:
             text_content = content.decode("utf-8")
         except Exception:
-            raise HTTPException(status_code=400, detail="Không thể đọc file CSV. Vui lòng kiểm tra encoding UTF-8.")
+            raise HTTPException(status_code=400, detail=t("import.csv_read_fail", lang))
 
     papers_data = _parse_zotero_csv(text_content)
 
     if not papers_data:
         raise HTTPException(
             status_code=400,
-            detail="Không tìm thấy dữ liệu trong file CSV.",
+            detail=t("import.csv_no_data", lang),
         )
 
     # Resolve Zotero data directory
@@ -922,7 +931,7 @@ async def import_zotero_csv_with_pdfs(
             results.append({
                 "filename": p.get("title", "unknown")[:50],
                 "status": "error",
-                "error": "Lỗi khi lưu vào database",
+                "error": t("import.db_save_error", lang),
                 "title": p["title"],
             })
             continue
@@ -952,6 +961,7 @@ async def import_zotero_csv_with_pdfs(
                         paper_id=paper.id,
                         title=p["title"],
                         background_tasks=background_tasks,
+                        lang=lang,
                     )
 
                     if pdf_result["status"] == "indexing":
@@ -968,7 +978,7 @@ async def import_zotero_csv_with_pdfs(
 
             if not pdf_found and attachments:
                 result["pdf_status"] = "not_found"
-                result["pdf_error"] = "Không tìm thấy file PDF trong Zotero storage"
+                result["pdf_error"] = t("import.pdf_not_found", lang)
 
         results.append(result)
 
@@ -991,6 +1001,7 @@ async def import_zotero_csv_with_pdfs(
 
 @router.post("/zotero-sqlite-sync")
 async def import_zotero_sqlite_sync(
+    request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(_get_db),
 ):
@@ -1000,11 +1011,12 @@ async def import_zotero_sqlite_sync(
     """
     import sqlite3
     
+    lang = get_language(request)
     zotero_dir_str = settings.zotero_data_dir
     if not zotero_dir_str or not zotero_dir_str.strip():
         raise HTTPException(
             status_code=400,
-            detail="Bạn chưa cấu hình thư mục Zotero. Vui lòng vào Cài đặt để thiết lập đường dẫn Zotero data.",
+            detail=t("import.zotero_not_configured", lang),
         )
         
     zotero_dir = Path(zotero_dir_str.strip())
@@ -1012,7 +1024,7 @@ async def import_zotero_sqlite_sync(
     if not sqlite_path.exists():
         raise HTTPException(
             status_code=400,
-            detail=f"Không tìm thấy file zotero.sqlite tại: {sqlite_path}",
+            detail=t("import.zotero_sqlite_not_found", lang, path=sqlite_path),
         )
         
     try:
@@ -1113,7 +1125,7 @@ async def import_zotero_sqlite_sync(
                 results.append({
                     "title": title,
                     "status": "error",
-                    "error": "Lỗi khi lưu vào cơ sở dữ liệu"
+                    "error": t("import.db_save_error", lang)
                 })
                 continue
                 
@@ -1143,7 +1155,8 @@ async def import_zotero_sqlite_sync(
                                 pdf_path=str(pdf_path),
                                 paper_id=paper.id,
                                 title=title,
-                                background_tasks=background_tasks
+                                background_tasks=background_tasks,
+                                lang=lang,
                             )
                             if pdf_result["status"] == "indexing":
                                 result["pdf_status"] = "indexing"
@@ -1173,5 +1186,5 @@ async def import_zotero_sqlite_sync(
         logger.error(f"Zotero SQLite sync failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Lỗi khi đồng bộ cơ sở dữ liệu Zotero: {str(e)}"
+            detail=t("import.zotero_sync_fail", lang, error=str(e))
         )

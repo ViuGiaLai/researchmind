@@ -12,6 +12,8 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
+from common.i18n import get_language, t
+
 from app_state import state
 from config.settings import settings
 from db.database import get_session
@@ -184,14 +186,15 @@ async def get_diagnostics():
 
 
 @router.post("/system/rebuild-fts")
-async def rebuild_fts_index():
+async def rebuild_fts_index(request: Request):
     """Rebuild SQLite FTS5 full-text index from chunks table."""
+    lang = get_language(request)
     if state.bm25 is None:
-        raise HTTPException(status_code=503, detail="BM25 search chưa sẵn sàng.")
+        raise HTTPException(status_code=503, detail=t("error.bm25_not_ready", lang))
     try:
         await asyncio.to_thread(state.bm25._rebuild_fts)
         logger.info("FTS index rebuilt via diagnostics")
-        return {"status": "ok", "message": "Đã rebuild chỉ mục tìm kiếm FTS."}
+        return {"status": "ok", "message": t("settings.fts_rebuilt", lang)}
     except Exception as e:
         logger.error(f"FTS rebuild failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -249,8 +252,9 @@ async def detect_specs():
 # ─── Data Management ─────────────────────────────────────────────
 
 @router.post("/data/open-folder")
-async def open_data_folder(body: dict = Body(default={})):
+async def open_data_folder(request: Request, body: dict = Body(default={})):
     """Open the specified or current local data folder in file explorer."""
+    lang = get_language(request)
     import subprocess as _subprocess
     try:
         path_str = body.get("path") or str(settings.data_dir)
@@ -262,10 +266,10 @@ async def open_data_folder(body: dict = Body(default={})):
             _subprocess.Popen(["xdg-open", str(path)])
         else:
             _subprocess.Popen(["open", str(path)])
-        return {"success": True, "message": "Đã mở thư mục dữ liệu."}
+        return {"success": True, "message": t("settings.data_dir_opened", lang)}
     except Exception as e:
         logger.error(f"Failed to open data folder: {e}")
-        raise HTTPException(status_code=500, detail=f"Không thể mở thư mục: {str(e)}")
+        raise HTTPException(status_code=500, detail=t("settings.data_dir_open_fail", lang, error=str(e)))
 
 
 @router.get("/data/disk-space")
@@ -291,8 +295,9 @@ async def check_disk_space(path: str):
 
 
 @router.post("/data/move-storage")
-async def move_storage(body: dict = Body(...)):
+async def move_storage(request: Request, body: dict = Body(...)):
     """Move all database files, papers, and vectors to a new path, update config."""
+    lang = get_language(request)
     new_path_str = body.get("new_path")
     if not new_path_str:
         raise HTTPException(status_code=400, detail="Missing new_path parameter")
@@ -301,7 +306,7 @@ async def move_storage(body: dict = Body(...)):
     old_path = settings.data_dir
 
     if old_path.resolve() == new_path.resolve():
-        return {"success": True, "message": "Thư mục mới trùng với thư mục hiện tại."}
+        return {"success": True, "message": t("settings.data_dir_same", lang)}
 
     try:
         state.engine.dispose()
@@ -366,7 +371,7 @@ async def move_storage(body: dict = Body(...)):
                 except Exception as e:
                     logger.warning(f"Could not clean up old subfolder {old_sub}: {e}")
 
-        return {"success": True, "message": f"Đã chuyển thư mục lưu trữ thành công: {new_path_str}"}
+        return {"success": True, "message": t("settings.data_dir_moved", lang, path=new_path_str)}
     except Exception as e:
         logger.error(f"Failed to move storage: {e}")
         try:
@@ -374,7 +379,7 @@ async def move_storage(body: dict = Body(...)):
             state.engine = get_engine(settings.db_path)
         except Exception:
             pass
-        raise HTTPException(status_code=500, detail=f"Lỗi khi chuyển thư mục dữ liệu: {str(e)}")
+        raise HTTPException(status_code=500, detail=t("settings.data_dir_move_fail", lang, error=str(e)))
 
 
 @router.post("/data/clear-data")
@@ -467,8 +472,9 @@ async def clear_all_data():
 
 
 @router.post("/data/reset-app")
-async def reset_app():
+async def reset_app(request: Request):
     """Fully resets the app by clearing all database tables and files."""
+    lang = get_language(request)
     try:
         state.engine.dispose()
 
@@ -512,7 +518,7 @@ async def reset_app():
         )
 
         logger.info("Application reset successfully")
-        return {"success": True, "message": "Đã reset ứng dụng về trạng thái ban đầu thành công."}
+        return {"success": True, "message": t("settings.reset_done", lang)}
     except Exception as e:
         logger.error(f"Failed to reset app: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -521,10 +527,11 @@ async def reset_app():
 # ─── Zotero Auto-Detect ──────────────────────────────────────────
 
 @router.get("/zotero/detect")
-async def detect_zotero_data_dir():
+async def detect_zotero_data_dir(request: Request):
     """
     Auto-detect Zotero data directory on Windows.
     """
+    lang = get_language(request)
     detected_path = None
     method = "not_found"
 
@@ -534,7 +541,7 @@ async def detect_zotero_data_dir():
             "path": None,
             "method": "unsupported_os",
             "has_storage": False,
-            "message": "Auto-detect chỉ hỗ trợ Windows.",
+            "message": t("settings.auto_detect_windows_only", lang),
         }
 
     appdata = os.environ.get("APPDATA", "")
@@ -623,7 +630,7 @@ async def detect_zotero_data_dir():
             "path": None,
             "method": "not_found",
             "has_storage": False,
-            "message": "Không tìm thấy thư mục Zotero data. Vui lòng nhập thủ công.",
+            "message": t("settings.zotero_not_found", lang),
         }
 
     detected = Path(detected_path)

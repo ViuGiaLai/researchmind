@@ -9,10 +9,11 @@ POST /api/academic/translate    → translate all papers in results list via Gem
 import asyncio
 import json
 import httpx
-from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi import APIRouter, Body, Query, HTTPException, Request
 from fastapi.responses import Response
 from loguru import logger
 
+from common.i18n import get_language, get_output_language_name, t
 from config.settings import settings
 
 from academic.openalex import get_work_by_doi as oa_get, search_works as oa_search
@@ -182,19 +183,21 @@ async def proxy_pdf(url: str = Query(..., description="PDF URL to proxy")):
 
 
 @router.post("/translate")
-async def translate_papers(body: dict = Body(...)):
+async def translate_papers(request: Request, body: dict = Body(...)):
     """Translate discovery result titles and abstracts from English to Vietnamese via Gemini."""
     papers = body.get("papers", [])
     if not papers:
         return {"translations": []}
+
+    lang = get_language(request)
 
     api_key = settings.gemini_translate_api_key or settings.gemini_api_key
     if not api_key:
         raise HTTPException(status_code=400, detail="Missing Gemini API key. Set GEMINI_TRANSLATE_API_KEY or GEMINI_API_KEY in .env")
 
     system_prompt = (
-        "Bạn là chuyên gia dịch thuật học thuật Anh-Việt. "
-        "Dịch title và abstract từ tiếng Anh sang tiếng Việt. "
+        f"Bạn là chuyên gia dịch thuật học thuật. Dịch từ tiếng Anh sang {get_output_language_name(lang)}. "
+        f"Dịch title và abstract từ tiếng Anh sang {get_output_language_name(lang)}. "
         "Giữ nguyên: tên tác giả, tên tạp chí, DOI, số liệu, thuật ngữ kỹ thuật (RAG, GraphRAG, LLM, Transformer, GAN, v.v.). "
         "Chỉ trả về JSON, không thêm giải thích."
     )
@@ -210,7 +213,7 @@ async def translate_papers(body: dict = Body(...)):
 
     def _build_batch_payload(batch: list[dict], model_name: str) -> tuple[str, dict]:
         prompt = json.dumps(batch, ensure_ascii=False)
-        user_prompt = f"Dịch các title và abstract sau sang tiếng Việt:\n\n{prompt}"
+        user_prompt = f"Dịch các title và abstract sau sang {get_output_language_name(lang)}:\n\n{prompt}"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         payload = {
             "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
@@ -293,8 +296,9 @@ async def translate_papers(body: dict = Body(...)):
 
 
 @router.delete("/cache/{doi:path}")
-async def invalidate_cache(doi: str):
+async def invalidate_cache(doi: str, request: Request):
     """Xoá cache cho DOI cụ thể, lần truy vấn sau sẽ fetch lại từ API."""
+    lang = get_language(request)
     cache_invalidate_doi(doi)
     logger.info(f"VERIFY_CACHE invalidated doi={doi}")
-    return {"status": "ok", "doi": doi, "message": f"Đã xoá cache cho {doi}"}
+    return {"status": "ok", "doi": doi, "message": t("academic.cache_cleared", lang, doi=doi)}

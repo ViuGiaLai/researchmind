@@ -17,4 +17,4 @@ Nguồn: {{ result.title }} (trang {{ result.page or 'N/A' }})
 1. Tổng hợp thông tin từ nhiều nguồn, chỉ ra điểm đồng thuận và mâu thuẫn (nếu có).
 2. Mỗi luận điểm kèm trích dẫn đầy đủ.
 3. Nếu không tìm thấy thông tin liên quan, trả lời "Không tìm thấy thông tin trong cơ sở dữ liệu hiện tại."
-4. Trả lời bằng tiếng Việt.
+4. Trả lời bằng {{ output_language|default("Tiếng Việt") }}.

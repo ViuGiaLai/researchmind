@@ -11,6 +11,7 @@ from typing import Any
 from loguru import logger
 
 from app_state import state
+from common.i18n import t as _t
 from .errors import GraphBuildCancelled
 from .models import (
     GraphEntity,
@@ -23,7 +24,7 @@ from .cluster import detect_communities
 from .summarizer import summarize_community
 
 
-def _set_progress(phase: str, current: int, total: int, message: str):
+def _set_progress(phase: str, current: int, total: int, message: str, lang: str = "vi"):
     pct = int((current / total) * 100) if total > 0 else 0
     state.build_progress = {
         "phase": phase,
@@ -31,6 +32,7 @@ def _set_progress(phase: str, current: int, total: int, message: str):
         "total": total,
         "percent": pct,
         "message": message,
+        "lang": lang,
     }
 
 
@@ -105,6 +107,7 @@ async def build_graph_from_chunks(
     generator: Any = None,
     entity_types: list[str] | None = None,
     max_gleanings: int = 2,
+    lang: str = "vi",
 ) -> KnowledgeGraph:
     """Build knowledge graph from paper chunks."""
     if entity_types is None:
@@ -163,7 +166,8 @@ async def build_graph_from_chunks(
                 "extract",
                 n_end,
                 total_chunks,
-                f"Trích xuất thực thể: chunk {i + 1}–{n_end}/{total_chunks}",
+                _t("graph.extracting_entities_progress", lang, start=i + 1, end=n_end, total=total_chunks),
+                lang=lang,
             )
             logger.info(f"Extracting graph from chunks {i + 1}–{n_end}/{total_chunks}")
 
@@ -189,17 +193,16 @@ async def build_graph_from_chunks(
     except GraphBuildCancelled:
         await _cancel_active_tasks()
         logger.warning("Graph build cancelled by user")
-        _set_progress("cancelled", processed, total_chunks, "Đã hủy xây dựng sơ đồ")
+        _set_progress("cancelled", processed, total_chunks, _t("graph.cancelled", lang), lang=lang)
         graph_store.save()
         raise
 
     if not graph.entities:
         logger.warning("No entities extracted from any chunk")
-        _set_progress("done", 100, 100, "Không tìm thấy thực thể")
+        _set_progress("done", 100, 100, _t("graph.no_entities_found", lang), lang=lang)
         graph_store.save()
         return graph
-
-    _set_progress("cluster", 90, 100, "Đang phát hiện cộng đồng...")
+    _set_progress("cluster", 90, 100, _t("graph.clustering", lang), lang=lang)
     logger.info("Detecting communities...")
     communities = detect_communities(graph.entities, graph.relationships)
     n_communities = len(communities)
@@ -224,14 +227,15 @@ async def build_graph_from_chunks(
                 "summarize",
                 idx + 1,
                 n_communities,
-                f"Tóm tắt cộng đồng {idx + 1}/{n_communities}...",
+                _t("graph.community_summary", lang, current=idx + 1, total=n_communities),
+                lang=lang,
             )
             if comm.id not in graph.community_reports:
                 report = await summarize_community(comm, graph, generator)
                 if report:
                     graph.add_community_report(report)
 
-    _set_progress("done", 100, 100, "Hoàn tất")
+    _set_progress("done", 100, 100, _t("graph.completed", lang), lang=lang)
     graph_store.save()
     logger.info(f"Graph build complete: {graph.stats()}")
     return graph

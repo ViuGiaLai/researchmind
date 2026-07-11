@@ -6,6 +6,8 @@ Endpoints:
 - GET /api/papers/{paper_id}/export/docx   → Full paper as Word document
 """
 
+# Export display labels are intentionally in English — academic exports standardise on English as a neutral language.
+
 import io
 import json
 import re
@@ -17,6 +19,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from common.i18n import t, get_language
 from db.database import get_session
 from db.models import Paper, Chunk
 
@@ -445,8 +448,9 @@ async def export_paper_html(paper_id: str, db: Session = Depends(_get_db)):
 # ─── DOCX Export ────────────────────────────────────────────────
 
 @router.get("/{paper_id}/export/docx")
-async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db)):
+async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db), request: Request = None):
     """Export full paper content as a Word document (.docx)."""
+    lang = get_language(request) if request else "vi"
     data = _get_paper_data(paper_id, db)
     if not data:
         raise HTTPException(status_code=404, detail="Paper not found")
@@ -459,7 +463,7 @@ async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db)):
     except ImportError:
         raise HTTPException(
             status_code=500,
-            detail="python-docx chưa được cài đặt. Chạy lệnh: pip install python-docx"
+            detail=t("export.docx_not_installed", lang),
         )
 
     doc = Document()
@@ -589,11 +593,15 @@ class SynthesisExportRequest(BaseModel):
     format: str  # "docx" or "html" or "markdown"
 
 @router.post("/export/synthesis")
-async def export_synthesis(request: SynthesisExportRequest):
+async def export_synthesis(
+    req: SynthesisExportRequest,
+    request: Request,
+):
     """Export arbitrary synthesis markdown content as a DOCX or HTML or Markdown file."""
-    title = request.title
-    content = request.content
-    fmt = request.format.lower()
+    lang = get_language(request)
+    title = req.title
+    content = req.content
+    fmt = req.format.lower()
 
     if fmt == "markdown" or fmt == "md":
         buf = io.BytesIO(content.encode("utf-8"))
@@ -886,7 +894,7 @@ async def export_synthesis(request: SynthesisExportRequest):
         except ImportError:
             raise HTTPException(
                 status_code=500,
-                detail="fpdf2 chưa được cài đặt. Chạy lệnh: pip install fpdf2"
+                detail=t("export.fpdf_not_installed", lang),
             )
 
         pdf = FPDF()
@@ -1103,7 +1111,7 @@ async def export_synthesis(request: SynthesisExportRequest):
         except ImportError:
             raise HTTPException(
                 status_code=500,
-                detail="python-docx chưa được cài đặt. Chạy lệnh: pip install python-docx"
+                detail=t("export.docx_not_installed", lang),
             )
 
         doc = Document()

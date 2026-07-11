@@ -5,12 +5,21 @@
  * Backend runs at http://127.0.0.1:8765 by default.
  */
 
+import i18n from "../i18n";
+
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
 
 const NGROK_HEADERS = { "ngrok-skip-browser-warning": "true" };
 
+/** Get the current UI language for X-Language header (always normalized to vi/en/ja). */
+function getLangHeader(): string {
+  const lang = (i18n.language || "vi").split("-")[0];
+  if (lang === "vi" || lang === "en" || lang === "ja") return lang;
+  return "vi";
+}
+
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { ...NGROK_HEADERS, ...extra };
+  return { "X-Language": getLangHeader(), ...NGROK_HEADERS, ...extra };
 }
 
 function parseApiError(status: number, text: string): string {
@@ -94,7 +103,7 @@ async function request<T>(
   const url = `${BASE_URL}${path}`;
   const options: RequestInit = {
     method,
-    headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+    headers: { "X-Language": getLangHeader(), "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
   };
   if (body !== undefined) {
     options.body = JSON.stringify(body);

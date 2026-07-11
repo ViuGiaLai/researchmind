@@ -169,7 +169,7 @@ class EvidenceMatrixDraft(Base):
     __tablename__ = "evidence_matrix_drafts"
 
     id = Column(String, primary_key=True, default=generate_uuid)
-    title = Column(String, default="Ma trận so sánh")
+    title = Column(String, default="Comparison Matrix")
     paper_ids = Column(Text, default="[]")         # JSON array
     paper_names = Column(Text, default="[]")        # JSON array
     columns = Column(Text, default="[]")            # JSON array of paper titles

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 import asyncio
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from pydantic import BaseModel
 from typing import Any
 
 from loguru import logger
 
+from common.i18n import t, get_language
 from app_state import state
 from db.database import get_session
 from db.models import Chunk
@@ -72,6 +73,7 @@ async def _run_graph_build(
     generator: Any,
     entity_types: list[str] | None,
     max_gleanings: int,
+    lang: str = "vi",
 ) -> None:
     try:
         graph = await build_graph_from_chunks(
@@ -80,6 +82,7 @@ async def _run_graph_build(
             generator=generator,
             entity_types=entity_types,
             max_gleanings=max_gleanings,
+            lang=lang,
         )
         if not state.build_cancelled:
             stats = graph.stats()
@@ -88,7 +91,7 @@ async def _run_graph_build(
                 "current": stats.get("text_units", 0),
                 "total": stats.get("text_units", 0),
                 "percent": 100,
-                "message": "Hoàn tất",
+                "message": t("graph.completed", lang),
                 "stats": stats,
             }
     except GraphBuildCancelled:
@@ -98,7 +101,7 @@ async def _run_graph_build(
             "current": stats.get("text_units", 0),
             "total": len(chunk_dicts),
             "percent": state.build_progress.get("percent", 0),
-            "message": "Đã hủy xây dựng sơ đồ",
+            "message": t("graph.cancelled", lang),
             "stats": stats,
         }
     except Exception as e:
@@ -116,10 +119,11 @@ async def _run_graph_build(
 
 
 @router.post("/build")
-async def build_graph(req: GraphBuildRequest):
+async def build_graph(req: GraphBuildRequest, request: Request):
     """Start knowledge graph build in the background."""
+    lang = get_language(request)
     if getattr(state, "build_running", False):
-        raise HTTPException(status_code=409, detail="Đang xây dựng sơ đồ — vui lòng đợi hoặc bấm Dừng.")
+        raise HTTPException(status_code=409, detail=t("graph.already_building", lang))
 
     store = _get_graph_store()
 
@@ -157,7 +161,7 @@ async def build_graph(req: GraphBuildRequest):
         "current": 0,
         "total": len(chunk_dicts),
         "percent": 0,
-        "message": f"Bắt đầu trích xuất {len(chunk_dicts)} chunks...",
+        "message": t("graph.extracting_chunks", lang, count=len(chunk_dicts)),
     }
 
     asyncio.create_task(
@@ -167,12 +171,13 @@ async def build_graph(req: GraphBuildRequest):
             generator,
             req.entity_types,
             req.max_gleanings,
+            lang,
         )
     )
 
     return {
         "status": "started",
-        "message": f"Đang xây dựng sơ đồ từ {len(chunk_dicts)} chunks",
+        "message": t("graph.building", lang, count=len(chunk_dicts)),
         "total_chunks": len(chunk_dicts),
     }
 
@@ -184,16 +189,17 @@ async def build_progress():
 
 
 @router.post("/build/cancel")
-async def cancel_build():
+async def cancel_build(request: Request):
     """Cancel the current graph build."""
+    lang = get_language(request)
     if not getattr(state, "build_running", False):
-        return {"status": "ok", "message": "Không có tiến trình build đang chạy"}
+        return {"status": "ok", "message": t("graph.no_build_running", lang)}
 
     state.build_cancelled = True
     state.build_progress = {
         **state.build_progress,
         "phase": "cancelling",
-        "message": "Đang hủy — dừng các chunk đang xử lý...",
+        "message": t("graph.cancelling", lang),
     }
 
     tasks = list(getattr(state, "build_tasks", []))

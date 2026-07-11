@@ -29,6 +29,7 @@ from .providers.openai_provider import OpenAIProviderMixin
 from .providers.gemini_provider import GeminiProviderMixin
 from .providers.claude_provider import ClaudeProviderMixin
 from .providers.local_provider import LocalProviderMixin
+from common.i18n import get_output_language_name, t as _t
 
 
 class Generator(
@@ -586,6 +587,8 @@ class Generator(
         override = getattr(self._local, 'system_prompt_override', None)
         if override:
             return override
+        lang = getattr(self._local, 'lang', 'vi')
+        lang_name = get_output_language_name(lang)
         fast_rule = ""
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
         if is_fast:
@@ -611,7 +614,7 @@ class Generator(
         return (
             "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
             "## QUY TẮC NGÔN NGỮ (QUAN TRỌNG):\n"
-            "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+            f"- Luôn trả lời bằng {lang_name}. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
             "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n"
             "- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào trong câu trả lời.\n\n"
             "## QUY TẮC ĐỊNH DẠNG:\n"
@@ -632,6 +635,8 @@ class Generator(
         override = getattr(self._local, 'system_prompt_override', None)
         if override:
             return override
+        lang = getattr(self._local, 'lang', 'vi')
+        lang_name = get_output_language_name(lang)
         fast_rule = ""
         if getattr(self._local, 'reasoning_mode', 'fast') == "fast":
             fast_rule = """
@@ -639,7 +644,7 @@ class Generator(
         return (
             "B\u1ea1n l\u00e0 tr\u1ee3 l\u00fd nghi\u00ean c\u1ee9u AI. Nhi\u1ec7m v\u1ee5 c\u1ee7a b\u1ea1n l\u00e0 tr\u1ea3 l\u1eddi c\u00e2u h\u1ecfi d\u1ef1a tr\u00ean c\u00e1c t\u00e0i li\u1ec7u \u0111\u01b0\u1ee3c cung c\u1ea5p n\u1ebfu c\u00f3.\n\n"
             "## QUY T\u1eaeC NG\u00d4N NG\u1eee (QUAN TR\u1eccNG):\n"
-            "- Lu\u00f4n tr\u1ea3 l\u1eddi b\u1eb1ng TI\u1ebeNG VI\u1ec6T. Tuy\u1ec7t \u0111\u1ed1i KH\u00d4NG d\u00f9ng ti\u1ebfng Trung Qu\u1ed1c.\n"
+            f"- Lu\u00f4n tr\u1ea3 l\u1eddi b\u1eb1ng {lang_name}. Tuy\u1ec7t \u0111\u1ed1i KH\u00d4NG d\u00f9ng ti\u1ebfng Trung Qu\u1ed1c.\n"
             "- N\u1ebfu c\u00e2u h\u1ecfi b\u1eb1ng ti\u1ebfng Anh, tr\u1ea3 l\u1eddi b\u1eb1ng ti\u1ebfng Anh.\n"
             "- KH\u00d4NG bao g\u1ed3m b\u1ea5t k\u1ef3 k\u00fd t\u1ef1 Trung Qu\u1ed1c n\u00e0o trong c\u00e2u tr\u1ea3 l\u1eddi.\n\n"
             "## QUY T\u1eaeC \u0110\u1ecaNH D\u1ea0NG:\n"
@@ -656,12 +661,14 @@ class Generator(
         )
 
     def _get_external_system_prompt(self) -> str:
+        lang = getattr(self._local, 'lang', 'vi')
+        lang_name = get_output_language_name(lang)
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
         if is_fast:
             return (
                 "Bạn là trợ lý AI thông thái. Trả lời ngắn gọn, trực tiếp, KHÔNG suy luận hay giải thích dài dòng.\n\n"
                 "## QUY TẮC NGÔN NGỮ:\n"
-                "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+                f"- Luôn trả lời bằng {lang_name}. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
                 "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n"
                 "- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào.\n\n"
                 "## QUY TẮC NỘI DUNG:\n"
@@ -674,7 +681,7 @@ class Generator(
             return (
                 "Bạn là trợ lý AI thông thái, có kiến thức sâu rộng và năng lực lập luận xuất sắc. Hãy trả lời câu hỏi một cách đầy đủ, chính xác, chi tiết và có chiều sâu.\n\n"
                 "## QUY TẮC NGÔN NGỮ:\n"
-                "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+                f"- Luôn trả lời bằng {lang_name}. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
                 "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n"
                 "- KHÔNG bao gồm bất kỳ ký tự Trung Quốc nào trong câu trả lời.\n\n"
                 "## QUY TẮC NỘI DUNG & TRÌNH BÀY:\n"
@@ -687,6 +694,8 @@ class Generator(
     def _get_local_system_prompt(self) -> str:
         if getattr(self._local, 'system_prompt_override', None):
             return self._local.system_prompt_override
+        lang = getattr(self._local, 'lang', 'vi')
+        lang_name = get_output_language_name(lang)
         fast_rule = ""
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
         if is_fast:
@@ -699,7 +708,7 @@ class Generator(
         return (
             "Bạn là trợ lý nghiên cứu AI. Nhiệm vụ của bạn là trả lời câu hỏi dựa trên các tài liệu được cung cấp nếu có.\n\n"
             "## QUY TẮC NGÔN NGỮ:\n"
-            "- Luôn trả lời bằng TIẾNG VIỆT. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
+            f"- Luôn trả lời bằng {lang_name}. Tuyệt đối KHÔNG dùng tiếng Trung Quốc.\n"
             "- Nếu câu hỏi bằng tiếng Anh, trả lời bằng tiếng Anh.\n\n"
             "## QUY TẮC NỘI DUNG:\n"
             "1. Ưu tiên trả lời dựa trên thông tin trong context được cung cấp.\n"
@@ -712,13 +721,15 @@ class Generator(
     def _get_local_system_prompt_disabled(self) -> str:
         if getattr(self._local, 'system_prompt_override', None):
             return self._local.system_prompt_override
+        lang = getattr(self._local, 'lang', 'vi')
+        lang_name = get_output_language_name(lang)
         fast_rule = ""
         if getattr(self._local, 'reasoning_mode', 'fast') == "fast":
             fast_rule = "\n6. \u26a1 **Tr\u1ea3 l\u1eddi tr\u1ef1c ti\u1ebfp, kh\u00f4ng suy lu\u1eadn.** KH\u00d4NG \u0111\u01b0\u1ee3c t\u1ef1 \u0111\u1eb7t c\u00e2u h\u1ecfi, KH\u00d4NG suy ngh\u0129 n\u1ed9i b\u1ed9. Ch\u1ec9 \u0111\u01b0a ra c\u00e2u tr\u1ea3 l\u1eddi cu\u1ed1i c\u00f9ng ngay l\u1eadp t\u1ee9c."
         return (
             "B\u1ea1n l\u00e0 tr\u1ee3 l\u00fd nghi\u00ean c\u1ee9u AI. Nhi\u1ec7m v\u1ee5 c\u1ee7a b\u1ea1n l\u00e0 tr\u1ea3 l\u1eddi c\u00e2u h\u1ecfi d\u1ef1a tr\u00ean c\u00e1c t\u00e0i li\u1ec7u \u0111\u01b0\u1ee3c cung c\u1ea5p n\u1ebfu c\u00f3.\n\n"
             "## QUY T\u1eaeC NG\u00d4N NG\u1eee:\n"
-            "- Lu\u00f4n tr\u1ea3 l\u1eddi b\u1eb1ng TI\u1ebeNG VI\u1ec6T. Tuy\u1ec7t \u0111\u1ed1i KH\u00d4NG d\u00f9ng ti\u1ebfng Trung Qu\u1ed1c.\n"
+            f"- Lu\u00f4n tr\u1ea3 l\u1eddi b\u1eb1ng {lang_name}. Tuy\u1ec7t \u0111\u1ed1i KH\u00d4NG d\u00f9ng ti\u1ebfng Trung Qu\u1ed1c.\n"
             "- N\u1ebfu c\u00e2u h\u1ecfi b\u1eb1ng ti\u1ebfng Anh, tr\u1ea3 l\u1eddi b\u1eb1ng ti\u1ebfng Anh.\n\n"
             "## QUY T\u1eaeC N\u1ed8I DUNG:\n"
             "1. \u01afu ti\u00ean tr\u1ea3 l\u1eddi d\u1ef1a tr\u00ean th\u00f4ng tin trong context \u0111\u01b0\u1ee3c cung c\u1ea5p.\n"
@@ -739,9 +750,11 @@ class Generator(
         task_type: str = "chat",
         strict_evidence: bool = False,
         use_cache: bool = True,
+        lang: str = "vi",
     ) -> GenerationResult:
         self._local.reasoning_mode = reasoning_mode
         self._local.strict_evidence = strict_evidence
+        self._local.lang = lang
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
@@ -974,7 +987,9 @@ class Generator(
         system_prompt: str = "",
         max_tokens: int = 1024,
         task_type: str = "research",
+        lang: str = "vi",
     ) -> str:
+        self._local.lang = lang
         saved_override = getattr(self, '_system_prompt_override', None)
         self._system_prompt_override = system_prompt or saved_override or self._get_system_prompt()
         try:
@@ -992,15 +1007,18 @@ class Generator(
         system_prompt: str = "",
         max_tokens: int = 1024,
         task_type: str = "research",
+        lang: str = "vi",
     ) -> str:
         import asyncio
         return await asyncio.to_thread(
-            self.generate_direct, user_prompt, system_prompt, max_tokens, task_type,
+            self.generate_direct, user_prompt, system_prompt, max_tokens, task_type, lang,
         )
 
     # ── Verify ─────────────────────────────────────────────────
 
     def _get_verify_system_prompt(self) -> str:
+        lang = getattr(self._local, 'lang', 'vi')
+        lang_name = get_output_language_name(lang)
         return (
             "B\u1ea1n l\u00e0 chuy\u00ean gia x\u00e1c th\u1ef1c nghi\u00ean c\u1ee9u h\u1ecdc thu\u1eadt. "
             "Ki\u1ec3m ch\u1ee9ng tuy\u00ean b\u1ed1 t\u1eeb LOCAL PDF v\u00e0 ngu\u1ed3n NGO\u00c0I (OpenAlex, Crossref).\n\n"
@@ -1010,7 +1028,7 @@ class Generator(
             "So s\u00e1nh k\u1ebft lu\u1eadn: h\u1ed7 tr\u1ee3 \u2705 / m\u00e2u thu\u1eabn \u26a0\ufe0f / c\u1ea7n th\u00eam b\u1eb1ng ch\u1ee9ng \u2753\n\n"
             "N\u1ebfu kh\u00f4ng c\u00f3 d\u1eef li\u1ec7u ngo\u00e0i: ch\u1ec9 d\u00f9ng local PDF. "
             "N\u1ebfu kh\u00f4ng \u0111\u1ee7: b\u00e1o kh\u00f4ng t\u00ecm th\u1ea5y. "
-            "Tr\u1ea3 l\u1eddi ti\u1ebfng Vi\u1ec7t, c\u1ea5u tr\u00fac r\u00f5 r\u00e0ng."
+            f"Tr\u1ea3 l\u1eddi {lang_name}, c\u1ea5u tr\u00fac r\u00f5 r\u00e0ng."
         )
 
     def generate_verify(
@@ -1020,7 +1038,9 @@ class Generator(
         external_data_text: str = "",
         citations_meta: Optional[list[dict]] = None,
         task_type: str = "verify",
+        lang: str = "vi",
     ) -> GenerationResult:
+        self._local.lang = lang
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         combined_context = context_text
         if external_data_text.strip():
@@ -1030,7 +1050,7 @@ class Generator(
 
         if not combined_context.strip():
             return GenerationResult(
-                content="Kh\u00f4ng c\u00f3 d\u1eef li\u1ec7u \u0111\u1ec3 x\u00e1c th\u1ef1c. Vui l\u00f2ng ch\u1ecdn paper ho\u1eb7c nh\u1eadp c\u00e2u h\u1ecfi.",
+                content=_t("verify.no_context", lang),
                 citations=[], model_used="none", finish_reason="no_context",
             )
 
@@ -1141,9 +1161,11 @@ class Generator(
         reasoning_mode: str = "fast",
         task_type: str = "chat",
         strict_evidence: bool = False,
+        lang: str = "vi",
     ):
         self._local.reasoning_mode = reasoning_mode
         self._local.strict_evidence = strict_evidence
+        self._local.lang = lang
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
@@ -1173,9 +1195,11 @@ class Generator(
         query: str,
         context_text: str,
         task_type: str = "verify",
+        lang: str = "vi",
     ):
+        self._local.lang = lang
         if not context_text.strip() or len(context_text.strip()) < 50:
-            yield "Kh\u00f4ng t\u00ecm th\u1ea5y t\u00e0i li\u1ec7u li\u00ean quan. Vui l\u00f2ng import PDF tr\u01b0\u1edbc ho\u1eb7c th\u1eed c\u00e2u h\u1ecfi kh\u00e1c."
+            yield _t("verify.no_docs_found", lang)
             return
 
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
@@ -1223,8 +1247,8 @@ class Generator(
             for provider in chain:
                 if provider == "local":
                     self._set_model(f"local/{self.local_model}")
-                    if tried_any:
-                        yield "\n⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n"
+                    lang = getattr(self._local, 'lang', 'vi')
+                    yield _t("provider.stream.fallback_local", lang)
                     fitted = self._fit_prompt(user_prompt, "local", max_tokens)
                     for chunk in self._stream_local(fitted):
                         yield chunk
@@ -1247,7 +1271,8 @@ class Generator(
 
             # Last resort
             self._set_model(f"local/{self.local_model}")
-            yield "\n⚠️ Không có provider nào hoạt động. Đang dùng Local model...\n"
+            lang = getattr(self._local, 'lang', 'vi')
+            yield _t("provider.stream.no_provider", lang)
             fitted = self._fit_prompt(user_prompt, "local", max_tokens)
             for chunk in self._stream_local(fitted):
                 yield chunk

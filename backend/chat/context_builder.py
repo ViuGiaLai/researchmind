@@ -10,7 +10,15 @@ Supports multiple content types: sources, notes, insights, chat history.
 from dataclasses import dataclass, field
 from typing import Any
 
+from common.i18n import get_output_language_name
 from common.text_utils import count_tokens, truncate_to_token_limit
+
+
+_ROLE_LABELS: dict[str, dict[str, str]] = {
+    "vi": {"user": "Người", "assistant": "Trợ lý"},
+    "en": {"user": "User", "assistant": "Assistant"},
+    "ja": {"user": "ユーザー", "assistant": "アシスタント"},
+}
 
 
 @dataclass
@@ -53,9 +61,11 @@ class ContextBuilder:
         self,
         token_budget: int = 8000,
         model: str = "gpt-4o",
+        lang: str = "vi",
     ):
         self.token_budget = token_budget
         self.model = model
+        self.lang = lang
         self.items: list[ContextItem] = []
 
     def add(
@@ -95,10 +105,11 @@ class ContextBuilder:
         Add chat history.
         messages: list of {"role": "...", "content": "..."}
         """
+        labels = _ROLE_LABELS.get(self.lang, _ROLE_LABELS["vi"])
         recent = messages[-(max_pairs * 2):]  # limit pairs
         parts = []
         for msg in recent:
-            role = "Người" if msg.get("role") == "user" else "Trợ lý"
+            role = labels["user"] if msg.get("role") == "user" else labels["assistant"]
             parts.append(f"{role}: {msg.get('content', '')}")
         if parts:
             self.add("\n".join(parts), priority=0.6, source_type="history")

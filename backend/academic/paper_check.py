@@ -7,9 +7,10 @@ from loguru import logger
 from app_state import state
 from db.database import get_session
 from db.models import Paper
+from common.i18n import t
 
 
-def check_papers_ready(paper_ids: Optional[list[str]]) -> Optional[str]:
+def check_papers_ready(paper_ids: Optional[list[str]], lang: str = "vi") -> Optional[str]:
     """
     Kiểm tra tất cả paper đã được index chưa.
     Returns: error message (str) nếu có vấn đề, None nếu OK.
@@ -24,21 +25,22 @@ def check_papers_ready(paper_ids: Optional[list[str]]) -> Optional[str]:
         missing = [pid for pid in paper_ids if pid not in found_ids]
         if missing:
             label = ", ".join(missing[:3])
-            suffix = f" (+{len(missing) - 3} nữa)" if len(missing) > 3 else ""
-            return f"⚠️ Không tìm thấy paper: {label}{suffix}. Vui lòng chọn lại từ thư viện."
+            if len(missing) > 3:
+                label += f" (+{len(missing) - 3} nữa)"
+            return t("verify.paper_not_found", lang, label=label)
         for p in papers:
             if p.status in ("indexing", "summarizing"):
                 logger.warning(f"Paper {p.id} ({p.filename}) still indexing")
-                return f"⚠️ Paper **{p.filename}** đang được index. Vui lòng đợi vài giây rồi thử lại."
+                return t("verify.paper_indexing", lang, filename=p.filename)
             if p.status == "needs_ocr":
                 logger.warning(f"Paper {p.id} ({p.filename}) needs OCR")
-                return f"⚠️ Paper **{p.filename}** có vẻ là PDF scan và cần OCR lại trước khi dùng AI."
+                return t("verify.paper_scanned", lang, filename=p.filename)
             if p.status == "failed":
                 logger.warning(f"Paper {p.id} ({p.filename}) indexing failed")
-                return f"⚠️ Paper **{p.filename}** index thất bại. Vui lòng import lại."
+                return t("verify.paper_index_failed", lang, filename=p.filename)
             if p.status == "pending":
                 logger.warning(f"Paper {p.id} ({p.filename}) pending")
-                return f"⚠️ Paper **{p.filename}** chưa được index. Vui lòng import lại."
+                return t("verify.paper_not_indexed", lang, filename=p.filename)
         return None
     finally:
         session.close()

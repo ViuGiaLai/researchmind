@@ -2,6 +2,7 @@
 
 from typing import Optional
 from loguru import logger
+from common.i18n import t as _t
 from ..types import GenerationResult
 
 
@@ -31,6 +32,7 @@ class ClaudeProviderMixin:
                                     model_used=f"claude/{self.claude_model}",
                                     finish_reason=response.stop_reason or "stop")
         except Exception as e:
+            lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Claude generation failed: {e}")
-            return GenerationResult(content=f"⚠️ Lỗi Claude: {str(e)}",
+            return GenerationResult(content=_t("provider.error.claude", lang, error=str(e)),
                                     citations=[], model_used="claude/error", finish_reason="error")

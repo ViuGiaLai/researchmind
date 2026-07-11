@@ -10,6 +10,7 @@ Executes a multi-step research flow with perspective-guided decomposition:
 
 from typing import Optional
 from loguru import logger
+from common.i18n import get_output_language_name, t as _t
 
 from dataclasses import dataclass
 from research.planner import (
@@ -39,6 +40,7 @@ def deep_research(
     generator: Generator,
     paper_ids: Optional[list[str]] = None,
     top_k_per_question: int = 3,
+    lang: str = "vi",
 ) -> DeepResearchResult:
     """Execute deep research on a query.
 
@@ -53,7 +55,7 @@ def deep_research(
     """
     # Step 1: Decompose
     logger.info(f"Deep research: decomposing query: {query}")
-    plan = decompose_query(query)
+    plan = decompose_query(query, lang=lang)
     if not plan.sub_questions:
         plan.sub_questions = [query]
 
@@ -76,7 +78,8 @@ Context:
 
 Câu hỏi phụ: {sub_q}
 
-Trả lời chi tiết, chỉ dựa trên context, trích dẫn [Tên Paper] cho mỗi thông tin.""",
+Trả lời chi tiết, chỉ dựa trên context, trích dẫn [Tên Paper] cho mỗi thông tin.
+Trả lời bằng {get_output_language_name(lang)}.""",
                     system_prompt="Bạn là trợ lý nghiên cứu. Trả lời dựa trên context được cung cấp.",
                     task_type="research",
                 )
@@ -84,18 +87,18 @@ Trả lời chi tiết, chỉ dựa trên context, trích dẫn [Tên Paper] cho
                     findings.append(f"## {sub_q}\n\n{result}")
             else:
                 logger.warning(f"No context found for sub-question: {sub_q}")
-                findings.append(f"## {sub_q}\n\n(Không tìm thấy thông tin trong tài liệu đã import.)")
+                findings.append(f"## {sub_q}\n\n{_t('research.no_info_found', lang)}")
         except Exception as e:
             logger.error(f"Research failed for sub-question '{sub_q}': {e}")
-            findings.append(f"## {sub_q}\n\n(Lỗi khi tra cứu: {e})")
+            findings.append(f"## {sub_q}\n\n{_t('research.lookup_error', lang, error=str(e))}")
 
     # Step 3: Compress
     logger.info("Compressing research findings...")
-    compressed = compress_findings(findings)
+    compressed = compress_findings(findings, lang=lang)
 
     # Step 4: Synthesize
     logger.info("Synthesizing final answer...")
-    final_answer = synthesize_answer(query, compressed)
+    final_answer = synthesize_answer(query, compressed, lang=lang)
 
     return DeepResearchResult(
         content=final_answer,

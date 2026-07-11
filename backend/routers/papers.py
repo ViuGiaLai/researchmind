@@ -7,10 +7,11 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from common.i18n import t, get_language, get_output_language_name
 from sqlalchemy import or_
 
 from app_state import state
@@ -326,10 +327,12 @@ def _document_needs_ocr(doc) -> bool:
 
 @router.post("/import")
 async def import_document(
+    request: Request,
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = None,
 ):
     """Import a single document (PDF, DOCX, TXT, MD, HTML, EPUB)."""
+    lang = get_language(request)
     ext = Path(file.filename).suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
@@ -387,6 +390,7 @@ async def import_document(
             str(save_path),
             job_id,
             file.filename or safe_name,
+            lang,
         )
         return {
             "paper_id": file_id,
@@ -407,6 +411,7 @@ async def import_document(
         str(save_path),
         job_id,
         file.filename or safe_name,
+        lang,
     )
 
     return {
@@ -424,10 +429,12 @@ async def import_document(
 
 @router.post("/import/folder")
 async def import_folder(
+    request: Request,
     folder_path: str = Body(..., embed=True),
     background_tasks: BackgroundTasks = None,
 ):
     """Import all supported documents from a folder."""
+    lang = get_language(request)
     folder = Path(folder_path)
     if not folder.exists() or not folder.is_dir():
         raise HTTPException(status_code=400, detail=f"Folder not found: {folder_path}")
@@ -448,12 +455,12 @@ async def import_folder(
             _update_import_job(job_id, status="parsing", stage="parsing", progress=20)
             doc = await asyncio.to_thread(extract_document, str(doc_file))
             if doc is None:
-                _update_import_job(job_id, status="failed", stage="parsing", progress=100, error="Cannot parse document")
+                _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=t("papers.parse_fail", lang))
                 import_results.append({
                     "job_id": job_id,
                     "filename": doc_file.name,
                     "status": "failed",
-                    "error": "Cannot parse document",
+                    "error": t("papers.parse_fail", lang),
                 })
                 continue
 
@@ -497,7 +504,7 @@ async def import_folder(
             finally:
                 session.close()
 
-            background_tasks.add_task(_index_paper, file_id, doc, job_id)
+            background_tasks.add_task(_index_paper, file_id, doc, job_id, lang)
             background_tasks.add_task(
                 _enrich_paper_background,
                 paper_id=file_id,
@@ -643,6 +650,7 @@ def _parse_and_index_image_paper(
     file_path: str,
     job_id: str | None,
     filename: str,
+    lang: str = "vi",
 ):
     """OCR + index image files in background (RapidOCR cold start can take minutes)."""
     logger.info(f"Background OCR/index for image: {filename}")
@@ -660,7 +668,7 @@ def _parse_and_index_image_paper(
             status="failed",
             stage="ocr",
             progress=100,
-            error="Không thể OCR hình ảnh.",
+            error=t("import.ocr_fail", lang),
         )
         session = get_session(state.engine)
         try:
@@ -687,7 +695,7 @@ def _parse_and_index_image_paper(
     finally:
         session.close()
 
-    _index_paper(file_id, doc, job_id)
+    _index_paper(file_id, doc, job_id, lang)
 
     authors: list[str] = []
     if doc.authors:
@@ -714,6 +722,7 @@ def _parse_and_index_document_paper(
     file_path: str,
     job_id: str | None,
     filename: str,
+    lang: str = "vi",
 ):
     """Parse + index non-image documents in the background."""
     logger.info(f"Background parse/index for document: {filename}")
@@ -772,7 +781,7 @@ def _parse_and_index_document_paper(
         ocr_pages_failed=getattr(doc, "ocr_pages_failed", 0),
         is_scanned=1 if getattr(doc, "is_scanned", False) else 0,
     )
-    _index_paper(file_id, doc, job_id)
+    _index_paper(file_id, doc, job_id, lang)
 
     try:
         asyncio.run(_enrich_paper_background(
@@ -785,7 +794,7 @@ def _parse_and_index_document_paper(
         pass
 
 
-def _index_paper(file_id: str, doc, job_id: str | None = None):
+def _index_paper(file_id: str, doc, job_id: str | None = None, lang: str = "vi"):
     """
     Background indexing: chunk -> embed -> store in ChromaDB + FTS5.
     Runs as a background task after PDF import.
@@ -819,7 +828,7 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
                 status=next_status,
                 stage="ocr" if next_status == "needs_ocr" else "indexing",
                 progress=100,
-                error="Không trích xuất đủ text. Tài liệu có thể là PDF scan cần OCR lại." if next_status == "needs_ocr" else "Không tạo được chunk từ tài liệu.",
+                error=t("import.pdf_retry_scanned", lang) if next_status == "needs_ocr" else t("import.chunk_fail", lang),
             )
             return
 
@@ -878,7 +887,8 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
             if conclusion_chunk and conclusion_chunk.chunk_index > 2:
                 summary_context += f"\n\nKết luận:\n{conclusion_chunk.content}"
 
-            summary_prompt = """Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này. 
+            output_lang = get_output_language_name(lang)
+            summary_prompt = f"""Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này. 
 Trả về kết quả dưới định dạng Markdown như sau:
 
 ### 🧠 Tóm tắt tự động bởi ResearchMind:
@@ -886,12 +896,13 @@ Trả về kết quả dưới định dạng Markdown như sau:
 * **Đóng góp chính (Contributions)**: [Viết 1-2 dòng về các đóng góp khoa học chính]
 * **Điểm yếu / Hạn chế (Weaknesses)**: [Viết 1 dòng về các hạn chế được thảo luận]
 
-Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
+Lưu ý: Viết bằng {output_lang} súc tích, chuyên nghiệp."""
 
             result = state.generator.generate(
                 query=summary_prompt,
                 context_text=summary_context,
                 task_type="summary",
+                lang=lang,
             )
 
             if result and result.content:
@@ -973,7 +984,7 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
         pass
 
 
-def _retry_import_job(job_id: str):
+def _retry_import_job(job_id: str, lang: str = "vi"):
     session = get_session(state.engine)
     try:
         job = session.query(ImportJob).filter(ImportJob.id == job_id).first()
@@ -983,7 +994,7 @@ def _retry_import_job(job_id: str):
         if not file_path or not Path(file_path).exists():
             job.status = "failed"
             job.stage = "retry"
-            job.error = "Không tìm thấy file để retry."
+            job.error = t("import.file_not_found_retry", lang)
             job.progress = 100
             job.finished_at = datetime.utcnow()
             session.commit()
@@ -1000,7 +1011,7 @@ def _retry_import_job(job_id: str):
 
     doc = extract_document(file_path)
     if doc is None:
-        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error="Cannot parse document")
+        _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=t("papers.parse_fail", lang))
         return
 
     session = get_session(state.engine)
@@ -1066,12 +1077,13 @@ def _retry_import_job(job_id: str):
     finally:
         session.close()
 
-    _index_paper(paper_id, doc, job_id)
+    _index_paper(paper_id, doc, job_id, lang)
 
 
 def recover_interrupted_import_jobs(
     job_ids: list[str] | None = None,
     stale_after_seconds: float = 0,
+    lang: str = "vi",
 ) -> int:
     """Resume import jobs left active by a process reload/crash."""
     active_statuses = {"queued", "saved", "parsing", "indexing", "summarizing", "enriching"}
@@ -1111,7 +1123,7 @@ def recover_interrupted_import_jobs(
         session.close()
 
     for job_id in recoverable:
-        threading.Thread(target=_retry_import_job, args=(job_id,), daemon=True).start()
+        threading.Thread(target=_retry_import_job, args=(job_id, lang), daemon=True).start()
     if recoverable:
         logger.info(f"Recovered {len(recoverable)} interrupted import job(s)")
     return len(recoverable)
@@ -1128,10 +1140,11 @@ async def list_import_jobs(limit: int = Query(50, ge=1, le=200)):
 
 
 @jobs_router.get("/stream")
-async def stream_import_jobs(ids: str = Query(...)):
+async def stream_import_jobs(ids: str = Query(...), request: Request = None):
+    lang = get_language(request) if request else "vi"
     job_ids = [job_id.strip() for job_id in ids.split(",") if job_id.strip()]
     if job_ids and getattr(state, "backend_ready", False):
-        recover_interrupted_import_jobs(job_ids=job_ids, stale_after_seconds=180)
+        recover_interrupted_import_jobs(job_ids=job_ids, stale_after_seconds=180, lang=lang)
 
     async def event_stream():
         if not job_ids:
@@ -1164,7 +1177,8 @@ async def stream_import_jobs(ids: str = Query(...)):
 
 
 @jobs_router.post("/{job_id}/retry")
-async def retry_import_job(job_id: str, background_tasks: BackgroundTasks):
+async def retry_import_job(job_id: str, background_tasks: BackgroundTasks, request: Request):
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         job = session.query(ImportJob).filter(ImportJob.id == job_id).first()
@@ -1179,7 +1193,7 @@ async def retry_import_job(job_id: str, background_tasks: BackgroundTasks):
     finally:
         session.close()
 
-    background_tasks.add_task(_retry_import_job, job_id)
+    background_tasks.add_task(_retry_import_job, job_id, lang)
     return {"status": "queued", "job_id": job_id}
 
 
@@ -1335,8 +1349,9 @@ async def delete_paper(paper_id: str):
 
 
 @router.post("/{paper_id}/retry-ocr")
-async def retry_paper_ocr(paper_id: str, background_tasks: BackgroundTasks):
+async def retry_paper_ocr(paper_id: str, background_tasks: BackgroundTasks, request: Request):
     """Retry parsing/indexing for a paper, primarily for scanned PDFs that need OCR."""
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         paper = session.query(Paper).filter(Paper.id == paper_id).first()
@@ -1358,7 +1373,7 @@ async def retry_paper_ocr(paper_id: str, background_tasks: BackgroundTasks):
     finally:
         session.close()
 
-    background_tasks.add_task(_retry_import_job, job_id)
+    background_tasks.add_task(_retry_import_job, job_id, lang)
     return {"status": "queued", "job_id": job_id, "paper_id": paper_id}
 
 
@@ -1568,16 +1583,17 @@ async def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: i
 # ─── Citations ───────────────────────────────────────────────────
 
 @router.post("/cite")
-async def generate_citations(body: dict):
+async def generate_citations(body: dict, request: Request):
     """
     Generate formatted academic citations for papers.
     Supports APA, IEEE, Vancouver, BibTeX, and HTML styles.
     """
+    lang = get_language(request)
     paper_ids = body.get("paper_ids", [])
     style = body.get("style", "apa")
 
     if not paper_ids:
-        return {"citations": [], "style": style, "message": "No paper IDs provided."}
+        return {"citations": [], "style": style, "message": t("papers.citations_no_ids", lang)}
 
     from datetime import datetime
 
@@ -1791,10 +1807,11 @@ async def generate_citations(body: dict):
 # ─── Highlights ──────────────────────────────────────────────────
 
 @router.get("/{paper_id}/highlights")
-async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
+async def get_paper_highlights(paper_id: str, request: Request, limit: int = Query(10)):
     """
     AI identifies and returns the most important passages in a paper.
     """
+    lang = get_language(request)
     session = get_session(state.engine)
     try:
         paper = session.query(Paper).filter(Paper.id == paper_id).first()
@@ -1812,7 +1829,7 @@ async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
             return {
                 "highlights": [],
                 "paper_id": paper_id,
-                "message": "Paper chưa được index đầy đủ để tạo highlights.",
+                "message": t("papers.highlights_not_ready", lang),
             }
 
         highlight_prompt = f"""Bạn là một trợ lý nghiên cứu. Hãy đọc kỹ toàn bộ nội dung paper sau và xác định {limit} đoạn quan trọng nhất.
@@ -1836,7 +1853,7 @@ Phân loại:
 - limitation: Hạn chế được thảo luận
 - important_claim: Khái niệm/quan điểm quan trọng
 
-CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng Việt."""
+CHỈ trả về JSON array, không thêm text khác. Trả lời bằng {get_output_language_name(lang)}."""
 
         generation = await asyncio.to_thread(
             state.generator.generate,

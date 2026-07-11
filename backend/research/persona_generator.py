@@ -61,7 +61,8 @@ Trả về JSON:
   ]
 }}
 
-Chỉ trả về JSON, không thêm text khác."""
+Chỉ trả về JSON, không thêm text khác.
+Viết bằng {lang_name}."""
 
 
 PERSPECTIVE_QUESTION_PROMPT = """Bạn là {persona_name}. {persona_description}.
@@ -85,12 +86,14 @@ Trả về JSON:
   ]
 }}
 
-Chỉ trả về JSON."""
+Chỉ trả về JSON.
+Viết bằng {lang_name}."""
 
 
 def generate_personas(
     query: str,
     related_topics: Optional[list[str]] = None,
+    lang: str = "vi",
 ) -> PerspectiveSet:
     """Generate diverse research perspectives for a query.
 
@@ -118,7 +121,9 @@ def generate_personas(
     else:
         related_context = "Không có tài liệu tham khảo cụ thể."
 
-    prompt = PERSONA_GENERATION_PROMPT.format(query=query, related_context=related_context)
+    from common.i18n import get_output_language_name
+    lang_name = get_output_language_name(lang)
+    prompt = PERSONA_GENERATION_PROMPT.format(query=query, related_context=related_context, lang_name=lang_name)
     try:
         result = generator.generate_direct(
             user_prompt=prompt,
@@ -130,7 +135,7 @@ def generate_personas(
         personas_data = data.get("personas", [])
         personas = [
             Persona(
-                name=p.get("name", f"Góc nhìn {i+1}"),
+                name=p.get("name", f"Perspective {i+1}"),
                 description=p.get("description", ""),
                 focus_areas=p.get("focus_areas", []),
             )
@@ -146,6 +151,7 @@ def generate_personas(
 def generate_perspective_questions(
     topic: str,
     persona: Persona,
+    lang: str = "vi",
 ) -> list[str]:
     """Generate research questions from a specific perspective.
 
@@ -165,12 +171,15 @@ def generate_perspective_questions(
     if not generator:
         return [f"{topic} (góc nhìn: {persona.name})"]
 
+    from common.i18n import get_output_language_name
     focus_str = ", ".join(persona.focus_areas) if persona.focus_areas else "chuyên môn chính"
+    lang_name = get_output_language_name(lang)
     prompt = PERSPECTIVE_QUESTION_PROMPT.format(
         persona_name=persona.name,
         persona_description=persona.description,
         topic=topic,
         focus_areas=focus_str,
+        lang_name=lang_name,
     )
     try:
         result = generator.generate_direct(

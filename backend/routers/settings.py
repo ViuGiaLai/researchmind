@@ -1,10 +1,11 @@
 import json
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from common.text_utils import redact_api_key
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
+from common.i18n import t, get_language
 from app_state import state
 from config.settings import settings
 from db.models import Setting
@@ -140,11 +141,12 @@ async def update_settings(new_settings: dict = Body(...)):
 # ─── Test Embedding Connection ────────────────────────────────────
 
 @router.post("/settings/test-embedding")
-async def test_embedding_connection():
+async def test_embedding_connection(request: Request):
     """Test Gemini Embedding API connection."""
+    lang = get_language(request)
     api_key = settings.gemini_api_key
     if not api_key:
-        return {"success": False, "error": "Chưa có Gemini API Key. Vào mục Custom API Key để nhập."}
+        return {"success": False, "error": t("settings.no_gemini_key", lang)}
 
     import httpx
     try:
@@ -161,22 +163,23 @@ async def test_embedding_connection():
                 data = resp.json()
                 embedding = data.get("embedding", {}).get("values", [])
                 dim = len(embedding)
-                return {"success": True, "dimension": dim, "message": f"Kết nối Gemini Embedding thành công! Dimension: {dim}"}
+                return {"success": True, "dimension": dim, "message": t("settings.gemini_embed_success", lang, dim=dim)}
             else:
                 try:
                     err = resp.json().get("error", {}).get("message", resp.text)
                 except:
                     err = resp.text
-                return {"success": False, "error": f"Gemini API lỗi: {err}"}
+                return {"success": False, "error": t("settings.gemini_api_error", lang, error=err)}
     except Exception as e:
-        return {"success": False, "error": f"Lỗi kết nối: {str(e)}"}
+        return {"success": False, "error": t("settings.embed_test_error", lang, error=str(e))}
 
 
 # ─── Validate API Key ────────────────────────────────────────────
 
 @router.post("/settings/validate-key")
-async def validate_api_key(body: dict = Body(...)):
+async def validate_api_key(request: Request, body: dict = Body(...)):
     """Validate API Key for a custom cloud provider."""
+    lang = get_language(request)
     provider = body.get("provider")
     api_key = body.get("api_key")
     model = body.get("model")
@@ -213,7 +216,7 @@ async def validate_api_key(body: dict = Body(...)):
             api_key = settings.freemodel_api_key
 
     if not api_key:
-        return {"valid": False, "error": "Chưa có API Key."}
+        return {"valid": False, "error": t("settings.no_api_key", lang)}
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -229,7 +232,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Gemini: {redact_api_key(err_msg)}"}
+                    return {"valid": False, "error": t("settings.validate_error_gemini", lang, error=redact_api_key(err_msg))}
 
             elif provider == "deepseek":
                 url = "https://api.deepseek.com/chat/completions"
@@ -244,7 +247,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi DeepSeek: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_deepseek", lang, error=err_msg)}
 
             elif provider == "claude":
                 url = "https://api.anthropic.com/v1/messages"
@@ -259,7 +262,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Claude: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_claude", lang, error=err_msg)}
 
             elif provider == "groq":
                 url = "https://api.groq.com/openai/v1/chat/completions"
@@ -274,7 +277,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Groq: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_groq", lang, error=err_msg)}
 
             elif provider == "nvidia":
                 url = getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1").rstrip("/") + "/chat/completions"
@@ -289,7 +292,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Nvidia: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_nvidia", lang, error=err_msg)}
 
             elif provider == "github":
                 url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
@@ -304,7 +307,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi GitHub Models: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_github", lang, error=err_msg)}
 
             elif provider == "github_deepseek_v3":
                 url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
@@ -319,7 +322,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi GitHub Models (Qwen): {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_github_qwen", lang, error=err_msg)}
 
             elif provider == "freemodel":
                 url = getattr(settings, "freemodel_url", "https://api.freemodel.dev/v1").rstrip("/") + "/chat/completions"
@@ -334,7 +337,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi FreeModel: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_freemodel", lang, error=err_msg)}
 
             elif provider == "openrouter":
                 url = getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1").rstrip("/") + "/chat/completions"
@@ -349,7 +352,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi OpenRouter: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_openrouter", lang, error=err_msg)}
 
             elif provider == "cohere":
                 url = getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1").rstrip("/") + "/chat/completions"
@@ -364,7 +367,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Cohere: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_cohere", lang, error=err_msg)}
 
             elif provider == "cloudflare":
                 url = getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1").rstrip("/") + "/chat/completions"
@@ -379,7 +382,7 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Cloudflare: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_cloudflare", lang, error=err_msg)}
 
             elif provider == "cerebras":
                 url = getattr(settings, "cerebras_url", "https://api.cerebras.net/v1").rstrip("/") + "/chat/completions"
@@ -394,21 +397,22 @@ async def validate_api_key(body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except:
                         err_msg = res.text
-                    return {"valid": False, "error": f"Lỗi Cerebras: {err_msg}"}
+                    return {"valid": False, "error": t("settings.validate_error_cerebras", lang, error=err_msg)}
 
             else:
-                return {"valid": False, "error": f"Nhà cung cấp '{provider}' không hợp lệ."}
+                return {"valid": False, "error": t("settings.invalid_provider", lang, provider=provider)}
 
     except Exception as e:
         logger.error(f"Error validating API key: {e}")
-        return {"valid": False, "error": f"Lỗi kết nối mạng: {str(e)}"}
+        return {"valid": False, "error": t("settings.validate_connection_error", lang, error=str(e))}
 
 
 # ─── Local Model (llama-server) ────────────────────────────────
 
 @router.get("/local/status")
-async def get_local_status():
+async def get_local_status(request: Request):
     """Check if llama-server is running."""
+    lang = get_language(request)
     import httpx
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
@@ -428,7 +432,7 @@ async def get_local_status():
     except Exception as e:
         return {
             "connected": False,
-            "error": f"Không thể kết nối đến llama-server: {str(e)}",
+            "error": t("settings.llama_connect_fail", lang, error=str(e)),
             "llama_server_url": settings.llama_server_url,
         }
 
@@ -453,8 +457,9 @@ async def get_cache_stats():
 
 
 @router.post("/settings/cache-clear")
-async def clear_cache():
+async def clear_cache(request: Request):
     """Clear all LLM and embedding caches."""
+    lang = get_language(request)
     from db.models import LLMCache, EmbeddingCache
     session = get_session(state.engine)
     try:
@@ -462,7 +467,7 @@ async def clear_cache():
         session.query(EmbeddingCache).delete()
         session.commit()
         logger.info("Local LLM and Embedding cache cleared successfully")
-        return {"status": "success", "message": "Đã xoá bộ nhớ đệm thành công"}
+        return {"status": "success", "message": t("settings.cache_cleared", lang)}
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to clear cache: {e}")
