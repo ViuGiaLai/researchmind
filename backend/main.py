@@ -306,6 +306,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 app.mount("/static/papers", StaticFiles(directory=settings.papers_dir), name="papers")
 
@@ -328,6 +329,19 @@ app.include_router(collections_router)
 app.include_router(review_router)
 app.include_router(research_router)
 app.include_router(graph_router)
+
+# Serve React frontend (SPA) — hỗ trợ share qua ngrok
+frontend_dist = Path(__file__).resolve().parent.parent / "apps" / "desktop" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str):
+        file_path = frontend_dist / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(frontend_dist / "index.html"))
+    logger.info("Frontend SPA mounted — share web ready")
 
 
 # ─── Global Exception Handler ────────────────────────────────────

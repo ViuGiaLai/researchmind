@@ -20,7 +20,7 @@
 - **Frontend**: React + Tauri v2, 10+ views
 - **AI**: 4 LLM providers, streaming, multi-layer cache
 - **Search**: Hybrid BM25 + Vector + Rerank
-- **Phase 2**: Inline PDF preview, Knowledge Graph, Stripe thu phí
+- **Phase 2**: Inline PDF preview, Knowledge Graph, Ma trận bằng chứng & Sàng lọc bài viết
 - **Build**: Cross-platform installer (Windows/macOS/Linux)
 
 ### Metrics v0.5

@@ -12,7 +12,7 @@
 6. Test collections: CRUD, paper membership, scope chat
 7. Test inline PDF preview: scroll, highlight, search → page
 8. Test Knowledge Graph: concept extraction, visualization
-9. Test stripe: purchase, key activation, expiry
+9. Test Ma trận bằng chứng & Sàng lọc bài báo (Evidence Matrix & Screening Board)
 
 ## Học được
 - End-to-end testing strategy cho RAG desktop app

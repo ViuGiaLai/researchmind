@@ -36,7 +36,7 @@
 
 | Buổi | Ngày | Nội dung |
 |------|------|----------|
-| [10](buoi-10.md) | T2 06/07 | Lên kế hoạch Phase 2: nghiên cứu Stripe, key activation |
+| [10](buoi-10.md) | T2 06/07 | Lên kế hoạch Phase 2: nghiên cứu Knowledge Graph và inline PDF preview |
 | [11](buoi-11.md) | T4 08/07 | Inline PDF preview + highlights UI |
 | [12](buoi-12.md) | T6 10/07 | Multi-document comparison nâng cao |
 
@@ -44,7 +44,7 @@
 
 | Buổi | Ngày | Nội dung |
 |------|------|----------|
-| [13](buoi-13.md) | T2 13/07 | Thu phí: Stripe integration, key activation flow |
+| [13](buoi-13.md) | T2 13/07 | Xây dựng tính năng Ma trận bằng chứng (Evidence Matrix) và Sàng lọc bài báo (Screening Board) |
 | [14](buoi-14.md) | T4 15/07 | Performance optimization: knowledge graph |
 | [15](buoi-15.md) | T6 17/07 | UX nâng cao: onboarding cải tiến, tooltip, shortcut |
 
@@ -82,7 +82,7 @@
 
 ### 🚀 Kế hoạch tiếp theo (tuần 2-7)
 - v0.5: Speed optimization (virtualization, cold start, cache, lazy load)
-- Phase 2: Knowledge Graph, inline PDF preview, thu phí
+- Phase 2: Knowledge Graph, inline PDF preview, Ma trận bằng chứng và Sàng lọc bài báo
 - Kiểm thử, build desktop, báo cáo
 
 ### 📁 Cấu trúc file nhật ký
