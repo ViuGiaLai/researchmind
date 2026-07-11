@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import {
-  HELP_SECTIONS,
+  getHelpSections,
   HELP_NAV,
   type HelpBlock,
   type HelpSectionId,
@@ -94,6 +95,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
+  const HELP_SECTIONS = useMemo(() => getHelpSections(i18n.language), [i18n.language]);
   const section = HELP_SECTIONS[sectionId];
   const groups = HELP_NAV.reduce<string[]>((acc, item) => {
     const g = item.group ?? t("help.other");
