@@ -392,23 +392,54 @@ async def suggest_questions(req: Request, body: dict = Body(...)):
             paper_titles = [row[0] for row in q.all() if row[0]]
         finally:
             session.close()
-
+            
+    # gợi ý câu hỏi dựa trên ngôn ngữ và phạm vi
     if scope == "external" or not paper_titles:
-        prompt = (
-            f"Đưa ra 3 câu hỏi {get_output_language_name(lang)}, mỗi câu 1 dòng bắt đầu bằng '- '. "
-            "Câu hỏi về AI/ML cho người mới. Ví dụ:\n"
-            "- Transformer là gì?\n"
-            "- Sự khác nhau giữa CNN và RNN?\n"
-            "- Các xu hướng AI năm 2026?"
-        )
+        if lang == "en":
+            prompt = (
+                "Give 3 questions in English, one per line starting with '- '. "
+                "Questions about AI/ML for beginners. Example:\n"
+                "- What is a Transformer model?\n"
+                "- What is the difference between CNN and RNN?\n"
+                "- What are the top AI trends in 2026?"
+            )
+        elif lang == "ja":
+            prompt = (
+                "日本語で3つの質問を1行ずつ「- 」で始めて提示してください。"
+                "AI/ML初心者向けの質問。例：\n"
+                "- Transformerモデルとは何ですか？\n"
+                "- CNNとRNNの違いは何ですか？\n"
+                "- 2026年のAIトレンドは？"
+            )
+        else:
+            prompt = (
+                "Đưa ra 3 câu hỏi bằng Tiếng Việt, mỗi câu 1 dòng bắt đầu bằng '- '. "
+                "Câu hỏi về AI/ML cho người mới. Ví dụ:\n"
+                "- Transformer là gì?\n"
+                "- Sự khác nhau giữa CNN và RNN?\n"
+                "- Các xu hướng AI năm 2026?"
+            )
         context = "__EXTERNAL_KNOWLEDGE__"
     else:
         titles_str = "\n".join(f"- {t}" for t in paper_titles[:10])
-        prompt = (
-            f"Dựa vào các paper sau, đưa ra 3 câu hỏi nghiên cứu {get_output_language_name(lang)} "
-            "mà người dùng muốn hỏi nhất. Mỗi câu 1 dòng, bắt đầu bằng '- '.\n\n"
-            f"Papers:\n{titles_str}"
-        )
+        if lang == "en":
+            prompt = (
+                "Based on the following papers, give 3 research questions in English "
+                "that the user would most likely ask. One per line, starting with '- '.\n\n"
+                f"Papers:\n{titles_str}"
+            )
+        elif lang == "ja":
+            prompt = (
+                "以下の論文に基づいて、ユーザーが最も尋ねたいと思う研究質問を日本語で3つ提案してください。"
+                "各行は「- 」で始めてください。\n\n"
+                f"論文:\n{titles_str}"
+            )
+        else:
+            prompt = (
+                f"Dựa vào các paper sau, đưa ra 3 câu hỏi nghiên cứu bằng Tiếng Việt "
+                "mà người dùng muốn hỏi nhất. Mỗi câu 1 dòng, bắt đầu bằng '- '.\n\n"
+                f"Papers:\n{titles_str}"
+            )
         context = ""
 
     generation = await asyncio.to_thread(

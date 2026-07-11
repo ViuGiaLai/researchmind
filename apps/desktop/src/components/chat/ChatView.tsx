@@ -299,11 +299,14 @@ export const ChatView: React.FC<{
   };
 
   const getScopeKey = useCallback(() => {
-    if (scope === "external") return "external";
-    if (scope === "collection") return `collection:${activeCollectionId}`;
-    if (scope === "current") return `current:${paperIds.sort().join(",")}`;
-    return `library`;
-  }, [scope, paperIds, activeCollectionId]);
+    const lang = i18n.language || "vi";
+    if (scope === "external") return `external:${lang}`;
+    if (scope === "collection") return `collection:${activeCollectionId}:${lang}`;
+    // Copy paperIds để tránh mutate state array
+    const sorted = [...paperIds].sort().join(",");
+    if (scope === "current") return `current:${sorted}:${lang}`;
+    return `library:${lang}`;
+  }, [scope, paperIds, activeCollectionId, i18n.language]);
 
   const fetchSuggestedQuestions = useCallback(async () => {
     questionsAbortRef.current?.abort();
@@ -311,7 +314,7 @@ export const ChatView: React.FC<{
     questionsAbortRef.current = controller;
     const key = getScopeKey();
 
-    // Dùng cache nếu có
+    // Dùng cache nếu có (cache key đã bao gồm language)
     const cached = questionsCacheRef.current.get(key);
     if (cached) {
       setSuggestedQuestions(cached);
@@ -334,7 +337,7 @@ export const ChatView: React.FC<{
         setSuggestedQuestions([]);
       }
     }
-  }, [scope, paperIds, activeCollectionId, getScopeKey]);
+  }, [scope, paperIds, activeCollectionId, getScopeKey, i18n.language]);
 
   useEffect(() => {
     fetchSuggestedQuestions();
