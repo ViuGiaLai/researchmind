@@ -166,6 +166,9 @@
   "papers.parse_fail": "Cannot parse document",
   "papers.highlights_not_ready": "Paper chưa được index đầy đủ để tạo highlights.",
   "papers.citations_no_ids": "No paper IDs provided.",
+  "papers.summary_not_ready": "AI chưa sẵn sàng để tạo summary. Vui lòng đợi backend khởi động xong.",
+  "papers.summary_no_chunks": "Paper này chưa có dữ liệu để tạo summary. Vui lòng import lại.",
+  "papers.summary_generation_failed": "AI không thể tạo summary cho paper này. Vui lòng thử lại.",
 
   "search.filter_syntax": "Hybrid search across all indexed PDFs with support for tag: filters.",
   "export.docx_not_installed": "python-docx chưa được cài đặt. Chạy lệnh: pip install python-docx",

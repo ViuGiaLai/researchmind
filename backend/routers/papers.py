@@ -228,6 +228,7 @@ def _paper_to_dict(paper) -> dict:
         "tags": paper.tags,
         "notes": paper.notes,
         "auto_summary": getattr(paper, "auto_summary", ""),
+        "auto_summary_lang": getattr(paper, "auto_summary_lang", ""),
         "read_status": paper.read_status,
         "starred": bool(paper.starred),
         "created_at": str(paper.created_at) if paper.created_at else None,
@@ -911,7 +912,8 @@ Trả về kết quả dưới định dạng Markdown như sau:
 
             if result and result.content:
                 session.query(Paper).filter(Paper.id == file_id).update({
-                    "auto_summary": result.content
+                    "auto_summary": result.content,
+                    "auto_summary_lang": lang,
                 })
                 session.commit()
                 logger.info(f"Generated auto-summary for {doc.filename}")
@@ -1413,6 +1415,73 @@ async def get_paper_file(paper_id: str):
             raise HTTPException(status_code=404, detail="File not found on disk")
         media_type = _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
         return FileResponse(path, media_type=media_type)
+    finally:
+        session.close()
+
+
+@router.post("/{paper_id}/regenerate-summary")
+async def regenerate_paper_summary(paper_id: str, request: Request):
+    """Regenerate auto-summary for a paper in the specified language."""
+    lang = get_language(request)
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        if not state.generator or not state.retriever:
+            raise HTTPException(status_code=503, detail=t("papers.summary_not_ready", lang))
+
+        chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).all()
+        if not chunks:
+            raise HTTPException(status_code=400, detail=t("papers.summary_no_chunks", lang))
+
+        intro_chunks = chunks[:3]
+        conclusion_chunk = chunks[-1] if len(chunks) > 3 else None
+
+        summary_context = "\n".join([c.content for c in intro_chunks])
+        if conclusion_chunk:
+            summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
+
+        output_lang = get_output_language_name(lang)
+        summary_prompt = f"""Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này.
+
+⚠️ QUY TẮC NGÔN NGỮ NGHIÊM NGẶT:
+Bạn PHẢI viết TOÀN BỘ câu trả lời bằng {output_lang}.
+KHÔNG được viết tiếng Anh - kể cả phần mô tả, giải thích hay chú thích.
+Các thuật ngữ chuyên ngành, tên paper, citation giữ nguyên ngôn ngữ gốc.
+
+Trả về kết quả dưới định dạng Markdown như sau:
+
+### 🧠 Tóm tắt tự động bởi ResearchMind:
+* **Ý tưởng cốt lõi (Core Idea)**: [Viết 1 câu mô tả ý tưởng/mục tiêu chính]
+* **Đóng góp chính (Contributions)**: [Viết 1-2 dòng về các đóng góp khoa học chính]
+* **Điểm yếu / Hạn chế (Weaknesses)**: [Viết 1 dòng về các hạn chế được thảo luận]"""
+
+        result = await asyncio.to_thread(
+            state.generator.generate,
+            query=summary_prompt,
+            context_text=summary_context,
+            task_type="summary",
+            lang=lang,
+        )
+
+        if result and result.content:
+            session.query(Paper).filter(Paper.id == paper_id).update({
+                "auto_summary": result.content,
+                "auto_summary_lang": lang,
+            })
+            session.commit()
+            return {
+                "status": "ok",
+                "auto_summary": result.content,
+                "auto_summary_lang": lang,
+            }
+        else:
+            return {
+                "status": "error",
+                "detail": t("papers.summary_generation_failed", lang),
+            }
     finally:
         session.close()
 

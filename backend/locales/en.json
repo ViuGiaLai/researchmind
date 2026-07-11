@@ -165,6 +165,9 @@
   "papers.parse_fail": "Cannot parse document",
   "papers.highlights_not_ready": "Paper has not been fully indexed for highlights.",
   "papers.citations_no_ids": "No paper IDs provided.",
+  "papers.summary_not_ready": "AI is not ready to generate summary. Please wait for backend to finish starting up.",
+  "papers.summary_no_chunks": "This paper has no data to generate summary. Please re-import.",
+  "papers.summary_generation_failed": "AI failed to generate summary for this paper. Please try again.",
 
   "search.filter_syntax": "Hybrid search across all indexed PDFs with support for tag: filters.",
   "export.docx_not_installed": "python-docx is not installed. Run: pip install python-docx",

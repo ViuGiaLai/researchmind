@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, BASE_URL } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
@@ -127,6 +128,9 @@ export const LibraryView: React.FC<{
   // PDF preview modal for related papers
   const [pdfPreviewId, setPdfPreviewId] = useState<string | null>(null);
 
+  // Summary regeneration state
+  const [regeneratingSummary, setRegeneratingSummary] = useState(false);
+
   // Highlights state
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [loadingHighlights, setLoadingHighlights] = useState(false);
@@ -225,6 +229,25 @@ export const LibraryView: React.FC<{
       setHighlights([]);
     }
   }, [activePaper?.id]);
+
+  // Auto-regenerate summary when language changes and summary language mismatches
+  useEffect(() => {
+    if (!activePaper) return;
+    if (!activePaper.auto_summary) return;
+    if (regeneratingSummary) return;
+    const currentLang = i18n.language?.split("-")[0] || "vi";
+    const summaryLang = activePaper.auto_summary_lang || "vi";
+    if (currentLang === summaryLang) return;
+    setRegeneratingSummary(true);
+    api.regenerateSummary(activePaper.id).then((res) => {
+      setActivePaper((prev) => prev ? { ...prev, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : prev);
+      setPapers((prev) => prev.map((p) => p.id === activePaper.id ? { ...p, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : p));
+    }).catch((e) => {
+      console.error("Failed to regenerate summary:", e);
+    }).finally(() => {
+      setRegeneratingSummary(false);
+    });
+  }, [activePaper?.id, activePaper?.auto_summary_lang, i18n.language]);
 
   const loadPapers = async (forcedPage?: number) => {
     const effectivePage = forcedPage ?? page;

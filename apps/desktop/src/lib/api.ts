@@ -149,6 +149,7 @@ export interface Paper {
   tags: string;
   notes: string;
   auto_summary: string;
+  auto_summary_lang?: string;
   read_status: string;
   starred: boolean;
   layout_stats?: Record<string, { columns: number; multicolumn: boolean }> | null;
@@ -456,6 +457,9 @@ export const api = {
 
   retryPaperOcr: (id: string) =>
     request<{ status: string; job_id: string; paper_id: string }>("POST", `/api/papers/${id}/retry-ocr`),
+
+  regenerateSummary: (paperId: string) =>
+    request<{ status: string; auto_summary: string; auto_summary_lang: string }>("POST", `/api/papers/${paperId}/regenerate-summary`),
 
   importPaper: async (file: File) => {
     const formData = new FormData();

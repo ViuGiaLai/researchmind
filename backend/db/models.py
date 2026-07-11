@@ -32,6 +32,7 @@ class Paper(Base):
     tags = Column(Text, default="[]")             # JSON array
     notes = Column(Text, default="")
     auto_summary = Column(Text, default="")  # AI-generated summary
+    auto_summary_lang = Column(String, default="")  # Language of auto_summary (vi/en/ja)
     ocr_pages_count = Column(Integer, default=0)
     ocr_pages_failed = Column(Integer, default=0)
     is_scanned = Column(Integer, default=0)

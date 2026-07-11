@@ -131,6 +131,9 @@ def _migrate_auto_summary(engine):
             if "layout_stats" not in columns:
                 conn.execute(text("ALTER TABLE papers ADD COLUMN layout_stats TEXT DEFAULT '{}'"))
                 logger.info("Migration: Added layout_stats column to papers table")
+            if "auto_summary_lang" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN auto_summary_lang TEXT DEFAULT ''"))
+                logger.info("Migration: Added auto_summary_lang column to papers table")
             conn.commit()
     except Exception as e:
         logger.warning(f"Paper schema migration skipped (may already exist): {e}")

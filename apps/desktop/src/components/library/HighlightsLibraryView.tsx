@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../../i18n";
 import { api, Paper, Highlight, ChatResponse, BASE_URL } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { HighlightListSkeleton } from "../shared/Skeleton";
@@ -119,6 +120,7 @@ export const HighlightsLibraryView: React.FC<{
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [paperDetail, setPaperDetail] = useState<Paper & { chunk_count?: number } | null>(null);
   const [loadingPaperDetail, setLoadingPaperDetail] = useState(false);
+  const [regeneratingSummary, setRegeneratingSummary] = useState(false);
   const resultsAnchorRef = React.useRef<HTMLDivElement | null>(null);
 
   // Generate a stable ID for a highlight (independent of array index)
@@ -142,6 +144,24 @@ export const HighlightsLibraryView: React.FC<{
       setGenerateError(null);
     }
   }, [selectedPaper?.id]);
+
+  // Auto-regenerate summary when language changes and summary language mismatches
+  useEffect(() => {
+    if (!paperDetail?.auto_summary) return;
+    if (regeneratingSummary) return;
+    if (!selectedPaper) return;
+    const currentLang = (i18n.language || "vi").split("-")[0];
+    const summaryLang = paperDetail.auto_summary_lang || "vi";
+    if (currentLang === summaryLang) return;
+    setRegeneratingSummary(true);
+    api.regenerateSummary(selectedPaper.id).then((res) => {
+      setPaperDetail((prev) => prev ? { ...prev, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : prev);
+    }).catch((e) => {
+      console.error("Failed to regenerate summary:", e);
+    }).finally(() => {
+      setRegeneratingSummary(false);
+    });
+  }, [selectedPaper?.id, paperDetail?.auto_summary_lang, i18n.language]);
 
   const loadPapers = async () => {
     setLoadingPapers(true);
