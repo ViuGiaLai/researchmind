@@ -148,10 +148,11 @@ export function SectionCard({
           justifyContent: "space-between",
           alignItems: "center",
           padding: "12px 16px",
+          minWidth: 0,
           borderBottom: status === "done" ? "1px solid var(--color-border, rgba(148, 163, 184, 0.1))" : "none",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, overflow: "hidden" }}>
           {status === "done" ? (
             <IconCheck size={16} style={{ color: "var(--color-success, #22c55e)" }} />
           ) : status === "generating" ? (

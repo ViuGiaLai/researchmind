@@ -558,8 +558,9 @@ export const InsightsView: React.FC<{
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "8px 16px", borderBottom: "1px solid var(--color-border)",
+              minWidth: 0,
             }}>
-              <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+              <span style={{ fontWeight: 600, fontSize: "0.9rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                 {papers.find(p => p.id === pdfPaperId)?.title || pdfPaperId?.slice(0, 12)}
               </span>
               <button onClick={() => setShowPdfViewer(false)}

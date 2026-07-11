@@ -231,7 +231,7 @@
 /* ── Quick Action Buttons ─────────────────────────────── */
 .wow-action-buttons {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   max-width: 720px;
   margin: 0;
@@ -578,7 +578,7 @@
 /* ── Stepper Bar ──────────────────────────────────────── */
 .wow-stepper {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   padding: 8px;
   margin: 0;

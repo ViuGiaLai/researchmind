@@ -914,7 +914,7 @@
 
 .hl-insight-summary-item {
   display: grid;
-  grid-template-columns: minmax(150px, 0.38fr) 1fr;
+  grid-template-columns: minmax(150px, 0.38fr) minmax(0, 1fr);
   gap: 10px;
   padding: 5px 0;
   align-items: start;

@@ -6,7 +6,6 @@ import { setLanguage, type SupportedLang } from "../../i18n";
 const LANGUAGES: { code: SupportedLang; labelKey: string }[] = [
   { code: "vi", labelKey: "language.vi" },
   { code: "en", labelKey: "language.en" },
-  { code: "ja", labelKey: "language.ja" },
 ];
 
 export const LanguageSwitcher: React.FC = () => {

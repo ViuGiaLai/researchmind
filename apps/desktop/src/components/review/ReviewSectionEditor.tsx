@@ -339,11 +339,12 @@ export function ReviewSectionEditor({
           justifyContent: "space-between",
           alignItems: "center",
           padding: "10px 14px",
+          minWidth: 0,
           borderBottom: "1px solid var(--color-border, rgba(148, 163, 184, 0.1))",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{title}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span style={{ fontWeight: 600, fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
           {evidenceCount !== undefined && evidenceCount > 0 && (
             <div style={{
               display: "flex", alignItems: "center", gap: 3,

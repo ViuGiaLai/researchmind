@@ -1541,36 +1541,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             </p>
             
             {modelStatus && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{t("settings.data_embedding_model")}</span>
-                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{modelStatus.embedder.model_name || "bge-m3"}</span>
+              <div className="settings-models-stack">
+                <div className="settings-model-card">
+                  <div className="settings-model-card-left">
+                    <span className="settings-model-card-title">{t("settings.data_embedding_model")}</span>
+                    <span className="settings-model-card-name">{modelStatus.embedder.model_name || "bge-m3"}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div className="settings-model-card-right">
                     {modelStatus.embedder.loaded ? (
                       <>
-                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>{t("settings.data_model_active")}</IconWithText></span>
-                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{t("settings.data_model_idle", { seconds: modelStatus.embedder.idle_seconds })}</span>
+                        <span className="settings-badge settings-badge--active"><IconWithText icon={IconCircle} size={12}>{t("settings.data_model_active")}</IconWithText></span>
+                        <span className="settings-idle-text">{t("settings.data_model_idle", { seconds: modelStatus.embedder.idle_seconds })}</span>
                       </>
                     ) : (
-                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>{t("settings.data_model_paused")}</IconWithText></span>
+                      <span className="settings-badge settings-badge--paused"><IconWithText icon={IconPauseCircle} size={12}>{t("settings.data_model_paused")}</IconWithText></span>
                     )}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "var(--color-bg-hover, #f8fafc)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{t("settings.data_reranker_model")}</span>
-                    <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{modelStatus.reranker.model_name}</span>
+                <div className="settings-model-card">
+                  <div className="settings-model-card-left">
+                    <span className="settings-model-card-title">{t("settings.data_reranker_model")}</span>
+                    <span className="settings-model-card-name">{modelStatus.reranker.model_name}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div className="settings-model-card-right">
                     {modelStatus.reranker.loaded ? (
-                      <>                        <span style={{ background: "rgba(34, 197, 94, 0.1)", color: "#22c55e", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconCircle} size={12}>{t("settings.data_model_active")}</IconWithText></span>
-                        <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>{t("settings.data_model_idle", { seconds: modelStatus.reranker.idle_seconds })}</span>
+                      <>
+                        <span className="settings-badge settings-badge--active"><IconWithText icon={IconCircle} size={12}>{t("settings.data_model_active")}</IconWithText></span>
+                        <span className="settings-idle-text">{t("settings.data_model_idle", { seconds: modelStatus.reranker.idle_seconds })}</span>
                       </>
                     ) : (
-                      <span style={{ background: "rgba(148, 163, 184, 0.1)", color: "#94a3b8", padding: "2px 8px", borderRadius: "12px", fontSize: "0.72rem", fontWeight: 600 }}><IconWithText icon={IconPauseCircle} size={12}>{t("settings.data_model_paused")}</IconWithText></span>
+                      <span className="settings-badge settings-badge--paused"><IconWithText icon={IconPauseCircle} size={12}>{t("settings.data_model_paused")}</IconWithText></span>
                     )}
                   </div>
                 </div>
@@ -1654,7 +1655,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
                 return ALL_TASKS.map((task) => (
                   <tr key={task}>
-                    <td style={{ padding: "4px 6px", borderBottom: "1px solid var(--color-border)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "4px 6px", borderBottom: "1px solid var(--color-border)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "160px" }}>
                       {TASK_LABELS[task] || task}
                     </td>
                     <td style={{ padding: "4px 6px", borderBottom: "1px solid var(--color-border)" }}>

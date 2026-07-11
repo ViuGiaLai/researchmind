@@ -784,7 +784,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(245, 158, 11, 0.1)", color: "var(--color-warning, #f59e0b)",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }}>
                       {t("import.ocr_status", { n: r.ocrPagesCount || 0, m: r.ocrPagesFailed || "" })}
                     </span>
@@ -804,7 +804,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(45, 212, 191, 0.1)", color: "var(--color-primary, #2dd4bf)",
-                      display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap",
+                      display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }}>
                       <IconSpinner size={10} /> PDF
                     </span>
@@ -813,7 +813,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(234, 179, 8, 0.1)", color: "#a16207",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }} title={pdfError || t("import.pdf_not_found_title")}>
                       <IconWithText icon={IconFileText} size={10}>{t("import.pdf_not_found_badge")}</IconWithText>
                     </span>
@@ -822,7 +822,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(249, 115, 22, 0.1)", color: "#c2410c",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }} title={pdfError || t("import.pdf_scanned_title")}>
                       <IconWithText icon={IconScanSearch} size={10}>{t("import.pdf_scanned_badge")}</IconWithText>
                     </span>
@@ -831,7 +831,7 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     <span style={{
                       fontSize: 11, marginLeft: 6, padding: "1px 6px", borderRadius: 4,
                       background: "rgba(239, 68, 68, 0.1)", color: "var(--color-error, #ef4444)",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }} title={pdfError || t("import.pdf_error_title")}>
                       <IconWithText icon={IconError} size={10}>{t("import.pdf_error_badge")}</IconWithText>
                     </span>

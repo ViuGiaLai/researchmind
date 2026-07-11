@@ -128,8 +128,8 @@
   --radius-xl: 20px;
   --radius-full: 9999px;
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "Geist Mono", "SF Mono", "JetBrains Mono", monospace;
+  --font-sans: "Inter", "Noto Sans CJK JP", "Yu Gothic UI", "Hiragino Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", "Noto Sans Mono CJK JP", "SF Mono", "JetBrains Mono", monospace;
 
   --ease-workspace: cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: 150ms var(--ease-workspace);

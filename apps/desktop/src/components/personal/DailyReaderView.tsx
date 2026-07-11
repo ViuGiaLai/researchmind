@@ -56,7 +56,7 @@ export const DailyReaderView: React.FC = () => {
 
   const { daily_suggestion, unread_papers, reading_streak, stats } = data;
 
-  const today = new Date().toLocaleDateString(i18n.language === "vi" ? "vi-VN" : i18n.language === "ja" ? "ja-JP" : "en-US", {
+  const today = new Date().toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",

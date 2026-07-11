@@ -122,6 +122,8 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
                   fontSize: "0.75rem",
                   color: "var(--color-text-muted)",
                   whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 {stat.label}
@@ -254,6 +256,8 @@ const ActionButton: React.FC<{ label: string; icon: React.ReactNode; onClick?: (
       fontWeight: 500,
       transition: "all 0.15s",
       whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
     }}
     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.03)"; }}

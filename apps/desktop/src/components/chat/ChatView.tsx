@@ -88,6 +88,8 @@ const OverflowAction: React.FC<{
       cursor: "pointer",
       fontSize: "0.82rem",
       whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
       transition: "background 0.1s",
     }}
     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
