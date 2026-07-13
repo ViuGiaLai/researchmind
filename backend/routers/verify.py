@@ -229,6 +229,81 @@ def _build_academic_context(
     external_data: list[ExternalPaperData],
     papers_meta: list[dict],
 ) -> str:
+    return _build_clean_academic_context(local_context, external_data, papers_meta)
+
+
+def _build_clean_academic_context(
+    local_context: str,
+    external_data: list[ExternalPaperData],
+    papers_meta: list[dict],
+) -> str:
+    """Build UTF-8 context for the verifier without mojibake."""
+    sections = ["=== TÀI LIỆU CỦA NGƯỜI DÙNG (Local) ===\n" + local_context]
+
+    if papers_meta:
+        meta_lines = []
+        for paper in papers_meta:
+            title = paper.get("title", "Unknown")
+            authors = ", ".join(paper.get("authors", [])[:3]) or "N/A"
+            meta_lines.append(f"- {title} (tác giả: {authors})")
+        if meta_lines:
+            sections.append("=== PAPER ĐƯỢC PHÂN TÍCH ===\n" + "\n".join(meta_lines))
+
+    external_sections = [_format_clean_external(item) for item in external_data]
+    external_sections = [section for section in external_sections if section]
+    if external_sections:
+        sections.append(
+            "=== DỮ LIỆU HỌC THUẬT BÊN NGOÀI (OpenAlex + Crossref + Semantic Scholar) ===\n"
+            + "\n\n".join(external_sections)
+        )
+    else:
+        sections.append(
+            "=== DỮ LIỆU HỌC THUẬT BÊN NGOÀI ===\n"
+            "Không tìm thấy DOI hoặc dữ liệu external cho các paper này. "
+            "Hãy trả lời dựa trên tài liệu local và nêu rõ khi bằng chứng không đủ."
+        )
+    return "\n\n".join(sections)
+
+
+def _format_clean_external(ep: ExternalPaperData) -> str:
+    lines = [f"[PAPER: {ep.title or ep.doi}]", f"DOI: {ep.doi}"]
+    if ep.crossref and ep.crossref.is_valid:
+        crossref = ep.crossref
+        if crossref.authors:
+            suffix = " et al." if len(crossref.authors) > 3 else ""
+            lines.append(f"Tác giả: {', '.join(crossref.authors[:3])}{suffix}")
+        if crossref.journal:
+            lines.append(f"Tạp chí: {crossref.journal}")
+        if crossref.year:
+            lines.append(f"Năm: {crossref.year}")
+        lines.append(f"Citations (Crossref): {crossref.citation_count}")
+    if ep.openalex:
+        lines.append(f"Citations (OpenAlex): {ep.openalex.citation_count}")
+        lines.append(f"Số paper liên quan: {len(ep.openalex.related_work_ids)}")
+        if ep.openalex.publication_year:
+            lines.append(f"Năm xuất bản: {ep.openalex.publication_year}")
+    if ep.semantic_scholar:
+        lines.append(f"Citations (Semantic Scholar): {ep.semantic_scholar.citation_count}")
+        lines.append(f"Influential citations: {ep.semantic_scholar.influential_citation_count}")
+        if ep.semantic_scholar.venue:
+            lines.append(f"Venue: {ep.semantic_scholar.venue}")
+    if ep.recent_citing:
+        lines.append("\nCác nghiên cứu gần đây (từ 2022) trích dẫn paper này:")
+        for index, work in enumerate(ep.recent_citing[:5], 1):
+            doi = work.get("doi", "")
+            suffix = f" — doi:{doi}" if doi else ""
+            lines.append(f"  {index}. {work.get('title', 'Unknown')} ({work.get('publication_year', '?')}){suffix}")
+    if ep.s2_citations:
+        lines.append("\nCác paper trích dẫn (Semantic Scholar, top 5):")
+        for index, cite in enumerate(ep.s2_citations[:5], 1):
+            lines.append(f"  {index}. {cite.title} ({cite.year or '?'}) — {cite.citation_count} citations")
+    if ep.s2_recommendations:
+        lines.append("\nPaper tương tự được đề xuất:")
+        for index, recommendation in enumerate(ep.s2_recommendations[:3], 1):
+            lines.append(f"  {index}. {recommendation.title} ({recommendation.year or '?'}) — {recommendation.citation_count} citations")
+    return "\n".join(lines)
+
+    # Legacy mojibake implementation below is intentionally inactive.
     sections = []
 
     # Local context
@@ -270,6 +345,9 @@ def _build_academic_context(
 
 
 def _format_rich_external(ep: ExternalPaperData) -> str:
+    return _format_clean_external(ep)
+
+    # Legacy mojibake implementation below is intentionally inactive.
     lines = []
     title = ep.title or ep.doi
     lines.append(f"[PAPER: {title}]")

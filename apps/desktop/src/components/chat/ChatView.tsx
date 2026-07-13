@@ -49,6 +49,15 @@ function normalizeCitations(citations?: any[]): any[] {
   return citations.map((c: any, i) => ({ ...c, ref_id: c.ref_id ?? i + 1 }));
 }
 
+function renderCitationFormatted(value: string) {
+  return value.split(/(\*[^*]+\*)/g).map((part, index) => {
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -1327,15 +1336,9 @@ export const ChatView: React.FC<{
                 <div key={c.paper_id || i} className="cite-item">
                   <div className="cite-item-number">[{i + 1}]</div>
                   <div className="cite-item-content">
-                    <div
-                      className="cite-item-formatted"
-                      dangerouslySetInnerHTML={{
-                        __html: c.formatted.replace(
-                          /\*(.+?)\*/g,
-                          "<em>$1</em>",
-                        ),
-                      }}
-                    />
+                    <div className="cite-item-formatted">
+                      {renderCitationFormatted(c.formatted)}
+                    </div>
                     <div className="cite-item-meta">
                       {c.authors.slice(0, 3).join(", ")}
                       {c.authors.length > 3 ? " et al." : ""}

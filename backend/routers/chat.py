@@ -22,7 +22,15 @@ _chat_response_cache: dict[str, dict] = {}
 _chat_response_cache_max = 128
 
 
-def _chat_cache_key(message: str, paper_ids, scope: str, collection_id: str | None) -> str:
+def _chat_cache_key(
+    message: str,
+    paper_ids,
+    scope: str,
+    collection_id: str | None,
+    lang: str,
+    reasoning_mode: str,
+    strict_evidence: bool,
+) -> str:
     normalized_papers = sorted(paper_ids or [])
     return json.dumps(
         {
@@ -30,6 +38,9 @@ def _chat_cache_key(message: str, paper_ids, scope: str, collection_id: str | No
             "paper_ids": normalized_papers,
             "scope": scope or "current",
             "collection_id": collection_id or "",
+            "lang": lang or "vi",
+            "reasoning_mode": reasoning_mode or "fast",
+            "strict_evidence": bool(strict_evidence),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -530,7 +541,10 @@ async def chat(req: Request, request: dict = Body(...)):
         if paper_error:
             return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
-    cache_key = _chat_cache_key(message, paper_ids, scope, collection_id)
+    cache_key = _chat_cache_key(
+        message, paper_ids, scope, collection_id,
+        lang, reasoning_mode, strict_evidence,
+    )
     cached = _chat_response_cache.get(cache_key)
     if cached:
         logger.info(f"CHAT_CACHE hit total={time_mod.time() - t0:.3f}s")

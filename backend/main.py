@@ -71,14 +71,12 @@ from graph.router import router as graph_router
 def load_persisted_settings():
     """Load settings from SQLite database on startup.
 
-    Only loads UI/preference settings, NOT connection/security settings
-    which should always come from .env file.
+    API keys entered by a desktop user are kept in that user's local data
+    database so a shipped build never needs to contain provider credentials.
+    Deployment-only connection settings continue to come from environment.
     """
     env_only_keys = {
-        "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
-        "groq_api_key", "github_api_key", "freemodel_api_key",
-        "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key",
-        "local_model", "claude_model", "deepseek_model", "gemini_model",
+        "llama_server_url", "local_model", "claude_model", "deepseek_model", "gemini_model",
         "groq_model", "github_model", "freemodel_model",
         "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
     }
@@ -302,9 +300,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "RESEARCHMIND_CORS_ORIGINS",
+        "tauri://localhost,http://tauri.localhost,http://localhost:1420,http://127.0.0.1:1420,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -30,6 +30,7 @@ from .providers.gemini_provider import GeminiProviderMixin
 from .providers.claude_provider import ClaudeProviderMixin
 from .providers.local_provider import LocalProviderMixin
 from common.i18n import get_output_language_name, t as _t
+from .prompt_factory import build_rag_user_prompt, build_system_prompt
 
 
 class Generator(
@@ -200,6 +201,11 @@ class Generator(
         task_type = task_type.strip().lower() if task_type else ""
         if not task_type:
             return None
+
+        # Explicit configuration wins over hard-coded convenience defaults.
+        provider = self.task_provider_map.get(task_type)
+        if provider:
+            return provider
         
         # Dynamic routing for chat/rag tasks based on reasoning_mode
         if task_type in ("chat", "rag"):
@@ -210,11 +216,6 @@ class Generator(
                 return "openrouter"
             elif mode in ("deep_plus", "deep+"):
                 return "openrouter_r1"
-
-        # Respect configured task_provider_map first
-        provider = self.task_provider_map.get(task_type)
-        if provider:
-            return provider
 
         # Fallback hardcoded defaults when no task_provider_map entry
         if task_type in ("critique", "debate", "insight", "gap"):
@@ -239,6 +240,10 @@ class Generator(
         if not task_type:
             return None
 
+        configured_fallback = self.task_fallback_map.get(task_type)
+        if configured_fallback:
+            return configured_fallback
+
         # Dynamic routing for chat/rag tasks based on reasoning_mode
         if task_type in ("chat", "rag"):
             mode = getattr(self._local, "reasoning_mode", "fast")
@@ -249,11 +254,6 @@ class Generator(
                 return self.task_fallback_map.get(task_type) or "gemini"
             elif mode in ("deep_plus", "deep+"):
                 return self.task_fallback_map.get(task_type) or "gemini"
-
-        # Respect configured task_fallback_map first
-        fb = self.task_fallback_map.get(task_type)
-        if fb:
-            return fb
 
         # Fallback hardcoded defaults when no task_fallback_map entry
         if task_type in ("critique", "debate", "insight", "gap"):
@@ -554,9 +554,10 @@ class Generator(
             if yielded:
                 return
 
-        # Try fallback provider
-        fallback = self._get_fallback_for_task(task_type)
-        if fallback and fallback != provider:
+        # Match the non-streaming route: try every configured fallback, not
+        # only the first one.
+        fallbacks = [fb for fb in self._get_fallback_chain(task_type) if fb != provider]
+        for fallback in fallbacks:
             logger.info(f"task_routing_stream: {task_type} primary={provider} failed, trying fallback={fallback}")
             stream_gen = self._stream_provider(fallback, user_prompt, max_tokens)
             if stream_gen is not None:
@@ -567,7 +568,7 @@ class Generator(
                 if yielded:
                     return
             logger.warning(f"task_routing_stream: {task_type} fallback={fallback} also failed")
-        else:
+        if not fallbacks:
             logger.info(f"task_routing_stream: {task_type} primary={provider} failed, no fallback")
 
         return  # all fail → use default chain
@@ -588,6 +589,14 @@ class Generator(
         if override:
             return override
         lang = getattr(self._local, 'lang', 'vi')
+        return build_system_prompt(
+            lang=lang,
+            reasoning_mode=getattr(self._local, 'reasoning_mode', 'fast'),
+            strict_evidence=getattr(self._local, 'strict_evidence', False),
+        )
+
+        # Legacy implementation below is intentionally inactive. The compact
+        # contract above leaves more of the model window for retrieved papers.
         lang_name = get_output_language_name(lang)
         fast_rule = ""
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
@@ -662,6 +671,13 @@ class Generator(
 
     def _get_external_system_prompt(self) -> str:
         lang = getattr(self._local, 'lang', 'vi')
+        return build_system_prompt(
+            lang=lang,
+            reasoning_mode=getattr(self._local, 'reasoning_mode', 'fast'),
+            strict_evidence=False,
+        )
+
+        # Legacy implementation below is intentionally inactive.
         lang_name = get_output_language_name(lang)
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
         if is_fast:
@@ -695,6 +711,13 @@ class Generator(
         if getattr(self._local, 'system_prompt_override', None):
             return self._local.system_prompt_override
         lang = getattr(self._local, 'lang', 'vi')
+        return build_system_prompt(
+            lang=lang,
+            reasoning_mode=getattr(self._local, 'reasoning_mode', 'fast'),
+            strict_evidence=getattr(self._local, 'strict_evidence', False),
+        )
+
+        # Legacy implementation below is intentionally inactive.
         lang_name = get_output_language_name(lang)
         fast_rule = ""
         is_fast = getattr(self._local, 'reasoning_mode', 'fast') == "fast"
@@ -770,12 +793,7 @@ class Generator(
             user_prompt = query
         else:
             self._local.system_prompt_override = None
-            user_prompt = (
-                f"## Context từ tài liệu:\n{context_text}\n\n"
-                f"## Câu hỏi:\n{query}\n\n"
-                "Trả lời dựa trên context trên (nếu có thông tin liên quan). "
-                "Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."
-            )
+            user_prompt = build_rag_user_prompt(context_text, query)
 
         import hashlib
         from app_state import state
@@ -783,7 +801,12 @@ class Generator(
         from db.models import LLMCache
 
         system_prompt = self._get_system_prompt()
-        cache_key_raw = f"mode:{self.mode}|provider:{self.custom_cloud_provider}|sys:{system_prompt}|user:{user_prompt}"
+        routed_provider = self._get_provider_for_task(task_type) or self.custom_cloud_provider
+        cache_key_raw = (
+            f"mode:{self.mode}|provider:{routed_provider}|task:{task_type}|"
+            f"reasoning:{reasoning_mode}|strict:{strict_evidence}|lang:{lang}|"
+            f"sys:{system_prompt}|user:{user_prompt}"
+        )
         key_hash = hashlib.md5(cache_key_raw.encode("utf-8")).hexdigest()
 
         if use_cache and state.engine:
@@ -858,12 +881,7 @@ class Generator(
         elif not context_text.strip():
             user_prompt = query
         else:
-            user_prompt = (
-                f"## Context t\u1eeb t\u00e0i li\u1ec7u:\n{context_text}\n\n"
-                f"## C\u00e2u h\u1ecfi:\n{query}\n\n"
-                "Tr\u1ea3 l\u1eddi d\u1ef1a tr\u00ean context tr\u00ean (n\u1ebfu c\u00f3 th\u00f4ng tin li\u00ean quan). "
-                "Nh\u1edb tr\u00edch d\u1eabn ngu\u1ed3n [T\u00ean Paper] cho m\u1ed7i th\u00f4ng tin b\u1ea1n \u0111\u01b0a ra."
-            )
+            user_prompt = build_rag_user_prompt(context_text, query)
 
         import time
 
@@ -990,8 +1008,10 @@ class Generator(
         lang: str = "vi",
     ) -> str:
         self._local.lang = lang
-        saved_override = getattr(self, '_system_prompt_override', None)
-        self._system_prompt_override = system_prompt or saved_override or self._get_system_prompt()
+        # Every provider reads the thread-local override. The old instance
+        # attribute silently discarded task-specific GraphRAG prompts.
+        saved_override = getattr(self._local, 'system_prompt_override', None)
+        self._local.system_prompt_override = system_prompt or saved_override or self._get_system_prompt()
         try:
             result = self._generate_uncached(
                 query=user_prompt, context_text="__EXTERNAL_KNOWLEDGE__",
@@ -999,7 +1019,7 @@ class Generator(
             )
             return result.content if result else ""
         finally:
-            self._system_prompt_override = saved_override
+            self._local.system_prompt_override = saved_override
 
     async def generate_direct_async(
         self,
@@ -1166,6 +1186,7 @@ class Generator(
         self._local.reasoning_mode = reasoning_mode
         self._local.strict_evidence = strict_evidence
         self._local.lang = lang
+        saved_override = getattr(self._local, 'system_prompt_override', None)
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
@@ -1181,14 +1202,12 @@ class Generator(
             user_prompt = query
         else:
             self._local.system_prompt_override = None
-            user_prompt = (
-                f"## Context từ tài liệu:\n{context_text}\n\n"
-                f"## Câu hỏi:\n{query}\n\n"
-                "Trả lời dựa trên context trên (nếu có thông tin liên quan). "
-                "Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."
-            )
+            user_prompt = build_rag_user_prompt(context_text, query)
 
-        yield from self._stream_chain(user_prompt, max_tokens, task_type)
+        try:
+            yield from self._stream_chain(user_prompt, max_tokens, task_type)
+        finally:
+            self._local.system_prompt_override = saved_override
 
     def stream_generate_verify(
         self,
@@ -1203,7 +1222,8 @@ class Generator(
             return
 
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
-        self._system_prompt_override = self._get_verify_system_prompt()
+        saved_override = getattr(self._local, 'system_prompt_override', None)
+        self._local.system_prompt_override = self._get_verify_system_prompt()
 
         user_prompt = (
             f"## Context t\u1eeb t\u00e0i li\u1ec7u v\u00e0 ngu\u1ed3n h\u1ecdc thu\u1eadt b\u00ean ngo\u00e0i:\n{context_text}\n\n"
@@ -1212,7 +1232,10 @@ class Generator(
             "Ph\u00e2n bi\u1ec7t r\u00f5 ngu\u1ed3n t\u1eeb local PDF v\u00e0 ngu\u1ed3n t\u1eeb OpenAlex/Crossref."
         )
 
-        yield from self._stream_chain(user_prompt, max_tokens, task_type)
+        try:
+            yield from self._stream_chain(user_prompt, max_tokens, task_type)
+        finally:
+            self._local.system_prompt_override = saved_override
 
     def _set_model(self, model_str: str, token_count: int = 0) -> None:
         self.current_model = model_str

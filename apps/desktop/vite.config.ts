@@ -23,6 +23,20 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // These libraries are only needed by lazy-loaded views. Keeping them
+        // separate avoids making the initial desktop shell parse editor/graph code.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@tiptap") || id.includes("prosemirror")) return "editor";
+          if (id.includes("vis-data") || id.includes("vis-network")) return "graph-vendor";
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: "node",

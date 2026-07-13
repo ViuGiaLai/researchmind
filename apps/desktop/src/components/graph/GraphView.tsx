@@ -47,12 +47,13 @@ export const GraphView: React.FC = () => {
   const [strategy, setStrategy] = useState<Strategy>("local");
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
-  const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollInFlightRef = React.useRef(false);
   const buildFinishedRef = React.useRef(false);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
-      clearInterval(pollRef.current);
+      clearTimeout(pollRef.current);
       pollRef.current = null;
     }
   }, []);
@@ -137,8 +138,11 @@ export const GraphView: React.FC = () => {
   }, [refreshAll, stopPolling]);
 
   const startPolling = useCallback(() => {
+    stopPolling();
     buildFinishedRef.current = false;
-    pollRef.current = setInterval(async () => {
+    const poll = async () => {
+      if (pollInFlightRef.current || buildFinishedRef.current) return;
+      pollInFlightRef.current = true;
       try {
         const p = await api.getBuildProgress();
         setBuildProgress(p);
@@ -153,9 +157,15 @@ export const GraphView: React.FC = () => {
         }
       } catch {
         // ignore poll errors
+      } finally {
+        pollInFlightRef.current = false;
+        if (!buildFinishedRef.current) {
+          pollRef.current = setTimeout(poll, 1000);
+        }
       }
-    }, 500);
-  }, [finishBuildUi]);
+    };
+    void poll();
+  }, [finishBuildUi, stopPolling]);
 
   useEffect(() => {
     loadStats();

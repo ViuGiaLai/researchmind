@@ -1,11 +1,16 @@
-from google import genai
+from openai import OpenAI
 
-# Thay bằng API Key của bạn
-client = genai.Client(api_key="YOUR_GEMINI_API_KEY")
-
-response = client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents="Xin chào! Hãy giới thiệu bản thân trong 3 câu."
+client = OpenAI(
+    base_url="http://localhost:20128/v1",
+    api_key="api_key",
 )
 
-print(response.text)
+response = client.chat.completions.create(
+    model="oc/deepseek-v4-flash-free",  # thay bằng model có từ /v1/models
+    messages=[
+        {"role": "user", "content": "Xin chào, hãy trả lời ngắn gọn."}
+    ],
+    temperature=0.2,
+)
+
+print(response.choices[0].message.content)

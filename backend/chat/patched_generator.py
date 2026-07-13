@@ -35,6 +35,9 @@ class PatchedGenerator(
         """Stream from a single provider by name.
         Yields chunks if provider works, otherwise returns (no yield = fallback).
         """
+        # Keep streaming within exactly the same provider budget as normal
+        # generation; otherwise long RAG contexts fail only when streamed.
+        user_prompt = self._fit_prompt(user_prompt, provider, max_tokens)
         try:
             if provider == "github":
                 if not self.github_api_key:

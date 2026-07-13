@@ -15,10 +15,7 @@ from chat.generator_factory import build_generator
 router = APIRouter(prefix="/api", tags=["Settings"])
 
 ENV_ONLY_KEYS = {
-    "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
-    "groq_api_key", "github_api_key", "freemodel_api_key",
-    "openrouter_api_key", "openrouter_api_deep_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key",
-    "nvidia_api_key", "nvidia_deepseek_api_key", "github_deepseek_v3_api_key",
+    "llama_server_url",
     "local_model", "claude_model", "deepseek_model", "gemini_model",
     "groq_model", "github_model", "freemodel_model",
     "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
@@ -93,7 +90,7 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "github_deepseek_v3_api_key", "freemodel_api_key", "openrouter_api_key", "openrouter_api_deep_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key", "nvidia_deepseek_api_key"):
+                if key.endswith("_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
                 if key in ("task_provider_map", "task_fallback_map", "task_ultimate_fallback_chain"):

@@ -1,5 +1,6 @@
 import asyncio
 import configparser
+import ipaddress
 import json
 import os
 import re
@@ -23,6 +24,17 @@ from search.hybrid import HybridSearch
 from search.vector import VectorSearch
 
 router = APIRouter(prefix="/api", tags=["System"])
+
+
+def _require_local_client(request: Request) -> None:
+    """Destructive desktop actions must not run through an exposed backend."""
+    host = request.client.host if request.client else "127.0.0.1"
+    try:
+        is_local = ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        is_local = host == "localhost"
+    if not is_local:
+        raise HTTPException(status_code=403, detail="This action is only available from the local desktop app")
 
 
 # ─── Health ──────────────────────────────────────────────────────
@@ -254,11 +266,13 @@ async def detect_specs():
 @router.post("/data/open-folder")
 async def open_data_folder(request: Request, body: dict = Body(default={})):
     """Open the specified or current local data folder in file explorer."""
+    _require_local_client(request)
     lang = get_language(request)
     import subprocess as _subprocess
     try:
-        path_str = body.get("path") or str(settings.data_dir)
-        path = Path(path_str)
+        # The UI only opens the active data directory. Do not allow an API
+        # caller to launch arbitrary filesystem locations.
+        path = settings.data_dir
         path.mkdir(parents=True, exist_ok=True)
         if os.name == "nt":
             os.startfile(str(path))
@@ -273,8 +287,9 @@ async def open_data_folder(request: Request, body: dict = Body(default={})):
 
 
 @router.get("/data/disk-space")
-async def check_disk_space(path: str):
+async def check_disk_space(request: Request, path: str):
     """Check total and free disk space for a given path."""
+    _require_local_client(request)
     try:
         target_path = Path(path)
         check_path = target_path
@@ -297,6 +312,7 @@ async def check_disk_space(path: str):
 @router.post("/data/move-storage")
 async def move_storage(request: Request, body: dict = Body(...)):
     """Move all database files, papers, and vectors to a new path, update config."""
+    _require_local_client(request)
     lang = get_language(request)
     new_path_str = body.get("new_path")
     if not new_path_str:

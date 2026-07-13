@@ -31,10 +31,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create .env from secrets
+      - name: Prepare backend without shared provider credentials
         shell: bash
         run: |
-          echo "${{ secrets.DOTENV }}" > backend/.env
+          : > backend/.env
           echo "✅ .env created ($(wc -c < backend/.env) bytes)"
 
       - name: Setup Node
@@ -62,7 +62,7 @@ jobs:
       - name: Build backend executable
         run: pyinstaller backend.spec
 
-      - name: Copy backend + .env to Tauri resources
+      - name: Copy backend to Tauri resources
         shell: bash
         run: |
           mkdir -p apps/desktop/src-tauri/resources
@@ -93,7 +93,6 @@ jobs:
           cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend
           cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend.exe
           chmod +x apps/desktop/src-tauri/resources/backend || true
-          cp backend/.env apps/desktop/src-tauri/resources/.env
           ls -la apps/desktop/src-tauri/resources/
 
       - name: Install Rust toolchain

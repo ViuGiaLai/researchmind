@@ -7,7 +7,10 @@ GET  /api/academic/pdf-proxy    → proxy PDF từ URL ngoài để xem trong if
 POST /api/academic/translate    → translate all papers in results list via Gemini
 """
 import asyncio
+import ipaddress
 import json
+import socket
+from urllib.parse import urljoin, urlparse
 import httpx
 from fastapi import APIRouter, Body, Query, HTTPException, Request
 from fastapi.responses import Response
@@ -22,6 +25,70 @@ from academic.semantic_scholar import search_papers as s2_search
 from academic.cache import cache_get, cache_set, cache_invalidate_doi, TTL_OPENALEX, TTL_CROSSREF
 
 router = APIRouter(prefix="/api/academic", tags=["academic"])
+
+MAX_PDF_BYTES = 25 * 1024 * 1024
+MAX_PDF_REDIRECTS = 3
+
+
+async def _validate_public_pdf_url(url: str) -> None:
+    """Reject malformed, local, and private-network URLs before fetching."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise HTTPException(status_code=400, detail="Invalid PDF URL")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="Credentialed URLs are not allowed")
+
+    host = parsed.hostname
+    try:
+        addresses = [ipaddress.ip_address(host)]
+    except ValueError:
+        try:
+            results = await asyncio.to_thread(socket.getaddrinfo, host, parsed.port or 443, type=socket.SOCK_STREAM)
+            addresses = [ipaddress.ip_address(result[4][0]) for result in results]
+        except (socket.gaierror, ValueError):
+            raise HTTPException(status_code=400, detail="Unable to resolve PDF host")
+
+    if not addresses or any(not address.is_global for address in addresses):
+        raise HTTPException(status_code=400, detail="Private or local PDF hosts are not allowed")
+
+
+async def _download_pdf(url: str) -> bytes:
+    """Download a bounded PDF while validating every redirect target."""
+    current_url = url
+    headers = {"User-Agent": "ResearchMindVN/0.6"}
+    async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
+        for _ in range(MAX_PDF_REDIRECTS + 1):
+            await _validate_public_pdf_url(current_url)
+            async with client.stream("GET", current_url, headers=headers) as response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    location = response.headers.get("location")
+                    if not location:
+                        raise HTTPException(status_code=502, detail="PDF redirect has no location")
+                    current_url = urljoin(current_url, location)
+                    continue
+                if response.status_code != 200:
+                    raise HTTPException(status_code=502, detail=f"Failed to fetch PDF: HTTP {response.status_code}")
+
+                content_length = response.headers.get("content-length")
+                if content_length:
+                    try:
+                        if int(content_length) > MAX_PDF_BYTES:
+                            raise HTTPException(status_code=413, detail="PDF exceeds the 25 MB limit")
+                    except ValueError:
+                        raise HTTPException(status_code=502, detail="Invalid PDF content length")
+                content_type = response.headers.get("content-type", "").lower()
+                if "application/pdf" not in content_type and "application/octet-stream" not in content_type:
+                    raise HTTPException(status_code=415, detail="Remote resource is not a PDF")
+
+                chunks = bytearray()
+                async for chunk in response.aiter_bytes():
+                    chunks.extend(chunk)
+                    if len(chunks) > MAX_PDF_BYTES:
+                        raise HTTPException(status_code=413, detail="PDF exceeds the 25 MB limit")
+                if not chunks.startswith(b"%PDF-"):
+                    raise HTTPException(status_code=415, detail="Remote resource is not a valid PDF")
+                return bytes(chunks)
+    raise HTTPException(status_code=502, detail="Too many PDF redirects")
 
 
 @router.get("/doi")
@@ -152,30 +219,15 @@ async def discover_papers(body: dict = Body(...)):
 @router.get("/pdf-proxy")
 async def proxy_pdf(url: str = Query(..., description="PDF URL to proxy")):
     """Proxy PDF from external URL to bypass CORS/X-Frame-Options for iframe viewing."""
-    if not url.startswith("http://") and not url.startswith("https://"):
-        raise HTTPException(status_code=400, detail="Invalid URL")
-    # Block non-PDF URLs
-    if not any(url.lower().endswith(ext) for ext in [".pdf", ".PDF"]) and "pdf" not in url.lower():
-        raise HTTPException(status_code=400, detail="URL does not appear to be a PDF")
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(url, headers={"User-Agent": "ResearchMindVN/0.3"})
-            if resp.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"Failed to fetch PDF: HTTP {resp.status_code}")
-            content_type = resp.headers.get("content-type", "").lower()
-            if "pdf" not in content_type and not url.lower().endswith(".pdf"):
-                # Some servers return octet-stream for PDFs, allow it
-                pass
-            return Response(
-                content=resp.content,
-                media_type="application/pdf",
-                headers={
-                    "Content-Disposition": "inline",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET",
-                    "Cache-Control": "public, max-age=3600",
-                },
-            )
+        content = await _download_pdf(url)
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=3600"},
+        )
+    except HTTPException:
+        raise
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="Timeout fetching PDF")
     except httpx.RequestError as e:
