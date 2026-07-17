@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter } from "./components/Icons";
-import { LibraryView } from "./components/library/LibraryView";
-import { HighlightsLibraryView } from "./components/library/HighlightsLibraryView";
-import { SearchView } from "./components/search/SearchView";
-import { DiscoveryView } from "./components/discovery/DiscoveryView";
-import { ReviewBuilderView } from "./components/review/ReviewBuilderView";
-import { InsightsView } from "./components/insights/InsightsView";
-import { ScreeningBoard } from "./components/screening/ScreeningBoard";
-import { ChatView } from "./components/chat/ChatView";
-import { SettingsView } from "./components/settings/SettingsView";
-import { PersonalBrainView } from "./components/personal/PersonalBrainView";
-import { DailyReaderView } from "./components/personal/DailyReaderView";
-import { WowAnalysisView } from "./components/insights/WowAnalysisView";
-import { GraphView } from "./components/graph/GraphView";
-import { EvidenceMatrixView } from "./components/evidence/EvidenceMatrixView";
-import { AISetupWizard } from "./components/setup/AISetupWizard";
+import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter, IconUser } from "./components/Icons";
+const LibraryView = React.lazy(() => import("./components/library/LibraryView").then(({ LibraryView }) => ({ default: LibraryView })));
+const HighlightsLibraryView = React.lazy(() => import("./components/library/HighlightsLibraryView").then(({ HighlightsLibraryView }) => ({ default: HighlightsLibraryView })));
+const SearchView = React.lazy(() => import("./components/search/SearchView").then(({ SearchView }) => ({ default: SearchView })));
+const DiscoveryView = React.lazy(() => import("./components/discovery/DiscoveryView").then(({ DiscoveryView }) => ({ default: DiscoveryView })));
+const ReviewBuilderView = React.lazy(() => import("./components/review/ReviewBuilderView").then(({ ReviewBuilderView }) => ({ default: ReviewBuilderView })));
+const InsightsView = React.lazy(() => import("./components/insights/InsightsView").then(({ InsightsView }) => ({ default: InsightsView })));
+const ScreeningBoard = React.lazy(() => import("./components/screening/ScreeningBoard").then(({ ScreeningBoard }) => ({ default: ScreeningBoard })));
+const ChatView = React.lazy(() => import("./components/chat/ChatView").then(({ ChatView }) => ({ default: ChatView })));
+const SettingsView = React.lazy(() => import("./components/settings/SettingsView").then(({ SettingsView }) => ({ default: SettingsView })));
+const AccountView = React.lazy(() => import("./components/account/AccountView").then(({ AccountView }) => ({ default: AccountView })));
+const PersonalBrainView = React.lazy(() => import("./components/personal/PersonalBrainView").then(({ PersonalBrainView }) => ({ default: PersonalBrainView })));
+const DailyReaderView = React.lazy(() => import("./components/personal/DailyReaderView").then(({ DailyReaderView }) => ({ default: DailyReaderView })));
+const WowAnalysisView = React.lazy(() => import("./components/insights/WowAnalysisView").then(({ WowAnalysisView }) => ({ default: WowAnalysisView })));
+const GraphView = React.lazy(() => import("./components/graph/GraphView").then(({ GraphView }) => ({ default: GraphView })));
+const EvidenceMatrixView = React.lazy(() => import("./components/evidence/EvidenceMatrixView").then(({ EvidenceMatrixView }) => ({ default: EvidenceMatrixView })));
+const AISetupWizard = React.lazy(() => import("./components/setup/AISetupWizard").then(({ AISetupWizard }) => ({ default: AISetupWizard })));
 import { HelpMenu } from "./components/help/HelpMenu";
 import { HelpCenterView } from "./components/help/HelpCenterView";
 import { WelcomeTour, hasSeenWelcomeTour, resetWelcomeTourSeen } from "./components/help/WelcomeTour";
@@ -24,8 +25,9 @@ import type { HelpSectionId } from "./components/help/helpContent";
 import { ToastProvider } from "./components/shared/Toast";
 import { SubTabBar } from "./components/shared/SubTabBar";
 import { api, BASE_URL } from "./lib/api";
+import { useFirebaseAuth } from "./lib/firebase";
 
-type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
+type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account";
 
 const LABS_TABS = ["wow", "brain", "daily", "graph"] as const;
 type LabsTab = (typeof LABS_TABS)[number];
@@ -95,6 +97,8 @@ const ReviewHub: React.FC<{
 };
 
 function App() {
+  const auth = useFirebaseAuth();
+  const requestSignIn = () => window.dispatchEvent(new Event("researchmind:open-auth"));
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     try {
@@ -166,6 +170,12 @@ function App() {
   }, [activeTab]);
 
   useEffect(() => {
+    const openLibraryForGuest = () => setActiveTab("library");
+    window.addEventListener("researchmind:guest-enter", openLibraryForGuest);
+    return () => window.removeEventListener("researchmind:guest-enter", openLibraryForGuest);
+  }, []);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && helpSection) {
         setHelpSection(null);
@@ -233,7 +243,7 @@ function App() {
       const timeout = setTimeout(() => controller.abort(), 8000);
       let h: { status: string; backend_ready?: boolean; init_message?: string };
       try {
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765"}/api/ping`, {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765"}/api/ping`, { headers: { "ngrok-skip-browser-warning": "true" },
           signal: controller.signal,
         });
         clearTimeout(timeout);
@@ -388,7 +398,11 @@ function App() {
   if (showSetup || checkingSetup) {
     return (
       <div className="app">
-        {showSetup && <AISetupWizard onComplete={handleSetupComplete} />}
+        {showSetup && (
+          <React.Suspense fallback={<div className="app-loading"><IconSpinner size={32} /></div>}>
+            <AISetupWizard onComplete={handleSetupComplete} />
+          </React.Suspense>
+        )}
         {checkingSetup && !showSetup && (
           <div className="app-container">
             <aside className="app-sidebar">
@@ -424,7 +438,8 @@ function App() {
 
   return (
     <ToastProvider>
-    <div className="app-container">
+    <React.Suspense fallback={<div className="app-loading"><IconSpinner size={32} /></div>}>
+      <div className="app-container">
       {/* Sidebar */}
       <aside className={`app-sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
         <div className="sidebar-brand">
@@ -492,21 +507,56 @@ function App() {
             <IconSettings size={20} />
             <span className="sidebar-label">{t("nav.settings")}</span>
           </button>
+
         </nav>
 
         {!sidebarCollapsed && (
           <div className="sidebar-footer">
-            <div className="sidebar-core-value">
-              <div className="sidebar-local-info">
-                <IconLock size={12} style={{ marginRight: 6 }} />
-                <span>{t("common.data_local")}</span>
+            <div className="sidebar-footer-meta">
+              <div className="sidebar-core-value">
+                <div className="sidebar-local-info">
+                  <IconLock size={12} style={{ marginRight: 6 }} />
+                  <span>{t("common.data_local")}</span>
+                </div>
+                <div className="sidebar-core-value-text">{t("app.tagline")}</div>
               </div>
-              <div className="sidebar-core-value-text">{t("app.tagline")}</div>
+              <div className="sidebar-version">
+                v0.6.0
+              </div>
             </div>
-            <div className="sidebar-version">
-              v0.6.0
-            </div>
+            {auth.enabled && auth.user && (
+              <button className={`sidebar-account-entry ${activeTab === "account" ? "active" : ""}`} type="button" onClick={() => setActiveTab("account")}>
+                <span className="sidebar-account-avatar" aria-hidden="true">
+                  {auth.user.photoURL ? <img src={auth.user.photoURL} alt="" referrerPolicy="no-referrer" /> : (auth.user.displayName || auth.user.email || "R").slice(0, 1).toUpperCase()}
+                </span>
+                <span className="sidebar-account-copy"><strong>{auth.user.displayName || t("account.default_name")}</strong><small>{auth.user.email || t("account.manage_account")}</small></span>
+                <IconUser size={16} />
+              </button>
+            )}
+            {auth.enabled && !auth.user && (
+              <button className="sidebar-account-entry" type="button" onClick={requestSignIn}>
+                <span className="sidebar-account-avatar" aria-hidden="true"><IconUser size={16} /></span>
+                <span className="sidebar-account-copy"><strong>{t("auth.optional_sign_in")}</strong><small>{t("auth.optional_sign_in_hint")}</small></span>
+                <IconUser size={16} />
+              </button>
+            )}
           </div>
+        )}
+        {sidebarCollapsed && auth.enabled && auth.user && (
+          <button
+            className={`sidebar-account-collapsed ${activeTab === "account" ? "active" : ""}`}
+            type="button"
+            onClick={() => setActiveTab("account")}
+            title={t("account.eyebrow")}
+            aria-label={t("account.eyebrow")}
+          >
+            <span className="sidebar-account-avatar" aria-hidden="true">
+              {auth.user.photoURL ? <img src={auth.user.photoURL} alt="" referrerPolicy="no-referrer" /> : (auth.user.displayName || auth.user.email || "R").slice(0, 1).toUpperCase()}
+            </span>
+          </button>
+        )}
+        {sidebarCollapsed && auth.enabled && !auth.user && (
+          <button className="sidebar-account-collapsed" type="button" onClick={requestSignIn} title={t("auth.sign_in")} aria-label={t("auth.sign_in")}><IconUser size={18} /></button>
         )}
       </aside>
 
@@ -539,6 +589,8 @@ function App() {
               {activeTab === "graph" && <GraphView />}
             </div>
           </div>
+        ) : activeTab === "account" ? (
+          <AccountView onOpenSettings={() => setActiveTab("settings")} />
         ) : activeTab === "settings" ? (
           <SettingsView
             onOpenHelp={(id) => setHelpSection(id)}
@@ -600,7 +652,8 @@ function App() {
           }}
         />
       )}
-    </div>
+      </div>
+    </React.Suspense>
     </ToastProvider>
   );
 }

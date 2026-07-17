@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, BASE_URL } from "../../lib/api";
+import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
 import { ProgressSidebar } from "./ProgressSidebar";
@@ -1185,7 +1185,7 @@ export function ReviewBuilderView() {
                 <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
               </div>
               <iframe
-                src={`${BASE_URL}/api/papers/${activePdf.paperId}/file${activePdf.page ? `#page=${activePdf.page}` : ""}`}
+                src={getAuthenticatedApiUrl(`/api/papers/${activePdf.paperId}/file${activePdf.page ? `#page=${activePdf.page}` : ""}`)}
                 style={{ flex: 1, border: "none" }}
                 title={t("review_builder.pdf_preview")}
               />

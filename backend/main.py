@@ -1,6 +1,6 @@
 """ResearchMind VN — FastAPI Backend
 
-Trợ lý nghiên cứu AI — Local-first, tiếng Việt.
+ResearchMind AI Research Assistant — Local-first.
 
 Routes are organized into routers/:
 - routers/papers.py   Paper CRUD + Import + Citation + Highlights
@@ -20,6 +20,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
+import asyncio
 import json
 import sys
 import threading
@@ -38,6 +39,8 @@ from loguru import logger
 
 from app_state import state
 from config.settings import settings
+from common.i18n import get_language, t
+from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token
 from db.database import get_engine, get_session
 from db.models import Base, Paper, Setting
 from ingestion.embedder import get_embedder
@@ -62,6 +65,7 @@ from routers.academic import router as academic_router
 from routers.collections import router as collections_router
 from routers.review import router as review_router
 from routers.research import router as research_router
+from routers.auth import router as auth_router
 from graph.router import router as graph_router
 
 
@@ -70,14 +74,12 @@ from graph.router import router as graph_router
 def load_persisted_settings():
     """Load settings from SQLite database on startup.
 
-    Only loads UI/preference settings, NOT connection/security settings
-    which should always come from .env file.
+    API keys entered by a desktop user are kept in that user's local data
+    database so a shipped build never needs to contain provider credentials.
+    Deployment-only connection settings continue to come from environment.
     """
     env_only_keys = {
-        "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
-        "groq_api_key", "github_api_key", "freemodel_api_key",
-        "openrouter_api_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key",
-        "local_model", "claude_model", "deepseek_model", "gemini_model",
+        "llama_server_url", "local_model", "claude_model", "deepseek_model", "gemini_model",
         "groq_model", "github_model", "freemodel_model",
         "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
     }
@@ -130,6 +132,9 @@ def _migrate_auto_summary(engine):
             if "layout_stats" not in columns:
                 conn.execute(text("ALTER TABLE papers ADD COLUMN layout_stats TEXT DEFAULT '{}'"))
                 logger.info("Migration: Added layout_stats column to papers table")
+            if "auto_summary_lang" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN auto_summary_lang TEXT DEFAULT ''"))
+                logger.info("Migration: Added auto_summary_lang column to papers table")
             conn.commit()
     except Exception as e:
         logger.warning(f"Paper schema migration skipped (may already exist): {e}")
@@ -155,7 +160,10 @@ async def lifespan(app: FastAPI):
     """Initialize app state on startup, cleanup on shutdown."""
     startup_t0 = time.time()
     logger.info("Starting ResearchMind VN backend...")
-    state.init_message = "Đang khởi động cơ sở dữ liệu..."
+    if settings.firebase_auth_enabled:
+        await asyncio.to_thread(ensure_firebase_ready)
+        logger.info("Firebase Authentication enabled for hosted API")
+    state.init_message = t("startup.init_db", "vi")
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.papers_dir.mkdir(parents=True, exist_ok=True)
@@ -171,7 +179,7 @@ async def lifespan(app: FastAPI):
     load_persisted_settings()
     app.state.engine = state.engine
 
-    state.init_message = "Đang khởi tạo search & AI engine..."
+    state.init_message = t("startup.init_search", "vi")
 
     def _background_startup():
         try:
@@ -267,7 +275,7 @@ async def lifespan(app: FastAPI):
             logger.info("RAG pipeline initialized")
             recover_interrupted_import_jobs()
             state.backend_ready = True
-            state.init_message = "Sẵn sàng"
+            state.init_message = t("startup.ready", "vi")
             logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
 
             import httpx
@@ -278,7 +286,7 @@ async def lifespan(app: FastAPI):
             except Exception:
                 logger.warning(f"llama-server not detected at {settings.llama_server_url}")
         except Exception as e:
-            state.init_message = f"Lỗi khởi động backend: {e}"
+            state.init_message = t("startup.failed", "vi", error=str(e))
             logger.exception("Background startup failed")
 
     threading.Thread(target=_background_startup, daemon=True).start()
@@ -298,16 +306,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "RESEARCHMIND_CORS_ORIGINS",
+        "tauri://localhost,http://tauri.localhost,http://localhost:1420,http://127.0.0.1:1420,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
-app.mount("/static/papers", StaticFiles(directory=settings.papers_dir), name="papers")
+# The Render disk can be empty when the process is imported. The directory is
+# created in the lifespan hook before any request is served.
+app.mount("/static/papers", StaticFiles(directory=settings.papers_dir, check_dir=False), name="papers")
 
 
 # ─── Register Routers ────────────────────────────────────────────
@@ -327,24 +347,72 @@ app.include_router(academic_router)
 app.include_router(collections_router)
 app.include_router(review_router)
 app.include_router(research_router)
+app.include_router(auth_router)
 app.include_router(graph_router)
+
+# Serve React frontend (SPA) — hỗ trợ share qua ngrok
+frontend_dist = Path(__file__).resolve().parent.parent / "apps" / "desktop" / "dist"
+if frontend_dist.exists():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str):
+        file_path = frontend_dist / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(frontend_dist / "index.html"))
+    logger.info("Frontend SPA mounted — share web ready")
 
 
 # ─── Global Exception Handler ────────────────────────────────────
+
+@app.middleware("http")
+async def language_middleware(request: Request, call_next):
+    lang = get_language(request)
+    request.state.lang = lang
+    response = await call_next(request)
+    return response
+
+
+@app.middleware("http")
+async def firebase_auth_middleware(request: Request, call_next):
+    """Require Firebase tokens for every hosted API endpoint except health checks."""
+    public_paths = {"/api/ping", "/api/health"}
+    is_desktop_oauth = request.url.path.startswith("/api/auth/desktop/google/")
+    if not settings.firebase_auth_enabled or not request.url.path.startswith("/api") or request.url.path in public_paths or is_desktop_oauth:
+        return await call_next(request)
+
+    authorization = request.headers.get("Authorization", "")
+    token = authorization.removeprefix("Bearer ").strip() if authorization.startswith("Bearer ") else ""
+    # PDF iframes cannot attach Authorization headers. A short-lived Firebase
+    # ID token is permitted only for the protected PDF preview endpoint.
+    if not token and request.url.path.startswith("/api/papers/") and request.url.path.endswith("/file"):
+        token = request.query_params.get("firebase_token", "").strip()
+    if not token:
+        return JSONResponse(status_code=401, content={"detail": "Firebase authentication required."})
+
+    try:
+        request.state.firebase_claims = await asyncio.to_thread(
+            verify_id_token, token
+        )
+    except FirebaseAuthError as exc:
+        return JSONResponse(status_code=401, content={"detail": str(exc)})
+    return await call_next(request)
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch-all exception handler to ensure CORS headers are returned on 500 errors."""
     logger.exception(f"Unhandled exception occurred: {exc}")
+    lang = getattr(request.state, "lang", "vi")
     from starlette.responses import Response
     return Response(
         status_code=500,
         content=json.dumps({
-            "detail": "Internal Server Error",
+            "detail": t("error.unknown", lang, error=str(exc)),
             "type": exc.__class__.__name__,
         }),
         media_type="application/json",
-        headers={"Access-Control-Allow-Origin": "*"},
     )
 
 

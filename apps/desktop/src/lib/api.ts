@@ -5,7 +5,33 @@
  * Backend runs at http://127.0.0.1:8765 by default.
  */
 
+import i18n from "../i18n";
+import { getFirebaseIdToken } from "./firebase";
+
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
+
+/** URL for iframe downloads. Firebase tokens are short-lived and only used
+ * where browsers cannot attach the Authorization header themselves. */
+export function getAuthenticatedApiUrl(path: string): string {
+  const token = getFirebaseIdToken();
+  if (!token) return `${BASE_URL}${path}`;
+  const [pathAndQuery, fragment] = path.split("#", 2);
+  const separator = pathAndQuery.includes("?") ? "&" : "?";
+  return `${BASE_URL}${pathAndQuery}${separator}firebase_token=${encodeURIComponent(token)}${fragment ? `#${fragment}` : ""}`;
+}
+
+const NGROK_HEADERS = { "ngrok-skip-browser-warning": "true" };
+
+/** Get the current UI language for X-Language header (always normalized to vi/en/ja). */
+function getLangHeader(): string {
+  const lang = (i18n.language || "vi").split("-")[0];
+  if (lang === "vi" || lang === "en" || lang === "ja") return lang;
+  return "vi";
+}
+
+function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
+  return { "X-Language": getLangHeader(), ...NGROK_HEADERS, ...extra };
+}
 
 function parseApiError(status: number, text: string): string {
   try {
@@ -88,7 +114,7 @@ async function request<T>(
   const url = `${BASE_URL}${path}`;
   const options: RequestInit = {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "X-Language": getLangHeader(), "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
   };
   if (body !== undefined) {
     options.body = JSON.stringify(body);
@@ -134,6 +160,7 @@ export interface Paper {
   tags: string;
   notes: string;
   auto_summary: string;
+  auto_summary_lang?: string;
   read_status: string;
   starred: boolean;
   layout_stats?: Record<string, { columns: number; multicolumn: boolean }> | null;
@@ -442,10 +469,13 @@ export const api = {
   retryPaperOcr: (id: string) =>
     request<{ status: string; job_id: string; paper_id: string }>("POST", `/api/papers/${id}/retry-ocr`),
 
+  regenerateSummary: (paperId: string) =>
+    request<{ status: string; auto_summary: string; auto_summary_lang: string }>("POST", `/api/papers/${paperId}/regenerate-summary`),
+
   importPaper: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE_URL}/api/papers/import`, { method: "POST", body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import`, { method: "POST", headers: NGROK_HEADERS, body: formData });
     if (!res.ok) {
       const err = await res.text();
       throw new Error(parseApiError(res.status, err));
@@ -473,7 +503,7 @@ export const api = {
     (async () => {
       try {
         const ids = jobIds.map(encodeURIComponent).join(",");
-        const res = await fetch(`${BASE_URL}/api/jobs/stream?ids=${ids}`, { signal: controller.signal });
+        const res = await fetch(`${BASE_URL}/api/jobs/stream?ids=${ids}`, { headers: NGROK_HEADERS, signal: controller.signal });
         if (!res.ok) {
           handlers.onError?.(await res.text());
           return;
@@ -521,7 +551,7 @@ export const api = {
   importBibtex: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE_URL}/api/papers/import/bibtex`, { method: "POST", body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import/bibtex`, { method: "POST", headers: NGROK_HEADERS, body: formData });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ total: number; imported: number; errors: number; results: { filename: string; status: string; paper_id?: string; title?: string; error?: string }[] }>;
   },
@@ -529,7 +559,7 @@ export const api = {
   importZoteroCsv: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv`, { method: "POST", body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv`, { method: "POST", headers: NGROK_HEADERS, body: formData });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ total: number; imported: number; errors: number; results: { filename: string; status: string; paper_id?: string; title?: string; error?: string }[] }>;
   },
@@ -538,7 +568,7 @@ export const api = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("zotero_data_dir", zoteroDataDir);
-    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv-pdf`, { method: "POST", body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv-pdf`, { method: "POST", headers: NGROK_HEADERS, body: formData });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{
       total: number;
@@ -582,7 +612,7 @@ export const api = {
   searchWithSignal: async (text: string, paperIds?: string[], topK = 10, filters?: SearchFilters, signal?: AbortSignal) => {
     const res = await fetch(`${BASE_URL}/api/search`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: mergeHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ text, paper_ids: paperIds, top_k: topK, filters }),
       signal,
     });
@@ -596,7 +626,7 @@ export const api = {
     ),
 
   searchSuggestWithSignal: async (q: string, signal?: AbortSignal) => {
-    const res = await fetch(`${BASE_URL}/api/search/suggest?q=${encodeURIComponent(q)}`, { signal });
+    const res = await fetch(`${BASE_URL}/api/search/suggest?q=${encodeURIComponent(q)}`, { headers: NGROK_HEADERS, signal });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ suggestions: string[]; tags?: string[]; papers?: { id: string; title: string }[] }>;
   },
@@ -635,7 +665,7 @@ export const api = {
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
           body,
           signal: controller.signal,
         });
@@ -722,7 +752,7 @@ export const api = {
       try {
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
           body,
           signal: controller.signal,
         });
@@ -968,13 +998,13 @@ export const api = {
 
   // Paper Export
   exportPaperHtml: (paperId: string) =>
-    fetch(`${BASE_URL}/api/papers/${paperId}/export/html`).then((res) => {
+    fetch(`${BASE_URL}/api/papers/${paperId}/export/html`, { headers: NGROK_HEADERS }).then((res) => {
       if (!res.ok) throw new Error(`Export HTML failed: ${res.status}`);
       return res.blob();
     }),
 
   exportPaperDocx: (paperId: string) =>
-    fetch(`${BASE_URL}/api/papers/${paperId}/export/docx`).then((res) => {
+    fetch(`${BASE_URL}/api/papers/${paperId}/export/docx`, { headers: NGROK_HEADERS }).then((res) => {
       if (!res.ok) throw new Error(`Export DOCX failed: ${res.status}`);
       return res.blob();
     }),
@@ -982,7 +1012,7 @@ export const api = {
   exportSynthesis: (title: string, content: string, format: string) =>
     fetch(`${BASE_URL}/api/papers/export/synthesis`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: mergeHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ title, content, format }),
     }).then((res) => {
       if (!res.ok) throw new Error(`Export Synthesis failed: ${res.status}`);
@@ -1034,7 +1064,7 @@ export const api = {
       try {
         const res = await fetch(`${BASE_URL}/api/review/builder/draft/stream`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ paper_ids: paperIds, title, sections }),
           signal: controller.signal,
         });
@@ -1091,7 +1121,7 @@ export const api = {
   exportReview: (title: string, content: string, format: string) =>
     fetch(`${BASE_URL}/api/review/builder/export`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: mergeHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ title, content, format }),
     }).then((res) => {
       if (!res.ok) throw new Error(`Export Review failed: ${res.status}`);

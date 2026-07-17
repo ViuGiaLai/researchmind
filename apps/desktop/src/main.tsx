@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
+import { AuthGate } from "./components/auth/AuthGate";
+import { FirebaseAuthProvider } from "./lib/firebase";
 import { initTheme } from "./lib/theme";
 import "./i18n";
 import "./styles/variables.css";
@@ -23,7 +25,9 @@ initTheme();
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <FirebaseAuthProvider>
+        <AuthGate><App /></AuthGate>
+      </FirebaseAuthProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

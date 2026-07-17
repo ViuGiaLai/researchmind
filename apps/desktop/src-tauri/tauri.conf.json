@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' http://127.0.0.1:8765 http://localhost:8765 https://*.googleapis.com https://*.firebaseapp.com; img-src 'self' asset: data: blob: http://127.0.0.1:8765 http://localhost:8765 https://*.googleusercontent.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; media-src 'self' blob:; frame-src 'self' http://127.0.0.1:8765 http://localhost:8765 https://accounts.google.com https://*.firebaseapp.com"
     }
   },
   "bundle": {
@@ -38,8 +38,7 @@
       ],
     "resources": [
       "resources/backend.exe",
-      "resources/backend",
-      "resources/.env"
+      "resources/backend"
     ],
     "windows": {
       "wix": null,

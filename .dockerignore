@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+node_modules
+apps/desktop/node_modules
+apps/desktop/dist
+dist
+build
+__pycache__
+*.pyc
+.env
+backend/.env
+apps/desktop/.env
+apps/desktop/src-tauri/resources/.env
+data
+coverage

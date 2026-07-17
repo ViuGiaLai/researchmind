@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { BASE_URL } from "../../lib/api";
+import { getAuthenticatedApiUrl } from "../../lib/api";
 import { IconSearch, IconClipboard, IconClose, IconWithText } from "../Icons";
 
 interface PdfViewerProps {
@@ -33,7 +33,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const pdfUrlRef = useRef("");
 
   const cacheBuster = Date.now();
-  const pdfUrl = `${BASE_URL}/api/papers/${paperId}/file#page=${currentPage}&_=${cacheBuster}`;
+  const pdfUrl = getAuthenticatedApiUrl(`/api/papers/${paperId}/file?_=${cacheBuster}#page=${currentPage}`);
 
   useEffect(() => {
     pdfUrlRef.current = pdfUrl;

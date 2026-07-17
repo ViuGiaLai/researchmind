@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { api, BASE_URL, EvidenceMatrixDraftSummary } from "../../lib/api";
+import { api, getAuthenticatedApiUrl, EvidenceMatrixDraftSummary } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText, IconRefresh } from "../Icons";
 
@@ -442,7 +442,7 @@ export const EvidenceMatrixView: React.FC = () => {
               <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
             </div>
             <iframe
-              src={`${BASE_URL}/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`}
+              src={getAuthenticatedApiUrl(`/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`)}
               style={{ flex: 1, border: "none" }}
               title={t("pdf.preview_title")}
             />

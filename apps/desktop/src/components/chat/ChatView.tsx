@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
-import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
+import { api, getAuthenticatedApiUrl, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
 import { TrustPanel } from "./TrustPanel";
 import { PdfViewer } from "../pdf/PdfViewer";
@@ -169,7 +169,7 @@ export const ChatView: React.FC<{
 
   useEffect(() => {
     if (paperIds.length === 1) {
-      setPdfPaperUrl(`${BASE_URL}/api/papers/${paperIds[0]}/file`);
+      setPdfPaperUrl(getAuthenticatedApiUrl(`/api/papers/${paperIds[0]}/file`));
       setPdfPaperId(paperIds[0]);
       setPdfInitialPage(1);
       setPdfHighlightText("");
@@ -948,7 +948,7 @@ export const ChatView: React.FC<{
           }
           const page = citation.page || 1;
           setPdfPaperId(paperId);
-          setPdfPaperUrl(`${BASE_URL}/api/papers/${paperId}/file`);
+          setPdfPaperUrl(getAuthenticatedApiUrl(`/api/papers/${paperId}/file`));
           setPdfInitialPage(page);
           setPdfHighlightText(citation.text_snippet || citation.text || "");
           setShowPdfViewer(true);
@@ -1407,7 +1407,7 @@ export const ChatView: React.FC<{
                                 }
                                 const page = c.page || 1;
                                 const cacheBuster = Date.now();
-                                const pdfUrl = `${BASE_URL}/api/papers/${c.paper_id}/file#page=${page}&_=${cacheBuster}`;
+                                const pdfUrl = getAuthenticatedApiUrl(`/api/papers/${c.paper_id}/file?_=${cacheBuster}#page=${page}`);
                                 console.log("[Citation] Footer opening PDF:", pdfUrl);
                                 setPdfPaperUrl(pdfUrl);
                                 setPdfPaperId(c.paper_id);

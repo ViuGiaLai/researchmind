@@ -48,3 +48,5 @@ pydantic==2.*
 pydantic-settings==2.*
 python-dotenv==1.*
 loguru==0.7.*
+firebase-admin==6.*
+google-cloud-firestore==2.*

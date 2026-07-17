@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8765
 
+    # Hosted authentication (disabled for the existing local-first desktop mode)
+    firebase_auth_enabled: bool = False
+    firebase_project_id: str = ""
+    firebase_service_account_json: str = ""
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    public_backend_url: str = ""
+    desktop_google_callback_url: str = ""
+
     # Paths
     data_dir: Path = get_resolved_data_dir()
     papers_dir: Path = data_dir / "papers"

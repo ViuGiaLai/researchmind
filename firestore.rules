@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Account profiles are written only by the verified Render backend.
+    // The desktop client must not read/write Firestore directly.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

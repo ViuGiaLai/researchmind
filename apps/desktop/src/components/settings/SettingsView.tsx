@@ -898,24 +898,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                     <>
                       <div className="settings-diag-grid">
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.backend_ready)}`}>
-                          <span className="settings-diag-label">Backend</span>
+                          <span className="settings-diag-label">{t("settings.diag_backend")}</span>
                           <strong>{diagnostics.backend_ready ? t("settings.diag_ready") : t("settings.diag_starting")}</strong>
                           <span className="settings-diag-hint">{diagnostics.init_message || BASE_URL}</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.embedder_ready)}`}>
-                          <span className="settings-diag-label">Embedder</span>
+                          <span className="settings-diag-label">{t("settings.diag_embedder")}</span>
                           <strong>{diagnostics.embedder_ready ? t("settings.diag_ready") : t("settings.diag_loading_model")}</strong>
                           <span className="settings-diag-hint">{diagnostics.embedding_model}</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.bm25_ready)}`}>
-                          <span className="settings-diag-label">FTS / BM25</span>
+                          <span className="settings-diag-label">{t("settings.diag_fts")}</span>
                           <strong>{diagnostics.bm25_ready ? t("settings.diag_active") : t("settings.diag_not_ready")}</strong>
-                          <span className="settings-diag-hint">SQLite full-text search</span>
+                          <span className="settings-diag-hint">{t("settings.diag_fts_hint")}</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.vector_ready)}`}>
-                          <span className="settings-diag-label">ChromaDB</span>
+                          <span className="settings-diag-label">{t("settings.diag_vector_store")}</span>
                           <strong>{diagnostics.vector_ready ? t("settings.diag_connected") : t("settings.diag_not_ready")}</strong>
-                          <span className="settings-diag-hint">{diagnostics.chroma_chunks} vectors</span>
+                          <span className="settings-diag-hint">{t("settings.diag_vectors", { count: diagnostics.chroma_chunks })}</span>
                         </div>
                         <div className={`settings-diag-card settings-diag-card--${diagStatus(diagnostics.chunk_sync_ok)}`}>
                           <span className="settings-diag-label">{t("settings.diag_chunk_sync")}</span>
@@ -1113,7 +1113,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "deepseek" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">DeepSeek API Key</label>
+                  <label className="settings-label">{t("settings.provider_api_key", { provider: "DeepSeek" })}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1137,7 +1137,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">DeepSeek Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "DeepSeek" })}</label>
                   <select className="settings-select" value={deepseekModel} onChange={(e) => setDeepseekModel(e.target.value)}>
                     <option value="deepseek-chat">deepseek-chat ({t("settings.model_desc.deepseek_chat")})</option>
                     <option value="deepseek-reasoner">deepseek-reasoner ({t("settings.model_desc.deepseek_reasoner")})</option>
@@ -1149,7 +1149,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "gemini" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">Gemini API Key</label>
+                  <label className="settings-label">{t("settings.provider_api_key", { provider: "Gemini" })}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1174,7 +1174,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">Gemini Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "Gemini" })}</label>
                   <select className="settings-select" value={geminiModel} onChange={(e) => setGeminiModel(e.target.value)}>
                     <option value="gemini-2.5-flash">gemini-2.5-flash ({t("settings.model_desc.gemini_25_flash")})</option>
                     <option value="gemini-2.0-flash">gemini-2.0-flash ({t("settings.model_desc.gemini_20_flash")})</option>
@@ -1187,7 +1187,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "claude" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">Claude API Key</label>
+                  <label className="settings-label">{t("settings.provider_api_key", { provider: "Claude" })}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1212,7 +1212,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">Claude Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "Claude" })}</label>
                   <select className="settings-select" value={claudeModel} onChange={(e) => setClaudeModel(e.target.value)}>
                     <option value="claude-sonnet-4-20250514">Claude Sonnet 4 ({t("settings.model_desc.claude_sonnet_4")})</option>
                     <option value="claude-haiku-3-5-20241022">Claude Haiku 3.5 ({t("settings.model_desc.claude_haiku_35")})</option>
@@ -1225,7 +1225,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "groq" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">Groq API Key</label>
+                  <label className="settings-label">{t("settings.provider_api_key", { provider: "Groq" })}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1250,7 +1250,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">Groq Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "Groq" })}</label>
                   <select className="settings-select" value={groqModel} onChange={(e) => setGroqModel(e.target.value)}>
                     <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile ({t("settings.model_desc.llama_33_70b_versatile")})</option>
                     <option value="llama-3.3-70b-specdec">llama-3.3-70b-specdec ({t("settings.model_desc.llama_33_70b_specdec")})</option>
@@ -1263,7 +1263,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "nvidia" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">Nvidia NIM API Key</label>
+                  <label className="settings-label">{t("settings.provider_api_key", { provider: "Nvidia NIM" })}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1288,7 +1288,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">Nvidia NIM Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "Nvidia NIM" })}</label>
                   <select className="settings-select" value={nvidiaModel} onChange={(e) => setNvidiaModel(e.target.value)}>
                     <option value="moonshotai/kimi-k2.6">moonshotai/kimi-k2.6 ({t("settings.model_desc.kimi_k26")})</option>
                     <option value="deepseek-ai/deepseek-v3">deepseek-ai/deepseek-v3 ({t("settings.model_desc.deepseek_v3")})</option>
@@ -1301,7 +1301,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "freemodel" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">FreeModel API Key</label>
+                  <label className="settings-label">{t("settings.provider_api_key", { provider: "FreeModel" })}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1326,7 +1326,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">FreeModel Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "FreeModel" })}</label>
                   <select className="settings-select" value={freemodelModel} onChange={(e) => setFreemodelModel(e.target.value)}>
                     <option value="gpt-4o-mini">gpt-4o-mini ({t("settings.model_desc.gpt_4o_mini_standard")})</option>
                     <option value="claude-3-5-haiku">claude-3-5-haiku ({t("settings.model_desc.claude_35_haiku")})</option>
@@ -1339,7 +1339,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
             {customCloudProvider === "github" && (
               <>
                 <div className="settings-field">
-                  <label className="settings-label">GitHub Personal Access Token</label>
+                  <label className="settings-label">{t("settings.github_access_token")}</label>
                   <div className="settings-api-key-row">
                     <input
                       type={showApiKey ? "text" : "password"}
@@ -1366,7 +1366,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   </p>
                 </div>
                 <div className="settings-field">
-                  <label className="settings-label">GitHub Model</label>
+                  <label className="settings-label">{t("settings.provider_model", { provider: "GitHub" })}</label>
                   <select className="settings-select" value={githubModel} onChange={(e) => setGithubModel(e.target.value)}>
                     <option value="gpt-4o-mini">gpt-4o-mini ({t("settings.model_desc.gpt_4o_mini_github")})</option>
                     <option value="microsoft/gpt-4o-mini">microsoft/gpt-4o-mini ({t("settings.model_desc.gpt_4o_mini_full")})</option>
@@ -1381,7 +1381,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         {llmMode === "local" && (
           <div className="settings-mode-detail">
             <div className="settings-field" style={{ marginTop: 16 }}>
-              <label className="settings-label">llama-server URL</label>
+              <label className="settings-label">{t("settings.llama_server_url")}</label>
               <input
                 type="text"
                 className="settings-input"
@@ -1791,8 +1791,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                   cursor: "pointer",
                 }}
               >
-                <option value="local">Local</option>
-                <option value="cloud">Cloud Gemini</option>
+                <option value="local">{t("settings.embedding_local_option")}</option>
+                <option value="cloud">{t("settings.embedding_cloud_option")}</option>
               </select>
               {embeddingMode === "cloud" && (
                 <button

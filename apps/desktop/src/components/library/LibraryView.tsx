@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, BASE_URL } from "../../lib/api";
+import i18n from "../../i18n";
+import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, getAuthenticatedApiUrl } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
@@ -127,6 +128,9 @@ export const LibraryView: React.FC<{
   // PDF preview modal for related papers
   const [pdfPreviewId, setPdfPreviewId] = useState<string | null>(null);
 
+  // Summary regeneration state
+  const [regeneratingSummary, setRegeneratingSummary] = useState(false);
+
   // Highlights state
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [loadingHighlights, setLoadingHighlights] = useState(false);
@@ -225,6 +229,25 @@ export const LibraryView: React.FC<{
       setHighlights([]);
     }
   }, [activePaper?.id]);
+
+  // Auto-regenerate summary when language changes and summary language mismatches
+  useEffect(() => {
+    if (!activePaper) return;
+    if (!activePaper.auto_summary) return;
+    if (regeneratingSummary) return;
+    const currentLang = i18n.language?.split("-")[0] || "vi";
+    const summaryLang = activePaper.auto_summary_lang || "vi";
+    if (currentLang === summaryLang) return;
+    setRegeneratingSummary(true);
+    api.regenerateSummary(activePaper.id).then((res) => {
+      setActivePaper((prev) => prev ? { ...prev, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : prev);
+      setPapers((prev) => prev.map((p) => p.id === activePaper.id ? { ...p, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : p));
+    }).catch((e) => {
+      console.error("Failed to regenerate summary:", e);
+    }).finally(() => {
+      setRegeneratingSummary(false);
+    });
+  }, [activePaper?.id, activePaper?.auto_summary_lang, i18n.language]);
 
   const loadPapers = async (forcedPage?: number) => {
     const effectivePage = forcedPage ?? page;
@@ -1183,7 +1206,7 @@ export const LibraryView: React.FC<{
                   </div>
                   {(activePaper.is_scanned || activePaper.status === "needs_ocr") && (
                     <div className="metadata-item">
-                      <span className="metadata-label">OCR</span>
+                    <span className="metadata-label">{t("library_view.ocr_label")}</span>
                       <span className="metadata-value">
                         {activePaper.is_scanned
                           ? t("library_view.ocr_status", { n: activePaper.ocr_pages_count || 0, m: activePaper.ocr_pages_failed || 0 })
@@ -1405,7 +1428,7 @@ export const LibraryView: React.FC<{
             ) : (
               <div className="pdf-iframe-container">
                 <iframe
-                  src={`${BASE_URL}/api/papers/${activePaper.id}/file`}
+                  src={getAuthenticatedApiUrl(`/api/papers/${activePaper.id}/file`)}
                   className="pdf-iframe"
                   title={activePaper.title || activePaper.filename}
                 />
@@ -1457,7 +1480,7 @@ export const LibraryView: React.FC<{
                       {matchModalData.modelInfo && (
                         <div className="matches-model-info">
                           <IconSettings size={12} />
-                          <span>Embedding model: <strong>{matchModalData.modelInfo.name}</strong> ({matchModalData.modelInfo.mode})</span>
+                          <span>{t("library_view.embedding_model", { model: matchModalData.modelInfo.name, mode: matchModalData.modelInfo.mode })}</span>
                         </div>
                       )}
                     </div>
@@ -1509,7 +1532,7 @@ export const LibraryView: React.FC<{
               </div>
               <div className="rm-modal-pdf-body">
                 <iframe
-                  src={`${BASE_URL}/api/papers/${pdfPreviewId}/file`}
+                  src={getAuthenticatedApiUrl(`/api/papers/${pdfPreviewId}/file`)}
                   className="pdf-iframe"
                   title={t("pdf.preview_title")}
                 />
