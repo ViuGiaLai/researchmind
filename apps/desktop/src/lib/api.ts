@@ -20,7 +20,7 @@ export function getAuthenticatedApiUrl(path: string): string {
   return `${BASE_URL}${pathAndQuery}${separator}firebase_token=${encodeURIComponent(token)}${fragment ? `#${fragment}` : ""}`;
 }
 
-/** Get the current UI language for X-Language header (always normalized to vi/en/ja). */
+/** Get the current UI language for API language headers (always normalized to vi/en/ja). */
 function getLangHeader(): string {
   const lang = (i18n.language || "vi").split("-")[0];
   if (lang === "vi" || lang === "en" || lang === "ja") return lang;
@@ -34,6 +34,7 @@ export function createApiHeaders(
 ): Record<string, string> {
   return {
     "X-Language": language,
+    "Accept-Language": language,
     "ngrok-skip-browser-warning": "true",
     ...(token ? { Authorization: "Bearer " + token } : {}),
     ...extra,
