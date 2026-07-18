@@ -67,13 +67,13 @@ function EditorToolbar({ editor, t }: { editor: any; t: (key: string, options?: 
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
         title={t("review_editor.undo")}
-      >↩ Undo</button>
+      >↩ {t("review_editor.undo")}</button>
       <button
         style={btnStyle(false, !editor.can().redo())}
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
         title={t("review_editor.redo")}
-      >↪ Redo</button>
+      >↪ {t("review_editor.redo")}</button>
       <div style={{ width: 1, height: 16, background: "var(--color-border, rgba(148,163,184,0.2))", margin: "0 4px" }} />
       <button
         style={btnStyle(editor.isActive("bold"))}
@@ -106,12 +106,12 @@ function EditorToolbar({ editor, t }: { editor: any; t: (key: string, options?: 
         style={btnStyle(editor.isActive("bulletList"))}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         title={t("review_editor.bullet_list")}
-      >• List</button>
+      >• {t("review_editor.bullet_list")}</button>
       <button
         style={btnStyle(editor.isActive("orderedList"))}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         title={t("review_editor.ordered_list")}
-      >1. List</button>
+      >1. {t("review_editor.ordered_list")}</button>
       <div style={{ width: 1, height: 16, background: "var(--color-border, rgba(148,163,184,0.2))", margin: "0 4px" }} />
       <button
         style={btnStyle(editor.isActive("blockquote"))}

@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
-import { api, Paper, Highlight, ChatResponse, BASE_URL } from "../../lib/api";
+import { api, Paper, Highlight, ChatResponse, getAuthenticatedApiUrl } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { HighlightListSkeleton } from "../shared/Skeleton";
+import { MarkdownRenderer } from "../chat/MarkdownRenderer";
 import {
   IconSearch,
   IconSpinner,
@@ -43,7 +44,7 @@ const getCategoryIcon = (category: string, size = 12) => {
 };
 
 function getPdfPageUrl(paperId: string, pageNumber: number | null): string {
-  const base = `${BASE_URL}/api/papers/${paperId}/file`;
+  const base = getAuthenticatedApiUrl(`/api/papers/${paperId}/file`);
   if (pageNumber) {
     return `${base}#page=${pageNumber}`;
   }
@@ -839,7 +840,9 @@ export const HighlightsLibraryView: React.FC<{
                             )}
                             {result && (
                               <div className="hl-generate-action-result">
-                                <div className="hl-generate-result-content">{result.result.answer}</div>
+                                <div className="hl-generate-result-content">
+                                  <MarkdownRenderer text={result.result.answer} />
+                                </div>
                                 {result.result.citations.length > 0 && (
                                   <div className="hl-generate-result-citations">
                                     <span className="hl-generate-citations-label">{t("highlights.sources_label")}</span>

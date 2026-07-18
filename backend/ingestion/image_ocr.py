@@ -9,7 +9,9 @@ from typing import Optional
 
 from loguru import logger
 
-_ocr_lock = threading.Lock()
+# OCR initialization and inference share a lock. It must be re-entrant because
+# ocr_image_bytes holds it while get_ocr_engine performs lazy initialization.
+_ocr_lock = threading.RLock()
 _global_ocr_engine = None
 
 MIN_IMAGE_DIM = 80

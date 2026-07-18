@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, BASE_URL } from "../../lib/api";
+import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
 import { ProgressSidebar } from "./ProgressSidebar";
 import { SourcePanel } from "./SourcePanel";
 import { useToast } from "../shared/Toast";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
+import { useConfirmDialog, usePromptDialog } from "../shared/ConfirmDialog";
 import {
   IconBookOpen,
   IconFileText,
@@ -38,6 +40,8 @@ type Step = "select" | "outline" | "review";
 
 export function ReviewBuilderView() {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useConfirmDialog();
+  const { prompt, promptDialog } = usePromptDialog();
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [title, setTitle] = useState(t("review_builder.default_title"));
@@ -58,6 +62,7 @@ export function ReviewBuilderView() {
   const [editingSection, setEditingSection] = useState<string | undefined>();
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [activePdf, setActivePdf] = useState<{ paperId: string; paperTitle: string; page?: number } | null>(null);
+  const pdfDialogRef = useDialogFocus<HTMLDivElement>(Boolean(activePdf), () => setActivePdf(null));
   const [qualityIssues, setQualityIssues] = useState<QualityIssue[]>([]);
   const [qualityLoading, setQualityLoading] = useState(false);
   const toast = useToast();
@@ -145,7 +150,7 @@ export function ReviewBuilderView() {
 
   const handleRestoreVersion = async (versionIdx: number) => {
     if (!currentDraftId) return;
-    if (!window.confirm(t("review_builder.confirm_restore_version"))) return;
+    if (!(await confirm(t("review_builder.confirm_restore_version")))) return;
     try {
       const res = await api.restoreDraftVersion(currentDraftId, versionIdx);
       if (res.error) {
@@ -226,7 +231,11 @@ export function ReviewBuilderView() {
   };
 
   const handleRenameDraft = async (draftId: string, currentTitle: string) => {
-    const nextTitle = window.prompt(t("review_builder.rename_prompt"), currentTitle)?.trim();
+    const nextTitle = await prompt({
+      title: t("common.rename"),
+      message: t("review_builder.rename_prompt"),
+      initialValue: currentTitle,
+    });
     if (!nextTitle || nextTitle === currentTitle) return;
     try {
       const res = await api.renameReviewDraft(draftId, nextTitle);
@@ -1177,21 +1186,23 @@ export function ReviewBuilderView() {
         {/* PDF Overlay */}
         {activePdf && (
           <div className="rm-overlay evidence-pdf-overlay" onClick={() => setActivePdf(null)}>
-            <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
+            <div ref={pdfDialogRef} className="rm-modal" role="dialog" aria-modal="true" aria-labelledby="review-pdf-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
               <div className="rm-modal-header">
-                <span className="rm-modal-title">
+                <span id="review-pdf-title" className="rm-modal-title">
                   {activePdf.paperTitle}{activePdf.page ? ` — ${t("review_builder.pdf_page_label", { page: activePdf.page })}` : ""}
                 </span>
-                <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
+                <button type="button" className="rm-modal-close" aria-label={t("common.close")} onClick={() => setActivePdf(null)}>✕</button>
               </div>
               <iframe
-                src={`${BASE_URL}/api/papers/${activePdf.paperId}/file${activePdf.page ? `#page=${activePdf.page}` : ""}`}
+                src={getAuthenticatedApiUrl(`/api/papers/${activePdf.paperId}/file${activePdf.page ? `#page=${activePdf.page}` : ""}`)}
                 style={{ flex: 1, border: "none" }}
                 title={t("review_builder.pdf_preview")}
               />
             </div>
           </div>
         )}
+        {confirmationDialog}
+        {promptDialog}
       </div>
     </div>
   );

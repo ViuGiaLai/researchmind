@@ -481,6 +481,13 @@
   min-width: 0;
 }
 
+.sidebar-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .collapsed .sidebar-menu-btn {
   justify-content: center;
   padding: 8px;
@@ -568,11 +575,17 @@
   padding: var(--space-md);
   border-top: 1px solid var(--color-border);
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.sidebar-footer-meta {
+  display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
 }
 
 .sidebar-core-value {
@@ -603,6 +616,69 @@
   white-space: nowrap;
 }
 
+.sidebar-account-entry {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.sidebar-account-entry:hover,
+.sidebar-account-entry.active {
+  border-color: var(--color-primary-muted);
+  background: var(--color-primary-subtle);
+}
+
+.sidebar-account-entry:active { transform: translateY(1px); }
+
+.sidebar-account-avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  font-size: .75rem;
+  font-weight: 750;
+}
+
+.sidebar-account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.sidebar-account-copy { min-width: 0; display: grid; gap: 1px; }
+.sidebar-account-copy strong,
+.sidebar-account-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-account-copy strong { color: var(--color-text); font-size: .75rem; font-weight: 680; }
+.sidebar-account-copy small { color: var(--color-text-muted); font-size: .66rem; }
+.sidebar-account-entry > svg { color: var(--color-text-muted); }
+
+.sidebar-account-collapsed {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.sidebar-account-collapsed:hover,
+.sidebar-account-collapsed.active { background: var(--color-primary-subtle); border-color: var(--color-primary-muted); }
+.sidebar-account-collapsed:active { transform: translateY(1px); }
+
 .app-retry-btn {
   margin-top: 12px;
   padding: 10px 18px;
@@ -627,6 +703,22 @@
 .app-retry-btn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+.page-loading-state {
+  width: 100%;
+  height: 100%;
+  min-height: 14rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.page-loading-state svg {
+  color: var(--color-primary);
 }
 
 /* Zotero-style Library Split View */

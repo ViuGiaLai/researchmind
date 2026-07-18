@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { api, BASE_URL, EvidenceMatrixDraftSummary } from "../../lib/api";
+import { api, getAuthenticatedApiUrl, EvidenceMatrixDraftSummary } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText, IconRefresh } from "../Icons";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
+import { usePromptDialog } from "../shared/ConfirmDialog";
 
 interface EvidenceCell {
   paper_id: string;
@@ -54,12 +56,14 @@ const CONFIDENCE_ICON: Record<EvidenceCell["confidence"], React.FC<{ size?: numb
 
 export const EvidenceMatrixView: React.FC = () => {
   const { t } = useTranslation();
+  const { prompt, promptDialog } = usePromptDialog();
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [matrix, setMatrix] = useState<EvidenceMatrix | null>(null);
   const [expandedCell, setExpandedCell] = useState<{ row: number; col: number } | null>(null);
   const [activePdf, setActivePdf] = useState<{ paperId: string; page: number; quote: string } | null>(null);
+  const pdfDialogRef = useDialogFocus<HTMLDivElement>(Boolean(activePdf), () => setActivePdf(null));
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const toast = useToast();
 
@@ -178,7 +182,11 @@ export const EvidenceMatrixView: React.FC = () => {
   const renameHistoryEntry = useCallback(async (id: string) => {
     const entry = history.find((item) => item.id === id);
     if (!entry) return;
-    const nextTitle = window.prompt(t("evidence.rename_prompt"), entry.title)?.trim();
+    const nextTitle = await prompt({
+      title: t("common.rename"),
+      message: t("evidence.rename_prompt"),
+      initialValue: entry.title,
+    });
     if (!nextTitle || nextTitle === entry.title) return;
     try {
       await api.renameEvidenceMatrixDraft(id, nextTitle);
@@ -187,7 +195,7 @@ export const EvidenceMatrixView: React.FC = () => {
     } catch {
       toast.addToast("error", t("evidence.toast_rename_error"));
     }
-  }, [history, toast, t]);
+  }, [history, prompt, toast, t]);
 
   const deleteHistoryEntry = useCallback(async (id: string) => {
     try {
@@ -392,7 +400,19 @@ export const EvidenceMatrixView: React.FC = () => {
         ) : (
           <div className="rm-history-list">
             {history.map(entry => (
-              <div key={entry.id} className="rm-history-item" onClick={() => loadFullDraft(entry.id)}>
+              <div
+                key={entry.id}
+                className="rm-history-item"
+                role="button"
+                tabIndex={0}
+                onClick={() => loadFullDraft(entry.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    loadFullDraft(entry.id);
+                  }
+                }}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="rm-history-item-title">
                     {entry.title || entry.paperNames.join(" • ")}
@@ -429,9 +449,9 @@ export const EvidenceMatrixView: React.FC = () => {
 
       {activePdf && (
         <div className="rm-overlay evidence-pdf-overlay" onClick={() => setActivePdf(null)}>
-          <div className="rm-modal" onClick={(e) => e.stopPropagation()}>
+          <div ref={pdfDialogRef} className="rm-modal" role="dialog" aria-modal="true" aria-labelledby="evidence-pdf-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
             <div className="rm-modal-header">
-              <span className="rm-modal-title">
+              <span id="evidence-pdf-title" className="rm-modal-title">
                 {t("evidence.pdf_modal", { n: activePdf.page })}
                 {activePdf.quote && (
                   <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", marginLeft: 8, fontSize: "0.78rem" }}>
@@ -439,16 +459,17 @@ export const EvidenceMatrixView: React.FC = () => {
                   </span>
                 )}
               </span>
-              <button type="button" className="rm-modal-close" onClick={() => setActivePdf(null)}>✕</button>
+              <button type="button" className="rm-modal-close" aria-label={t("common.close")} onClick={() => setActivePdf(null)}>✕</button>
             </div>
             <iframe
-              src={`${BASE_URL}/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`}
+              src={getAuthenticatedApiUrl(`/api/papers/${activePdf.paperId}/file#page=${activePdf.page}`)}
               style={{ flex: 1, border: "none" }}
               title={t("pdf.preview_title")}
             />
           </div>
         </div>
       )}
+      {promptDialog}
     </div>
   );
 };

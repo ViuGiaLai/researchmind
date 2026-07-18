@@ -20,7 +20,9 @@ def _make_text_image(text: str) -> bytes:
 
 def test_ocr_image_bytes_reads_simple_text():
     img_bytes = _make_text_image("Figure 1 Results")
-    result = ocr_image_bytes(img_bytes)
+    # The generated fixture is intentionally tiny on disk; production uses a
+    # byte-size threshold to skip icons and other low-value embedded images.
+    result = ocr_image_bytes(img_bytes, skip_byte_size_check=True)
     assert result is not None
     assert len(result.strip()) >= 3
 

@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
-import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, BASE_URL } from "../../lib/api";
+import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, getAuthenticatedApiUrl } from "../../lib/api";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
+import { PdfViewer } from "../pdf/PdfViewer";
 import {
   IconBrain,
   IconSearch,
@@ -116,6 +118,7 @@ export const LibraryView: React.FC<{
 
   // Chunk match modal state
   const [matchModalOpen, setMatchModalOpen] = useState(false);
+  const matchDialogRef = useDialogFocus<HTMLDivElement>(matchModalOpen, () => setMatchModalOpen(false));
   const [matchModalData, setMatchModalData] = useState<{
     sourceTitle: string;
     otherTitle: string;
@@ -127,6 +130,7 @@ export const LibraryView: React.FC<{
 
   // PDF preview modal for related papers
   const [pdfPreviewId, setPdfPreviewId] = useState<string | null>(null);
+  const pdfDialogRef = useDialogFocus<HTMLDivElement>(Boolean(pdfPreviewId), () => setPdfPreviewId(null));
 
   // Summary regeneration state
   const [regeneratingSummary, setRegeneratingSummary] = useState(false);
@@ -1050,7 +1054,7 @@ export const LibraryView: React.FC<{
                   className={`preview-tab-btn ${previewTab === "ai" ? "active" : ""}`}
                   onClick={() => setPreviewTab("ai")}
                 >
-                  <IconSparkle size={14} style={{ marginRight: 6 }} /> {t("library_view.analysis_tab_with_icon")}
+                  <IconSparkle size={14} style={{ marginRight: 6 }} /> {t("library_view.analysis_tab")}
                 </button>
                 <button
                   className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
@@ -1148,7 +1152,7 @@ export const LibraryView: React.FC<{
                         {parseTags(activePaper.tags).map((tag) => (
                           <span key={tag} className="tag-badge">
                             {tag}
-                            <span className="tag-remove" onClick={() => handleRemoveTag(tag)}>✕</span>
+                            <button type="button" className="tag-remove" aria-label={t("library_view.remove_tag", { defaultValue: `Remove tag ${tag}` })} onClick={() => handleRemoveTag(tag)}>✕</button>
                           </span>
                         ))}
                         {showTagInput ? (
@@ -1206,7 +1210,7 @@ export const LibraryView: React.FC<{
                   </div>
                   {(activePaper.is_scanned || activePaper.status === "needs_ocr") && (
                     <div className="metadata-item">
-                      <span className="metadata-label">OCR</span>
+                    <span className="metadata-label">{t("library_view.ocr_label")}</span>
                       <span className="metadata-value">
                         {activePaper.is_scanned
                           ? t("library_view.ocr_status", { n: activePaper.ocr_pages_count || 0, m: activePaper.ocr_pages_failed || 0 })
@@ -1427,10 +1431,11 @@ export const LibraryView: React.FC<{
               </div>
             ) : (
               <div className="pdf-iframe-container">
-                <iframe
-                  src={`${BASE_URL}/api/papers/${activePaper.id}/file`}
-                  className="pdf-iframe"
-                  title={activePaper.title || activePaper.filename}
+                <PdfViewer
+                  paperId={activePaper.id}
+                  paperTitle={activePaper.title || activePaper.filename}
+                  totalPages={activePaper.page_count}
+                  mode="embedded"
                 />
               </div>
             )}
@@ -1446,13 +1451,13 @@ export const LibraryView: React.FC<{
         {/* Related paper matches modal */}
         {matchModalOpen && (
           <div className="rm-modal-overlay" onClick={() => setMatchModalOpen(false)}>
-            <div className="rm-modal rm-modal-matches" onClick={(e) => e.stopPropagation()}>
+            <div ref={matchDialogRef} className="rm-modal rm-modal-matches" role="dialog" aria-modal="true" aria-labelledby="library-matches-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
               <div className="rm-modal-header">
-                <h3 className="rm-modal-title">
+                <h3 id="library-matches-title" className="rm-modal-title">
                   <IconGraph size={16} style={{ marginRight: 8 }} />
                   {t("library_view.similarity_detail_title")}
                 </h3>
-                <button className="rm-modal-close" onClick={() => setMatchModalOpen(false)}>✕</button>
+                <button type="button" className="rm-modal-close" aria-label={t("common.close")} onClick={() => setMatchModalOpen(false)}>✕</button>
               </div>
               <div className="rm-modal-body">
                 {loadingMatches ? (
@@ -1480,7 +1485,7 @@ export const LibraryView: React.FC<{
                       {matchModalData.modelInfo && (
                         <div className="matches-model-info">
                           <IconSettings size={12} />
-                          <span>Embedding model: <strong>{matchModalData.modelInfo.name}</strong> ({matchModalData.modelInfo.mode})</span>
+                          <span>{t("library_view.embedding_model", { model: matchModalData.modelInfo.name, mode: matchModalData.modelInfo.mode })}</span>
                         </div>
                       )}
                     </div>
@@ -1522,17 +1527,17 @@ export const LibraryView: React.FC<{
         {/* PDF preview modal for related papers */}
         {pdfPreviewId && (
           <div className="rm-modal-overlay" onClick={() => setPdfPreviewId(null)}>
-            <div className="rm-modal rm-modal-pdf" onClick={(e) => e.stopPropagation()}>
+            <div ref={pdfDialogRef} className="rm-modal rm-modal-pdf" role="dialog" aria-modal="true" aria-labelledby="library-pdf-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
               <div className="rm-modal-header">
-                <h3 className="rm-modal-title">
+                <h3 id="library-pdf-title" className="rm-modal-title">
                   <IconBookOpen size={16} style={{ marginRight: 8 }} />
                   {papers.find(p => p.id === pdfPreviewId)?.title || t("library_view.view_document")}
                 </h3>
-                <button className="rm-modal-close" onClick={() => setPdfPreviewId(null)}>✕</button>
+                <button type="button" className="rm-modal-close" aria-label={t("common.close")} onClick={() => setPdfPreviewId(null)}>✕</button>
               </div>
               <div className="rm-modal-pdf-body">
                 <iframe
-                  src={`${BASE_URL}/api/papers/${pdfPreviewId}/file`}
+                  src={getAuthenticatedApiUrl(`/api/papers/${pdfPreviewId}/file`)}
                   className="pdf-iframe"
                   title={t("pdf.preview_title")}
                 />

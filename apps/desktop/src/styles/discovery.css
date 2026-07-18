@@ -32,6 +32,55 @@
   margin-bottom: var(--space-sm);
 }
 
+.discovery-strategy-row {
+  display: flex;
+  align-items: flex-end;
+  gap: .55rem;
+  margin: -.2rem 0 var(--space-sm);
+  padding: .55rem .65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+
+.discovery-strategy-row label {
+  display: grid;
+  gap: .2rem;
+  color: var(--color-text-muted);
+  font-size: .68rem;
+}
+
+.discovery-strategy-row input[type="number"] {
+  width: 6rem;
+  padding: .38rem .45rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.discovery-strategy-row .discovery-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .35rem;
+  min-height: 2rem;
+}
+
+.discovery-strategy-row > button {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  margin-left: auto;
+  min-height: 2rem;
+  padding: .35rem .6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
 .discovery-search-input {
   flex: 1;
   padding: 10px 14px;

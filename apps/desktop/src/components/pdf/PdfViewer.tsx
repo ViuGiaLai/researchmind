@@ -1,87 +1,157 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BASE_URL } from "../../lib/api";
-import { IconSearch, IconClipboard, IconClose, IconWithText } from "../Icons";
+import { api, getAuthenticatedApiUrl, type PdfAnnotation } from "../../lib/api";
+import {
+  IconBookmark,
+  IconCheck,
+  IconClipboard,
+  IconClose,
+  IconEdit,
+  IconFileText,
+  IconSpinner,
+  IconTrash,
+  IconWithText,
+} from "../Icons";
 
 interface PdfViewerProps {
   paperId: string;
   paperTitle: string;
   initialPage?: number;
+  totalPages?: number | null;
   highlightText?: string;
+  mode?: "panel" | "embedded";
+  projectId?: string;
   onClose?: () => void;
   onCopyQuote?: (text: string, page: number) => void;
 }
+
+const COLORS: PdfAnnotation["color"][] = ["yellow", "green", "blue", "pink"];
 
 export const PdfViewer: React.FC<PdfViewerProps> = ({
   paperId,
   paperTitle,
   initialPage = 1,
-  highlightText,
+  totalPages = null,
+  highlightText = "",
+  mode = "panel",
+  projectId,
   onClose,
   onCopyQuote,
 }) => {
   const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(initialPage);
-  const [totalPages] = useState<number | null>(null);
   const [pageInput, setPageInput] = useState(String(initialPage));
-  const [showHighlightBanner, setShowHighlightBanner] = useState(false);
+  const [annotations, setAnnotations] = useState<PdfAnnotation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [quote, setQuote] = useState(highlightText);
+  const [note, setNote] = useState("");
+  const [color, setColor] = useState<PdfAnnotation["color"]>("yellow");
+  const [showAnnotations, setShowAnnotations] = useState(mode === "embedded");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState("");
   const [isResizing, setIsResizing] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(40);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [panelWidth, setPanelWidth] = useState(42);
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<{ startX: number; startWidth: number; pointerId: number } | null>(null);
-  const pdfUrlRef = useRef("");
 
-  const cacheBuster = Date.now();
-  const pdfUrl = `${BASE_URL}/api/papers/${paperId}/file#page=${currentPage}&_=${cacheBuster}`;
+  const pdfUrl = useMemo(
+    () => getAuthenticatedApiUrl(`/api/papers/${paperId}/file#page=${currentPage}`),
+    [paperId, currentPage],
+  );
 
-  useEffect(() => {
-    pdfUrlRef.current = pdfUrl;
-  }, [pdfUrl]);
-
-  useEffect(() => {
-    setCurrentPage(initialPage);
-    setPageInput(String(initialPage));
-  }, [initialPage]);
-
-  useEffect(() => {
-    if (highlightText) {
-      setShowHighlightBanner(true);
-      const timer = setTimeout(() => setShowHighlightBanner(false), 6000);
-      return () => clearTimeout(timer);
+  const loadReaderData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [annotationData, progress] = await Promise.all([
+        api.listAnnotations(paperId),
+        api.getReadingProgress(paperId),
+      ]);
+      setAnnotations(annotationData.annotations);
+      const startPage = initialPage > 1 ? initialPage : progress.current_page;
+      setCurrentPage(startPage);
+      setPageInput(String(startPage));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("pdf.load_error"));
+    } finally {
+      setLoading(false);
     }
-  }, [highlightText]);
+  }, [initialPage, paperId, t]);
+
+  useEffect(() => {
+    void loadReaderData();
+  }, [loadReaderData]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void api.saveReadingProgress(paperId, currentPage).catch(() => undefined);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [currentPage, paperId]);
 
   const goToPage = useCallback((page: number) => {
-    const p = Math.max(1, Math.min(page, totalPages || 9999));
-    setCurrentPage(p);
-    setPageInput(String(p));
+    const nextPage = Math.max(1, Math.min(page, totalPages || 9999));
+    setCurrentPage(nextPage);
+    setPageInput(String(nextPage));
   }, [totalPages]);
 
-  const handlePageInput = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      const p = parseInt(pageInput, 10);
-      if (!isNaN(p)) goToPage(p);
-    }
-  }, [pageInput, goToPage]);
+  const submitPage = () => {
+    const parsed = Number.parseInt(pageInput, 10);
+    if (Number.isFinite(parsed)) goToPage(parsed);
+    else setPageInput(String(currentPage));
+  };
 
-  const handleCopyQuote = async () => {
+  const saveAnnotation = async () => {
+    if (!quote.trim() && !note.trim()) return;
+    setSaving(true);
+    setError("");
     try {
-      const text = await navigator.clipboard.readText();
-      if (text.trim()) {
-        onCopyQuote?.(text.trim(), currentPage);
-      }
-    } catch {
-      try {
-        if (iframeRef.current?.contentWindow) {
-          const selection = iframeRef.current.contentWindow.getSelection()?.toString();
-          if (selection?.trim()) {
-            onCopyQuote?.(selection.trim(), currentPage);
-          }
-        }
-      } catch {
-      }
+      const created = await api.createAnnotation(paperId, {
+        page_number: currentPage,
+        kind: quote.trim() ? "highlight" : "note",
+        quote_text: quote.trim(),
+        note: note.trim(),
+        color,
+        project_id: projectId,
+      });
+      setAnnotations((items) => [...items, created].sort((a, b) => a.page_number - b.page_number));
+      setQuote("");
+      setNote("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("pdf.save_error"));
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const saveEdit = async (item: PdfAnnotation) => {
+    setSaving(true);
+    try {
+      const updated = await api.updateAnnotation(item.id, { note: editingNote });
+      setAnnotations((items) => items.map((candidate) => candidate.id === updated.id ? updated : candidate));
+      setEditingId(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("pdf.save_error"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeAnnotation = async (id: string) => {
+    try {
+      await api.deleteAnnotation(id);
+      setAnnotations((items) => items.filter((item) => item.id !== id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t("pdf.delete_error"));
+    }
+  };
+
+  const copyQuote = async (item: PdfAnnotation) => {
+    const text = item.quote_text || item.note;
+    await navigator.clipboard.writeText(text);
+    onCopyQuote?.(text, item.page_number);
   };
 
   const endResize = useCallback(() => {
@@ -91,286 +161,138 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     document.body.style.userSelect = "";
   }, []);
 
-  const handleResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const handle = e.currentTarget;
-    handle.setPointerCapture(e.pointerId);
-    setIsResizing(true);
-    resizeRef.current = { startX: e.clientX, startWidth: panelWidth, pointerId: e.pointerId };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, [panelWidth]);
+  const resize = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current || resizeRef.current.pointerId !== event.pointerId) return;
+    const containerWidth = panelRef.current?.parentElement?.clientWidth || window.innerWidth;
+    setPanelWidth(Math.max(28, Math.min(72, resizeRef.current.startWidth + ((event.clientX - resizeRef.current.startX) / containerWidth) * 100)));
+  };
 
-  const handleResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeRef.current || resizeRef.current.pointerId !== e.pointerId) return;
-    const dx = e.clientX - resizeRef.current.startX;
-    const containerWidth = panelRef.current?.parentElement?.clientWidth ?? window.innerWidth;
-    const pct = resizeRef.current.startWidth + (dx / containerWidth) * 100;
-    setPanelWidth(Math.max(20, Math.min(80, pct)));
-  }, []);
-
-  const handleResizeEnd = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeRef.current || resizeRef.current.pointerId !== e.pointerId) return;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // already released
-    }
-    endResize();
-  }, [endResize]);
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const onWindowBlur = () => endResize();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") endResize();
-    };
-
-    window.addEventListener("blur", onWindowBlur);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("blur", onWindowBlur);
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing, endResize]);
-
-  useEffect(() => {
-    return () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, []);
+  useEffect(() => () => endResize(), [endResize]);
 
   return (
     <>
-    {isResizing && (
-      <div
-        className="pdf-resize-overlay"
-        aria-hidden="true"
-      />
-    )}
-    <div
-      ref={panelRef}
-      className={`pdf-viewer-panel${isResizing ? " pdf-viewer-panel--resizing" : ""}`}
-      style={{
-        width: `${panelWidth}%`,
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--color-surface)",
-        borderRight: "1px solid var(--color-border)",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Header */}
-      <div
-        className="pdf-viewer-header"
-        style={{
-          height: "48px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 12px",
-          borderBottom: "1px solid var(--color-border)",
-          background: "var(--color-surface)",
-          flexShrink: 0,
-          gap: "8px",
-        }}
+      {isResizing && <div className="pdf-resize-overlay" aria-hidden="true" />}
+      <section
+        ref={panelRef}
+        className={`pdf-reader pdf-reader--${mode}${isResizing ? " pdf-viewer-panel--resizing" : ""}`}
+        style={mode === "panel" ? { width: `${panelWidth}%` } : undefined}
+        aria-label={t("pdf.reader")}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              fontWeight: 600,
-              fontSize: "0.85rem",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              maxWidth: "200px",
-            }}
-            title={paperTitle}
-          >
-            {paperTitle}
-          </span>
-          <span style={{ color: "var(--color-text-muted)", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-            {t("pdf.page", { n: currentPage, separator: totalPages ? " / " : "", total: totalPages || "" })}
-          </span>
-        </div>
-
-        <div className="pdf-viewer-nav" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <button
-            className="pdf-nav-btn"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage <= 1}
-            title={t("pdf.previous")}
-            style={{
-              background: "transparent",
-              border: "1px solid var(--color-border, #333)",
-              borderRadius: "4px",
-              color: "var(--color-text)",
-              cursor: "pointer",
-              padding: "2px 8px",
-              fontSize: "0.8rem",
-              opacity: currentPage <= 1 ? 0.4 : 1,
-            }}
-          >
-            ◀
-          </button>
-          <input
-            type="text"
-            value={pageInput}
-            onChange={(e) => setPageInput(e.target.value)}
-            onKeyDown={handlePageInput}
-            style={{
-              width: "48px",
-              textAlign: "center",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid var(--color-border, #333)",
-              borderRadius: "4px",
-              color: "var(--color-text)",
-              padding: "2px 4px",
-              fontSize: "0.8rem",
-              outline: "none",
-            }}
-          />
-          <button
-            className="pdf-nav-btn"
-            onClick={() => goToPage(currentPage + 1)}
-            title={t("pdf.next")}
-            style={{
-              background: "transparent",
-              border: "1px solid var(--color-border, #333)",
-              borderRadius: "4px",
-              color: "var(--color-text)",
-              cursor: "pointer",
-              padding: "2px 8px",
-              fontSize: "0.8rem",
-            }}
-          >
-            ▶
-          </button>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-          <button
-            className="pdf-action-btn"
-            onClick={handleCopyQuote}
-            title={t("pdf.next")}
-            style={{
-              background: "rgba(var(--color-primary-rgb), 0.08)",
-              border: "1px solid rgba(var(--color-primary-rgb), 0.2)",
-              borderRadius: "4px",
-              color: "var(--color-primary)",
-              cursor: "pointer",
-              padding: "4px 8px",
-              fontSize: "0.75rem",
-              fontWeight: 500,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <IconWithText icon={IconClipboard} size={12}>{t("pdf.quote_btn")}</IconWithText>
-          </button>
+        <header className="pdf-reader__toolbar">
+          <div className="pdf-reader__identity">
+            <IconFileText size={15} />
+            <strong title={paperTitle}>{paperTitle}</strong>
+          </div>
+          <div className="pdf-reader__pager">
+            <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} aria-label={t("pdf.previous")}>‹</button>
+            <label className="pdf-page-field">
+              <span className="sr-only">{t("pdf.go_to_page")}</span>
+              <input
+                inputMode="numeric"
+                value={pageInput}
+                onChange={(event) => setPageInput(event.target.value)}
+                onBlur={submitPage}
+                onKeyDown={(event) => event.key === "Enter" && submitPage()}
+              />
+              {totalPages ? <span>/ {totalPages}</span> : null}
+            </label>
+            <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage + 1)} disabled={Boolean(totalPages && currentPage >= totalPages)} aria-label={t("pdf.next")}>›</button>
+          </div>
+          <div className="pdf-reader__actions">
             <button
-            className="pdf-close-btn"
-            onClick={onClose}
-            title={t("pdf.quote")}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--color-text-muted)",
-              cursor: "pointer",
-              fontSize: "1rem",
-              padding: "4px",
-              lineHeight: 1,
+              type="button"
+              className={`pdf-tool-btn${showAnnotations ? " is-active" : ""}`}
+              onClick={() => setShowAnnotations((value) => !value)}
+              aria-expanded={showAnnotations}
+            >
+              <IconWithText icon={IconBookmark} size={13}>{t("pdf.annotations")} <span className="pdf-count">{annotations.length}</span></IconWithText>
+            </button>
+            {onClose && <button type="button" className="pdf-tool-btn" onClick={onClose} aria-label={t("pdf.close")}><IconClose size={15} /></button>}
+          </div>
+        </header>
+
+        {error && <div className="pdf-reader__error" role="alert">{error}</div>}
+
+        <div className="pdf-reader__body">
+          <iframe key={`${paperId}-${currentPage}`} src={pdfUrl} title={`${t("pdf.preview_title")} — ${paperTitle}`} />
+
+          {showAnnotations && (
+            <aside className="pdf-annotations" aria-label={t("pdf.annotations")}>
+              <div className="pdf-annotation-composer">
+                <div className="pdf-annotation-composer__heading">
+                  <strong>{t("pdf.add_annotation")}</strong>
+                  <span>{t("pdf.page_short", { page: currentPage })}</span>
+                </div>
+                <textarea value={quote} onChange={(event) => setQuote(event.target.value)} placeholder={t("pdf.quote_placeholder")} rows={3} />
+                <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={t("pdf.note_placeholder")} rows={2} />
+                <div className="pdf-annotation-composer__footer">
+                  <div className="pdf-color-picker" aria-label={t("pdf.color")}>
+                    {COLORS.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={`pdf-color pdf-color--${item}${color === item ? " is-active" : ""}`}
+                        onClick={() => setColor(item)}
+                        aria-label={t(`pdf.color_${item}`)}
+                        aria-pressed={color === item}
+                      />
+                    ))}
+                  </div>
+                  <button type="button" className="rm-btn rm-btn-primary rm-btn-sm" disabled={saving || (!quote.trim() && !note.trim())} onClick={saveAnnotation}>
+                    {saving ? <IconSpinner size={13} /> : <IconBookmark size={13} />}
+                    {t("pdf.save_annotation")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="pdf-annotation-list">
+                {loading ? (
+                  <div className="pdf-annotation-empty"><IconSpinner size={18} />{t("common.loading")}</div>
+                ) : annotations.length === 0 ? (
+                  <div className="pdf-annotation-empty"><IconBookmark size={20} /><span>{t("pdf.no_annotations")}</span></div>
+                ) : annotations.map((item) => (
+                  <article key={item.id} className={`pdf-annotation pdf-annotation--${item.color}`}>
+                    <button type="button" className="pdf-annotation__page" onClick={() => goToPage(item.page_number)}>
+                      {t("pdf.page_short", { page: item.page_number })}
+                    </button>
+                    {item.quote_text && <blockquote>“{item.quote_text}”</blockquote>}
+                    {editingId === item.id ? (
+                      <div className="pdf-annotation__edit">
+                        <textarea value={editingNote} onChange={(event) => setEditingNote(event.target.value)} rows={2} autoFocus />
+                        <button type="button" className="pdf-icon-action" onClick={() => void saveEdit(item)} aria-label={t("common.save")}><IconCheck size={14} /></button>
+                      </div>
+                    ) : item.note ? <p>{item.note}</p> : null}
+                    <footer>
+                      <button type="button" className="pdf-icon-action" onClick={() => void copyQuote(item)} aria-label={t("pdf.copy")}><IconClipboard size={13} /></button>
+                      <button type="button" className="pdf-icon-action" onClick={() => { setEditingId(item.id); setEditingNote(item.note); }} aria-label={t("common.edit")}><IconEdit size={13} /></button>
+                      <button type="button" className="pdf-icon-action pdf-icon-action--danger" onClick={() => void removeAnnotation(item.id)} aria-label={t("common.delete")}><IconTrash size={13} /></button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            </aside>
+          )}
+        </div>
+
+        {mode === "panel" && (
+          <div
+            className="pdf-resize-handle"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("pdf.resize")}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              resizeRef.current = { startX: event.clientX, startWidth: panelWidth, pointerId: event.pointerId };
+              setIsResizing(true);
+              document.body.style.cursor = "col-resize";
+              document.body.style.userSelect = "none";
             }}
-          >
-            <IconClose size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Highlight Banner */}
-      {showHighlightBanner && highlightText && (
-        <div
-          className="pdf-highlight-banner"
-          style={{
-            padding: "8px 12px",
-            background: "rgba(251, 191, 36, 0.1)",
-            borderBottom: "1px solid rgba(251, 191, 36, 0.2)",
-            fontSize: "0.78rem",
-            color: "var(--color-warning, #f59e0b)",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexShrink: 0,
-          }}
-        >
-          <IconSearch size={14} />
-          <span style={{ flex: 1, fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            "{highlightText}"
-          </span>
-          <button
-            onClick={() => setShowHighlightBanner(false)}
-            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "0.8rem", display: "flex" }}
-            aria-label={t("pdf.close_aria")}
-          >
-            <IconClose size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* PDF Content */}
-      <div style={{ flex: 1, position: "relative" }}>
-        <iframe
-          ref={iframeRef}
-          key={`${paperId}-page-${currentPage}`}
-          src={pdfUrl}
-          style={{
-            width: "100%",
-            height: "100%",
-            border: "none",
-            pointerEvents: isResizing ? "none" : "auto",
-          }}
-          title={`${t("pdf.preview_title")} - ${paperTitle}`}
-        />
-      </div>
-
-      {/* Resize Handle — pointer capture avoids iframe swallowing mouseup */}
-      <div
-        className="pdf-resize-handle"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={t("pdf.resize")}
-        onPointerDown={handleResizeStart}
-        onPointerMove={handleResizeMove}
-        onPointerUp={handleResizeEnd}
-        onPointerCancel={handleResizeEnd}
-        onLostPointerCapture={handleResizeEnd}
-        style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: "10px",
-          marginRight: "-3px",
-          cursor: "col-resize",
-          background: isResizing ? "var(--color-primary)" : "transparent",
-          transition: isResizing ? "none" : "background 0.15s",
-          zIndex: 20,
-          touchAction: "none",
-        }}
-        onMouseEnter={(e) => {
-          if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "rgba(var(--color-primary-rgb), 0.3)";
-        }}
-        onMouseLeave={(e) => {
-          if (!isResizing) (e.currentTarget as HTMLDivElement).style.background = "transparent";
-        }}
-      />
-    </div>
+            onPointerMove={resize}
+            onPointerUp={endResize}
+            onPointerCancel={endResize}
+          />
+        )}
+      </section>
     </>
   );
 };

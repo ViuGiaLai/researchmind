@@ -91,6 +91,7 @@ export const HelpMenu: React.FC<HelpMenuProps> = ({ onOpenSection, onStartTour }
         data-tooltip={t("help.menu_title")}
       >
         <IconHelp size={18} />
+        <span className="app-help-btn-label">{t("help.menu_title")}</span>
       </button>
 
       {menuOpen && (

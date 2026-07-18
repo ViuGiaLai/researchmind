@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter } from "./components/Icons";
+import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter, IconUser, IconFolder } from "./components/Icons";
 const LibraryView = React.lazy(() => import("./components/library/LibraryView").then(({ LibraryView }) => ({ default: LibraryView })));
 const HighlightsLibraryView = React.lazy(() => import("./components/library/HighlightsLibraryView").then(({ HighlightsLibraryView }) => ({ default: HighlightsLibraryView })));
 const SearchView = React.lazy(() => import("./components/search/SearchView").then(({ SearchView }) => ({ default: SearchView })));
@@ -11,21 +11,31 @@ const InsightsView = React.lazy(() => import("./components/insights/InsightsView
 const ScreeningBoard = React.lazy(() => import("./components/screening/ScreeningBoard").then(({ ScreeningBoard }) => ({ default: ScreeningBoard })));
 const ChatView = React.lazy(() => import("./components/chat/ChatView").then(({ ChatView }) => ({ default: ChatView })));
 const SettingsView = React.lazy(() => import("./components/settings/SettingsView").then(({ SettingsView }) => ({ default: SettingsView })));
+const AccountView = React.lazy(() => import("./components/account/AccountView").then(({ AccountView }) => ({ default: AccountView })));
 const PersonalBrainView = React.lazy(() => import("./components/personal/PersonalBrainView").then(({ PersonalBrainView }) => ({ default: PersonalBrainView })));
 const DailyReaderView = React.lazy(() => import("./components/personal/DailyReaderView").then(({ DailyReaderView }) => ({ default: DailyReaderView })));
 const WowAnalysisView = React.lazy(() => import("./components/insights/WowAnalysisView").then(({ WowAnalysisView }) => ({ default: WowAnalysisView })));
 const GraphView = React.lazy(() => import("./components/graph/GraphView").then(({ GraphView }) => ({ default: GraphView })));
 const EvidenceMatrixView = React.lazy(() => import("./components/evidence/EvidenceMatrixView").then(({ EvidenceMatrixView }) => ({ default: EvidenceMatrixView })));
+const ProjectWorkspaceView = React.lazy(() => import("./components/projects/ProjectWorkspaceView").then(({ ProjectWorkspaceView }) => ({ default: ProjectWorkspaceView })));
 const AISetupWizard = React.lazy(() => import("./components/setup/AISetupWizard").then(({ AISetupWizard }) => ({ default: AISetupWizard })));
 import { HelpMenu } from "./components/help/HelpMenu";
 import { HelpCenterView } from "./components/help/HelpCenterView";
 import { WelcomeTour, hasSeenWelcomeTour, resetWelcomeTourSeen } from "./components/help/WelcomeTour";
 import type { HelpSectionId } from "./components/help/helpContent";
-import { ToastProvider } from "./components/shared/Toast";
+import { useToast } from "./components/shared/Toast";
 import { SubTabBar } from "./components/shared/SubTabBar";
+import { CommandPalette, type CommandTarget } from "./components/shared/CommandPalette";
 import { api, BASE_URL } from "./lib/api";
+import { useFirebaseAuth } from "./lib/firebase";
 
-type Tab = "wow" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings";
+type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account";
+
+const VALID_TABS = new Set<Tab>(["wow", "projects", "library", "chat", "review", "brain", "daily", "graph", "evidence", "settings", "account"]);
+
+function isValidTab(value: string | null): value is Tab {
+  return value !== null && VALID_TABS.has(value as Tab);
+}
 
 const LABS_TABS = ["wow", "brain", "daily", "graph"] as const;
 type LabsTab = (typeof LABS_TABS)[number];
@@ -95,10 +105,15 @@ const ReviewHub: React.FC<{
 };
 
 function App() {
+  const { addToast } = useToast();
+  const auth = useFirebaseAuth();
+  const requestSignIn = () => window.dispatchEvent(new Event("researchmind:open-auth"));
   const { t } = useTranslation();
+  const [commandOpen, setCommandOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     try {
-      return (localStorage.getItem("researchmind:last-tab") as Tab) || "library";
+      const saved = localStorage.getItem("researchmind:last-tab");
+      return isValidTab(saved) ? saved : "library";
     } catch {
       return "library";
     }
@@ -166,6 +181,12 @@ function App() {
   }, [activeTab]);
 
   useEffect(() => {
+    const openLibraryForGuest = () => setActiveTab("library");
+    window.addEventListener("researchmind:guest-enter", openLibraryForGuest);
+    return () => window.removeEventListener("researchmind:guest-enter", openLibraryForGuest);
+  }, []);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && helpSection) {
         setHelpSection(null);
@@ -201,9 +222,9 @@ function App() {
       setShowSetup(true);
     } catch (e) {
       console.error("Replay setup failed:", e);
-      window.alert(e instanceof Error ? e.message : t("startup.replay_setup_error"));
+      addToast("error", e instanceof Error ? e.message : t("startup.replay_setup_error"));
     }
-  }, []);
+  }, [addToast, t]);
 
   const handleSetupComplete = useCallback(() => {
     setupJustCompletedRef.current = true;
@@ -317,8 +338,8 @@ function App() {
     checkFirstRun();
   };
 
-  const handleStartChat = (paperIds: string[]) => {
-    setInitialQuery(undefined);
+  const handleStartChat = (paperIds: string[], query?: string) => {
+    setInitialQuery(query);
     setInitialMode("chat");
     setChatPaperIds(paperIds);
     setChatSessionKey((k) => k + 1);
@@ -361,6 +382,17 @@ function App() {
     setWowPaperId(paperId);
     setActiveTab("wow");
   };
+
+  useEffect(() => {
+    const onCommandKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((value) => !value);
+      }
+    };
+    window.addEventListener("keydown", onCommandKey);
+    return () => window.removeEventListener("keydown", onCommandKey);
+  }, []);
 
   // If showing setup wizard
   if (backendUnavailable) {
@@ -427,8 +459,8 @@ function App() {
   }
 
   return (
-    <ToastProvider>
-    <React.Suspense fallback={<div className="app-loading"><IconSpinner size={32} /></div>}>
+    <>
+    <a className="skip-link" href="#main-content">{t("common.skip_to_content", { defaultValue: "Skip to content" })}</a>
       <div className="app-container">
       {/* Sidebar */}
       <aside className={`app-sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
@@ -436,27 +468,49 @@ function App() {
           <IconBrain size={26} className="icon-gradient" style={{ marginRight: 8 }} />
           <span className="brand-text">{sidebarCollapsed ? "RM" : "ResearchMind"}</span>
           <button
+            type="button"
             className={`sidebar-collapse-btn${sidebarCollapsed ? " collapsed" : ""}`}
             onClick={toggleSidebar}
             title={sidebarCollapsed ? t("nav.sidebar_expand") : t("nav.sidebar_collapse")}
+            aria-expanded={!sidebarCollapsed}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
               <polyline points={sidebarCollapsed ? "9 18 15 12 9 6" : "15 18 9 12 15 6"} />
             </svg>
           </button>
         </div>
+
+        <button
+          type="button"
+          className="sidebar-command-btn"
+          onClick={() => setCommandOpen(true)}
+          title={t("command.title")}
+          aria-label={t("command.title")}
+        >
+          <IconSearch size={17} />
+          <span className="sidebar-command-label">{t("command.title")}</span>
+          <kbd className="sidebar-command-shortcut">Ctrl K</kbd>
+        </button>
         
-        <nav className="sidebar-menu">
+        <nav className="sidebar-menu" aria-label={t("common.main_navigation", { defaultValue: "Main navigation" })}>
+          {!sidebarCollapsed && (
+            <div className="sidebar-group-label">
+              {t("nav.workspace", { defaultValue: "Workspace" })}
+            </div>
+          )}
             {[
             { tab: "library" as Tab, icon: IconLibrary, label: t("nav.library") },
+            { tab: "projects" as Tab, icon: IconFolder, label: t("nav.projects") },
             { tab: "chat" as Tab, icon: IconChat, label: t("nav.chat") },
             { tab: "review" as Tab, icon: IconBookOpen, label: t("nav.review") },
             { tab: "evidence" as Tab, icon: IconChart, label: t("nav.evidence") },
           ].map(({ tab, icon: Icon, label }) => (
             <button
+              type="button"
               key={tab}
               id={tab === "library" ? "sidebar-library" : tab === "chat" ? "sidebar-chat" : tab === "review" ? "sidebar-review" : undefined}
               className={`sidebar-menu-btn ${activeTab === tab ? "active" : ""}`}
+              aria-current={activeTab === tab ? "page" : undefined}
               onClick={() => {
                 if (activeTab !== tab) {
                   setInitialQuery(undefined);
@@ -479,9 +533,17 @@ function App() {
 
           <div className="sidebar-divider" role="separator" />
 
+          {!sidebarCollapsed && (
+            <div className="sidebar-group-label">
+              {t("nav.intelligence", { defaultValue: "Intelligence" })}
+            </div>
+          )}
+
           <button
+            type="button"
             id="sidebar-labs"
             className={`sidebar-menu-btn sidebar-menu-btn-labs ${isLabsTab(activeTab) ? "active" : ""}`}
+            aria-current={isLabsTab(activeTab) ? "page" : undefined}
             onClick={() => setActiveTab(isLabsTab(activeTab) ? activeTab : "wow")}
             title={sidebarCollapsed ? t("nav.labs") : undefined}
           >
@@ -490,37 +552,83 @@ function App() {
           </button>
 
           <button
+            type="button"
             className={`sidebar-menu-btn ${activeTab === "settings" ? "active" : ""}`}
+            aria-current={activeTab === "settings" ? "page" : undefined}
             onClick={() => setActiveTab("settings")}
             title={sidebarCollapsed ? t("nav.settings") : undefined}
           >
             <IconSettings size={20} />
             <span className="sidebar-label">{t("nav.settings")}</span>
           </button>
+
         </nav>
 
-        {!sidebarCollapsed && (
-          <div className="sidebar-footer">
-            <div className="sidebar-core-value">
-              <div className="sidebar-local-info">
-                <IconLock size={12} style={{ marginRight: 6 }} />
-                <span>{t("common.data_local")}</span>
-              </div>
-              <div className="sidebar-core-value-text">{t("app.tagline")}</div>
-            </div>
-            <div className="sidebar-version">
-              v0.6.0
-            </div>
-          </div>
-        )}
-      </aside>
-
-      {/* Main content area */}
-      <main className="main">
         <HelpMenu
           onOpenSection={(id) => setHelpSection(id)}
           onStartTour={openWelcomeTour}
         />
+
+        {!sidebarCollapsed && (
+          <div className="sidebar-footer">
+            <div className="sidebar-footer-meta">
+              <div className="sidebar-core-value">
+                <div className="sidebar-local-info">
+                  <IconLock size={12} style={{ marginRight: 6 }} />
+                  <span>{t("common.data_local")}</span>
+                </div>
+                <div className="sidebar-core-value-text">{t("app.tagline")}</div>
+              </div>
+              <div className="sidebar-version">
+                v0.6.0
+              </div>
+            </div>
+            {auth.enabled && auth.user && (
+              <button className={`sidebar-account-entry ${activeTab === "account" ? "active" : ""}`} type="button" onClick={() => setActiveTab("account")}>
+                <span className="sidebar-account-avatar" aria-hidden="true">
+                  {auth.user.photoURL ? <img src={auth.user.photoURL} alt="" referrerPolicy="no-referrer" /> : (auth.user.displayName || auth.user.email || "R").slice(0, 1).toUpperCase()}
+                </span>
+                <span className="sidebar-account-copy"><strong>{auth.user.displayName || t("account.default_name")}</strong><small>{auth.user.email || t("account.manage_account")}</small></span>
+                <IconUser size={16} />
+              </button>
+            )}
+            {auth.enabled && !auth.user && (
+              <button className="sidebar-account-entry" type="button" onClick={requestSignIn}>
+                <span className="sidebar-account-avatar" aria-hidden="true"><IconUser size={16} /></span>
+                <span className="sidebar-account-copy"><strong>{t("auth.optional_sign_in")}</strong><small>{t("auth.optional_sign_in_hint")}</small></span>
+                <IconUser size={16} />
+              </button>
+            )}
+          </div>
+        )}
+        {sidebarCollapsed && auth.enabled && auth.user && (
+          <button
+            className={`sidebar-account-collapsed ${activeTab === "account" ? "active" : ""}`}
+            type="button"
+            onClick={() => setActiveTab("account")}
+            title={t("account.eyebrow")}
+            aria-label={t("account.eyebrow")}
+          >
+            <span className="sidebar-account-avatar" aria-hidden="true">
+              {auth.user.photoURL ? <img src={auth.user.photoURL} alt="" referrerPolicy="no-referrer" /> : (auth.user.displayName || auth.user.email || "R").slice(0, 1).toUpperCase()}
+            </span>
+          </button>
+        )}
+        {sidebarCollapsed && auth.enabled && !auth.user && (
+          <button className="sidebar-account-collapsed" type="button" onClick={requestSignIn} title={t("auth.sign_in")} aria-label={t("auth.sign_in")}><IconUser size={18} /></button>
+        )}
+      </aside>
+
+      {/* Main content area */}
+      <main id="main-content" className="main" tabIndex={-1}>
+        <React.Suspense
+          fallback={
+            <div className="page-loading-state" role="status" aria-live="polite">
+              <IconSpinner size={24} />
+              <span>{t("common.loading")}</span>
+            </div>
+          }
+        >
         {isLabsTab(activeTab) ? (
           <div className="hub-shell">
             <SubTabBar
@@ -544,6 +652,8 @@ function App() {
               {activeTab === "graph" && <GraphView />}
             </div>
           </div>
+        ) : activeTab === "account" ? (
+          <AccountView onOpenSettings={() => setActiveTab("settings")} />
         ) : activeTab === "settings" ? (
           <SettingsView
             onOpenHelp={(id) => setHelpSection(id)}
@@ -560,6 +670,12 @@ function App() {
                 onStartDebate={handleStartDebate}
                 onStartVerify={handleStartVerify}
                 onStartWow={handleStartWow}
+              />
+            )}
+            {activeTab === "projects" && (
+              <ProjectWorkspaceView
+                onStartChat={handleStartChat}
+                onStartReview={handleStartReview}
               />
             )}
             {activeTab === "chat" && (
@@ -579,6 +695,7 @@ function App() {
             {activeTab === "evidence" && <EvidenceMatrixView />}
           </>
         )}
+        </React.Suspense>
       </main>
 
       {helpSection && (
@@ -605,9 +722,14 @@ function App() {
           }}
         />
       )}
+      <CommandPalette
+        open={commandOpen}
+        onClose={() => setCommandOpen(false)}
+        onNavigate={(target: CommandTarget) => setActiveTab(target)}
+        onOpenPaper={(paperId) => handleStartChat([paperId])}
+      />
       </div>
-    </React.Suspense>
-    </ToastProvider>
+    </>
   );
 }
 

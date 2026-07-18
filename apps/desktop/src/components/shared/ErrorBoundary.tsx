@@ -1,5 +1,6 @@
 import React from "react";
 import i18n from "../../i18n";
+import { recordDiagnostic } from "../../lib/diagnosticLog";
 
 interface Props {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    recordDiagnostic("error", error.message, `${error.stack || ""}\n${info.componentStack || ""}`);
     console.error("UI ErrorBoundary:", error, info.componentStack);
   }
 

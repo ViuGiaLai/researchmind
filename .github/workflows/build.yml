@@ -4,10 +4,10 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "apps/desktop/"
-      - "backend/"
-      - "docs/"
-      - ".github/"
+      - "apps/desktop/**"
+      - "backend/**"
+      - "docs/**"
+      - ".github/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "backend.spec"
@@ -65,10 +65,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: apps/desktop
 
-      - run: npx tsc --noEmit
+      - run: pnpm exec tsc --noEmit
         working-directory: apps/desktop
 
-      - run: npx vitest run
+      - run: pnpm exec vitest run
+        working-directory: apps/desktop
+
+      - run: pnpm run validate:locales
+        working-directory: apps/desktop
+
+      - run: pnpm run validate:hooks
+        working-directory: apps/desktop
+
+      - run: pnpm build
         working-directory: apps/desktop
 
   test-backend:
@@ -84,7 +93,12 @@ jobs:
 
       - run: pip install -r backend/requirements.txt pytest pytest-timeout
 
-      - run: pytest test_debate.py test_all_exports.py test_docx_export.py test_html_export.py test_pdf_export.py -v --timeout=120
+      - run: python -m pytest tests -q --timeout=120
+        working-directory: backend
+
+      - name: RAG quality gate
+        run: python -m evaluation.benchmark evaluation/fixtures/rag_smoke.json --min-recall 0.7 --min-mrr 0.6
+        working-directory: backend
 
   lint-rust:
     needs: changes

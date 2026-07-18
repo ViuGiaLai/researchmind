@@ -49,6 +49,7 @@ import {
   ArrowLeft,
   ListFilter,
   Minus,
+  Plus,
   Brain,
   Bot,
   Cloud,
@@ -180,6 +181,7 @@ export const IconChevronDown = wrapIcon(ChevronDown, "icon-chevron-down");
 export const IconArrowLeft = wrapIcon(ArrowLeft, "icon-arrow-left");
 export const IconFilter = wrapIcon(ListFilter, "icon-filter");
 export const IconMinus = wrapIcon(Minus, "icon-minus");
+export const IconPlus = wrapIcon(Plus, "icon-plus");
 export const IconBrainAi = wrapIcon(Brain, "icon-brain-ai", true);
 export const IconBot = wrapIcon(Bot, "icon-bot");
 export const IconCloud = wrapIcon(Cloud, "icon-cloud");

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { api, Paper } from "../../lib/api";
+import { api, getAuthenticatedApiUrl, Paper } from "../../lib/api";
 import {
   IconSpinner,
   IconSearch,
@@ -573,7 +573,7 @@ export const InsightsView: React.FC<{
             <div style={{ flex: 1, minHeight: 0 }}>
               <iframe
                 key={`${pdfPaperId}-${pdfInitialPage}-${pdfRefreshKey}`}
-                src={`${(window as any).BASE_URL || "http://127.0.0.1:8765"}/api/papers/${pdfPaperId}/file#page=${pdfInitialPage}`}
+                src={getAuthenticatedApiUrl(`/api/papers/${pdfPaperId}/file#page=${pdfInitialPage}`)}
                 style={{ width: "100%", height: "100%", border: "none" }}
                 title={papers.find(p => p.id === pdfPaperId)?.title || t("common.loading")}
               />

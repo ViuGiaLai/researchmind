@@ -183,15 +183,15 @@ export const AISetupWizard: React.FC<Props> = ({ onComplete }) => {
           <div className="aiwizard-step mode-step">
             <h2 className="aiwizard-title">{t("setup.choose_ai_mode")}</h2>
             <div className="aiwizard-mode-cards-grid">
-              <div className={`aiwizard-mode-card-premium ${chosenMode === "cloud_free" ? "active" : ""}`} onClick={() => setChosenMode("cloud_free")}>
+              <button type="button" className={`aiwizard-mode-card-premium ${chosenMode === "cloud_free" ? "active" : ""}`} aria-pressed={chosenMode === "cloud_free"} onClick={() => setChosenMode("cloud_free")}>
                 <IconZap size={28} /><h3>{t("setup.cloud_free_title")}</h3><p>{t("setup.cloud_free_desc")}</p>
-              </div>
-              <div className={`aiwizard-mode-card-premium ${chosenMode === "cloud_custom" ? "active" : ""}`} onClick={() => setChosenMode("cloud_custom")}>
+              </button>
+              <button type="button" className={`aiwizard-mode-card-premium ${chosenMode === "cloud_custom" ? "active" : ""}`} aria-pressed={chosenMode === "cloud_custom"} onClick={() => setChosenMode("cloud_custom")}>
                 <IconKey size={28} /><h3>{t("setup.custom_key_title")}</h3><p>{t("setup.custom_key_desc")}</p>
-              </div>
-              <div className={`aiwizard-mode-card-premium ${chosenMode === "local" ? "active" : ""}`} onClick={() => setChosenMode("local")}>
+              </button>
+              <button type="button" className={`aiwizard-mode-card-premium ${chosenMode === "local" ? "active" : ""}`} aria-pressed={chosenMode === "local"} onClick={() => setChosenMode("local")}>
                 <IconLock size={28} /><h3>{t("setup.local_title")}</h3><p>{t("setup.local_desc")}</p>
-              </div>
+              </button>
             </div>
             <button className="aiwizard-btn-primary" onClick={handleNextFromMode} disabled={!chosenMode}>{t("common.continue")} →</button>
           </div>

@@ -398,6 +398,15 @@
   align-items: flex-start;
   gap: 16px;
   overflow: hidden;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.aiwizard-mode-card-premium:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 
 .aiwizard-mode-card-premium:hover {

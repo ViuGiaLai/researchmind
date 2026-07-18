@@ -2,6 +2,7 @@ import json
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from common.text_utils import redact_api_key
+from common.secret_store import SecretStorageError, set_secret
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -32,6 +33,9 @@ async def get_settings():
         "local_model": settings.local_model,
         "local_max_tokens": settings.local_max_tokens,
         "llm_mode": settings.llm_mode,
+        "cloud_ai_consent": settings.cloud_ai_consent,
+        "diagnostics_consent": settings.diagnostics_consent,
+        "redact_metadata_for_cloud": settings.redact_metadata_for_cloud,
         "claude_api_key": "***" if settings.claude_api_key else "",
         "claude_model": settings.claude_model,
         "deepseek_api_key": "***" if settings.deepseek_api_key else "",
@@ -93,6 +97,15 @@ async def update_settings(new_settings: dict = Body(...)):
                 if key.endswith("_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
+                    try:
+                        set_secret(key, str(value))
+                    except SecretStorageError as exc:
+                        raise HTTPException(status_code=503, detail=str(exc)) from exc
+                    setattr(settings, key, value)
+                    stored = session.query(Setting).filter(Setting.key == key).first()
+                    if stored:
+                        session.delete(stored)
+                    continue
                 if key in ("task_provider_map", "task_fallback_map", "task_ultimate_fallback_chain"):
                     if isinstance(value, str):
                         pass

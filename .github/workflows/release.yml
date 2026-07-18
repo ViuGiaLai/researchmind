@@ -9,18 +9,48 @@ permissions:
   contents: write
 
 jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/desktop
+      - run: pnpm build
+        working-directory: apps/desktop
+      - run: pnpm exec vitest run
+        working-directory: apps/desktop
+      - run: pnpm run validate:locales
+        working-directory: apps/desktop
+      - run: pnpm run validate:hooks
+        working-directory: apps/desktop
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r backend/requirements.txt pytest-timeout
+      - run: python -m pytest tests -q --timeout=120
+        working-directory: backend
+
   build:
+    needs: quality-gate
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            bundles: deb
+            bundles: appimage,deb
 
           - os: macos-latest
             target: aarch64-apple-darwin
-            bundles: app
+            bundles: dmg
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -31,10 +61,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare backend without shared provider credentials
+      - name: Configure public release metadata
         shell: bash
+        env:
+          LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
         run: |
           : > backend/.env
+          test ! -s backend/.env
+          if [ -z "$LICENSE_PUBLIC_KEY" ]; then
+            echo "Repository variable LICENSE_PUBLIC_KEY is required for commercial releases"
+            exit 1
+          fi
+          printf '%s' "$LICENSE_PUBLIC_KEY" > backend/config/license_public_key.txt
           echo "✅ .env created ($(wc -c < backend/.env) bytes)"
 
       - name: Setup Node
@@ -126,3 +164,15 @@ jobs:
 
             Tải xuống phiên bản phù hợp với hệ điều hành của bạn.
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+
+      - name: Publish SHA-256 checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
+          find . -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' \) -print0 |
+            while IFS= read -r -d '' artifact; do
+              openssl dgst -sha256 "$artifact" | sed 's/^SHA2-256(.*)= //' > "$artifact.sha256"
+              gh release upload "${{ github.ref_name }}" "$artifact.sha256" --clobber
+            done

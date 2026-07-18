@@ -1,7 +1,4 @@
-"""
-Ghép local RAG context với external academic data thành 1 prompt context.
-LLM nhận context này để generate câu trả lời có chứng cứ.
-"""
+"""Combine local RAG context and external academic data for grounded LLM answers."""
 from dataclasses import dataclass, field
 from typing import Optional
 

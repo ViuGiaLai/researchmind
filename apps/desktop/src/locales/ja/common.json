@@ -5,6 +5,8 @@
     "version": "v0.6.0"
   },
   "nav": {
+    "workspace": "ワークスペース",
+    "intelligence": "インテリジェンス",
     "library": "ライブラリ",
     "chat": "AIチャット",
     "review": "レビュー作成",
@@ -292,7 +294,10 @@
   "common": {
     "loading": "読み込み中...",
     "save": "保存",
+    "rename": "名前を変更",
     "cancel": "キャンセル",
+    "confirm": "確認",
+    "confirm_action": "操作を確認",
     "close": "閉じる",
     "retry": "再試行",
     "error": "エラー",

@@ -52,7 +52,7 @@ export function ProgressSidebar({
           color: "var(--color-text-muted)",
           textTransform: "uppercase", letterSpacing: 0.5,
         }}>
-          Outline
+          {t("review_builder.outline_header")}
         </span>
         {onClose && (
           <button

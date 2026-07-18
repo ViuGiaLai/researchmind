@@ -14,21 +14,21 @@ from .models import GraphEntity
 from .storage import KnowledgeGraph
 from .local_search import build_local_context, local_search
 
-DRIFT_EXTRACT_ENTITIES_PROMPT = """Based on the answer and question below, identify the most important entities that should be explored further.
+DRIFT_EXTRACT_ENTITIES_PROMPT = """Select entities that merit further knowledge-graph exploration.
 
 Question: {question}
 Current Answer: {answer}
 
-List the entity names (one per line) that are mentioned and would benefit from deeper investigation.
-Only list entities, no explanation.
+List only entity names explicitly mentioned in the current answer. Include an entity only when exploring it could materially improve the answer to the question.
+Return one entity per line with no bullets, numbering, or explanation.
 
 Entities to explore:"""
 
-DRIFT_REDUCE_PROMPT = """You are a senior research synthesizer. You have explored multiple aspects of a question through iterative knowledge graph traversal.
+DRIFT_REDUCE_PROMPT = """Synthesize results from iterative academic knowledge-graph exploration.
 
 {partial_answers}
 
-Synthesize these exploration results into a comprehensive final answer.
+Use only the exploration results below. Preserve source markers, remove duplication, report conflicts, and state any remaining evidence gaps.
 
 Original Question: {question}
 

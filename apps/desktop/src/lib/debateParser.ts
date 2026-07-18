@@ -19,7 +19,7 @@ export interface ParsedDebate {
   raw: string;
 }
 
-const citationRegex = /\[([^\],]+?)(?:,\s*trang\s*(\d+))?\]/gi;
+const citationRegex = /\[([^\],]+?)(?:,\s*(?:page|trang)\s*(\d+))?\]/gi;
 
 function extractCitations(text: string) {
   const citations: { source: string; page?: number | null }[] = [];
@@ -40,8 +40,8 @@ export function parseDebate(raw: string): ParsedDebate {
   // Find sections by headings
   const aiARegex = /(AI A\s*\(.*?\)\s*:)\s*/i;
   const aiBRegex = /(AI B\s*\(.*?\)\s*:)\s*/i;
-  const conclusionRegex = /(^|\n)Kết luận\s*:\s*/i;
-  const suggestionsRegex = /(^|\n)3\s*Đề xuất\s*:\s*/i;
+  const conclusionRegex = /(^|\n)(?:Kết luận|Conclusion)\s*:\s*/i;
+  const suggestionsRegex = /(^|\n)3\s*(?:Đề xuất|Suggestions)\s*:\s*/i;
 
   // Split into segments
   let aiAIndex = text.search(aiARegex);

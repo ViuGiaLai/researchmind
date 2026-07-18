@@ -65,10 +65,35 @@ def get_resolved_data_dir() -> Path:
     return default_dir
 
 
+def get_license_public_key() -> str:
+    configured = os.environ.get("LICENSE_PUBLIC_KEY", "").strip()
+    if configured:
+        return configured
+    key_file = Path(__file__).resolve().parent / "license_public_key.txt"
+    try:
+        return key_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 class Settings(BaseSettings):
     # Backend
     host: str = "127.0.0.1"
     port: int = 8765
+
+    # Hosted authentication (disabled for the existing local-first desktop mode)
+    firebase_auth_enabled: bool = False
+    # Keep hosted research storage fail-closed until every database and vector
+    # operation is isolated by the authenticated user ID.
+    hosted_research_enabled: bool = False
+    # Base64url-encoded raw Ed25519 public key used for offline license checks.
+    license_public_key: str = get_license_public_key()
+    firebase_project_id: str = ""
+    firebase_service_account_json: str = ""
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    public_backend_url: str = ""
+    desktop_google_callback_url: str = ""
 
     # Paths
     data_dir: Path = get_resolved_data_dir()
@@ -96,12 +121,20 @@ class Settings(BaseSettings):
 
     # RAG
     top_k_retrieval: int = 5
+    parent_context_radius: int = 0
+    ai_trace_sampling_rate: float = 0.1
+    ai_trace_retention_days: int = 14
+    enable_multilingual_nli: bool = False
 
     # BGE-Reranker
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
 
     # LLM
+    # auto follows the user's language; vi/en/ja forces a system-wide output language.
+    output_language: str = "auto"
     provider_timeout: float = 180.0
+    provider_max_retries: int = 1
+    provider_retry_backoff: float = 0.35
     nvidia_timeout: float = 8.0
     openai_stream_timeout: float = 3.0
     llama_server_url: str = "http://127.0.0.1:8080"
@@ -216,6 +249,9 @@ class Settings(BaseSettings):
     
     # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (llama-server)
     llm_mode: str = "cloud_free"
+    cloud_ai_consent: bool = True
+    diagnostics_consent: bool = False
+    redact_metadata_for_cloud: bool = True
     
     # Custom provider: "deepseek", "claude", or "gemini"
     custom_cloud_provider: str = "deepseek"

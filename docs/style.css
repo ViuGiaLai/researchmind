@@ -1589,3 +1589,7 @@ h1, h2, h3, h4, h5 {
     justify-content: center;
   }
 }
+.price-value { margin: 12px 0; color: var(--text-primary); font-size: clamp(1.7rem, 3vw, 2.5rem); font-weight: 700; letter-spacing: -.05em; }
+.price-value small { font-size: .8rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0; }
+.pricing-featured { position: relative; border-color: var(--color-accent); }
+.pricing-label { position: absolute; top: 14px; right: 14px; color: var(--color-accent); font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }

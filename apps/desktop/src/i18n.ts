@@ -50,7 +50,13 @@ i18n
     ns: ["common"],
     defaultNS: "common",
     fallbackNS: "common",
-    fallbackLng: "vi",
+    fallbackLng: {
+      en: ["en"],
+      vi: ["vi", "en"],
+      default: ["en"],
+    },
+    supportedLngs: [...SUPPORTED_LANGS],
+    nonExplicitSupportedLngs: true,
     debug: false,
     interpolation: {
       escapeValue: false,
@@ -64,8 +70,18 @@ i18n
     returnObjects: true,
   });
 
+function syncDocumentLanguage(lang: string) {
+  if (typeof document === "undefined") return;
+  const normalized = lang.split("-")[0];
+  document.documentElement.lang = isValidLang(normalized) ? normalized : "vi";
+}
+
+i18n.on("languageChanged", syncDocumentLanguage);
+syncDocumentLanguage(i18n.language || getCurrentLanguage());
+
 export function setLanguage(lang: SupportedLang) {
-  i18n.changeLanguage(lang);
+  void i18n.changeLanguage(lang);
+  syncDocumentLanguage(lang);
   try {
     localStorage.setItem("researchmind:lang", lang);
   } catch {

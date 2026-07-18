@@ -6,20 +6,43 @@
  */
 
 import i18n from "../i18n";
+import { getFirebaseIdToken } from "./firebase";
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
 
-const NGROK_HEADERS = { "ngrok-skip-browser-warning": "true" };
+/** URL for iframe downloads. Firebase tokens are short-lived and only used
+ * where browsers cannot attach the Authorization header themselves. */
+export function getAuthenticatedApiUrl(path: string): string {
+  const token = getFirebaseIdToken();
+  if (!token) return `${BASE_URL}${path}`;
+  const [pathAndQuery, fragment] = path.split("#", 2);
+  const separator = pathAndQuery.includes("?") ? "&" : "?";
+  return `${BASE_URL}${pathAndQuery}${separator}firebase_token=${encodeURIComponent(token)}${fragment ? `#${fragment}` : ""}`;
+}
 
-/** Get the current UI language for X-Language header (always normalized to vi/en/ja). */
+/** Get the current UI language for API language headers (always normalized to vi/en/ja). */
 function getLangHeader(): string {
   const lang = (i18n.language || "vi").split("-")[0];
   if (lang === "vi" || lang === "en" || lang === "ja") return lang;
   return "vi";
 }
 
+export function createApiHeaders(
+  token: string,
+  language: string,
+  extra?: Record<string, string>,
+): Record<string, string> {
+  return {
+    "X-Language": language,
+    "Accept-Language": language,
+    "ngrok-skip-browser-warning": "true",
+    ...(token ? { Authorization: "Bearer " + token } : {}),
+    ...extra,
+  };
+}
+
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { "X-Language": getLangHeader(), ...NGROK_HEADERS, ...extra };
+  return createApiHeaders(getFirebaseIdToken(), getLangHeader(), extra);
 }
 
 function parseApiError(status: number, text: string): string {
@@ -103,7 +126,7 @@ async function request<T>(
   const url = `${BASE_URL}${path}`;
   const options: RequestInit = {
     method,
-    headers: { "X-Language": getLangHeader(), "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+    headers: mergeHeaders({ "Content-Type": "application/json" }),
   };
   if (body !== undefined) {
     options.body = JSON.stringify(body);
@@ -181,6 +204,10 @@ export interface Citation {
   paper_id?: string;
   paper_title?: string;
   text_snippet?: string;
+  verification_status?: "verified" | "partial" | "unverified";
+  verification_reason?: string;
+  grounding_score?: number;
+  page_valid?: boolean;
 }
 
 export interface ChatResponse {
@@ -236,6 +263,70 @@ export interface DiagnosticsResponse {
   vector_ready: boolean;
   disk: { free_gb: number | null; total_gb: number | null; warning: boolean };
   cache: { llm_cache_count: number; embedding_cache_count: number };
+}
+
+export interface PdfAnnotation {
+  id: string;
+  paper_id: string;
+  project_id: string | null;
+  page_number: number;
+  kind: "highlight" | "note" | "quote";
+  quote_text: string;
+  note: string;
+  color: "yellow" | "green" | "blue" | "pink";
+  tags: string[];
+  position: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ResearchProject {
+  id: string;
+  workspace_id: string;
+  title: string;
+  description: string;
+  research_question: string;
+  status: "active" | "archived";
+  paper_count: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ResearchProjectDetail extends Omit<ResearchProject, "paper_count"> {
+  papers: Array<Pick<Paper, "id" | "title" | "year" | "page_count" | "status"> & { authors: string[] }>;
+  evidence: PdfAnnotation[];
+}
+
+export interface ScreeningDecisionRecord {
+  paper_id: string;
+  project_id: string | null;
+  stage: "title_abstract" | "full_text";
+  decision: "include" | "exclude" | "maybe";
+  reason: string;
+  reviewer: string;
+  updated_at: string | null;
+}
+
+export interface PrismaCounts {
+  identified: number;
+  duplicates_removed: number;
+  screened: number;
+  title_abstract_excluded: number;
+  full_text_assessed: number;
+  full_text_excluded: number;
+  included: number;
+  awaiting_screening: number;
+}
+
+export interface LicenseStatus {
+  plan: "free" | "trial" | "pro" | "pro_plus" | "lab";
+  active: boolean;
+  source: "free" | "trial" | "license";
+  license_id: string;
+  email: string;
+  expires_at: string | null;
+  features: string[];
+  error?: string;
 }
 
 export interface Highlight {
@@ -358,6 +449,11 @@ export interface DeepResearchResponse {
 // ─── API functions ─────────────────────────────────────────────
 
 export const api = {
+  getLicenseStatus: () => request<LicenseStatus>("GET", "/api/license/status"),
+  activateLicense: (token: string) =>
+    request<LicenseStatus>("POST", "/api/license/activate", { token }),
+  deactivateLicense: () => request<LicenseStatus>("DELETE", "/api/license"),
+
   // Health
   health: () => request<HealthResponse>("GET", "/api/health"),
 
@@ -464,7 +560,7 @@ export const api = {
   importPaper: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE_URL}/api/papers/import`, { method: "POST", headers: NGROK_HEADERS, body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import`, { method: "POST", headers: mergeHeaders(), body: formData });
     if (!res.ok) {
       const err = await res.text();
       throw new Error(parseApiError(res.status, err));
@@ -492,7 +588,7 @@ export const api = {
     (async () => {
       try {
         const ids = jobIds.map(encodeURIComponent).join(",");
-        const res = await fetch(`${BASE_URL}/api/jobs/stream?ids=${ids}`, { headers: NGROK_HEADERS, signal: controller.signal });
+        const res = await fetch(`${BASE_URL}/api/jobs/stream?ids=${ids}`, { headers: mergeHeaders(), signal: controller.signal });
         if (!res.ok) {
           handlers.onError?.(await res.text());
           return;
@@ -540,7 +636,7 @@ export const api = {
   importBibtex: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE_URL}/api/papers/import/bibtex`, { method: "POST", headers: NGROK_HEADERS, body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import/bibtex`, { method: "POST", headers: mergeHeaders(), body: formData });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ total: number; imported: number; errors: number; results: { filename: string; status: string; paper_id?: string; title?: string; error?: string }[] }>;
   },
@@ -548,7 +644,7 @@ export const api = {
   importZoteroCsv: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv`, { method: "POST", headers: NGROK_HEADERS, body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv`, { method: "POST", headers: mergeHeaders(), body: formData });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ total: number; imported: number; errors: number; results: { filename: string; status: string; paper_id?: string; title?: string; error?: string }[] }>;
   },
@@ -557,7 +653,7 @@ export const api = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("zotero_data_dir", zoteroDataDir);
-    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv-pdf`, { method: "POST", headers: NGROK_HEADERS, body: formData });
+    const res = await fetch(`${BASE_URL}/api/papers/import/zotero-csv-pdf`, { method: "POST", headers: mergeHeaders(), body: formData });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{
       total: number;
@@ -615,7 +711,7 @@ export const api = {
     ),
 
   searchSuggestWithSignal: async (q: string, signal?: AbortSignal) => {
-    const res = await fetch(`${BASE_URL}/api/search/suggest?q=${encodeURIComponent(q)}`, { headers: NGROK_HEADERS, signal });
+    const res = await fetch(`${BASE_URL}/api/search/suggest?q=${encodeURIComponent(q)}`, { headers: mergeHeaders(), signal });
     if (!res.ok) throw new Error(await res.text());
     return res.json() as Promise<{ suggestions: string[]; tags?: string[]; papers?: { id: string; title: string }[] }>;
   },
@@ -796,8 +892,8 @@ export const api = {
     request<{ source: string; data: any }>("GET", `/api/academic/paper?doi=${encodeURIComponent(doi)}`),
   invalidateAcademicCache: (doi: string) =>
     request<{ status: string; doi: string; message: string }>("DELETE", `/api/academic/cache/${encodeURIComponent(doi)}`),
-  discoverPapers: (query: string, limit = 20) =>
-    request<{ results: DiscoveredPaper[] }>("POST", "/api/academic/discover", { query, limit }),
+  discoverPapers: (query: string, limit = 20, filters?: { year_from?: number; year_to?: number; open_access_only?: boolean }) =>
+    request<{ results: DiscoveredPaper[]; meta?: Record<string, unknown> }>("POST", "/api/academic/discover", { query, limit, ...filters }),
   importPaperByMetadata: (meta: {
     doi?: string; title: string; authors?: string[]; year?: number; journal?: string; abstract?: string
   }) => request<{ paper_id: string; title: string; status: string }>("POST", "/api/papers/import/metadata", meta),
@@ -834,6 +930,75 @@ export const api = {
 
   deleteSavedSearch: (id: string) =>
     request<{ status: string; saved_search_id: string }>("DELETE", `/api/saved-searches/${id}`),
+
+  listProjects: () =>
+    request<{ projects: ResearchProject[] }>("GET", "/api/projects"),
+
+  getProject: (projectId: string) =>
+    request<ResearchProjectDetail>("GET", `/api/projects/${projectId}`),
+
+  createProject: (title: string, researchQuestion = "") =>
+    request<Pick<ResearchProject, "id" | "workspace_id" | "title">>("POST", "/api/projects", {
+      title,
+      research_question: researchQuestion,
+    }),
+
+  updateProject: (projectId: string, update: Partial<Pick<ResearchProject, "title" | "description" | "research_question" | "status">>) =>
+    request<Pick<ResearchProject, "id" | "title" | "status">>("PATCH", `/api/projects/${projectId}`, update),
+
+  addProjectPapers: (projectId: string, paperIds: string[]) =>
+    request<{ added: number }>("POST", `/api/projects/${projectId}/papers`, { paper_ids: paperIds }),
+
+  deleteProject: (projectId: string) =>
+    request<{ status: string }>("DELETE", `/api/projects/${projectId}`),
+
+  listScreeningDecisions: (projectId?: string, stage = "title_abstract") =>
+    request<{ decisions: ScreeningDecisionRecord[] }>(
+      "GET",
+      `/api/screening/decisions?stage=${stage}${projectId ? `&project_id=${encodeURIComponent(projectId)}` : ""}`,
+    ),
+
+  saveScreeningDecision: (paperId: string, decision: ScreeningDecisionRecord["decision"], reason = "", projectId?: string, stage = "title_abstract") =>
+    request<ScreeningDecisionRecord>("PUT", `/api/screening/decisions/${paperId}`, {
+      decision, reason, project_id: projectId, stage,
+    }),
+
+  clearScreeningDecision: (paperId: string, projectId?: string, stage = "title_abstract") =>
+    request<{ deleted: number }>(
+      "DELETE",
+      `/api/screening/decisions/${paperId}?stage=${stage}${projectId ? `&project_id=${encodeURIComponent(projectId)}` : ""}`,
+    ),
+
+  getPrismaCounts: (projectId?: string) =>
+    request<PrismaCounts>("GET", `/api/screening/prisma${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
+
+  listAnnotations: (paperId: string) =>
+    request<{ annotations: PdfAnnotation[] }>("GET", `/api/papers/${paperId}/annotations`),
+
+  createAnnotation: (paperId: string, annotation: {
+    page_number: number;
+    kind: PdfAnnotation["kind"];
+    quote_text?: string;
+    note?: string;
+    color?: PdfAnnotation["color"];
+    project_id?: string;
+  }) => request<PdfAnnotation>("POST", `/api/papers/${paperId}/annotations`, annotation),
+
+  updateAnnotation: (annotationId: string, update: Partial<Pick<PdfAnnotation, "quote_text" | "note" | "color" | "tags">>) =>
+    request<PdfAnnotation>("PATCH", `/api/annotations/${annotationId}`, update),
+
+  deleteAnnotation: (annotationId: string) =>
+    request<{ status: string }>("DELETE", `/api/annotations/${annotationId}`),
+
+  getReadingProgress: (paperId: string) =>
+    request<{ paper_id: string; current_page: number; zoom: number }>("GET", `/api/papers/${paperId}/reading-progress`),
+
+  saveReadingProgress: (paperId: string, currentPage: number, zoom = 100) =>
+    request<{ paper_id: string; current_page: number; zoom: number }>(
+      "PUT",
+      `/api/papers/${paperId}/reading-progress`,
+      { current_page: currentPage, zoom },
+    ),
 
   // Machine specs
   detectSpecs: () =>
@@ -987,13 +1152,13 @@ export const api = {
 
   // Paper Export
   exportPaperHtml: (paperId: string) =>
-    fetch(`${BASE_URL}/api/papers/${paperId}/export/html`, { headers: NGROK_HEADERS }).then((res) => {
+    fetch(`${BASE_URL}/api/papers/${paperId}/export/html`, { headers: mergeHeaders() }).then((res) => {
       if (!res.ok) throw new Error(`Export HTML failed: ${res.status}`);
       return res.blob();
     }),
 
   exportPaperDocx: (paperId: string) =>
-    fetch(`${BASE_URL}/api/papers/${paperId}/export/docx`, { headers: NGROK_HEADERS }).then((res) => {
+    fetch(`${BASE_URL}/api/papers/${paperId}/export/docx`, { headers: mergeHeaders() }).then((res) => {
       if (!res.ok) throw new Error(`Export DOCX failed: ${res.status}`);
       return res.blob();
     }),

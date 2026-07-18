@@ -1174,20 +1174,31 @@
 }
 
 .language-switcher__options {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  flex-wrap: wrap;
+  width: min(100%, 28rem);
 }
 
 .language-switcher__btn {
-  padding: 6px 16px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 12px;
   border-radius: var(--radius-full, 999px);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 0.8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+html:lang(ja) .language-switcher__btn {
+  letter-spacing: 0;
 }
 
 .language-switcher__btn:hover {
@@ -1207,3 +1218,14 @@
 }
 
 
+.license-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.license-panel__heading .settings-section-title { display: inline-flex; align-items: center; gap: 7px; }
+.license-plan { flex: 0 0 auto; padding: 6px 9px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: .7rem; font-weight: 750; letter-spacing: .08em; }
+.license-plan--active { border-color: var(--color-primary-muted); background: var(--color-primary-subtle); color: var(--color-primary); }
+.license-expiry { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0; color: var(--color-success); font-size: .8rem; }
+.license-activate { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; margin-top: 18px; }
+.license-activate label { display: grid; gap: 6px; color: var(--color-text-muted); font-size: .75rem; }
+.license-activate input { min-height: 38px; width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--color-inset); color: var(--color-text); font: inherit; }
+.license-activate input:focus { outline: 0; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-focus-ring); }
+.license-message { margin: 12px 0 0; color: var(--color-text-secondary); font-size: .8rem; }
+@media (max-width: 620px) { .license-panel__heading { flex-direction: column; }.license-activate { grid-template-columns: 1fr; }.license-activate button { width: 100%; } }

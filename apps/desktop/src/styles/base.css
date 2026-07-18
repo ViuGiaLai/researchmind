@@ -43,3 +43,36 @@ body {
 }
 
 
+/* Keyboard navigation foundation */
+.skip-link {
+  position: fixed;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  z-index: 1200;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  transform: translateY(calc(-100% - var(--space-lg)));
+  transition: transform var(--transition-fast);
+}
+
+html:lang(ja) body {
+  font-family: var(--font-sans-ja);
+  font-synthesis: none;
+}
+
+html:lang(ja) :where(p, li, dd, .settings-section-desc, .settings-row-desc) {
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

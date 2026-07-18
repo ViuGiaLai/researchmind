@@ -14,6 +14,9 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from common.i18n import get_language, t
+from common.ai_observability import snapshot as ai_metrics_snapshot
+from chat.provider_resilience import provider_health
+from chat.cache_version import PROMPT_CONTRACT_VERSION
 
 from app_state import state
 from config.settings import settings
@@ -77,6 +80,17 @@ async def health():
         "embedder_ready": state.embedder_ready,
         "backend_ready": state.backend_ready,
         "init_message": state.init_message,
+    }
+
+
+@router.get("/ai/metrics")
+async def ai_metrics(request: Request):
+    """Local, read-only AI pipeline counters and provider health."""
+    _require_local_client(request)
+    return {
+        "prompt_contract_version": PROMPT_CONTRACT_VERSION,
+        "metrics": ai_metrics_snapshot(),
+        "providers": provider_health.snapshot(),
     }
 
 
@@ -200,6 +214,7 @@ async def get_diagnostics():
 @router.post("/system/rebuild-fts")
 async def rebuild_fts_index(request: Request):
     """Rebuild SQLite FTS5 full-text index from chunks table."""
+    _require_local_client(request)
     lang = get_language(request)
     if state.bm25 is None:
         raise HTTPException(status_code=503, detail=t("error.bm25_not_ready", lang))
@@ -399,8 +414,9 @@ async def move_storage(request: Request, body: dict = Body(...)):
 
 
 @router.post("/data/clear-data")
-async def clear_all_data():
+async def clear_all_data(request: Request):
     """Clear all papers, chunks, chat history, and files (retains settings)."""
+    _require_local_client(request)
     deleted = {"papers": 0, "chunks": 0, "chat_history": 0, "chroma_chunks": 0, "files": []}
 
     try:
@@ -490,6 +506,7 @@ async def clear_all_data():
 @router.post("/data/reset-app")
 async def reset_app(request: Request):
     """Fully resets the app by clearing all database tables and files."""
+    _require_local_client(request)
     lang = get_language(request)
     try:
         state.engine.dispose()
@@ -517,6 +534,9 @@ async def reset_app(request: Request):
                 except Exception:
                     pass
             Base.metadata.create_all(state.engine)
+
+        from db.migrations import run_migrations
+        run_migrations(state.engine)
 
         db_session = get_session(state.engine)
         state.bm25 = BM25Search(db_session)
@@ -547,6 +567,7 @@ async def detect_zotero_data_dir(request: Request):
     """
     Auto-detect Zotero data directory on Windows.
     """
+    _require_local_client(request)
     lang = get_language(request)
     detected_path = None
     method = "not_found"
@@ -663,10 +684,11 @@ async def detect_zotero_data_dir(request: Request):
 
 
 @router.post("/zotero/save-path")
-async def save_zotero_path(body: dict):
+async def save_zotero_path(request: Request, body: dict):
     """
     Persist Zotero data directory path to settings.
     """
+    _require_local_client(request)
     path = body.get("path", "")
     if not path or not path.strip():
         raise HTTPException(status_code=400, detail="Path is required")

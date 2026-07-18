@@ -8,7 +8,7 @@ from typing import Optional
 def _format_openalex_results(results: list[dict]) -> str:
     if not results:
         return ""
-    lines = ["## Kết quả từ OpenAlex (học thuật)"]
+    lines = ["## OpenAlex academic results"]
     for r in results:
         title = r.get("title", "Untitled")
         year = r.get("publication_year", "N/A")
@@ -20,10 +20,10 @@ def _format_openalex_results(results: list[dict]) -> str:
         authors = r.get("authorships", [])
         author_names = [a.get("author", {}).get("display_name", "") for a in authors[:3]]
         author_str = ", ".join(filter(None, author_names))
-        lines.append(f"- **{title}** ({year}) - {citations} trích dẫn")
+        lines.append(f"- **{title}** ({year}) - {citations} citations")
         if author_str:
-            lines.append(f"  Tác giả: {author_str}")
-        lines.append(f"  Nguồn: {journal}")
+            lines.append(f"  Authors: {author_str}")
+        lines.append(f"  Source: {journal}")
         if doi:
             lines.append(f"  DOI: {doi}")
     return "\n".join(lines)
@@ -32,23 +32,23 @@ def _format_openalex_results(results: list[dict]) -> str:
 def _format_s2_results(results: list) -> str:
     if not results:
         return ""
-    lines = ["## Kết quả từ Semantic Scholar (học thuật)"]
+    lines = ["## Semantic Scholar academic results"]
     for p in results:
         authors = ", ".join(p.authors[:3]) if p.authors else "N/A"
-        lines.append(f"- **{p.title}** ({p.year or 'N/A'}) - {p.citation_count} trích dẫn")
-        lines.append(f"  Tác giả: {authors}")
+        lines.append(f"- **{p.title}** ({p.year or 'N/A'}) - {p.citation_count} citations")
+        lines.append(f"  Authors: {authors}")
         if p.venue:
-            lines.append(f"  Nơi đăng: {p.venue}")
+            lines.append(f"  Venue: {p.venue}")
         if p.abstract:
             abstract = p.abstract[:200] + "..." if len(p.abstract) > 200 else p.abstract
-            lines.append(f"  Tóm tắt: {abstract}")
+            lines.append(f"  Abstract: {abstract}")
     return "\n".join(lines)
 
 
 def _format_web_results(results: list[dict]) -> str:
     if not results:
         return ""
-    lines = ["## Kết quả từ Web"]
+    lines = ["## Web results"]
     for r in results:
         lines.append(f"- **{r['title']}**")
         lines.append(f"  {r['snippet']}")
@@ -64,7 +64,7 @@ async def search_external(query: str, top_k: int = 5) -> str:
     )
 
     parts = [
-        "Dưới đây là thông tin từ các nguồn bên ngoài:\n",
+        "The following information comes from external sources:\n",
     ]
 
     oa_formatted = _format_openalex_results(oa_results)

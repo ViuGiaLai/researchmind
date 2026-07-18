@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
-import { api, BASE_URL, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
+import { api, getAuthenticatedApiUrl, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
 import { VerifyPanel } from "./VerifyPanel";
 import { TrustPanel } from "./TrustPanel";
 import { PdfViewer } from "../pdf/PdfViewer";
@@ -41,6 +41,10 @@ interface CitationInfo {
   paper_id?: string;
   paper_title?: string;
   text_snippet?: string;
+  verification_status?: "verified" | "partial" | "unverified";
+  verification_reason?: string;
+  grounding_score?: number;
+  page_valid?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -180,7 +184,7 @@ export const ChatView: React.FC<{
 
   useEffect(() => {
     if (paperIds.length === 1) {
-      setPdfPaperUrl(`${BASE_URL}/api/papers/${paperIds[0]}/file`);
+      setPdfPaperUrl(getAuthenticatedApiUrl(`/api/papers/${paperIds[0]}/file`));
       setPdfPaperId(paperIds[0]);
       setPdfInitialPage(1);
       setPdfHighlightText("");
@@ -962,7 +966,7 @@ export const ChatView: React.FC<{
           }
           const page = citation.page || 1;
           setPdfPaperId(paperId);
-          setPdfPaperUrl(`${BASE_URL}/api/papers/${paperId}/file`);
+          setPdfPaperUrl(getAuthenticatedApiUrl(`/api/papers/${paperId}/file`));
           setPdfInitialPage(page);
           setPdfHighlightText(citation.text_snippet || citation.text || "");
           setShowPdfViewer(true);
@@ -1385,7 +1389,10 @@ export const ChatView: React.FC<{
                 renderDebate(msg.content)
               ) : (
                   <>
-                    <div className="chat-view-text">
+                    <div
+                      className="chat-view-text"
+                      lang={/[ăâđêôơưĂÂĐÊÔƠƯàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(msg.content) ? "vi" : undefined}
+                    >
                       {formatContent(msg.content, msg.citations)}
                       {isStreaming && i === messages.length - 1 && (
                         <span className="streaming-cursor">|</span>
@@ -1415,7 +1422,7 @@ export const ChatView: React.FC<{
                                 }
                                 const page = c.page || 1;
                                 const cacheBuster = Date.now();
-                                const pdfUrl = `${BASE_URL}/api/papers/${c.paper_id}/file#page=${page}&_=${cacheBuster}`;
+                                const pdfUrl = getAuthenticatedApiUrl(`/api/papers/${c.paper_id}/file?_=${cacheBuster}#page=${page}`);
                                 console.log("[Citation] Footer opening PDF:", pdfUrl);
                                 setPdfPaperUrl(pdfUrl);
                                 setPdfPaperId(c.paper_id);
@@ -1433,6 +1440,18 @@ export const ChatView: React.FC<{
                                 <div style={{ fontWeight: 600, color: "var(--color-text, #e4e4e7)", marginBottom: "1px" }}>
                                   {c.paper_title || c.source}
                                 </div>
+                                {c.verification_status && (
+                                  <div
+                                    className={`citation-verification citation-verification--${c.verification_status}`}
+                                    title={c.verification_reason}
+                                  >
+                                    {c.verification_status === "verified"
+                                      ? t("chat.citation_verified", { defaultValue: "Verified passage" })
+                                      : c.verification_status === "partial"
+                                        ? t("chat.citation_partial", { defaultValue: "Document matched" })
+                                        : t("chat.citation_unverified", { defaultValue: "Unverified source" })}
+                                  </div>
+                                )}
                                 {c.page && (
                                   <div className="chat-view-footnote-meta">
                                     {t("chat.footnote_page", { page: c.page })}
@@ -1751,6 +1770,13 @@ export const ChatView: React.FC<{
         </div>
         <textarea
           className="chat-view-textarea"
+          lang={
+            (i18n.resolvedLanguage || i18n.language || "").split("-")[0] === "vi"
+              || /[\u0102\u00C2\u0110\u00CA\u00D4\u01A0\u01AF\u0103\u00E2\u0111\u00EA\u00F4\u01A1\u01B0\u1EA0-\u1EF9]/.test(input)
+              ? "vi"
+              : (i18n.resolvedLanguage || i18n.language || "en").split("-")[0]
+          }
+          spellCheck={false}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

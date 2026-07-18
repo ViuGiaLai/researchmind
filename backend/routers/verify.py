@@ -308,7 +308,7 @@ def _format_clean_external(ep: ExternalPaperData) -> str:
 
     # Local context
     sections.append(
-        "=== TÃ€I LIá»†U Cá»¦A NGÆ¯á»œI DÃ™NG (Local) ===\n"
+        "=== USER DOCUMENTS (Local) ===\n"
         + local_context
     )
 
@@ -318,9 +318,9 @@ def _format_clean_external(ep: ExternalPaperData) -> str:
         for p in papers_meta:
             title = p.get("title", "Unknown")
             authors = ", ".join(p.get("authors", [])[:3]) or "N/A"
-            meta_lines.append(f"- {title} (tÃ¡c giáº£: {authors})")
+            meta_lines.append(f"- {title} (authors: {authors})")
         if meta_lines:
-            sections.append("=== PAPER ÄÆ¯á»¢C PHÃ‚N TÃCH ===\n" + "\n".join(meta_lines))
+            sections.append("=== PAPERS UNDER ANALYSIS ===\n" + "\n".join(meta_lines))
 
     # External academic data
     if external_data:
@@ -331,14 +331,14 @@ def _format_clean_external(ep: ExternalPaperData) -> str:
                 ext_sections.append(block)
         if ext_sections:
             sections.append(
-                "=== Dá»® LIá»†U Há»ŒC THUáº¬T BÃŠN NGOÃ€I (OpenAlex + Crossref + Semantic Scholar) ===\n"
+                "=== EXTERNAL ACADEMIC DATA (OpenAlex + Crossref + Semantic Scholar) ===\n"
                 + "\n\n".join(ext_sections)
             )
     else:
         sections.append(
-            "=== Dá»® LIá»†U Há»ŒC THUáº¬T BÃŠN NGOÃ€I ===\n"
-            "KhÃ´ng tÃ¬m tháº¥y DOI hoáº·c dá»¯ liá»‡u external cho cÃ¡c paper nÃ y. "
-            "HÃ£y tráº£ lá»i dá»±a trÃªn tÃ i liá»‡u local vÃ  kiáº¿n thá»©c cá»§a báº¡n."
+            "=== EXTERNAL ACADEMIC DATA ===\n"
+            "No DOI or external data was found for these papers. "
+            "Answer using the local documents and your existing knowledge."
         )
 
     return "\n\n".join(sections)
@@ -357,20 +357,20 @@ def _format_rich_external(ep: ExternalPaperData) -> str:
     if ep.crossref and ep.crossref.is_valid:
         cr = ep.crossref
         if cr.authors:
-            lines.append(f"TÃ¡c giáº£: {', '.join(cr.authors[:3])}" + (" et al." if len(cr.authors) > 3 else ""))
+            lines.append(f"Authors: {', '.join(cr.authors[:3])}" + (" et al." if len(cr.authors) > 3 else ""))
         if cr.journal:
-            lines.append(f"Táº¡p chÃ­: {cr.journal}")
+            lines.append(f"Journal: {cr.journal}")
         if cr.year:
-            lines.append(f"NÄƒm: {cr.year}")
+            lines.append(f"Year: {cr.year}")
         lines.append(f"Citations (Crossref): {cr.citation_count}")
 
     # OpenAlex data
     if ep.openalex:
         oa = ep.openalex
         lines.append(f"Citations (OpenAlex): {oa.citation_count}")
-        lines.append(f"Sá»‘ paper liÃªn quan: {len(oa.related_work_ids)}")
+        lines.append(f"Related papers: {len(oa.related_work_ids)}")
         if oa.publication_year:
-            lines.append(f"NÄƒm xuáº¥t báº£n: {oa.publication_year}")
+            lines.append(f"Publication year: {oa.publication_year}")
 
     # Semantic Scholar data
     if ep.semantic_scholar:
@@ -382,7 +382,7 @@ def _format_rich_external(ep: ExternalPaperData) -> str:
 
     # Recent citing works (evolution)
     if ep.recent_citing:
-        lines.append(f"\nCÃ¡c nghiÃªn cá»©u gáº§n Ä‘Ã¢y (tá»« 2022) trÃ­ch dáº«n paper nÃ y:")
+        lines.append("\nRecent studies citing this paper since 2022:")
         for i, work in enumerate(ep.recent_citing[:5], 1):
             r_title = work.get("title", "Unknown")
             r_year = work.get("publication_year", "?")
@@ -391,13 +391,13 @@ def _format_rich_external(ep: ExternalPaperData) -> str:
 
     # Semantic Scholar citations
     if ep.s2_citations:
-        lines.append(f"\nCÃ¡c paper trÃ­ch dáº«n (Semantic Scholar, top 5):")
+        lines.append("\nCiting papers (Semantic Scholar, top 5):")
         for i, cite in enumerate(ep.s2_citations[:5], 1):
             lines.append(f"  {i}. {cite.title} ({cite.year or '?'}) â€” {cite.citation_count} citations")
 
     # Semantic Scholar recommendations
     if ep.s2_recommendations:
-        lines.append(f"\nPaper tÆ°Æ¡ng tá»± Ä‘Æ°á»£c Ä‘á» xuáº¥t:")
+        lines.append("\nRecommended similar papers:")
         for i, rec in enumerate(ep.s2_recommendations[:3], 1):
             lines.append(f"  {i}. {rec.title} ({rec.year or '?'}) â€” {rec.citation_count} citations")
 
