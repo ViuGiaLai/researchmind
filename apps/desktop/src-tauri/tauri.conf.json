@@ -37,8 +37,7 @@
         "icons/icon.png"
       ],
     "resources": [
-      "resources/backend.exe",
-      "resources/backend"
+      "resources/"
     ],
     "windows": {
       "wix": null,
