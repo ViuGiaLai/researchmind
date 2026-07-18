@@ -425,6 +425,15 @@
   color: var(--color-text);
 }
 
+.selected-paper-badge--openable {
+  cursor: pointer;
+}
+
+.selected-paper-badge--openable:focus-visible {
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
+}
+
 .paper-badge-icon {
   color: var(--color-primary);
   flex-shrink: 0;

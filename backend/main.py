@@ -199,6 +199,12 @@ async def lifespan(app: FastAPI):
     pending_restore = settings.db_path.parent / ".restore-pending.db"
     if pending_restore.is_file():
         settings.db_path.parent.mkdir(parents=True, exist_ok=True)
+        if settings.db_path.is_file():
+            recovery_dir = settings.data_dir / "backups"
+            recovery_dir.mkdir(parents=True, exist_ok=True)
+            recovery = recovery_dir / f"pre-restore-{int(time.time())}.db"
+            import shutil
+            shutil.copy2(settings.db_path, recovery)
         os.replace(pending_restore, settings.db_path)
         logger.info("Queued database restore applied")
 

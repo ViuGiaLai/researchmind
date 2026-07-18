@@ -45,7 +45,7 @@ import {
   IconRocket,
 } from "../Icons";
 import { resetWelcomeTourSeen } from "../help/WelcomeTour";
-import type { DiagnosticsResponse } from "../../lib/api";
+import type { AiControlMetrics, AiEvaluationReport, DiagnosticsResponse } from "../../lib/api";
 import { SubTabBar } from "../shared/SubTabBar";
 import type { HelpSectionId } from "../help/helpContent";
 import { useConfirmDialog } from "../shared/ConfirmDialog";
@@ -121,6 +121,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const [largeContextThreshold, setLargeContextThreshold] = useState(105000);
   const [largeContextModel, setLargeContextModel] = useState("");
   const [largeContextProvider, setLargeContextProvider] = useState("");
+  const [dailyTokenBudget, setDailyTokenBudget] = useState(0);
   const [testingEmbedding, setTestingEmbedding] = useState(false);
   const [embeddingTestResult, setEmbeddingTestResult] = useState<"success" | "error" | null>(null);
   const [embeddingTestMsg, setEmbeddingTestMsg] = useState<string>("");
@@ -174,6 +175,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
   // ── Diagnostics State ────────────────────────────────────────
   const [diagnostics, setDiagnostics] = useState<DiagnosticsResponse | null>(null);
+  const [aiControl, setAiControl] = useState<AiControlMetrics | null>(null);
+  const [aiEvaluation, setAiEvaluation] = useState<AiEvaluationReport | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
   const [diagMsg, setDiagMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [rebuildingFts, setRebuildingFts] = useState(false);
@@ -238,6 +241,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       setLargeContextThreshold((s as any).large_context_threshold || 105000);
       setLargeContextModel((s as any).large_context_model || "");
       setLargeContextProvider((s as any).large_context_provider || "");
+      setDailyTokenBudget((s as any).ai_daily_token_budget || 0);
       setZoteroDataDir((s as any).zotero_data_dir || "");
       setTaskProviderMapStr((s as any).task_provider_map || "{}");
       setTaskFallbackMapStr((s as any).task_fallback_map || "{}");
@@ -432,8 +436,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     setDiagLoading(true);
     setDiagMsg(null);
     try {
-      const d = await api.getDiagnostics();
+      const [d, ai, evaluation] = await Promise.all([api.getDiagnostics(), api.getAiControlMetrics(), api.getAiEvaluation()]);
       setDiagnostics(d);
+      setAiControl(ai);
+      setAiEvaluation(evaluation);
     } catch (e) {
       setDiagMsg({
         type: "error",
@@ -632,6 +638,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         mmr_lambda: mmrLambda === "" ? null : parseFloat(mmrLambda),
         task_provider_map: taskProviderMapStr,
         task_fallback_map: taskFallbackMapStr,
+        ai_daily_token_budget: Math.max(0, dailyTokenBudget),
       });
       if (zoteroDataDir.trim()) {
         await api.saveZoteroPath(zoteroDataDir.trim());
@@ -947,12 +954,91 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                       </div>
 
                       <div className="settings-diag-stats">
-                        <span className="settings-diag-stat-chip">{diagnostics.total_papers} papers</span>
+                        <span className="settings-diag-stat-chip">{t("settings.diag_papers", { count: diagnostics.total_papers })}</span>
                         <span className="settings-diag-stat-chip">{t("settings.diag_indexed", { count: diagnostics.indexed_papers })}</span>
                         <span className="settings-diag-stat-chip">{t("settings.diag_data_size", { mb: diagnostics.total_size_mb })}</span>
                         <span className="settings-diag-stat-chip">LLM: {diagnostics.llm_mode}</span>
                         <span className="settings-diag-stat-chip">{t("settings.diag_setup_complete")}: {diagnostics.setup_completed ? t("settings.diag_setup_complete") : t("settings.diag_setup_incomplete")}</span>
                       </div>
+
+                      {diagnostics.reliability && (
+                        <section className={`settings-reliability settings-reliability--${diagnostics.reliability.status}`}>
+                          <div className="settings-reliability-header">
+                            <div>
+                              <span className="settings-diag-label">{t("settings.reliability_title")}</span>
+                              <h4>{t(`settings.reliability_${diagnostics.reliability.status}`)}</h4>
+                              <p>{t("settings.reliability_window", { days: diagnostics.reliability.window_days })}</p>
+                            </div>
+                            <strong className="settings-reliability-score">{diagnostics.reliability.score}<small>/100</small></strong>
+                          </div>
+                          <div className="settings-reliability-metrics">
+                            <div><span>{t("settings.reliability_ingestion")}</span><strong>{diagnostics.reliability.ingestion.success_rate}%</strong><small>{t("settings.reliability_ingestion_detail", { ready: diagnostics.reliability.ingestion.ready, total: diagnostics.reliability.ingestion.total })}</small></div>
+                            <div><span>{t("settings.reliability_citation_mapping")}</span><strong>{diagnostics.reliability.citations.mapping_rate}%</strong><small>{t("settings.reliability_citation_detail", { verified: diagnostics.reliability.citations.verified, total: diagnostics.reliability.citations.total })}</small></div>
+                            <div><span>{t("settings.reliability_ai_success")}</span><strong>{diagnostics.reliability.ai.success_rate}%</strong><small>{t("settings.reliability_ai_detail", { p95: diagnostics.reliability.ai.p95_ms })}</small></div>
+                            <div><span>{t("settings.reliability_index")}</span><strong>{diagnostics.reliability.index.sync_ok ? t("settings.diag_matched") : t("settings.diag_mismatched")}</strong><small>{t("settings.reliability_index_detail", { count: diagnostics.reliability.index.indexed_without_chunks })}</small></div>
+                          </div>
+                          <div className="settings-reliability-issues">
+                            {diagnostics.reliability.issues.length === 0 ? (
+                              <span className="settings-reliability-empty"><IconCheck size={14} /> {t("settings.reliability_no_issues")}</span>
+                            ) : diagnostics.reliability.issues.map((issue) => (
+                              <span key={issue.code} className={`settings-reliability-issue settings-reliability-issue--${issue.severity}`}>
+                                <IconError size={14} /> {t(`settings.reliability_issue_${issue.code}`, { count: issue.count })}
+                              </span>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      {aiControl && (
+                        <section className="settings-reliability">
+                          <div className="settings-reliability-header">
+                            <div>
+                              <span className="settings-diag-label">{t("settings.ai_control_title")}</span>
+                              <h4>{t("settings.ai_control_status")}</h4>
+                              <p>{t("settings.ai_control_contract", { version: aiControl.prompt_contract_version })}</p>
+                            </div>
+                          </div>
+                          <div className="settings-reliability-metrics">
+                            <div><span>{t("settings.ai_control_tokens")}</span><strong>{aiControl.usage.estimated_tokens_today.toLocaleString()}</strong><small>{t("settings.ai_control_messages", { count: aiControl.usage.messages_today })}</small></div>
+                            <div><span>{t("settings.ai_control_cache")}</span><strong>{aiControl.cache.hit_rate}%</strong><small>{t("settings.ai_control_cache_detail", { hits: aiControl.cache.hits, misses: aiControl.cache.misses })}</small></div>
+                            <div><span>{t("settings.ai_control_jobs")}</span><strong>{aiControl.jobs.running}</strong><small>{t("settings.ai_control_jobs_detail", { queued: aiControl.jobs.queued, failed: aiControl.jobs.failed })}</small></div>
+                            <div><span>{t("settings.ai_control_cancelled")}</span><strong>{aiControl.metrics["chat.stream.cancelled"] || 0}</strong><small>{t("settings.ai_control_cancelled_detail")}</small></div>
+                          </div>
+                          <label className="settings-ai-budget">
+                            <span>{t("settings.ai_control_budget")}</span>
+                            <input type="number" min={0} step={1000} value={dailyTokenBudget} onChange={(event) => setDailyTokenBudget(Number(event.target.value) || 0)} />
+                            <small>{dailyTokenBudget > 0 ? t("settings.ai_control_budget_active", { count: dailyTokenBudget.toLocaleString() }) : t("settings.ai_control_budget_unlimited")}</small>
+                          </label>
+                          <div className="settings-provider-health">
+                            {Object.entries(aiControl.providers).map(([provider, health]) => (
+                              <span key={provider} className={`settings-provider-health__item${health.circuit_open ? " is-error" : ""}`}>
+                                <strong>{PROVIDER_LABELS[provider] || provider}</strong>
+                                <small>{health.circuit_open ? t("settings.ai_control_circuit_open") : t("settings.ai_control_latency", { ms: health.latency_ms })}</small>
+                              </span>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      {aiEvaluation && (
+                        <section className="settings-reliability">
+                          <div className="settings-reliability-header">
+                            <div><span className="settings-diag-label">{t("settings.ai_quality_title")}</span><h4>{t("settings.ai_quality_status")}</h4><p>{t("settings.ai_quality_method")}</p></div>
+                          </div>
+                          <div className="settings-reliability-metrics">
+                            <div><span>{t("settings.ai_quality_rag")}</span><strong>{Math.round(aiEvaluation.rag.recall_at_k * 100)}%</strong><small>MRR {aiEvaluation.rag.mrr.toFixed(2)} · {aiEvaluation.rag.cases} cases</small></div>
+                            <div><span>{t("settings.ai_quality_citations")}</span><strong>{Math.round(aiEvaluation.history.citation_verification * 100)}%</strong><small>{t("settings.ai_quality_coverage", { value: Math.round(aiEvaluation.history.citation_coverage * 100) })}</small></div>
+                            <div><span>{t("settings.ai_quality_language")}</span><strong>{Math.round(aiEvaluation.history.language_consistency * 100)}%</strong><small>{t("settings.ai_quality_answers", { count: aiEvaluation.history.answers })}</small></div>
+                            <div><span>{t("settings.ai_quality_hallucination")}</span><strong>{Math.round(aiEvaluation.history.hallucination_risk * 100)}%</strong><small>{t("settings.ai_quality_invalid_pages", { count: aiEvaluation.history.invalid_pages })}</small></div>
+                          </div>
+                          <div className="settings-quality-models">
+                            <div className={`settings-quality-prompt${aiEvaluation.prompt_regression.passed ? " is-ok" : " is-error"}`}><IconCheck size={14} />{t("settings.ai_quality_prompt", { version: aiEvaluation.prompt_regression.version })}</div>
+                            {aiEvaluation.history.models.map((model) => (
+                              <div key={model.model}><strong>{model.model}</strong><span>{model.answers}</span><span>{Math.round(model.citation_verification * 100)}% citations</span><span>{Math.round(model.hallucination_risk * 100)}% risk</span></div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
                     </>
                   ) : (
                     <p className="settings-desc">{t("settings.diag_load_error")}</p>

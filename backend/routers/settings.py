@@ -84,6 +84,7 @@ async def get_settings():
         "task_provider_map": settings.task_provider_map,
         "task_fallback_map": settings.task_fallback_map,
         "task_ultimate_fallback_chain": settings.task_ultimate_fallback_chain,
+        "ai_daily_token_budget": settings.ai_daily_token_budget,
     }
 
 

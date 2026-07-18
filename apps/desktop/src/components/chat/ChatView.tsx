@@ -173,6 +173,19 @@ export const ChatView: React.FC<{
   const [pdfRefreshKey, setPdfRefreshKey] = useState(0);
   const [claimAnalyses, setClaimAnalyses] = useState<Record<number, ClaimAnalysis>>({});
 
+  const openPdf = useCallback((paperId: string, page = 1, highlightText = "") => {
+    if (!paperId) {
+      toast.addToast("error", t("chat.toast_paper_id_missing", { ref: "?" }));
+      return;
+    }
+    setPdfPaperId(paperId);
+    setPdfPaperUrl(getAuthenticatedApiUrl(`/api/papers/${paperId}/file`));
+    setPdfInitialPage(Math.max(1, page));
+    setPdfHighlightText(highlightText);
+    setShowPdfViewer(true);
+    setPdfRefreshKey(key => key + 1);
+  }, [t, toast]);
+
   useEffect(() => {
     api.listCollections().then((res) => {
       setCollections(res.collections);
@@ -965,12 +978,7 @@ export const ChatView: React.FC<{
             return;
           }
           const page = citation.page || 1;
-          setPdfPaperId(paperId);
-          setPdfPaperUrl(getAuthenticatedApiUrl(`/api/papers/${paperId}/file`));
-          setPdfInitialPage(page);
-          setPdfHighlightText(citation.text_snippet || citation.text || "");
-          setShowPdfViewer(true);
-          setPdfRefreshKey(k => k + 1);
+          openPdf(paperId, page, citation.text_snippet || citation.text || "");
           toast.addToast("success", t("chat.toast_pdf_open", { page }));
         }}
       />
@@ -1203,7 +1211,20 @@ export const ChatView: React.FC<{
                 {paperIds.map(id => {
                   const title = paperTitles.get(id) || t("common.loading");
                   return (
-                    <div key={id} className="selected-paper-badge" title={title}>
+                    <div
+                      key={id}
+                      className="selected-paper-badge selected-paper-badge--openable"
+                      title={t("chat.open_pdf")}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openPdf(id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openPdf(id);
+                        }
+                      }}
+                    >
                       <IconFileText size={12} className="paper-badge-icon" />
                       <span className="paper-badge-title">{title}</span>
                       <button
@@ -1421,15 +1442,7 @@ export const ChatView: React.FC<{
                                   return;
                                 }
                                 const page = c.page || 1;
-                                const cacheBuster = Date.now();
-                                const pdfUrl = getAuthenticatedApiUrl(`/api/papers/${c.paper_id}/file?_=${cacheBuster}#page=${page}`);
-                                console.log("[Citation] Footer opening PDF:", pdfUrl);
-                                setPdfPaperUrl(pdfUrl);
-                                setPdfPaperId(c.paper_id);
-                                setPdfInitialPage(page);
-                                setPdfHighlightText(c.text_snippet || c.text || "");
-                                setShowPdfViewer(true);
-                                setPdfRefreshKey(k => k + 1);
+                                openPdf(c.paper_id, page, c.text_snippet || c.text || "");
                                 // toast.addToast("success", `Đã mở PDF trang ${page}`);
                               }}
                             >

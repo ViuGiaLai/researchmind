@@ -263,6 +263,38 @@ export interface DiagnosticsResponse {
   vector_ready: boolean;
   disk: { free_gb: number | null; total_gb: number | null; warning: boolean };
   cache: { llm_cache_count: number; embedding_cache_count: number };
+  reliability?: {
+    window_days: number;
+    score: number;
+    status: "healthy" | "attention" | "degraded";
+    ingestion: { total: number; ready: number; failed: number; active: number; success_rate: number };
+    index: { sqlite_chunks: number; vector_chunks: number; sync_ok: boolean; indexed_without_chunks: number };
+    citations: { messages_sampled: number; total: number; mapped: number; verified: number; invalid_pages: number; mapping_rate: number; verification_rate: number };
+    ai: { traces: number; success: number; success_rate: number; p50_ms: number; p95_ms: number; jobs_queued: number; jobs_failed: number };
+    issues: Array<{ code: string; severity: "warning" | "error"; count: number }>;
+  };
+}
+
+export interface AiControlMetrics {
+  prompt_contract_version: string;
+  metrics: Record<string, number>;
+  providers: Record<string, { successes: number; failures: number; consecutive_failures: number; circuit_open: boolean; latency_ms: number }>;
+  cache: { hits: number; misses: number; hit_rate: number };
+  usage: { estimated_tokens_today: number; messages_today: number; daily_token_budget: number };
+  jobs: { queued: number; running: number; failed: number; cancelled: number };
+  routing: { primary: Record<string, string>; fallback: Record<string, string> };
+}
+
+export interface AiEvaluationReport {
+  method: string;
+  history: {
+    answers: number; citation_coverage: number; citation_verification: number;
+    citation_mapping: number; hallucination_risk: number; language_consistency: number;
+    invalid_pages: number;
+    models: Array<{ model: string; answers: number; citation_verification: number; hallucination_risk: number }>;
+  };
+  rag: { cases: number; recall_at_k: number; mrr: number };
+  prompt_regression: { name: string; version: string; passed: boolean; missing_variables: string[] };
 }
 
 export interface PdfAnnotation {
@@ -316,6 +348,51 @@ export interface PrismaCounts {
   full_text_excluded: number;
   included: number;
   awaiting_screening: number;
+}
+
+export interface ReviewAuditEvent {
+  id: number;
+  paper_id: string | null;
+  event_type: string;
+  payload: Record<string, unknown>;
+  actor: string;
+  created_at: string | null;
+}
+
+export interface DataBackup {
+  name: string;
+  size: number;
+  created_at: string;
+}
+
+export interface ResearchArtifact {
+  id: string;
+  project_id: string;
+  artifact_type: "note" | "evidence" | "review" | "matrix" | "report";
+  title: string;
+  source_id: string;
+  content: string;
+  metadata: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface LivingReviewSubscription {
+  id: string;
+  project_id: string;
+  name: string;
+  query: string;
+  enabled: boolean;
+  last_checked_at: string | null;
+  last_seen_paper_at: string | null;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  identity: string;
+  display_name: string;
+  role: "owner" | "editor" | "reviewer" | "viewer";
+  created_at: string | null;
 }
 
 export interface LicenseStatus {
@@ -470,6 +547,9 @@ export const api = {
     }
     return buildDiagnosticsFallback();
   },
+
+  getAiControlMetrics: () => request<AiControlMetrics>("GET", "/api/ai/metrics"),
+  getAiEvaluation: () => request<AiEvaluationReport>("GET", "/api/ai/evaluation"),
 
   rebuildFts: async () => {
     const paths = ["/api/system/rebuild-fts", "/api/settings/rebuild-fts"];
@@ -972,6 +1052,33 @@ export const api = {
   getPrismaCounts: (projectId?: string) =>
     request<PrismaCounts>("GET", `/api/screening/prisma${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ""}`),
 
+  getProjectAudit: (projectId: string) =>
+    request<{ events: ReviewAuditEvent[] }>("GET", `/api/projects/${projectId}/audit`),
+  listProjectArtifacts: (projectId: string) =>
+    request<{ artifacts: ResearchArtifact[] }>("GET", `/api/projects/${projectId}/artifacts`),
+  createProjectArtifact: (projectId: string, artifact: { artifact_type: ResearchArtifact["artifact_type"]; title: string; content?: string; source_id?: string }) =>
+    request<Pick<ResearchArtifact, "id" | "artifact_type" | "title">>("POST", `/api/projects/${projectId}/artifacts`, artifact),
+  listLivingReviews: (projectId: string) =>
+    request<{ subscriptions: LivingReviewSubscription[] }>("GET", `/api/projects/${projectId}/living-reviews`),
+  createLivingReview: (projectId: string, name: string, query: string) =>
+    request<LivingReviewSubscription>("POST", `/api/projects/${projectId}/living-reviews`, { name, query }),
+  checkLivingReview: (subscriptionId: string) =>
+    request<{ subscription_id: string; count: number; matches: Array<Pick<Paper, "id" | "title" | "authors" | "year" | "created_at">> }>("POST", `/api/living-reviews/${subscriptionId}/check`),
+  listWorkspaceMembers: (workspaceId: string) =>
+    request<{ members: WorkspaceMember[] }>("GET", `/api/workspaces/${workspaceId}/members`),
+  addWorkspaceMember: (workspaceId: string, identity: string, role: WorkspaceMember["role"]) =>
+    request<Pick<WorkspaceMember, "id" | "identity" | "role">>("POST", `/api/workspaces/${workspaceId}/members`, { identity, role }),
+
+  listBackups: () => request<{ backups: DataBackup[] }>("GET", "/api/backups"),
+  createBackup: () => request<{ name: string; size: number }>("POST", "/api/backups"),
+  restoreBackup: (name: string) =>
+    request<{ status: string; requires_restart: boolean }>("POST", `/api/backups/${encodeURIComponent(name)}/restore`),
+  exportPortableData: () =>
+    fetch(`${BASE_URL}/api/privacy/export`, { headers: mergeHeaders() }).then((response) => {
+      if (!response.ok) throw new Error(`Export failed: HTTP ${response.status}`);
+      return response.blob();
+    }),
+
   listAnnotations: (paperId: string) =>
     request<{ annotations: PdfAnnotation[] }>("GET", `/api/papers/${paperId}/annotations`),
 
@@ -1041,6 +1148,7 @@ export const api = {
       enable_reranker: boolean;
       task_provider_map: string;
       task_fallback_map: string;
+      ai_daily_token_budget: number;
     }>("GET", "/api/settings"),
 
   updateSettings: (settings: Record<string, unknown>) =>

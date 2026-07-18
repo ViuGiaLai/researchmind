@@ -84,7 +84,9 @@ const LibraryHub: React.FC<{
 
 const ReviewHub: React.FC<{
   onStartChat: (paperIds: string[]) => void;
-}> = ({ onStartChat }) => {
+  projectId?: string;
+  initialPaperIds?: string[];
+}> = ({ onStartChat, projectId, initialPaperIds }) => {
   const { t } = useTranslation();
   const [subTab, setSubTab] = useState<"review" | "insights" | "screening">("review");
   const tabs = [
@@ -96,9 +98,9 @@ const ReviewHub: React.FC<{
     <div className="hub-shell">
       <SubTabBar tabs={tabs} active={subTab} onChange={setSubTab} variant="underline" />
       <div className="hub-shell__content">
-        {subTab === "review" && <ReviewBuilderView />}
+        {subTab === "review" && <ReviewBuilderView projectId={projectId} initialPaperIds={initialPaperIds} />}
         {subTab === "insights" && <InsightsView onStartChat={onStartChat} />}
-        {subTab === "screening" && <ScreeningBoard />}
+        {subTab === "screening" && <ScreeningBoard projectId={projectId} />}
       </div>
     </div>
   );
@@ -123,6 +125,10 @@ function App() {
   const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
   const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate" | "verify">("chat");
   const [chatSessionKey, setChatSessionKey] = useState(0);
+  const [activeProjectId, setActiveProjectId] = useState<string | undefined>(() => {
+    try { return localStorage.getItem("researchmind:active-project") || undefined; } catch { return undefined; }
+  });
+  const [workflowPaperIds, setWorkflowPaperIds] = useState<string[]>([]);
   const [showSetup, setShowSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [backendUnavailable, setBackendUnavailable] = useState(false);
@@ -352,6 +358,20 @@ function App() {
     setChatPaperIds(paperIds);
     setChatSessionKey((k) => k + 1);
     setActiveTab("chat");
+  };
+
+  const handleOpenProjectReview = (paperIds: string[], projectId: string) => {
+    setActiveProjectId(projectId);
+    setWorkflowPaperIds(paperIds);
+    setActiveTab("review");
+  };
+
+  const handleProjectChange = (projectId?: string) => {
+    setActiveProjectId(projectId);
+    try {
+      if (projectId) localStorage.setItem("researchmind:active-project", projectId);
+      else localStorage.removeItem("researchmind:active-project");
+    } catch {}
   };
 
   const handleStartCritique = (paperIds: string[]) => {
@@ -674,8 +694,13 @@ function App() {
             )}
             {activeTab === "projects" && (
               <ProjectWorkspaceView
-                onStartChat={handleStartChat}
-                onStartReview={handleStartReview}
+                onStartChat={(paperIds, query, projectId) => {
+                  handleProjectChange(projectId);
+                  setWorkflowPaperIds(paperIds);
+                  handleStartChat(paperIds, query);
+                }}
+                onStartReview={handleOpenProjectReview}
+                onProjectChange={handleProjectChange}
               />
             )}
             {activeTab === "chat" && (
@@ -690,9 +715,9 @@ function App() {
               />
             )}
             {activeTab === "review" && (
-              <ReviewHub onStartChat={handleStartChat} />
+              <ReviewHub onStartChat={handleStartChat} projectId={activeProjectId} initialPaperIds={workflowPaperIds} />
             )}
-            {activeTab === "evidence" && <EvidenceMatrixView />}
+            {activeTab === "evidence" && <EvidenceMatrixView projectId={activeProjectId} initialPaperIds={workflowPaperIds} />}
           </>
         )}
         </React.Suspense>

@@ -29,7 +29,8 @@ def build_system_prompt(
 def build_rag_user_prompt(context_text: str, query: str) -> str:
     """Keep headings stable so prompt_budget can trim context safely."""
     return (
-        f"## Context từ tài liệu:\n{context_text}\n\n"
-        f"## Câu hỏi:\n{query}\n\n"
-        "Trả lời từ context khi có bằng chứng. Chỉ dùng citation xuất hiện trong context."
+        f"## Document context:\n{context_text}\n\n"
+        f"## User question:\n{query}\n\n"
+        "Answer from the context when it contains relevant evidence. "
+        "Use only citation labels that appear in the context."
     )

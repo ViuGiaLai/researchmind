@@ -315,7 +315,7 @@ class Retriever:
                 current_paper = paper_title
                 parts.append(f"\n---\n### 📄 {paper_title}\n")
 
-            source = f"[{paper_title}"
+            source = f"[{paper_title or chunk.get('paper_id', 'Unknown source')}"
             if chunk.get("page_number"):
                 source += f", page {chunk['page_number']}"
             source += "]"

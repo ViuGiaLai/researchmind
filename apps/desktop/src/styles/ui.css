@@ -735,4 +735,14 @@
 .privacy-controls label > span { display: grid; gap: .2rem; }
 .privacy-controls input { width: 1.1rem; height: 1.1rem; }
 .privacy-log > div { display: grid; gap: .2rem; }
+.privacy-data { display: grid; gap: .75rem; padding: 1rem; background: var(--color-surface); }
+.privacy-data__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.privacy-data__header > div:first-child { display: grid; gap: .2rem; }
+.privacy-data__header small, .privacy-backups small { color: var(--color-text-muted); font-size: .75rem; }
+.privacy-data__header > div:last-child { display: flex; flex-wrap: wrap; gap: .5rem; }
+.privacy-backups { display: grid; border-top: 1px solid var(--color-border); }
+.privacy-backups > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid var(--color-border-subtle); }
+.privacy-backups > div > span { display: grid; gap: .15rem; min-width: 0; }
+.privacy-backups > div strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; }
+@media (max-width: 760px) { .privacy-data__header { flex-direction: column; } }
 .privacy-save { justify-self: start; }

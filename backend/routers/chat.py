@@ -12,6 +12,8 @@ from academic.paper_check import check_papers_ready
 from app_state import state
 from config.settings import settings
 from common.i18n import get_prompt_language
+from common.ai_observability import increment as increment_ai_metric
+from common.text_utils import count_tokens
 from chat.citation_entailment import entailment_score, support_label, MultilingualEntailmentVerifier
 from db.database import get_session
 from db.models import ChatHistory, CollectionPaper, Paper
@@ -286,7 +288,7 @@ def _process_citations(
             if not paper_title:
                 # Try filename part after UUID
                 if uuid_m:
-                    paper_title = source[len(uuid_m.group(1)):].lstrip("_- ")
+                    paper_title = source[len(uuid_m.group(1)):].lstrip("_-: ")
                 else:
                     paper_title = source
 
@@ -397,10 +399,15 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
     first_token_at = None
     full_response = ""
     yield f"data: {json.dumps({'status': 'Dang ket noi model...'})}\n\n"
-    for chunk in state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type, strict_evidence=strict_evidence):
+    stream_generator = state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type, strict_evidence=strict_evidence)
+    for chunk in stream_generator:
         if await req.is_disconnected():
             logger.info("CHAT_STREAM: client disconnected, aborting LLM generation")
-            break
+            increment_ai_metric("chat.stream.cancelled")
+            close = getattr(stream_generator, "close", None)
+            if close:
+                close()
+            return
         if first_token_at is None:
             first_token_at = time_mod.time()
             logger.info(
@@ -623,10 +630,26 @@ async def chat(req: Request, request: dict = Body(...)):
     )
     cached = _get_chat_cache(cache_key)
     if cached:
+        increment_ai_metric("chat.cache.hit")
         logger.info(f"CHAT_CACHE hit total={time_mod.time() - t0:.3f}s")
         if stream:
             return StreamingResponse(_stream_cached_chat(cached), media_type="text/event-stream")
         return cached
+    increment_ai_metric("chat.cache.miss")
+    daily_budget = max(0, int(getattr(settings, "ai_daily_token_budget", 0) or 0))
+    if daily_budget:
+        budget_session = get_session(state.engine)
+        try:
+            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            used_tokens = sum(
+                count_tokens(row[0] or "")
+                for row in budget_session.query(ChatHistory.content).filter(ChatHistory.created_at >= today).all()
+            )
+        finally:
+            budget_session.close()
+        if used_tokens + count_tokens(message) > daily_budget:
+            increment_ai_metric("chat.budget.blocked")
+            raise HTTPException(status_code=429, detail="Daily AI token budget reached")
 
     if scope == "external":
         from types import SimpleNamespace

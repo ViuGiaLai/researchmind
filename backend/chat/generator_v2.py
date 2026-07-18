@@ -208,6 +208,12 @@ class Generator(
         if not task_type:
             return None
         
+        # An explicit per-task route is authoritative. Reasoning-mode routing is
+        # only a default when the task has no configured provider.
+        provider = self.task_provider_map.get(task_type)
+        if provider:
+            return provider
+
         # Dynamic routing for chat/rag tasks based on reasoning_mode
         if task_type in ("chat", "rag"):
             mode = getattr(self._local, "reasoning_mode", "fast")
@@ -685,12 +691,24 @@ class Generator(
         self._local.strict_evidence = strict_evidence
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
             context_text, detected = neutralize_untrusted_text(context_text)
-            context_text = redact_sensitive_text(context_text)
+            context_text = redact_sensitive_text(
+                context_text,
+                redact_email=bool(getattr(settings, "redact_metadata_for_cloud", True)),
+            )
             if detected:
                 logger.warning("RAG_SECURITY prompt injection pattern neutralized in context")
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
+
+        if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
+            context_text, detected = neutralize_untrusted_text(context_text)
+            context_text = redact_sensitive_text(
+                context_text,
+                redact_email=bool(getattr(settings, "redact_metadata_for_cloud", True)),
+            )
+            if detected:
+                logger.warning("RAG_SECURITY prompt injection pattern neutralized in streaming context")
 
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
             context_text = self._trim_review_context(context_text, query, task_type, max_tokens)
@@ -792,6 +810,10 @@ class Generator(
             user_prompt = get_prompt("rag.answer").render(context=context_text, query=query)
 
         import time
+
+        if not getattr(settings, "cloud_ai_consent", True):
+            logger.info("PRIVACY: cloud AI disabled; forcing local generation")
+            return self._generate_local(user_prompt, max_tokens=max_out)
 
         # Per-task provider routing
         if task_type:
@@ -1108,6 +1130,10 @@ class Generator(
                 "Cite every context-supported claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]."
             )
 
+        if not getattr(settings, "cloud_ai_consent", True):
+            logger.info("PRIVACY: cloud AI disabled; forcing local stream")
+            yield from self._stream_local(user_prompt)
+            return
         yield from self._stream_chain(user_prompt, max_tokens, task_type)
 
     def stream_generate_verify(
@@ -1121,6 +1147,7 @@ class Generator(
             return
 
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
+        previous_prompt = getattr(self._local, "system_prompt_override", None)
         self._local.system_prompt_override = self._get_verify_system_prompt() + "\n\n" + get_language_instruction(query)
 
         user_prompt = (
@@ -1130,7 +1157,10 @@ class Generator(
             "Clearly distinguish local PDF evidence from OpenAlex and Crossref evidence."
         )
 
-        yield from self._stream_chain(user_prompt, max_tokens, task_type)
+        try:
+            yield from self._stream_chain(user_prompt, max_tokens, task_type)
+        finally:
+            self._local.system_prompt_override = previous_prompt
 
     def _set_model(self, model_str: str, token_count: int = 0) -> None:
         self.current_model = model_str

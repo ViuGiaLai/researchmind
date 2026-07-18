@@ -124,6 +124,7 @@ class Settings(BaseSettings):
     parent_context_radius: int = 0
     ai_trace_sampling_rate: float = 0.1
     ai_trace_retention_days: int = 14
+    ai_daily_token_budget: int = 0
     enable_multilingual_nli: bool = False
 
     # BGE-Reranker

@@ -38,7 +38,12 @@ function getDefaultSections(t: (key: string) => string): OutlineSection[] {
 
 type Step = "select" | "outline" | "review";
 
-export function ReviewBuilderView() {
+interface ReviewBuilderViewProps {
+  projectId?: string;
+  initialPaperIds?: string[];
+}
+
+export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBuilderViewProps) {
   const { t } = useTranslation();
   const { confirm, confirmationDialog } = useConfirmDialog();
   const { prompt, promptDialog } = usePromptDialog();
@@ -257,12 +262,22 @@ export function ReviewBuilderView() {
   useEffect(() => {
     loadPapers();
     loadDrafts();
-  }, []);
+  }, [projectId]);
 
   const loadPapers = async () => {
     try {
-      const data = await api.listPapers(1, 200);
-      setPapers(data.papers.map((p) => ({ id: p.id, title: p.title || p.filename, authors: p.authors || "" })));
+      const sourcePapers = projectId
+        ? (await api.getProject(projectId)).papers
+        : (await api.listPapers(1, 200)).papers;
+      const next = sourcePapers.map((p) => ({
+        id: p.id,
+        title: p.title || "",
+        authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
+      }));
+      setPapers(next);
+      const available = new Set(next.map((paper) => paper.id));
+      setSelectedIds(initialPaperIds.filter((id) => available.has(id)));
+      setPaperTitles(next.filter((paper) => initialPaperIds.includes(paper.id)).map((paper) => paper.title));
     } catch {
       console.error("Failed to load papers");
     }

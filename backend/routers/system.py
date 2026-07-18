@@ -6,7 +6,7 @@ import os
 import re
 import shutil
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Request
@@ -15,18 +15,101 @@ from loguru import logger
 
 from common.i18n import get_language, t
 from common.ai_observability import snapshot as ai_metrics_snapshot
+from common.text_utils import count_tokens
+from evaluation.benchmark import run as run_rag_benchmark
+from evaluation.quality_evaluator import aggregate_history, prompt_regression_snapshot
 from chat.provider_resilience import provider_health
 from chat.cache_version import PROMPT_CONTRACT_VERSION
 
 from app_state import state
 from config.settings import settings
 from db.database import get_session
-from db.models import Base, ChatHistory, Chunk, Paper, Setting
+from db.models import AIJob, AITrace, Base, ChatHistory, Chunk, ImportJob, Paper, Setting
 from search.bm25 import BM25Search
 from search.hybrid import HybridSearch
 from search.vector import VectorSearch
 
 router = APIRouter(prefix="/api", tags=["System"])
+
+
+def _percent(numerator: int, denominator: int) -> float:
+    return round((numerator / denominator) * 100, 1) if denominator else 100.0
+
+
+def _percentile(values: list[int], percentile: float) -> int:
+    if not values:
+        return 0
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, round((len(ordered) - 1) * percentile)))
+    return int(ordered[index])
+
+
+def _reliability_snapshot(session, *, total_chunks: int, vector_chunks: int) -> dict:
+    """Build a bounded operational-quality snapshot without changing app behavior."""
+    since = datetime.utcnow() - timedelta(days=7)
+    import_jobs = session.query(ImportJob).filter(ImportJob.created_at >= since).all()
+    import_ready = sum(job.status == "ready" for job in import_jobs)
+    import_failed = sum(job.status == "failed" for job in import_jobs)
+    import_active = len(import_jobs) - import_ready - import_failed
+    import_terminal = import_ready + import_failed
+    traces = session.query(AITrace).filter(AITrace.created_at >= since).all()
+    ai_success = sum(trace.status == "success" for trace in traces)
+    latencies = [trace.elapsed_ms or 0 for trace in traces if trace.status == "success"]
+    ai_jobs = session.query(AIJob).all()
+    citation_total = citation_mapped = citation_verified = citation_invalid_page = 0
+    messages = (session.query(ChatHistory).filter(ChatHistory.role == "assistant", ChatHistory.created_at >= since).order_by(ChatHistory.created_at.desc()).limit(500).all())
+    for message in messages:
+        try:
+            citations = json.loads(message.citations or "[]")
+        except (TypeError, json.JSONDecodeError):
+            citations = []
+        if not isinstance(citations, list):
+            continue
+        for citation in citations:
+            if not isinstance(citation, dict):
+                continue
+            citation_total += 1
+            if citation.get("paper_id"):
+                citation_mapped += 1
+            if citation.get("verification_status") == "verified":
+                citation_verified += 1
+            if citation.get("page_valid") is False:
+                citation_invalid_page += 1
+    indexed_without_chunks = (session.query(Paper).filter(Paper.status == "indexed").filter(~Paper.id.in_(session.query(Chunk.paper_id).distinct())).count())
+    sync_ok = total_chunks == vector_chunks
+    import_rate = _percent(import_ready, import_terminal)
+    ai_rate = _percent(ai_success, len(traces))
+    mapping_rate = _percent(citation_mapped, citation_total)
+    verification_rate = _percent(citation_verified, citation_total)
+    issues = []
+    if not sync_ok:
+        issues.append({"code": "index_mismatch", "severity": "error", "count": abs(total_chunks - vector_chunks)})
+    if indexed_without_chunks:
+        issues.append({"code": "indexed_without_chunks", "severity": "error", "count": indexed_without_chunks})
+    if import_terminal and import_rate < 90:
+        issues.append({"code": "import_failures", "severity": "warning", "count": import_failed})
+    if citation_total and mapping_rate < 95:
+        issues.append({"code": "unmapped_citations", "severity": "warning", "count": citation_total - citation_mapped})
+    if citation_invalid_page:
+        issues.append({"code": "invalid_citation_pages", "severity": "warning", "count": citation_invalid_page})
+    if traces and ai_rate < 95:
+        issues.append({"code": "ai_failures", "severity": "warning", "count": len(traces) - ai_success})
+    score = 100
+    score -= 25 if not sync_ok else 0
+    score -= min(20, indexed_without_chunks * 5)
+    score -= min(20, round((100 - import_rate) * 0.2)) if import_terminal else 0
+    score -= min(15, round((100 - mapping_rate) * 0.15)) if citation_total else 0
+    score -= min(20, round((100 - ai_rate) * 0.2)) if traces else 0
+    score = max(0, score)
+    return {
+        "window_days": 7, "score": score,
+        "status": "healthy" if score >= 90 else ("attention" if score >= 70 else "degraded"),
+        "ingestion": {"total": len(import_jobs), "ready": import_ready, "failed": import_failed, "active": import_active, "success_rate": import_rate},
+        "index": {"sqlite_chunks": total_chunks, "vector_chunks": vector_chunks, "sync_ok": sync_ok, "indexed_without_chunks": indexed_without_chunks},
+        "citations": {"messages_sampled": len(messages), "total": citation_total, "mapped": citation_mapped, "verified": citation_verified, "invalid_pages": citation_invalid_page, "mapping_rate": mapping_rate, "verification_rate": verification_rate},
+        "ai": {"traces": len(traces), "success": ai_success, "success_rate": ai_rate, "p50_ms": _percentile(latencies, 0.5), "p95_ms": _percentile(latencies, 0.95), "jobs_queued": sum(job.status == "queued" for job in ai_jobs), "jobs_failed": sum(job.status == "failed" for job in ai_jobs)},
+        "issues": issues,
+    }
 
 
 def _require_local_client(request: Request) -> None:
@@ -87,10 +170,62 @@ async def health():
 async def ai_metrics(request: Request):
     """Local, read-only AI pipeline counters and provider health."""
     _require_local_client(request)
+    metrics = ai_metrics_snapshot()
+    hits = int(metrics.get("chat.cache.hit", 0))
+    misses = int(metrics.get("chat.cache.miss", 0))
+    session = get_session(state.engine)
+    try:
+        today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        messages = session.query(ChatHistory).filter(ChatHistory.created_at >= today).all()
+        estimated_tokens = sum(count_tokens(message.content or "") for message in messages)
+        jobs = session.query(AIJob).all()
+    finally:
+        session.close()
+    try:
+        routes = json.loads(settings.task_provider_map or "{}")
+        fallbacks = json.loads(settings.task_fallback_map or "{}")
+    except (TypeError, json.JSONDecodeError):
+        routes, fallbacks = {}, {}
     return {
         "prompt_contract_version": PROMPT_CONTRACT_VERSION,
-        "metrics": ai_metrics_snapshot(),
+        "metrics": metrics,
         "providers": provider_health.snapshot(),
+        "cache": {
+            "hits": hits,
+            "misses": misses,
+            "hit_rate": _percent(hits, hits + misses) if hits + misses else 0.0,
+        },
+        "usage": {
+            "estimated_tokens_today": estimated_tokens,
+            "messages_today": len(messages),
+            "daily_token_budget": max(0, int(getattr(settings, "ai_daily_token_budget", 0) or 0)),
+        },
+        "jobs": {
+            "queued": sum(job.status == "queued" for job in jobs),
+            "running": sum(job.status == "running" for job in jobs),
+            "failed": sum(job.status == "failed" for job in jobs),
+            "cancelled": sum(job.status == "cancelled" for job in jobs),
+        },
+        "routing": {"primary": routes, "fallback": fallbacks},
+    }
+
+
+@router.get("/ai/evaluation")
+async def ai_evaluation(request: Request):
+    """Offline quality dashboard from stored answers and deterministic fixtures."""
+    _require_local_client(request)
+    session = get_session(state.engine)
+    try:
+        messages = session.query(ChatHistory).order_by(ChatHistory.created_at.asc()).limit(1000).all()
+        history = aggregate_history(messages)
+    finally:
+        session.close()
+    fixture = Path(__file__).resolve().parent.parent / "evaluation" / "fixtures" / "rag_smoke.json"
+    return {
+        "history": history,
+        "rag": run_rag_benchmark(str(fixture)),
+        "prompt_regression": prompt_regression_snapshot(),
+        "method": "deterministic_offline",
     }
 
 
@@ -153,10 +288,11 @@ async def get_diagnostics():
         total_chunks = session.query(Chunk).count()
         total_size = session.query(Paper).with_entities(Paper.file_size).all()
         total_size_bytes = sum(s[0] or 0 for s in total_size)
+        chroma_count = state.vector.count() if state.vector is not None else 0
+        reliability = _reliability_snapshot(session, total_chunks=total_chunks, vector_chunks=chroma_count)
     finally:
         session.close()
 
-    chroma_count = state.vector.count() if state.vector is not None else 0
     chunk_sync_ok = total_chunks == chroma_count
 
     disk = {"free_gb": None, "total_gb": None, "warning": False}
@@ -208,6 +344,7 @@ async def get_diagnostics():
             "llm_cache_count": llm_cache_count,
             "embedding_cache_count": embedding_cache_count,
         },
+        "reliability": reliability,
     }
 
 

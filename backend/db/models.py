@@ -151,6 +151,41 @@ class SavedSearch(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class LivingReviewSubscription(Base):
+    __tablename__ = "living_review_subscriptions"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    query = Column(Text, nullable=False)
+    enabled = Column(Integer, nullable=False, default=1)
+    last_checked_at = Column(DateTime, nullable=True)
+    last_seen_paper_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (Index("ix_living_review_project", "project_id"),)
+
+
+class ResearchArtifact(Base):
+    __tablename__ = "research_artifacts"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    artifact_type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    source_id = Column(String, nullable=False, default="")
+    content = Column(Text, nullable=False, default="")
+    metadata_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("artifact_type IN ('note', 'evidence', 'review', 'matrix', 'report')", name="ck_research_artifact_type"),
+        Index("ix_research_artifact_project", "project_id"),
+    )
+
+
 class ReviewDraft(Base):
     __tablename__ = "review_drafts"
 

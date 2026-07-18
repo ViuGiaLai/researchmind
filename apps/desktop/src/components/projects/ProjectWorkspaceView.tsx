@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, type Paper, type ResearchProject, type ResearchProjectDetail } from "../../lib/api";
+import { api, type LivingReviewSubscription, type Paper, type ResearchArtifact, type ResearchProject, type ResearchProjectDetail, type ReviewAuditEvent, type WorkspaceMember } from "../../lib/api";
 import {
   IconArrowRight,
   IconBookOpen,
@@ -11,17 +11,22 @@ import {
   IconPlus,
   IconSpinner,
   IconTrash,
+  IconClock,
+  IconBookmark,
+  IconUser,
+  IconRefresh,
   IconWithText,
 } from "../Icons";
 import { PdfViewer } from "../pdf/PdfViewer";
 import { useToast } from "../shared/Toast";
 
 interface ProjectWorkspaceViewProps {
-  onStartChat: (paperIds: string[], query?: string) => void;
-  onStartReview: (paperIds: string[]) => void;
+  onStartChat: (paperIds: string[], query: string | undefined, projectId: string) => void;
+  onStartReview: (paperIds: string[], projectId: string) => void;
+  onProjectChange?: (projectId?: string) => void;
 }
 
-export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onStartChat, onStartReview }) => {
+export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onStartChat, onStartReview, onProjectChange }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const [projects, setProjects] = useState<ResearchProject[]>([]);
@@ -34,6 +39,14 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
   const [readingPaperId, setReadingPaperId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [auditEvents, setAuditEvents] = useState<ReviewAuditEvent[]>([]);
+  const [artifacts, setArtifacts] = useState<ResearchArtifact[]>([]);
+  const [livingReviews, setLivingReviews] = useState<LivingReviewSubscription[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [artifactTitle, setArtifactTitle] = useState("");
+  const [monitorQuery, setMonitorQuery] = useState("");
+  const [memberIdentity, setMemberIdentity] = useState("");
+  const [alertCount, setAlertCount] = useState<Record<string, number>>({});
 
   const loadProjects = useCallback(async () => {
     const result = await api.listProjects();
@@ -47,7 +60,16 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
       return;
     }
     const detail = await api.getProject(id);
+    const [audit, artifactData, livingData, memberData] = await Promise.all([
+      api.getProjectAudit(id), api.listProjectArtifacts(id), api.listLivingReviews(id),
+      api.listWorkspaceMembers(detail.workspace_id),
+    ]);
     setProject(detail);
+    setAuditEvents(audit.events);
+    setArtifacts(artifactData.artifacts);
+    setLivingReviews(livingData.subscriptions);
+    setMembers(memberData.members);
+    setMonitorQuery(detail.research_question || "");
     setQuestion(detail.research_question);
   }, []);
 
@@ -59,7 +81,8 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
 
   useEffect(() => {
     void loadProject(activeId).catch((error) => toast.addToast("error", error instanceof Error ? error.message : t("projects.load_error")));
-  }, [activeId, loadProject, t, toast]);
+    onProjectChange?.(activeId || undefined);
+  }, [activeId, loadProject, onProjectChange, t, toast]);
 
   const availablePapers = useMemo(() => {
     const assigned = new Set(project?.papers.map((paper) => paper.id) || []);
@@ -127,6 +150,31 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
     }
   };
 
+  const addArtifact = async () => {
+    if (!project || !artifactTitle.trim()) return;
+    await api.createProjectArtifact(project.id, { artifact_type: "note", title: artifactTitle.trim() });
+    setArtifactTitle("");
+    await loadProject(project.id);
+  };
+
+  const addLivingReview = async () => {
+    if (!project || !monitorQuery.trim()) return;
+    await api.createLivingReview(project.id, project.title, monitorQuery.trim());
+    await loadProject(project.id);
+  };
+
+  const checkLivingReview = async (id: string) => {
+    const result = await api.checkLivingReview(id);
+    setAlertCount((current) => ({ ...current, [id]: result.count }));
+  };
+
+  const addMember = async () => {
+    if (!project || !memberIdentity.trim()) return;
+    await api.addWorkspaceMember(project.workspace_id, memberIdentity.trim(), "reviewer");
+    setMemberIdentity("");
+    await loadProject(project.id);
+  };
+
   if (loading) {
     return <div className="project-loading" role="status"><IconSpinner size={22} />{t("common.loading")}</div>;
   }
@@ -188,10 +236,10 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
                 <h1>{project.title}</h1>
               </div>
               <div className="project-header__actions">
-                <button type="button" className="rm-btn rm-btn-secondary" disabled={!project.papers.length} onClick={() => onStartReview(project.papers.map((paper) => paper.id))}>
+                <button type="button" className="rm-btn rm-btn-secondary" disabled={!project.papers.length} onClick={() => onStartReview(project.papers.map((paper) => paper.id), project.id)}>
                   <IconWithText icon={IconBookOpen} size={14}>{t("projects.start_review")}</IconWithText>
                 </button>
-                <button type="button" className="rm-btn rm-btn-primary" disabled={!project.papers.length} onClick={() => onStartChat(project.papers.map((paper) => paper.id), project.research_question)}>
+                <button type="button" className="rm-btn rm-btn-primary" disabled={!project.papers.length} onClick={() => onStartChat(project.papers.map((paper) => paper.id), project.research_question, project.id)}>
                   <IconWithText icon={IconChat} size={14}>{t("projects.ask_evidence")}</IconWithText>
                 </button>
               </div>
@@ -243,6 +291,38 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
                 </div>
               </section>
             </div>
+            <div className="project-tools-grid">
+              <section className="project-section">
+                <header><div><span>{t("projects.artifacts")}</span><strong>{artifacts.length}</strong></div></header>
+                <div className="project-inline-create"><input value={artifactTitle} onChange={(event) => setArtifactTitle(event.target.value)} placeholder={t("projects.artifact_placeholder")} /><button type="button" onClick={() => void addArtifact()} disabled={!artifactTitle.trim()}><IconPlus size={14} /></button></div>
+                <div className="project-compact-list">{artifacts.slice(0, 6).map((artifact) => <div key={artifact.id}><IconBookmark size={14} /><span><strong>{artifact.title}</strong><small>{t(`projects.artifact_${artifact.artifact_type}`)}</small></span></div>)}</div>
+              </section>
+              <section className="project-section">
+                <header><div><span>{t("projects.living_review")}</span><strong>{livingReviews.length}</strong></div></header>
+                <div className="project-inline-create"><input value={monitorQuery} onChange={(event) => setMonitorQuery(event.target.value)} placeholder={t("projects.monitor_placeholder")} /><button type="button" onClick={() => void addLivingReview()} disabled={!monitorQuery.trim()}><IconPlus size={14} /></button></div>
+                <div className="project-compact-list">{livingReviews.map((item) => <div key={item.id}><IconRefresh size={14} /><span><strong>{item.name}</strong><small>{alertCount[item.id] != null ? t("projects.monitor_matches", { count: alertCount[item.id] }) : item.query}</small></span><button type="button" onClick={() => void checkLivingReview(item.id)}>{t("projects.check_now")}</button></div>)}</div>
+              </section>
+              <section className="project-section">
+                <header><div><span>{t("projects.collaborators")}</span><strong>{members.length}</strong></div></header>
+                <div className="project-inline-create"><input value={memberIdentity} onChange={(event) => setMemberIdentity(event.target.value)} placeholder={t("projects.member_placeholder")} /><button type="button" onClick={() => void addMember()} disabled={!memberIdentity.trim()}><IconPlus size={14} /></button></div>
+                <div className="project-compact-list">{members.map((member) => <div key={member.id}><IconUser size={14} /><span><strong>{member.display_name || member.identity}</strong><small>{member.role}</small></span></div>)}</div>
+              </section>
+            </div>
+            <section className="project-section project-audit">
+              <header><div><span>{t("projects.audit_title")}</span><strong>{auditEvents.length}</strong></div></header>
+              {auditEvents.length === 0 ? (
+                <div className="project-section-empty"><p>{t("projects.audit_empty")}</p></div>
+              ) : (
+                <ol className="project-audit-list">
+                  {auditEvents.slice(0, 20).map((event) => (
+                    <li key={event.id}>
+                      <IconClock size={14} />
+                      <span><strong>{t(`projects.audit_${event.event_type}`, { defaultValue: event.event_type })}</strong><small>{event.created_at ? new Date(event.created_at).toLocaleString() : ""}</small></span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
           </>
         )}
       </main>

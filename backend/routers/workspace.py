@@ -1,5 +1,7 @@
 import json
+import hashlib
 import os
+import re
 import sqlite3
 import tempfile
 import zipfile
@@ -7,13 +9,16 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from app_state import state
 from config.settings import settings
 from db.database import get_session
 from db.migrations import DEFAULT_WORKSPACE_ID
 from db.models import (
-    Annotation, Paper, Project, ProjectPaper, ReadingProgress, ReviewAuditEvent,
+    Annotation, Base, LivingReviewSubscription, Paper, Project, ProjectPaper, ReadingProgress,
+    ResearchArtifact, ReviewAuditEvent,
     ScreeningDecision, SyncChange, SyncDevice, Workspace, WorkspaceMember,
 )
 
@@ -138,16 +143,32 @@ async def push_sync_changes(body: dict = Body(...)):
     workspace_id = str(body.get("workspace_id") or DEFAULT_WORKSPACE_ID)
     device_id = str(body.get("device_id") or "")
     changes = body.get("changes") or []
+    base_revision = max(0, int(body.get("base_revision") or 0))
     session = get_session(state.engine)
     try:
         if not session.query(SyncDevice).filter(SyncDevice.id == device_id).first():
             raise HTTPException(status_code=404, detail="Sync device is not registered")
         accepted = 0
+        conflicts = []
         for change in changes[:500]:
             entity_type = change.get("entity_type")
             operation = change.get("operation")
             entity_id = str(change.get("entity_id") or "")
             if entity_type not in SYNC_ENTITY_TYPES or operation not in {"upsert", "delete"} or not entity_id:
+                continue
+            newer = session.query(SyncChange).filter(
+                SyncChange.workspace_id == workspace_id,
+                SyncChange.entity_type == entity_type,
+                SyncChange.entity_id == entity_id,
+                SyncChange.revision > base_revision,
+                SyncChange.device_id != device_id,
+            ).order_by(SyncChange.revision.desc()).first()
+            if newer:
+                conflicts.append({
+                    "entity_type": entity_type, "entity_id": entity_id,
+                    "remote_revision": newer.revision, "remote_device_id": newer.device_id,
+                    "remote_payload": json.loads(newer.payload or "{}"),
+                })
                 continue
             session.add(SyncChange(
                 workspace_id=workspace_id, device_id=device_id, entity_type=entity_type,
@@ -157,7 +178,7 @@ async def push_sync_changes(body: dict = Body(...)):
             accepted += 1
         session.commit()
         latest = session.query(SyncChange.revision).order_by(SyncChange.revision.desc()).first()
-        return {"accepted": accepted, "revision": latest[0] if latest else 0}
+        return {"accepted": accepted, "revision": latest[0] if latest else 0, "conflicts": conflicts}
     finally:
         session.close()
 
@@ -357,6 +378,19 @@ async def save_screening_decision(paper_id: str, body: dict = Body(...)):
     try:
         if not session.query(Paper).filter(Paper.id == paper_id).first():
             raise HTTPException(status_code=404, detail="Paper not found")
+        if project_id and not session.query(ProjectPaper).filter(
+            ProjectPaper.project_id == project_id,
+            ProjectPaper.paper_id == paper_id,
+        ).first():
+            raise HTTPException(status_code=400, detail="Paper is not part of this project")
+        if stage == "full_text":
+            title_decision = session.query(ScreeningDecision).filter(
+                ScreeningDecision.scope_id == scope_id,
+                ScreeningDecision.paper_id == paper_id,
+                ScreeningDecision.stage == "title_abstract",
+            ).first()
+            if not title_decision or title_decision.decision != "include":
+                raise HTTPException(status_code=409, detail="Title and abstract screening must include this paper first")
         row = session.query(ScreeningDecision).filter(
             ScreeningDecision.scope_id == scope_id,
             ScreeningDecision.paper_id == paper_id,
@@ -557,6 +591,53 @@ def _backup_dir() -> Path:
     return path
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _validate_sqlite_snapshot(path: Path) -> None:
+    try:
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            result = connection.execute("PRAGMA quick_check").fetchone()
+            tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        finally:
+            connection.close()
+    except sqlite3.DatabaseError as exc:
+        raise HTTPException(status_code=400, detail="Backup database is invalid") from exc
+    if not result or result[0] != "ok" or not {"papers", "settings"}.issubset(tables):
+        raise HTTPException(status_code=400, detail="Backup database failed integrity checks")
+
+
+def _extract_validated_backup(source: Path, destination: Path) -> dict:
+    try:
+        with zipfile.ZipFile(source) as bundle:
+            names = set(bundle.namelist())
+            if "database/researchmind.db" not in names:
+                raise HTTPException(status_code=400, detail="Invalid backup")
+            info = bundle.getinfo("database/researchmind.db")
+            if info.file_size > 4 * 1024 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="Backup database is too large")
+            manifest = json.loads(bundle.read("manifest.json")) if "manifest.json" in names else {}
+            temporary = destination.with_suffix(".tmp")
+            with bundle.open(info) as src, temporary.open("wb") as dst:
+                while chunk := src.read(1024 * 1024):
+                    dst.write(chunk)
+            expected = str(manifest.get("database_sha256") or "")
+            if expected and _sha256(temporary) != expected:
+                temporary.unlink(missing_ok=True)
+                raise HTTPException(status_code=400, detail="Backup checksum mismatch")
+            _validate_sqlite_snapshot(temporary)
+            os.replace(temporary, destination)
+            return manifest
+    except (zipfile.BadZipFile, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid backup archive") from exc
+
+
 @router.get("/backups")
 async def list_backups():
     items = []
@@ -580,9 +661,16 @@ async def create_backup():
             destination.close()
             source.close()
         archive = Path(tmp) / "backup.zip"
+        database_sha256 = _sha256(snapshot)
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
             bundle.write(snapshot, "database/researchmind.db")
-            bundle.writestr("manifest.json", json.dumps({"version": 1, "created_at": datetime.now().isoformat()}))
+            bundle.writestr("manifest.json", json.dumps({
+                "version": 2,
+                "app_version": "0.6.0",
+                "created_at": datetime.now().isoformat(),
+                "database_sha256": database_sha256,
+                "database_size": snapshot.stat().st_size,
+            }))
         os.replace(archive, target)
     return {"name": target.name, "size": target.stat().st_size}
 
@@ -595,10 +683,169 @@ async def queue_restore(backup_name: str):
     if not source.is_file():
         raise HTTPException(status_code=404, detail="Backup not found")
     pending = settings.db_path.parent / ".restore-pending.db"
-    with zipfile.ZipFile(source) as bundle:
-        if "database/researchmind.db" not in bundle.namelist():
-            raise HTTPException(status_code=400, detail="Invalid backup")
-        with bundle.open("database/researchmind.db") as src, open(pending, "wb") as dst:
-            while chunk := src.read(1024 * 1024):
-                dst.write(chunk)
-    return {"status": "queued", "requires_restart": True}
+    manifest = _extract_validated_backup(source, pending)
+    return {"status": "queued", "requires_restart": True, "manifest": manifest}
+
+
+@router.get("/privacy/export")
+async def export_user_data(include_operational: bool = False):
+    """Export portable user-owned data without credentials or provider secrets."""
+    excluded = set() if include_operational else {"llm_cache", "embedding_cache", "ai_traces", "ai_jobs"}
+    session = get_session(state.engine)
+    payload = {"format": "researchmind-portable-data", "version": 1, "created_at": datetime.now().isoformat(), "tables": {}}
+    try:
+        for table in Base.metadata.sorted_tables:
+            if table.name in excluded:
+                continue
+            rows = []
+            for row in session.execute(table.select()).mappings():
+                setting_key = str(row.get("key", "")) if table.name == "settings" else ""
+                if setting_key.endswith(("_api_key", "_secret", "_token", "_password")):
+                    continue
+                item = {}
+                for key, value in row.items():
+                    item[key] = _iso(value) if isinstance(value, datetime) else value
+                rows.append(item)
+            payload["tables"][table.name] = rows
+    finally:
+        session.close()
+
+
+@router.get("/projects/{project_id}/artifacts")
+async def list_project_artifacts(project_id: str):
+    session = get_session(state.engine)
+    try:
+        rows = session.query(ResearchArtifact).filter(
+            ResearchArtifact.project_id == project_id
+        ).order_by(ResearchArtifact.updated_at.desc()).all()
+        return {"artifacts": [{
+            "id": row.id, "project_id": row.project_id, "artifact_type": row.artifact_type,
+            "title": row.title, "source_id": row.source_id, "content": row.content,
+            "metadata": json.loads(row.metadata_json or "{}"),
+            "created_at": _iso(row.created_at), "updated_at": _iso(row.updated_at),
+        } for row in rows]}
+    finally:
+        session.close()
+
+
+@router.post("/projects/{project_id}/artifacts")
+async def create_project_artifact(project_id: str, body: dict = Body(...)):
+    artifact_type = str(body.get("artifact_type") or "note")
+    title = str(body.get("title") or "").strip()
+    if artifact_type not in {"note", "evidence", "review", "matrix", "report"} or not title:
+        raise HTTPException(status_code=400, detail="Valid artifact type and title are required")
+    session = get_session(state.engine)
+    try:
+        if not session.query(Project).filter(Project.id == project_id).first():
+            raise HTTPException(status_code=404, detail="Project not found")
+        artifact = ResearchArtifact(
+            project_id=project_id, artifact_type=artifact_type, title=title,
+            source_id=str(body.get("source_id") or ""),
+            content=str(body.get("content") or ""),
+            metadata_json=json.dumps(body.get("metadata") or {}, ensure_ascii=False),
+        )
+        session.add(artifact)
+        session.add(ReviewAuditEvent(
+            project_id=project_id, event_type="artifact_created",
+            payload=json.dumps({"artifact_type": artifact_type, "title": title}, ensure_ascii=False),
+        ))
+        session.commit()
+        session.refresh(artifact)
+        return {"id": artifact.id, "artifact_type": artifact.artifact_type, "title": artifact.title}
+    finally:
+        session.close()
+
+
+@router.get("/projects/{project_id}/living-reviews")
+async def list_living_reviews(project_id: str):
+    session = get_session(state.engine)
+    try:
+        rows = session.query(LivingReviewSubscription).filter(
+            LivingReviewSubscription.project_id == project_id
+        ).order_by(LivingReviewSubscription.created_at.desc()).all()
+        return {"subscriptions": [{
+            "id": row.id, "project_id": row.project_id, "name": row.name, "query": row.query,
+            "enabled": bool(row.enabled), "last_checked_at": _iso(row.last_checked_at),
+            "last_seen_paper_at": _iso(row.last_seen_paper_at),
+        } for row in rows]}
+    finally:
+        session.close()
+
+
+@router.post("/projects/{project_id}/living-reviews")
+async def create_living_review(project_id: str, body: dict = Body(...)):
+    query = str(body.get("query") or "").strip()
+    name = str(body.get("name") or query[:80]).strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="A monitoring query is required")
+    session = get_session(state.engine)
+    try:
+        if not session.query(Project).filter(Project.id == project_id).first():
+            raise HTTPException(status_code=404, detail="Project not found")
+        item = LivingReviewSubscription(project_id=project_id, name=name, query=query)
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return {"id": item.id, "name": item.name, "query": item.query, "enabled": True}
+    finally:
+        session.close()
+
+
+@router.post("/living-reviews/{subscription_id}/check")
+async def check_living_review(subscription_id: str):
+    session = get_session(state.engine)
+    try:
+        item = session.query(LivingReviewSubscription).filter(
+            LivingReviewSubscription.id == subscription_id
+        ).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Living review not found")
+        assigned = {row[0] for row in session.query(ProjectPaper.paper_id).filter(
+            ProjectPaper.project_id == item.project_id
+        ).all()}
+        terms = [term.lower() for term in re.findall(r"[\w-]{3,}", item.query, flags=re.UNICODE)]
+        candidates = session.query(Paper).order_by(Paper.created_at.desc()).limit(1000).all()
+        matches = []
+        for paper in candidates:
+            if paper.id in assigned:
+                continue
+            haystack = f"{paper.title or ''} {paper.abstract or ''}".lower()
+            if terms and any(term in haystack for term in terms):
+                matches.append({
+                    "id": paper.id, "title": paper.title or paper.filename,
+                    "authors": json.loads(paper.authors or "[]"), "year": paper.year,
+                    "created_at": _iso(paper.created_at),
+                })
+        now = datetime.utcnow()
+        item.last_checked_at = now
+        if matches:
+            dated = [paper.created_at for paper in candidates if paper.id in {match["id"] for match in matches} and paper.created_at]
+            item.last_seen_paper_at = max(dated) if dated else now
+        session.commit()
+        return {"subscription_id": item.id, "matches": matches[:100], "count": len(matches)}
+    finally:
+        session.close()
+
+    export_dir = settings.data_dir / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    handle, raw_path = tempfile.mkstemp(prefix="researchmind-data-", suffix=".zip", dir=export_dir)
+    os.close(handle)
+    target = Path(raw_path)
+    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    manifest = {
+        "format": payload["format"],
+        "version": 1,
+        "created_at": payload["created_at"],
+        "data_sha256": hashlib.sha256(data).hexdigest(),
+        "includes_operational_data": include_operational,
+        "contains_credentials": False,
+    }
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        bundle.writestr("researchmind-data.json", data)
+        bundle.writestr("manifest.json", json.dumps(manifest, indent=2))
+    return FileResponse(
+        target,
+        media_type="application/zip",
+        filename=f"researchmind-data-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip",
+        background=BackgroundTask(target.unlink, missing_ok=True),
+    )

@@ -54,7 +54,12 @@ const CONFIDENCE_ICON: Record<EvidenceCell["confidence"], React.FC<{ size?: numb
   low: IconError,
 };
 
-export const EvidenceMatrixView: React.FC = () => {
+interface EvidenceMatrixViewProps {
+  projectId?: string;
+  initialPaperIds?: string[];
+}
+
+export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectId, initialPaperIds = [] }) => {
   const { t } = useTranslation();
   const { prompt, promptDialog } = usePromptDialog();
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
@@ -69,11 +74,15 @@ export const EvidenceMatrixView: React.FC = () => {
 
   // Load papers and history from server
   useEffect(() => {
-    api.listPapers(1, 100).then(data => {
-      setPapers(data.papers.map(p => ({ id: p.id, title: p.title || p.filename, authors: p.authors || "" })));
+    const source = projectId ? api.getProject(projectId).then(data => data.papers) : api.listPapers(1, 100).then(data => data.papers);
+    source.then(sourcePapers => {
+      const next = sourcePapers.map(p => ({ id: p.id, title: p.title || "", authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || "") }));
+      setPapers(next);
+      const available = new Set(next.map(p => p.id));
+      setSelectedIds(initialPaperIds.filter(id => available.has(id)));
     }).catch(() => {});
     loadDraftList();
-  }, []);
+  }, [projectId, initialPaperIds.join("|")]);
 
   const loadDraftList = async () => {
     try {

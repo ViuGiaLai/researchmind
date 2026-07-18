@@ -15,7 +15,7 @@ _suggest_cache_ttl = 30.0
 
 @router.post("")
 async def search(query: dict = Body(...)):
-    """Hybrid search across all indexed PDFs with support for tag: or tháº»: filters."""
+    """Hybrid search across all indexed PDFs with support for tag: or thẻ: filters."""
     import re
     import json
     t0 = time.time()
@@ -29,8 +29,8 @@ async def search(query: dict = Body(...)):
     if not text.strip():
         raise HTTPException(status_code=400, detail="Query text is required")
 
-    # Match tag:(word) or tag:"quoted string" (also tháº»: and the:)
-    tag_pattern = r'(?:tag|tháº»|the):(?:([^"\s]+)|"([^"]+)")'
+    # Match tag:(word) or tag:"quoted string" (also thẻ: and the:)
+    tag_pattern = r'(?:tag|thẻ|the):(?:([^"\s]+)|"([^"]+)")'
     matches = re.findall(tag_pattern, text, re.IGNORECASE)
     tags_to_filter = []
     for m in matches:

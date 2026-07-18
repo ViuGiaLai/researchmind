@@ -510,6 +510,177 @@ button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active
 }
 .evidence-matrix-view, .review-builder { padding: 22px 24px 30px; }
 
+/* Cross-page workspace consistency --------------------------------------- */
+:where(
+  .library-split-view, .chat-view, .search-view, .search-view-modern,
+  .discovery-view, .hl-view, .review-builder, .evidence-matrix-view,
+  .insights-view, .wow-view, .graph-view, .screening-board,
+  .personal-brain-view, .daily-reader-view, .project-workspace-view,
+  .settings-view, .account-view
+) {
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bg);
+}
+
+:where(
+  .search-view, .search-view-modern, .discovery-view, .hl-view,
+  .insights-view, .graph-view, .screening-board, .personal-brain-view,
+  .daily-reader-view, .project-workspace-view, .account-view
+) {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+:where(
+  .rm-page-header, .discovery-header, .insights-header, .graph-header,
+  .screening-header, .project-workspace-header, .account-header
+) {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+}
+
+:where(
+  .rm-page-header, .discovery-header, .insights-header, .graph-header,
+  .screening-header, .project-workspace-header, .account-header
+) :where(h1, h2) {
+  margin: 0;
+  color: var(--color-text);
+  font-size: clamp(1.25rem, 1.1rem + .35vw, 1.6rem);
+  font-weight: 690;
+  line-height: 1.18;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+
+:where(
+  .rm-page-header, .discovery-header, .insights-header, .graph-header,
+  .screening-header, .project-workspace-header, .account-header
+) p {
+  max-width: 68ch;
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+:where(
+  .library-toolbar, .search-toolbar, .discovery-toolbar, .hl-toolbar,
+  .graph-toolbar, .screening-toolbar, .review-builder-toolbar,
+  .evidence-toolbar, .settings-toolbar
+) {
+  min-width: 0;
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+}
+
+:where(
+  .library-toolbar, .search-toolbar, .discovery-toolbar, .hl-toolbar,
+  .graph-toolbar, .screening-toolbar, .review-builder-toolbar,
+  .evidence-toolbar, .settings-toolbar
+) > * {
+  min-width: 0;
+}
+
+:where(button, [role="button"], input, select, textarea):disabled {
+  cursor: not-allowed;
+  opacity: .52;
+}
+
+:where(button, [role="button"]):focus-visible {
+  position: relative;
+  z-index: 1;
+}
+
+:where(
+  .rm-card, .settings-section, .highlight-card, .section-card,
+  .discovery-result-card, .related-paper-card, .account-profile-card,
+  .account-local-card, .personal-brain-insight-card
+) {
+  overflow-wrap: anywhere;
+}
+
+:where(
+  .rm-table-wrap, .evidence-table-wrap, .comparison-table-wrap,
+  .settings-table-wrap, .screening-table-wrap
+) {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  scrollbar-gutter: stable;
+}
+
+:where(table) {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+:where(td, th) {
+  padding-block: 9px;
+  vertical-align: top;
+}
+
+:where(
+  .rm-empty, .hl-empty-state, .chat-view-empty, .preview-empty,
+  .discovery-empty, .graph-empty, .screening-empty
+) {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface) 64%, transparent);
+}
+
+:where(
+  .rm-modal, .confirm-dialog, .command-palette, .paper-picker-modal,
+  .help-center-panel
+) {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+:where(.rm-section-label, .settings-group-label, .command-section-label) {
+  color: var(--color-text-muted);
+  font-size: .7rem;
+  font-weight: 650;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+:where(.rm-badge, .status-badge, .chat-view-papers-badge) {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+@media (max-width: 1180px) {
+  :where(
+    .rm-page-header, .discovery-header, .insights-header, .graph-header,
+    .screening-header, .project-workspace-header, .account-header
+  ) {
+    flex-wrap: wrap;
+  }
+
+  :where(
+    .library-toolbar, .search-toolbar, .discovery-toolbar, .hl-toolbar,
+    .graph-toolbar, .screening-toolbar, .review-builder-toolbar,
+    .evidence-toolbar, .settings-toolbar
+  ) {
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 1180px) {
   :root { --workspace-sidebar: 232px; }
   .sub-tab-bar { padding-inline: 18px; }

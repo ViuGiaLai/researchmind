@@ -29,7 +29,10 @@ function getFilterLabel(t: (key: string) => string): Record<FilterView, React.Re
   };
 }
 
-export const ScreeningBoard: React.FC = () => {
+interface ScreeningBoardProps { projectId?: string; }
+type ScreeningStage = "title_abstract" | "full_text";
+
+export const ScreeningBoard: React.FC<ScreeningBoardProps> = ({ projectId }) => {
   const { t } = useTranslation();
   const toast = useToast();
   const filterLabels = getFilterLabel(t);
@@ -40,14 +43,17 @@ export const ScreeningBoard: React.FC = () => {
   const [filterView, setFilterView] = useState<FilterView>("all");
   const [searchText, setSearchText] = useState("");
   const [reasonInput, setReasonInput] = useState<Record<string, string>>({});
+  const [stage, setStage] = useState<ScreeningStage>("title_abstract");
 
-  useEffect(() => {
+  const loadScreening = useCallback(() => {
     setLoading(true);
-    Promise.all([api.listPapers(1, 500), api.listScreeningDecisions(), api.getPrismaCounts()]).then(([data, decisionData, prismaData]) => {
-      setPapers(data.papers.map(p => ({
+    const source = projectId ? api.getProject(projectId).then(data => data.papers) : api.listPapers(1, 500).then(data => data.papers);
+    Promise.all([source, api.listScreeningDecisions(projectId, stage), api.listScreeningDecisions(projectId, "title_abstract"), api.getPrismaCounts(projectId)]).then(([sourcePapers, decisionData, titleData, prismaData]) => {
+      const eligible = new Set(titleData.decisions.filter(item => item.decision === "include").map(item => item.paper_id));
+      setPapers(sourcePapers.filter(p => stage === "title_abstract" || eligible.has(p.id)).map(p => ({
         id: p.id,
-        title: p.title || p.filename,
-        authors: p.authors || "",
+        title: p.title || "",
+        authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
         year: p.year,
       })));
       setDecisions(Object.fromEntries(decisionData.decisions.map((item) => [item.paper_id, {
@@ -55,11 +61,13 @@ export const ScreeningBoard: React.FC = () => {
       }])));
       setPrisma(prismaData);
     }).catch((error) => toast.addToast("error", error instanceof Error ? error.message : t("screening.load_error"))).finally(() => setLoading(false));
-  }, []);
+  }, [projectId, stage, t, toast]);
+
+  useEffect(() => { loadScreening(); }, [loadScreening]);
 
   const refreshPrisma = useCallback(() => {
-    void api.getPrismaCounts().then(setPrisma);
-  }, []);
+    void api.getPrismaCounts(projectId).then(setPrisma);
+  }, [projectId]);
 
   const setDecision = useCallback((paperId: string, decision: "include" | "exclude" | "maybe") => {
     const reason = reasonInput[paperId] || "";
@@ -68,11 +76,11 @@ export const ScreeningBoard: React.FC = () => {
       return updated;
     });
     if (decision !== "exclude" || reason.trim()) {
-      void api.saveScreeningDecision(paperId, decision, reason).then(refreshPrisma).catch((error) => {
+      void api.saveScreeningDecision(paperId, decision, reason, projectId, stage).then(refreshPrisma).catch((error) => {
         toast.addToast("error", error instanceof Error ? error.message : t("screening.save_error"));
       });
     }
-  }, [reasonInput, refreshPrisma, t, toast]);
+  }, [projectId, reasonInput, refreshPrisma, stage, t, toast]);
 
   const clearDecision = useCallback((paperId: string) => {
     setDecisions(prev => {
@@ -80,10 +88,10 @@ export const ScreeningBoard: React.FC = () => {
       delete updated[paperId];
       return updated;
     });
-    void api.clearScreeningDecision(paperId).then(refreshPrisma).catch((error) => {
+    void api.clearScreeningDecision(paperId, projectId, stage).then(refreshPrisma).catch((error) => {
       toast.addToast("error", error instanceof Error ? error.message : t("screening.save_error"));
     });
-  }, [refreshPrisma, t, toast]);
+  }, [projectId, refreshPrisma, stage, t, toast]);
 
   const filtered = papers.filter(p => {
     const d = decisions[p.id];
@@ -110,6 +118,11 @@ export const ScreeningBoard: React.FC = () => {
       <div className="rm-page-header">
         <h2>{t("screening.title")}</h2>
         <p>{t("screening.desc")}</p>
+      </div>
+
+      <div className="rm-filter-row" role="tablist" aria-label={t("screening.stage_label")}>
+        <button type="button" role="tab" aria-selected={stage === "title_abstract"} className={`rm-filter-pill${stage === "title_abstract" ? " active" : ""}`} onClick={() => setStage("title_abstract")}>{t("screening.stage_title_abstract")}</button>
+        <button type="button" role="tab" aria-selected={stage === "full_text"} className={`rm-filter-pill${stage === "full_text" ? " active" : ""}`} onClick={() => setStage("full_text")}>{t("screening.stage_full_text")}</button>
       </div>
 
       <div className="rm-progress">
@@ -237,7 +250,7 @@ export const ScreeningBoard: React.FC = () => {
                               if (!existing) return prev;
                               const reason = reasonInput[paper.id];
                               const updated = { ...prev, [paper.id]: { ...existing, reason, updatedAt: new Date().toISOString() } };
-                              void api.saveScreeningDecision(paper.id, "exclude", reason).then(refreshPrisma).catch((error) => {
+                              void api.saveScreeningDecision(paper.id, "exclude", reason, projectId, stage).then(refreshPrisma).catch((error) => {
                                 toast.addToast("error", error instanceof Error ? error.message : t("screening.reason_required"));
                               });
                               return updated;
