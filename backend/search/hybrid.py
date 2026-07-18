@@ -9,6 +9,7 @@ from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
 from config.settings import settings
+from search.calibration import retrieval_weights
 import time
 import threading
 
@@ -106,7 +107,7 @@ class HybridSearch:
 
         # Step 3: Reciprocal Rank Fusion
         logger.debug(f"RRF fusion: {len(bm25_results)} BM25 + {len(vector_results)} Vector")
-        fused = self._rrf_fuse(bm25_results, vector_results)
+        fused = self._rrf_fuse(bm25_results, vector_results, query)
 
         # Step 4: Cross-encoder re-ranking
         if use_reranker and settings.enable_reranker and fused:
@@ -133,7 +134,7 @@ class HybridSearch:
 
         return results
 
-    def _rrf_fuse(self, bm25_results, vector_results) -> list[dict]:
+    def _rrf_fuse(self, bm25_results, vector_results, query: str = "") -> list[dict]:
         """
         Reciprocal Rank Fusion.
 
@@ -160,6 +161,7 @@ class HybridSearch:
         # Build RRF scores
         rrf_scores: dict[str, dict] = {}
 
+        bm25_weight, vector_weight = retrieval_weights(query)
         for rank, (result, _) in enumerate(bm25_sorted):
             key = f"{result.paper_id}_{result.chunk_index}"
             if key not in rrf_scores:
@@ -172,7 +174,7 @@ class HybridSearch:
                     "page_number": result.page_number,
                     "score": 0.0,
                 }
-            rrf_scores[key]["score"] += 1.0 / (self.rrf_k + rank + 1)
+            rrf_scores[key]["score"] += bm25_weight / (self.rrf_k + rank + 1)
 
         for rank, (result, _) in enumerate(vec_sorted):
             key = f"{result.paper_id}_{result.chunk_index}"
@@ -186,7 +188,7 @@ class HybridSearch:
                     "page_number": result.page_number,
                     "score": 0.0,
                 }
-            rrf_scores[key]["score"] += 1.0 / (self.rrf_k + rank + 1)
+            rrf_scores[key]["score"] += vector_weight / (self.rrf_k + rank + 1)
 
         # Sort by RRF score
         sorted_results = sorted(

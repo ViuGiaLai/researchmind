@@ -106,7 +106,7 @@ function parseInline(text: string): (string | Segment)[] {
     }
 
     // legacy citations: [Source] or [Source, trang X]
-    const citeMatch = remaining.match(/^\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]/);
+    const citeMatch = remaining.match(/^\[([^\]]+?)(?:,\s*(?:page|trang)\s*(\d+))?\]/i);
     if (citeMatch) {
       parts.push({
         type: "citation",
@@ -295,10 +295,7 @@ function renderLine(line: string, i: number, onCitationClick?: (refId: number) =
 
   // horizontal rule
   if (/^---+$/.test(line)) {
-    return React.createElement("hr", {
-      key: i,
-      style: { border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "12px 0" },
-    });
+    return null;
   }
 
   // normal paragraph

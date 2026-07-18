@@ -1353,3 +1353,16 @@
   margin-bottom: 0;
 }
 
+.citation-verification {
+  width: fit-content;
+  margin: .2rem 0;
+  padding: .12rem .35rem;
+  border-left: 2px solid;
+  color: var(--color-text-muted);
+  font-size: .66rem;
+  font-weight: 600;
+}
+
+.citation-verification--verified { border-color: var(--color-success); color: var(--color-success); }
+.citation-verification--partial { border-color: var(--color-warning); color: var(--color-warning); }
+.citation-verification--unverified { border-color: var(--color-danger); color: var(--color-danger); }

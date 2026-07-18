@@ -44,6 +44,12 @@ temp/
 
 # Generated files
 coverage/
+apps/desktop/src-tauri/resources/backend
+apps/desktop/src-tauri/resources/backend.exe
+apps/desktop/src-tauri/resources/.env
+docs/downloads/*.exe
+/backend.exe
+/backend/backend.exe
 
 # Python
 .venv/

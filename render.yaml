@@ -29,6 +29,8 @@ services:
         sync: false
       - key: FIREBASE_AUTH_ENABLED
         value: "true"
+      - key: HOSTED_RESEARCH_ENABLED
+        value: "false"
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: GOOGLE_APPLICATION_CREDENTIALS

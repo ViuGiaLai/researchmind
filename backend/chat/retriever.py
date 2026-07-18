@@ -14,6 +14,10 @@ https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/
 from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
+from chat.retrieval_policy import adaptive_top_k, decompose_query
+from common.ai_observability import increment, trace
+from common.prompt_security import neutralize_untrusted_text
+from config.settings import settings
 
 from search.postprocessor import (
     BaseNodePostprocessor,
@@ -59,6 +63,7 @@ class Retriever:
         paper_ids: Optional[list[str]] = None,
         top_k: int = 5,
         use_reranker: bool = True,
+        metadata_filters: dict | None = None,
     ) -> RetrievalResult:
         """
         Retrieve relevant chunks for a query.
@@ -72,16 +77,34 @@ class Retriever:
         Returns:
             RetrievalResult with chunks, context text, and metadata.
         """
-        # Step 1: Query expansion
-        expanded_queries = self._expand_query(query)
+        top_k = adaptive_top_k(query, top_k)
+        if metadata_filters:
+            from app_state import state
+            from db.database import get_session
+            from chat.metadata_filters import filter_paper_ids
+            session = get_session(state.engine)
+            try:
+                filtered_ids = filter_paper_ids(session, metadata_filters) or []
+            finally:
+                session.close()
+            paper_ids = list(set(paper_ids or filtered_ids) & set(filtered_ids)) if paper_ids else filtered_ids
+            if not paper_ids:
+                return RetrievalResult([], "", 0, [])
+        # Step 1: deterministic decomposition followed by bilingual expansion.
+        expanded_queries = []
+        for subquery in decompose_query(query):
+            for expanded in self._expand_query(subquery):
+                if expanded not in expanded_queries:
+                    expanded_queries.append(expanded)
 
         # Step 2: Search with original query
-        search_results = self.hybrid.search(
-            query=query,
-            paper_ids=paper_ids,
-            top_k=top_k,
-            use_reranker=use_reranker,
-        )
+        with trace("rag.retrieve", top_k=top_k, decomposed=len(expanded_queries)):
+            search_results = self.hybrid.search(
+                query=query,
+                paper_ids=paper_ids,
+                top_k=top_k,
+                use_reranker=use_reranker,
+            )
 
         # Step 3: Try expanded queries if not enough results
         if len(search_results) < top_k and len(expanded_queries) > 1:
@@ -105,11 +128,14 @@ class Retriever:
         # Step 4: Postprocess results (similarity cutoff, lost-in-the-middle reorder)
         chunks = []
         for r in search_results:
+            safe_content, injection_detected = neutralize_untrusted_text(r.content)
+            if injection_detected:
+                increment("rag.prompt_injection_detected")
             chunks.append({
                 "chunk_id": r.chunk_id,
                 "paper_id": r.paper_id,
                 "paper_title": r.paper_title,
-                "content": r.content,
+                "content": safe_content,
                 "page_number": r.page_number,
                 "score": r.score,
                 "chunk_index": getattr(r, 'chunk_index', 0),
@@ -133,8 +159,18 @@ class Retriever:
         if intent:
             chunks = self._boost_section_chunks(chunks, intent)
 
-        # Step 6: Cluster by paper (interleave chunks from same paper)
-        chunks = self._cluster_by_paper(chunks)
+        # Step 6: Interleave papers to preserve source diversity.
+        chunks = self._interleave_by_paper(chunks)
+        radius = max(0, min(int(getattr(settings, "parent_context_radius", 0)), 2))
+        if radius and chunks:
+            from app_state import state
+            from db.database import get_session
+            from chat.parent_retrieval import expand_parent_context
+            session = get_session(state.engine)
+            try:
+                chunks = expand_parent_context(session, chunks, radius)
+            finally:
+                session.close()
 
         context_text = self._build_context(chunks, query)
 
@@ -238,7 +274,8 @@ class Retriever:
         boosted.sort(key=lambda x: x["score"], reverse=True)
         return boosted
 
-    def _cluster_by_paper(self, chunks: list[dict]) -> list[dict]:
+    def _interleave_by_paper(self, chunks: list[dict]) -> list[dict]:
+        """Round-robin chunks across papers while preserving per-paper order."""
         if not chunks:
             return chunks
 
@@ -250,18 +287,26 @@ class Retriever:
                 clustered[pid] = []
             clustered[pid].append(chunk)
 
-        result = []
-        for pid, paper_chunks in clustered.items():
+        for paper_chunks in clustered.values():
             paper_chunks.sort(key=lambda x: x.get("chunk_index", 0))
-            result.extend(paper_chunks)
-
+        result: list[dict] = []
+        depth = 0
+        while len(result) < len(chunks):
+            for paper_chunks in clustered.values():
+                if depth < len(paper_chunks):
+                    result.append(paper_chunks[depth])
+            depth += 1
         return result
+
+    # Backward-compatible alias for extensions that called the old private helper.
+    def _cluster_by_paper(self, chunks: list[dict]) -> list[dict]:
+        return self._interleave_by_paper(chunks)
 
     def _build_context(self, chunks: list[dict], query: Optional[str] = None) -> str:
         if not chunks:
             return ""
 
-        parts = ["Dưới đây là các đoạn văn liên quan từ tài liệu:\n"]
+        parts = ["The following passages are relevant excerpts from the documents:\n"]
 
         current_paper = None
         for i, chunk in enumerate(chunks, 1):
@@ -270,9 +315,10 @@ class Retriever:
                 current_paper = paper_title
                 parts.append(f"\n---\n### 📄 {paper_title}\n")
 
-            source = f"[{paper_title}]"
+            source = f"[{paper_title}"
             if chunk.get("page_number"):
-                source += f" (trang {chunk['page_number']})"
+                source += f", page {chunk['page_number']}"
+            source += "]"
 
             content = chunk['content'].strip()
             if query and len(content) > 350:

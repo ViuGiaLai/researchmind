@@ -81,7 +81,10 @@
     "error_generic": "Unable to authenticate{{code}}. Please try again."
   },
   "nav": {
+    "workspace": "Workspace",
+    "intelligence": "Intelligence",
     "library": "Library",
+    "projects": "Projects",
     "chat": "AI Chat",
     "review": "Review Builder",
     "evidence": "Evidence",
@@ -92,6 +95,57 @@
     "sidebar_library": "Library",
     "sidebar_chat": "AI Chat",
     "sidebar_review": "Review Builder"
+  },
+  "projects": {
+    "title": "Research projects",
+    "workspace_label": "Research workspace",
+    "new_placeholder": "New project",
+    "create": "Create project",
+    "paper_count": "{{count}} sources",
+    "empty_title": "Start with a research question",
+    "empty_description": "Create a project to connect sources, reading notes, evidence, chat, and review.",
+    "research_question": "Research question",
+    "question_placeholder": "What question should this project answer?",
+    "question_saved": "Research question saved.",
+    "sources": "Sources",
+    "evidence": "Evidence",
+    "add_from_library": "Add a source from Library",
+    "add": "Add",
+    "pages": "{{count}} pages",
+    "start_review": "Start review",
+    "ask_evidence": "Ask with evidence",
+    "no_evidence": "No project evidence yet.",
+    "no_evidence_hint": "Open a source and save a quote or note. It will appear here.",
+    "back": "Back to project",
+    "load_error": "Could not load research projects.",
+    "deleted": "Project deleted.",
+    "save_error": "Could not save this project."
+  },
+  "privacy": {
+    "title": "Privacy",
+    "description": "Control where research data is processed and what stays on this device.",
+    "local_first": "Local-first by default",
+    "local_first_desc": "Papers, annotations, projects, search indexes and diagnostic logs remain on this device.",
+    "cloud_ai": "Allow cloud AI",
+    "cloud_ai_desc": "When disabled, ResearchMind switches to the configured local model.",
+    "redact_metadata": "Redact metadata before cloud requests",
+    "redact_metadata_desc": "Remove avoidable document metadata from cloud-bound context.",
+    "diagnostics": "Allow diagnostic sharing",
+    "diagnostics_desc": "Consent is stored locally. Logs are never uploaded automatically.",
+    "local_log": "Local diagnostic log",
+    "log_entries": "{{count}} redacted entries on this device",
+    "clear_log": "Clear log",
+    "saved": "Privacy preferences saved.",
+    "save_error": "Could not save privacy preferences."
+  },
+  "command": {
+    "title": "Command palette",
+    "placeholder": "Search papers or go to a workspace…",
+    "navigate": "Navigate",
+    "papers": "Papers",
+    "unknown_year": "Year unavailable",
+    "ask": "Open in Chat",
+    "hint": "to open"
   },
   "labs": {
     "title": "Labs",
@@ -376,9 +430,15 @@
     "ja": "日本語"
   },
   "common": {
+    "delete": "Delete",
+    "main_navigation": "Main navigation",
+    "skip_to_content": "Skip to content",
     "loading": "Loading...",
     "save": "Save",
+    "rename": "Rename",
     "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirm_action": "Confirm action",
     "close": "Close",
     "retry": "Retry",
     "error": "Error",
@@ -395,6 +455,9 @@
     "continue": "Continue"
   },
   "chat": {
+    "citation_verified": "Verified passage",
+    "citation_partial": "Document matched",
+    "citation_unverified": "Unverified source",
     "start_chat": "Start Chat",
     "review_mode": "Summarize these papers for me in this structure: Background, Related Work, Methods, Key Findings, Research Gaps, and Insights.",
     "critique_mode": "Critique these papers for me: list incorrect or unsound assumptions, missing data, methodological limitations, overclaiming risks, and 3 improvement suggestions.",
@@ -608,6 +671,12 @@
     "toast_translate_error": "Cannot translate. Please check the Gemini API key in .env",
     "toast_import_success": "\"{title}\" added to library",
     "toast_pdf_not_found": "No PDF file found for this paper on the system.",
+    "year_from": "From year",
+    "year_to": "To year",
+    "open_access_only": "Open access only",
+    "save_strategy": "Save strategy",
+    "strategy_saved": "Search strategy saved.",
+    "strategy_save_error": "Could not save this search strategy.",
     "toast_import_error": "Cannot add \"{title}\""
   },
   "daily_reader": {
@@ -763,6 +832,9 @@
     "body_help": "Click ? in the top right corner to open Help Center, documentation and shortcuts anytime."
   },
   "import": {
+    "error_bibtex": "Could not import the BibTeX file.",
+    "error_csv": "Could not import the CSV file.",
+    "error_folder": "Could not import the selected folder.",
     "tab_documents": "Documents",
     "tab_bibtex": "BibTeX",
     "tab_zotero": "Zotero CSV",
@@ -861,6 +933,9 @@
     "stopped": "Stopped. {count} files indexed."
   },
   "wow": {
+    "status_conflicting": "Analyzing conflicts",
+    "status_debating": "Building the debate",
+    "status_gapping": "Finding research gaps",
     "step_summary": "Instant Summary",
     "step_critique": "Weaknesses",
     "step_conflict": "Conflicts",
@@ -947,6 +1022,15 @@
     "prompt_debate": "Create an AI debate about this paper: pro vs con perspectives, highlighting strengths and limitations. Reply in English."
   },
   "library_view": {
+    "no_doc_heading": "No document selected",
+    "no_doc_text": "Select a document to view its details.",
+    "remove_tag": "Remove tag",
+    "summary_tab_info": "AI summary generated from indexed document excerpts.",
+    "toast_export_docx_error": "Could not export the DOCX file.",
+    "toast_export_html_error": "Could not export the HTML file.",
+    "toast_note_error": "Could not save the note.",
+    "toast_note_saved": "Note saved.",
+    "toast_ocr_error": "Could not run OCR for this document.",
     "ocr_label": "OCR",
     "embedding_model": "Embedding model: {{model}} ({{mode}})",
     "title": "Library",
@@ -1056,6 +1140,8 @@
     "similarity_load_error": "Cannot load similarity data."
   },
   "highlights": {
+    "no_summary": "No summary is available yet.",
+    "toast_copied": "Highlight copied.",
     "select_doc": "Select Document",
     "search_doc": "Search documents...",
     "loading": "Loading...",
@@ -1092,6 +1178,15 @@
     "gen_summary_desc": "AI generates a summary of the selected highlights",
     "gen_compare": "Compare",
     "gen_compare_desc": "Compare highlights across multiple papers",
+    "gen_debate": "Debate",
+    "gen_debate_desc": "Examine the paper's arguments from multiple perspectives",
+    "gen_gap": "Research gaps",
+    "gen_gap_desc": "Identify evidence gaps and promising research directions",
+    "gen_review": "Literature review",
+    "gen_review_desc": "Create a concise literature review from the paper",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "generating": "Generating...",
     "filter_all": "All",
     "filter_results": "Results",
     "filter_methods": "Methods",
@@ -1132,6 +1227,7 @@
     "expand": "\u25BC Expand"
   },
   "review_builder": {
+    "regenerate": "Regenerate",
     "section_overview": "1. Overview",
     "section_related": "2. Related Work",
     "section_methods": "3. Methods Comparison",
@@ -1244,6 +1340,14 @@
     "loading": "Loading paper list...",
     "empty": "No papers found.",
     "empty_hint": "No papers yet. Import papers into the library first.",
+    "prisma_title": "PRISMA flow",
+    "prisma_identified": "Records identified",
+    "prisma_screened": "Records screened",
+    "prisma_full_text": "Full text assessed",
+    "prisma_included": "Studies included",
+    "load_error": "Could not load screening decisions.",
+    "save_error": "Could not save this screening decision.",
+    "reason_required": "Enter an exclusion reason before saving.",
     "reason_placeholder": "Reason for exclusion...",
     "clear": "Clear"
   },
@@ -1310,6 +1414,7 @@
     "smart_suggestions": "Smart search suggestions"
   },
   "graph": {
+    "entity_type_fallback": "Entity",
     "title": "Knowledge Graph",
     "strategy_local": "Local Search",
     "strategy_global": "Global Search",
@@ -1373,9 +1478,27 @@
     "stopped": "Stopped. {n} files indexed."
   },
   "pdf": {
+    "reader": "Document reader",
     "page": "Page {n}{separator}{total}",
+    "page_short": "Page {page}",
+    "go_to_page": "Go to page",
     "previous": "Previous Page",
     "next": "Next Page",
+    "annotations": "Notes",
+    "add_annotation": "Add note",
+    "save_annotation": "Save",
+    "no_annotations": "No notes yet. Add a quote or observation while you read.",
+    "quote_placeholder": "Paste or type the passage you want to cite…",
+    "note_placeholder": "Why is this passage important?",
+    "color": "Highlight color",
+    "color_yellow": "Yellow",
+    "color_green": "Green",
+    "color_blue": "Blue",
+    "color_pink": "Pink",
+    "copy": "Copy quote",
+    "load_error": "Could not load reading data.",
+    "save_error": "Could not save this note.",
+    "delete_error": "Could not delete this note.",
     "quote": "Quote selected text",
     "quote_btn": "Quote",
     "close": "Close PDF",
@@ -1442,5 +1565,16 @@
     "cannot_connect_llama": "Cannot connect to llama-server at {url}.",
     "select_storage_error": "Please select a storage directory.",
     "saving_storage": "Setting up storage directory..."
+  },
+  "license": {
+    "title": "License & plan",
+    "description": "Your license is verified offline and stored in the operating system's secure storage.",
+    "valid_until": "Valid until",
+    "activation_code": "Activation code",
+    "placeholder": "Paste the license token sent after payment",
+    "activate": "Activate",
+    "activated": "The license has been activated on this device.",
+    "invalid": "The license token is invalid.",
+    "status_error": "Could not read the license status."
   }
 }

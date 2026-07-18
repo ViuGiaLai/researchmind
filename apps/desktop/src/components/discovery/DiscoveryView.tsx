@@ -4,6 +4,7 @@ import { api, DiscoveredPaper } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { IconSearch, IconSpinner, IconDownload, IconCheck, IconSparkle, IconBrain, IconEye, IconLink, IconInfo, IconBookOpen } from "../Icons";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
 
 export const DiscoveryView: React.FC = () => {
   const { t } = useTranslation();
@@ -11,12 +12,17 @@ export const DiscoveryView: React.FC = () => {
   const [results, setResults] = useState<DiscoveredPaper[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [yearFrom, setYearFrom] = useState("");
+  const [yearTo, setYearTo] = useState("");
+  const [openAccessOnly, setOpenAccessOnly] = useState(false);
+  const [savingStrategy, setSavingStrategy] = useState(false);
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
   const [translating, setTranslating] = useState(false);
   const [translateMode, setTranslateMode] = useState<"original" | "vi">("original");
   const [translations, setTranslations] = useState<Map<string, { title_vi: string; abstract_vi: string }>>(new Map());
   const [detailPaper, setDetailPaper] = useState<DiscoveredPaper | null>(null);
+  const detailDialogRef = useDialogFocus<HTMLDivElement>(Boolean(detailPaper), () => setDetailPaper(null));
   const translateRequestIdRef = useRef(0);
   const toast = useToast();
 
@@ -39,12 +45,33 @@ export const DiscoveryView: React.FC = () => {
     setTranslateMode("original");
     setTranslations(new Map());
     try {
-      const res = await api.discoverPapers(q, 20);
+      const res = await api.discoverPapers(q, 20, {
+        year_from: yearFrom ? Number(yearFrom) : undefined,
+        year_to: yearTo ? Number(yearTo) : undefined,
+        open_access_only: openAccessOnly,
+      });
       setResults(res.results);
     } catch {
       toast.addToast("error", t("discovery.toast_search_error"));
     } finally {
       setSearching(false);
+    }
+  };
+
+  const saveStrategy = async () => {
+    if (!query.trim()) return;
+    setSavingStrategy(true);
+    try {
+      await api.createSavedSearch(query.trim(), query.trim(), {
+        year_from: yearFrom ? Number(yearFrom) : null,
+        year_to: yearTo ? Number(yearTo) : null,
+        tags: openAccessOnly ? ["open-access"] : [],
+      });
+      toast.addToast("success", t("discovery.strategy_saved"));
+    } catch {
+      toast.addToast("error", t("discovery.strategy_save_error"));
+    } finally {
+      setSavingStrategy(false);
     }
   };
 
@@ -160,6 +187,25 @@ export const DiscoveryView: React.FC = () => {
         )}
       </div>
 
+      <div className="discovery-strategy-row">
+        <label>
+          <span>{t("discovery.year_from")}</span>
+          <input type="number" min="1900" max="2100" value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder="2000" />
+        </label>
+        <label>
+          <span>{t("discovery.year_to")}</span>
+          <input type="number" min="1900" max="2100" value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder={String(new Date().getFullYear())} />
+        </label>
+        <label className="discovery-check">
+          <input type="checkbox" checked={openAccessOnly} onChange={(event) => setOpenAccessOnly(event.target.checked)} />
+          <span>{t("discovery.open_access_only")}</span>
+        </label>
+        <button type="button" onClick={() => void saveStrategy()} disabled={!query.trim() || savingStrategy}>
+          {savingStrategy ? <IconSpinner size={13} /> : <IconCheck size={13} />}
+          {t("discovery.save_strategy")}
+        </button>
+      </div>
+
       <div className="discovery-results">
         {searching && (
           <div className="discovery-loading">
@@ -248,13 +294,13 @@ export const DiscoveryView: React.FC = () => {
 
       {detailPaper && (
         <div className="rm-modal-overlay" onClick={() => setDetailPaper(null)}>
-          <div className="rm-modal rm-modal-detail" onClick={(e) => e.stopPropagation()}>
+          <div ref={detailDialogRef} className="rm-modal rm-modal-detail" role="dialog" aria-modal="true" aria-labelledby="discovery-detail-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
             <div className="rm-modal-header">
-              <h3 className="rm-modal-title">
+              <h3 id="discovery-detail-title" className="rm-modal-title">
                 <IconInfo size={16} style={{ marginRight: 8 }} />
                 {t("discovery.modal_title")}
               </h3>
-              <button className="rm-modal-close" onClick={() => setDetailPaper(null)}>✕</button>
+              <button type="button" className="rm-modal-close" aria-label={t("common.close")} onClick={() => setDetailPaper(null)}>✕</button>
             </div>
             <div className="rm-modal-body">
               <div className="detail-section">

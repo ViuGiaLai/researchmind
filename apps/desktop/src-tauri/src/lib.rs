@@ -119,7 +119,10 @@ fn bundled_backend_candidates(app: Option<&tauri::AppHandle>) -> Vec<PathBuf> {
         if let Ok(res_dir) = app.path().resource_dir() {
             push_candidate(&mut candidates, res_dir.join(name));
         }
-        if let Ok(resolver) = app.path().resolve(name, tauri::path::BaseDirectory::Resource) {
+        if let Ok(resolver) = app
+            .path()
+            .resolve(name, tauri::path::BaseDirectory::Resource)
+        {
             push_candidate(&mut candidates, resolver);
         }
     }
@@ -143,11 +146,7 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
             ensure_executable(&bundled);
             let cwd = bundled.parent().map(|p| p.to_path_buf());
             info!("Using bundled backend at: {:?}", bundled);
-            return Some((
-                bundled.to_string_lossy().to_string(),
-                vec![],
-                cwd,
-            ));
+            return Some((bundled.to_string_lossy().to_string(), vec![], cwd));
         }
     }
 
@@ -188,7 +187,11 @@ fn find_backend(app: Option<&tauri::AppHandle>) -> Option<(String, Vec<String>, 
             candidate.exists()
         );
         if candidate.exists() {
-            info!("Using development mode: {} -u {}", python, candidate.display());
+            info!(
+                "Using development mode: {} -u {}",
+                python,
+                candidate.display()
+            );
             let cwd = candidate.parent().map(|p| p.to_path_buf());
             return Some((
                 python,
@@ -226,7 +229,10 @@ fn apply_backend_env(command: &mut Command, cwd: Option<&Path>) {
 }
 
 /// Try to spawn the backend (bundled exe or python main.py).
-fn spawn_backend(app: &tauri::AppHandle, status: &BackendSpawnStatus) -> (Option<Child>, BackendSpawnStatus) {
+fn spawn_backend(
+    app: &tauri::AppHandle,
+    status: &BackendSpawnStatus,
+) -> (Option<Child>, BackendSpawnStatus) {
     let mut status = status.clone();
 
     if use_external_backend() {
@@ -301,7 +307,11 @@ async fn check_backend_health() -> Result<bool, String> {
 
 #[tauri::command]
 fn get_backend_spawn_status(state: State<'_, BackendState>) -> Result<BackendSpawnStatus, String> {
-    Ok(state.spawn_status.lock().map_err(|e| e.to_string())?.clone())
+    Ok(state
+        .spawn_status
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone())
 }
 
 /// Kill the Python backend process.
@@ -328,7 +338,8 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(|app| {
-            let (backend, spawn_status) = spawn_backend(app.handle(), &BackendSpawnStatus::default());
+            let (backend, spawn_status) =
+                spawn_backend(app.handle(), &BackendSpawnStatus::default());
             app.manage(BackendState {
                 process: Mutex::new(backend),
                 spawn_status: Mutex::new(spawn_status),

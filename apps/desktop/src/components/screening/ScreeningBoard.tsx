@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../../lib/api";
+import { api, type PrismaCounts } from "../../lib/api";
+import { useToast } from "../shared/Toast";
 import { IconCheck, IconClose, IconMinus, IconSpinner, IconSearch, IconError, IconWithText } from "../Icons";
 
 interface ScreeningDecision {
   decision: "include" | "exclude" | "maybe";
   reason?: string;
-  updatedAt: number;
+  updatedAt: string;
 }
 
 interface PaperInfo {
@@ -14,16 +15,6 @@ interface PaperInfo {
   title: string;
   authors: string;
   year: number | null;
-}
-
-const STORAGE_KEY = "screening-decisions";
-
-function loadDecisions(): Record<string, ScreeningDecision> {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
-}
-
-function saveDecisions(d: Record<string, ScreeningDecision>) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {}
 }
 
 type FilterView = "all" | "pending" | "included" | "excluded" | "maybe";
@@ -40,42 +31,59 @@ function getFilterLabel(t: (key: string) => string): Record<FilterView, React.Re
 
 export const ScreeningBoard: React.FC = () => {
   const { t } = useTranslation();
+  const toast = useToast();
   const filterLabels = getFilterLabel(t);
   const [papers, setPapers] = useState<PaperInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [decisions, setDecisions] = useState<Record<string, ScreeningDecision>>(loadDecisions);
+  const [decisions, setDecisions] = useState<Record<string, ScreeningDecision>>({});
+  const [prisma, setPrisma] = useState<PrismaCounts | null>(null);
   const [filterView, setFilterView] = useState<FilterView>("all");
   const [searchText, setSearchText] = useState("");
   const [reasonInput, setReasonInput] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLoading(true);
-    api.listPapers(1, 500).then(data => {
+    Promise.all([api.listPapers(1, 500), api.listScreeningDecisions(), api.getPrismaCounts()]).then(([data, decisionData, prismaData]) => {
       setPapers(data.papers.map(p => ({
         id: p.id,
         title: p.title || p.filename,
         authors: p.authors || "",
         year: p.year,
       })));
-    }).catch(() => {}).finally(() => setLoading(false));
+      setDecisions(Object.fromEntries(decisionData.decisions.map((item) => [item.paper_id, {
+        decision: item.decision, reason: item.reason, updatedAt: item.updated_at || "",
+      }])));
+      setPrisma(prismaData);
+    }).catch((error) => toast.addToast("error", error instanceof Error ? error.message : t("screening.load_error"))).finally(() => setLoading(false));
+  }, []);
+
+  const refreshPrisma = useCallback(() => {
+    void api.getPrismaCounts().then(setPrisma);
   }, []);
 
   const setDecision = useCallback((paperId: string, decision: "include" | "exclude" | "maybe") => {
+    const reason = reasonInput[paperId] || "";
     setDecisions(prev => {
-      const updated = { ...prev, [paperId]: { decision, reason: decision === "exclude" ? (reasonInput[paperId] || "") : prev[paperId]?.reason, updatedAt: Date.now() } };
-      saveDecisions(updated);
+      const updated = { ...prev, [paperId]: { decision, reason: decision === "exclude" ? reason : prev[paperId]?.reason, updatedAt: new Date().toISOString() } };
       return updated;
     });
-  }, [reasonInput]);
+    if (decision !== "exclude" || reason.trim()) {
+      void api.saveScreeningDecision(paperId, decision, reason).then(refreshPrisma).catch((error) => {
+        toast.addToast("error", error instanceof Error ? error.message : t("screening.save_error"));
+      });
+    }
+  }, [reasonInput, refreshPrisma, t, toast]);
 
   const clearDecision = useCallback((paperId: string) => {
     setDecisions(prev => {
       const updated = { ...prev };
       delete updated[paperId];
-      saveDecisions(updated);
       return updated;
     });
-  }, []);
+    void api.clearScreeningDecision(paperId).then(refreshPrisma).catch((error) => {
+      toast.addToast("error", error instanceof Error ? error.message : t("screening.save_error"));
+    });
+  }, [refreshPrisma, t, toast]);
 
   const filtered = papers.filter(p => {
     const d = decisions[p.id];
@@ -119,6 +127,18 @@ export const ScreeningBoard: React.FC = () => {
           <div className="rm-progress-fill" style={{ width: `${progress}%` }} />
         </div>
       </div>
+
+      {prisma && (
+        <section className="prisma-flow" aria-label={t("screening.prisma_title")}>
+          <div><strong>{prisma.identified}</strong><span>{t("screening.prisma_identified")}</span></div>
+          <span aria-hidden="true">→</span>
+          <div><strong>{prisma.screened}</strong><span>{t("screening.prisma_screened")}</span></div>
+          <span aria-hidden="true">→</span>
+          <div><strong>{prisma.full_text_assessed}</strong><span>{t("screening.prisma_full_text")}</span></div>
+          <span aria-hidden="true">→</span>
+          <div className="is-included"><strong>{prisma.included}</strong><span>{t("screening.prisma_included")}</span></div>
+        </section>
+      )}
 
       <div className="rm-filter-row">
         <div className="rm-input-wrap">
@@ -215,8 +235,11 @@ export const ScreeningBoard: React.FC = () => {
                             setDecisions(prev => {
                               const existing = prev[paper.id];
                               if (!existing) return prev;
-                              const updated = { ...prev, [paper.id]: { ...existing, reason: reasonInput[paper.id], updatedAt: Date.now() } };
-                              saveDecisions(updated);
+                              const reason = reasonInput[paper.id];
+                              const updated = { ...prev, [paper.id]: { ...existing, reason, updatedAt: new Date().toISOString() } };
+                              void api.saveScreeningDecision(paper.id, "exclude", reason).then(refreshPrisma).catch((error) => {
+                                toast.addToast("error", error instanceof Error ? error.message : t("screening.reason_required"));
+                              });
                               return updated;
                             });
                           }

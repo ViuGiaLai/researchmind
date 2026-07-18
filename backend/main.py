@@ -39,8 +39,9 @@ from loguru import logger
 
 from app_state import state
 from config.settings import settings
-from common.i18n import get_language, t
+from common.i18n import get_language, set_request_language, t
 from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token
+from common.secret_store import SecretStorageError, get_secret, set_secret
 from db.database import get_engine, get_session
 from db.models import Base, Paper, Setting
 from ingestion.embedder import get_embedder
@@ -66,6 +67,10 @@ from routers.collections import router as collections_router
 from routers.review import router as review_router
 from routers.research import router as research_router
 from routers.auth import router as auth_router
+from routers.license import router as license_router
+from routers.license import get_license_status
+from routers.workspace import router as workspace_router
+from db.migrations import run_migrations
 from graph.router import router as graph_router
 
 
@@ -87,7 +92,18 @@ def load_persisted_settings():
     session = get_session(state.engine)
     try:
         db_settings = session.query(Setting).all()
+        migrated_secrets = False
         for s in db_settings:
+            if s.key.endswith("_api_key"):
+                if s.value and s.value not in {"***", "None"}:
+                    try:
+                        set_secret(s.key, s.value)
+                        setattr(settings, s.key, s.value)
+                        session.delete(s)
+                        migrated_secrets = True
+                    except SecretStorageError as exc:
+                        logger.error(f"Could not migrate {s.key} to the OS credential store: {exc}")
+                continue
             if s.key in env_only_keys:
                 continue
             if hasattr(settings, s.key):
@@ -103,7 +119,18 @@ def load_persisted_settings():
                 else:
                     setattr(settings, s.key, s.value)
 
-        logger.info("Loaded persisted settings from SQLite successfully")
+        for key in settings.__class__.model_fields:
+            if not key.endswith("_api_key"):
+                continue
+            try:
+                secret = get_secret(key)
+            except SecretStorageError:
+                break
+            if secret:
+                setattr(settings, key, secret)
+        if migrated_secrets:
+            session.commit()
+        logger.info("Loaded persisted settings and OS-protected secrets successfully")
     except Exception as e:
         logger.error(f"Failed to load persisted settings: {e}")
     finally:
@@ -169,8 +196,15 @@ async def lifespan(app: FastAPI):
     settings.papers_dir.mkdir(parents=True, exist_ok=True)
     settings.chroma_dir.mkdir(parents=True, exist_ok=True)
 
+    pending_restore = settings.db_path.parent / ".restore-pending.db"
+    if pending_restore.is_file():
+        settings.db_path.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(pending_restore, settings.db_path)
+        logger.info("Queued database restore applied")
+
     state.engine = get_engine(settings.db_path)
     Base.metadata.create_all(state.engine)
+    run_migrations(state.engine)
 
     _migrate_auto_summary(state.engine)
     _migrate_review_draft_versions(state.engine)
@@ -348,7 +382,9 @@ app.include_router(collections_router)
 app.include_router(review_router)
 app.include_router(research_router)
 app.include_router(auth_router)
+app.include_router(license_router)
 app.include_router(graph_router)
+app.include_router(workspace_router)
 
 # Serve React frontend (SPA) — hỗ trợ share qua ngrok
 frontend_dist = Path(__file__).resolve().parent.parent / "apps" / "desktop" / "dist"
@@ -370,8 +406,34 @@ if frontend_dist.exists():
 async def language_middleware(request: Request, call_next):
     lang = get_language(request)
     request.state.lang = lang
+    set_request_language(lang)
     response = await call_next(request)
     return response
+
+
+@app.middleware("http")
+async def commercial_entitlement_middleware(request: Request, call_next):
+    """Gate paid capabilities while leaving local library/search available."""
+    premium_prefixes = (
+        "/api/chat",
+        "/api/review",
+        "/api/export",
+        "/api/graph",
+        "/api/research",
+        "/api/insights",
+        "/api/verify",
+    )
+    if request.url.path.startswith(premium_prefixes):
+        status = get_license_status()
+        if not status["active"]:
+            return JSONResponse(
+                status_code=402,
+                content={
+                    "detail": "This feature requires an active trial or paid license.",
+                    "license": status,
+                },
+            )
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -397,6 +459,16 @@ async def firebase_auth_middleware(request: Request, call_next):
         )
     except FirebaseAuthError as exc:
         return JSONResponse(status_code=401, content={"detail": str(exc)})
+    if not settings.hosted_research_enabled and not request.url.path.startswith("/api/auth/"):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": (
+                    "Hosted research storage is disabled until per-user data "
+                    "isolation is enabled. Use the local desktop backend."
+                )
+            },
+        )
     return await call_next(request)
 
 

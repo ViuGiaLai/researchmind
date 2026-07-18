@@ -4,6 +4,7 @@ import i18n from "../../i18n";
 import { api, Paper, Highlight, ChatResponse, getAuthenticatedApiUrl } from "../../lib/api";
 import { useToast } from "../shared/Toast";
 import { HighlightListSkeleton } from "../shared/Skeleton";
+import { MarkdownRenderer } from "../chat/MarkdownRenderer";
 import {
   IconSearch,
   IconSpinner,
@@ -839,7 +840,9 @@ export const HighlightsLibraryView: React.FC<{
                             )}
                             {result && (
                               <div className="hl-generate-action-result">
-                                <div className="hl-generate-result-content">{result.result.answer}</div>
+                                <div className="hl-generate-result-content">
+                                  <MarkdownRenderer text={result.result.answer} />
+                                </div>
                                 {result.result.citations.length > 0 && (
                                   <div className="hl-generate-result-citations">
                                     <span className="hl-generate-citations-label">{t("highlights.sources_label")}</span>

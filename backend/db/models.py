@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, String, Integer, Text, DateTime, func,
-    UniqueConstraint, CheckConstraint
+    UniqueConstraint, CheckConstraint, ForeignKey, Index
 )
 from sqlalchemy.orm import DeclarativeBase
 import uuid
@@ -176,3 +176,199 @@ class EvidenceMatrixDraft(Base):
     rows = Column(Text, default="[]")               # JSON array of {criterion, cells[...]}
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class SchemaMigration(Base):
+    __tablename__ = "schema_migrations"
+
+    version = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    applied_at = Column(DateTime, server_default=func.now())
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, nullable=False)
+    is_default = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class AITrace(Base):
+    __tablename__ = "ai_traces"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    trace_id = Column(String, nullable=False, index=True)
+    operation = Column(String, nullable=False)
+    elapsed_ms = Column(Integer, default=0)
+    status = Column(String, default="success")
+    metadata_json = Column(Text, default="{}")
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class AIJob(Base):
+    __tablename__ = "ai_jobs"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    job_type = Column(String, nullable=False, index=True)
+    payload = Column(Text, default="{}")
+    status = Column(String, default="queued", index=True)
+    progress = Column(Integer, default=0)
+    attempts = Column(Integer, default=0)
+    max_attempts = Column(Integer, default=3)
+    error = Column(Text, default="")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class IndexManifest(Base):
+    __tablename__ = "index_manifests"
+    paper_id = Column(String, primary_key=True)
+    schema_version = Column(Integer, default=1)
+    fingerprint = Column(String, nullable=False)
+    previous_fingerprint = Column(String, default="")
+    status = Column(String, default="ready")
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, default="")
+    research_question = Column(Text, default="")
+    status = Column(String, nullable=False, default="active")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'archived')", name="ck_project_status"),
+        Index("ix_projects_workspace_id", "workspace_id"),
+    )
+
+
+class ProjectPaper(Base):
+    __tablename__ = "project_papers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    paper_id = Column(String, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "paper_id", name="uq_project_paper"),
+        Index("ix_project_papers_paper_id", "paper_id"),
+    )
+
+
+class Annotation(Base):
+    __tablename__ = "annotations"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    paper_id = Column(String, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    page_number = Column(Integer, nullable=False)
+    kind = Column(String, nullable=False, default="highlight")
+    quote_text = Column(Text, nullable=False, default="")
+    note = Column(Text, nullable=False, default="")
+    color = Column(String, nullable=False, default="yellow")
+    tags = Column(Text, nullable=False, default="[]")
+    position = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("page_number > 0", name="ck_annotation_page"),
+        CheckConstraint("kind IN ('highlight', 'note', 'quote')", name="ck_annotation_kind"),
+        Index("ix_annotations_paper_page", "paper_id", "page_number"),
+    )
+
+
+class ReadingProgress(Base):
+    __tablename__ = "reading_progress"
+
+    paper_id = Column(String, ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True)
+    current_page = Column(Integer, nullable=False, default=1)
+    zoom = Column(Integer, nullable=False, default=100)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ScreeningDecision(Base):
+    __tablename__ = "screening_decisions"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    scope_id = Column(String, nullable=False, default="library")
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    paper_id = Column(String, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False)
+    stage = Column(String, nullable=False, default="title_abstract")
+    decision = Column(String, nullable=False)
+    reason = Column(Text, nullable=False, default="")
+    reviewer = Column(String, nullable=False, default="local-user")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("scope_id", "paper_id", "stage", name="uq_screening_scope_paper_stage"),
+        CheckConstraint("stage IN ('title_abstract', 'full_text')", name="ck_screening_stage"),
+        CheckConstraint("decision IN ('include', 'exclude', 'maybe')", name="ck_screening_decision"),
+        Index("ix_screening_project_stage", "project_id", "stage"),
+    )
+
+
+class ReviewAuditEvent(Base):
+    __tablename__ = "review_audit_events"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    paper_id = Column(String, ForeignKey("papers.id", ondelete="SET NULL"), nullable=True)
+    event_type = Column(String, nullable=False)
+    payload = Column(Text, nullable=False, default="{}")
+    actor = Column(String, nullable=False, default="local-user")
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (Index("ix_review_audit_project_created", "project_id", "created_at"),)
+
+
+class WorkspaceMember(Base):
+    __tablename__ = "workspace_members"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    identity = Column(String, nullable=False)
+    display_name = Column(String, nullable=False, default="")
+    role = Column(String, nullable=False, default="viewer")
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "identity", name="uq_workspace_member"),
+        CheckConstraint("role IN ('owner', 'editor', 'reviewer', 'viewer')", name="ck_workspace_member_role"),
+    )
+
+
+class SyncDevice(Base):
+    __tablename__ = "sync_devices"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    last_seen_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SyncChange(Base):
+    __tablename__ = "sync_changes"
+
+    revision = Column(Integer, primary_key=True, autoincrement=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    device_id = Column(String, ForeignKey("sync_devices.id", ondelete="CASCADE"), nullable=False)
+    entity_type = Column(String, nullable=False)
+    entity_id = Column(String, nullable=False)
+    operation = Column(String, nullable=False)
+    payload = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("operation IN ('upsert', 'delete')", name="ck_sync_operation"),
+        Index("ix_sync_workspace_revision", "workspace_id", "revision"),
+    )

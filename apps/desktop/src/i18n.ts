@@ -4,9 +4,8 @@ import LanguageDetector from "i18next-browser-languagedetector";
 
 import vi from "./locales/vi/common.json";
 import en from "./locales/en/common.json";
-import ja from "./locales/ja/common.json";
 
-const SUPPORTED_LANGS = ["vi", "en", "ja"] as const;
+const SUPPORTED_LANGS = ["vi", "en"] as const;
 export type SupportedLang = (typeof SUPPORTED_LANGS)[number];
 
 export function isValidLang(lang: string | null): lang is SupportedLang {
@@ -47,12 +46,17 @@ i18n
     resources: {
       vi: { common: vi },
       en: { common: en },
-      ja: { common: ja },
     },
     ns: ["common"],
     defaultNS: "common",
     fallbackNS: "common",
-    fallbackLng: "vi",
+    fallbackLng: {
+      en: ["en"],
+      vi: ["vi", "en"],
+      default: ["en"],
+    },
+    supportedLngs: [...SUPPORTED_LANGS],
+    nonExplicitSupportedLngs: true,
     debug: false,
     interpolation: {
       escapeValue: false,
@@ -66,8 +70,18 @@ i18n
     returnObjects: true,
   });
 
+function syncDocumentLanguage(lang: string) {
+  if (typeof document === "undefined") return;
+  const normalized = lang.split("-")[0];
+  document.documentElement.lang = isValidLang(normalized) ? normalized : "vi";
+}
+
+i18n.on("languageChanged", syncDocumentLanguage);
+syncDocumentLanguage(i18n.language || getCurrentLanguage());
+
 export function setLanguage(lang: SupportedLang) {
-  i18n.changeLanguage(lang);
+  void i18n.changeLanguage(lang);
+  syncDocumentLanguage(lang);
   try {
     localStorage.setItem("researchmind:lang", lang);
   } catch {

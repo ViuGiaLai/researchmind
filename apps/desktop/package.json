@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tauri.ps1",
     "tauri:external": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:RESEARCHMIND_EXTERNAL_BACKEND='1'; pnpm tauri dev\"",
-    "validate:locales": "node scripts/validate_locales.cjs"
+    "validate:locales": "node scripts/validate_locales.cjs",
+    "validate:hooks": "node scripts/check_module_hooks.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

@@ -57,26 +57,69 @@ def _parse_highlights_json(content: str) -> list[dict]:
     content = content.strip()
     start = content.find('[')
     end = content.rfind(']')
-    if start == -1 or end == -1:
+    if start == -1:
         raise ValueError("No JSON array found in response")
-    json_str = content[start:end + 1]
+    # Models can hit the output-token limit after one or more complete objects.
+    # Keep the truncated tail so repair/partial-object extraction can salvage
+    # every complete highlight instead of exposing raw JSON to the UI.
+    json_str = content[start:end + 1] if end > start else content[start:]
 
     try:
-        return json.loads(json_str)
+        return _validate_highlights(json.loads(json_str))
     except json.JSONDecodeError:
         pass
 
     repaired = _repair_truncated_json(json_str)
     try:
-        return json.loads(repaired)
+        return _validate_highlights(json.loads(repaired))
     except json.JSONDecodeError:
         pass
 
     objects = _extract_partial_objects(json_str)
     if objects:
-        return objects
+        return _validate_highlights(objects)
 
     raise ValueError("Could not parse highlights JSON after all repair attempts")
+
+
+def _validate_highlights(value: object) -> list[dict]:
+    """Keep only complete highlight objects from model-generated JSON."""
+    if not isinstance(value, list):
+        raise ValueError("Highlights response must be a JSON array")
+
+    required_fields = {"category", "text", "page_hint", "importance", "note"}
+    allowed_categories = {
+        "key_finding",
+        "methodology",
+        "conclusion",
+        "novel_contribution",
+        "limitation",
+        "important_claim",
+    }
+    valid: list[dict] = []
+    for item in value:
+        if not isinstance(item, dict) or not required_fields.issubset(item):
+            continue
+        if item["category"] not in allowed_categories:
+            continue
+        if item["importance"] not in {"high", "medium"}:
+            continue
+        if not isinstance(item["text"], str) or not item["text"].strip():
+            continue
+        if not isinstance(item["note"], str):
+            continue
+        page_hint = item["page_hint"]
+        if page_hint is not None and (
+            not isinstance(page_hint, int)
+            or isinstance(page_hint, bool)
+            or page_hint < 1
+        ):
+            continue
+        valid.append(item)
+
+    if not valid:
+        raise ValueError("No complete highlight objects found in response")
+    return valid
 
 
 def _repair_truncated_json(s: str) -> str:
@@ -876,17 +919,17 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
 
             summary_context = "\n".join([c.content for c in intro_chunks])
             if conclusion_chunk and conclusion_chunk.chunk_index > 2:
-                summary_context += f"\n\nKết luận:\n{conclusion_chunk.content}"
+                summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
 
-            summary_prompt = """Hãy viết một bản tóm tắt học thuật cực kỳ ngắn gọn và cấu trúc cho bài báo này. 
-Trả về kết quả dưới định dạng Markdown như sau:
+            summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
+Use this Markdown format:
 
-### 🧠 Tóm tắt tự động bởi ResearchMind:
-* **Ý tưởng cốt lõi (Core Idea)**: [Viết 1 câu mô tả ý tưởng/mục tiêu chính]
-* **Đóng góp chính (Contributions)**: [Viết 1-2 dòng về các đóng góp khoa học chính]
-* **Điểm yếu / Hạn chế (Weaknesses)**: [Viết 1 dòng về các hạn chế được thảo luận]
+### 🧠 ResearchMind Auto Summary:
+* **Core Idea**: [One sentence describing the main idea or objective]
+* **Contributions**: [One or two lines describing the main scientific contributions]
+* **Weaknesses / Limitations**: [One line describing the discussed limitations]
 
-Lưu ý: Viết bằng tiếng Việt súc tích, chuyên nghiệp."""
+Do not infer contributions or limitations that are absent from the context. Preserve technical terms and numerical results. Write concisely in the output language specified by the system."""
 
             result = state.generator.generate(
                 query=summary_prompt,
@@ -1815,28 +1858,28 @@ async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
                 "message": "Paper chưa được index đầy đủ để tạo highlights.",
             }
 
-        highlight_prompt = f"""Bạn là một trợ lý nghiên cứu. Hãy đọc kỹ toàn bộ nội dung paper sau và xác định {limit} đoạn quan trọng nhất.
+        highlight_prompt = f"""Select up to {limit} high-value passages from the supplied paper excerpts.
 
-Đối với mỗi đoạn quan trọng, hãy trả về JSON array với cấu trúc:
+Return a JSON array with this structure:
 [
   {{
     "category": "key_finding" | "methodology" | "conclusion" | "novel_contribution" | "limitation" | "important_claim",
-    "text": "đoạn trích nguyên văn (tối đa 200 ký tự)",
-    "page_hint": số trang nếu biết (hoặc null),
+    "text": "verbatim excerpt, at most 200 characters",
+    "page_hint": page number when known, otherwise null,
     "importance": "high" | "medium",
-    "note": "giải thích ngắn gọn tại sao đoạn này quan trọng"
+    "note": "brief explanation of why the passage matters, in the user's language"
   }}
 ]
 
-Phân loại:
-- key_finding: Kết quả nghiên cứu chính
-- methodology: Phương pháp quan trọng
-- conclusion: Kết luận then chốt
-- novel_contribution: Đóng góp mới / sáng kiến
-- limitation: Hạn chế được thảo luận
-- important_claim: Khái niệm/quan điểm quan trọng
+Categories:
+- key_finding: primary research result
+- methodology: important method
+- conclusion: central conclusion
+- novel_contribution: novel contribution or innovation
+- limitation: discussed limitation
+- important_claim: important concept or claim
 
-CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng Việt."""
+Use only verbatim text found in the supplied excerpts. Do not reconstruct or paraphrase the "text" field. Do not invent page numbers. Return a valid JSON array only, with no Markdown fence or additional text."""
 
         generation = await asyncio.to_thread(
             state.generator.generate,
@@ -1858,14 +1901,9 @@ CHỈ trả về JSON array, không thêm text khác. Trả lời bằng tiếng
             highlights = _parse_highlights_json(content)
         except Exception as parse_err:
             logger.warning(f"Failed to parse highlights JSON: {parse_err}")
-            fallback_text = (generation.content or "").strip()
-            highlights = [{
-                "category": "important_claim",
-                "text": fallback_text[:200] if fallback_text else "AI không trả về JSON hợp lệ.",
-                "page_hint": None,
-                "importance": "medium",
-                "note": "Fallback từ phản hồi text vì JSON highlights không hợp lệ.",
-            }]
+            # Never show malformed JSON as a highlight. An empty result lets the
+            # UI present its normal retry state without leaking parser details.
+            highlights = []
 
         return {
             "highlights": highlights[:limit],

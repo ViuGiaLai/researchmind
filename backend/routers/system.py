@@ -14,6 +14,9 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from common.i18n import get_language, t
+from common.ai_observability import snapshot as ai_metrics_snapshot
+from chat.provider_resilience import provider_health
+from chat.cache_version import PROMPT_CONTRACT_VERSION
 
 from app_state import state
 from config.settings import settings
@@ -77,6 +80,17 @@ async def health():
         "embedder_ready": state.embedder_ready,
         "backend_ready": state.backend_ready,
         "init_message": state.init_message,
+    }
+
+
+@router.get("/ai/metrics")
+async def ai_metrics(request: Request):
+    """Local, read-only AI pipeline counters and provider health."""
+    _require_local_client(request)
+    return {
+        "prompt_contract_version": PROMPT_CONTRACT_VERSION,
+        "metrics": ai_metrics_snapshot(),
+        "providers": provider_health.snapshot(),
     }
 
 
@@ -520,6 +534,9 @@ async def reset_app(request: Request):
                 except Exception:
                     pass
             Base.metadata.create_all(state.engine)
+
+        from db.migrations import run_migrations
+        run_migrations(state.engine)
 
         db_session = get_session(state.engine)
         state.bm25 = BM25Search(db_session)

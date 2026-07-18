@@ -40,6 +40,6 @@ def test_verify_context_uses_utf8_labels():
         [],
         [{"title": "Paper A", "authors": ["Nguyễn Văn A"]}],
     )
-    assert "TÀI LIỆU CỦA NGƯỜI DÙNG" in context
-    assert "tác giả: Nguyễn Văn A" in context
+    assert "USER DOCUMENTS" in context
+    assert "authors: Nguyễn Văn A" in context
     assert "Ã" not in context

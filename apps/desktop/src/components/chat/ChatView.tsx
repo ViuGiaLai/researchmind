@@ -41,6 +41,10 @@ interface CitationInfo {
   paper_id?: string;
   paper_title?: string;
   text_snippet?: string;
+  verification_status?: "verified" | "partial" | "unverified";
+  verification_reason?: string;
+  grounding_score?: number;
+  page_valid?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1377,7 +1381,10 @@ export const ChatView: React.FC<{
                 renderDebate(msg.content)
               ) : (
                   <>
-                    <div className="chat-view-text">
+                    <div
+                      className="chat-view-text"
+                      lang={/[ăâđêôơưĂÂĐÊÔƠƯàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(msg.content) ? "vi" : undefined}
+                    >
                       {formatContent(msg.content, msg.citations)}
                       {isStreaming && i === messages.length - 1 && (
                         <span className="streaming-cursor">|</span>
@@ -1425,6 +1432,18 @@ export const ChatView: React.FC<{
                                 <div style={{ fontWeight: 600, color: "var(--color-text, #e4e4e7)", marginBottom: "1px" }}>
                                   {c.paper_title || c.source}
                                 </div>
+                                {c.verification_status && (
+                                  <div
+                                    className={`citation-verification citation-verification--${c.verification_status}`}
+                                    title={c.verification_reason}
+                                  >
+                                    {c.verification_status === "verified"
+                                      ? t("chat.citation_verified", { defaultValue: "Verified passage" })
+                                      : c.verification_status === "partial"
+                                        ? t("chat.citation_partial", { defaultValue: "Document matched" })
+                                        : t("chat.citation_unverified", { defaultValue: "Unverified source" })}
+                                  </div>
+                                )}
                                 {c.page && (
                                   <div className="chat-view-footnote-meta">
                                     {t("chat.footnote_page", { page: c.page })}

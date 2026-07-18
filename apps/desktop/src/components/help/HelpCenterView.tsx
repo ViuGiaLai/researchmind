@@ -1,12 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  HELP_SECTIONS,
+  getHelpSections,
   HELP_NAV,
   type HelpBlock,
   type HelpSectionId,
 } from "./helpContent";
 import { IconClose } from "../Icons";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
 
 interface HelpCenterViewProps {
   sectionId: HelpSectionId;
@@ -93,25 +94,25 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
   onClose,
   onNavigate,
 }) => {
-  const { t } = useTranslation();
-  const section = HELP_SECTIONS[sectionId];
+  const { t, i18n } = useTranslation();
+  const dialogRef = useDialogFocus<HTMLDivElement>(true, onClose);
+  const section = getHelpSections(i18n.resolvedLanguage || i18n.language)[sectionId];
   const groups = HELP_NAV.reduce<string[]>((acc, item) => {
     const g = item.group ?? t("help.other");
     if (!acc.includes(g)) acc.push(g);
     return acc;
   }, []);
 
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
     <div className="help-center-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="help-center-panel aw-fade-up" role="dialog" aria-labelledby="help-center-title">
+      <div
+        ref={dialogRef}
+        className="help-center-panel aw-fade-up"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-center-title"
+        tabIndex={-1}
+      >
         <aside className="help-center-nav">
           <div className="help-center-nav-header">
             <span className="help-center-nav-brand">{t("help.center")}</span>

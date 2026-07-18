@@ -1,0 +1,4 @@
+[
+  {"query":"What method was used?","relevant_chunk_ids":["p1:2"],"retrieved_chunk_ids":["p1:2","p1:3"],"k":2},
+  {"query":"Compare the reported outcomes","relevant_chunk_ids":["p2:4","p3:1"],"retrieved_chunk_ids":["p2:4","x:1","p3:1"],"k":3}
+]

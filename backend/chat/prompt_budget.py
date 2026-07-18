@@ -5,6 +5,7 @@ import re
 from loguru import logger
 
 from common.text_utils import count_tokens, truncate_to_token_limit
+from chat.context_compressor import compress_context_blocks
 
 # Conservative input budgets (tokens), leaving room for system prompt + output.
 PROVIDER_INPUT_BUDGET: dict[str, int] = {
@@ -28,10 +29,10 @@ PROVIDER_INPUT_BUDGET: dict[str, int] = {
 OVERHEAD_TOKENS = 256
 
 CONTEXT_BLOCK_RE = re.compile(
-    r"(?s)^(## Context từ tài liệu:\n)(.*?)(\n\n## Câu hỏi:\n.*)$"
+    r"(?s)^(## Document context:\n)(.*?)(\n\n## Question:\n.*)$"
 )
 SNIPPET_BLOCK_RE = re.compile(
-    r"(?s)^(.*?)(\nĐoạn trích:\n)(.*)$"
+    r"(?s)^(.*?)(\nExcerpt:\n)(.*)$"
 )
 
 
@@ -64,9 +65,9 @@ def trim_context_text(
         return context_text
 
     query_shell = (
-        f"## Context từ tài liệu:\n\n\n## Câu hỏi:\n{query}\n\n"
-        "Trả lời dựa trên context trên (nếu có thông tin liên quan). "
-        "Nhớ trích dẫn nguồn [Tên Paper] cho mỗi thông tin bạn đưa ra."
+        f"## Document context:\n\n\n## Question:\n{query}\n\n"
+        "Answer using the context above when it contains relevant information. "
+        "Cite each supported claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]."
     )
     allowed = _allowed_user_tokens(system_prompt, provider, max_output_tokens, model)
     allowed -= count_tokens(query_shell, model)
@@ -76,12 +77,14 @@ def trim_context_text(
     if ctx_tokens <= allowed:
         return context_text
 
-    trimmed = truncate_to_token_limit(context_text, allowed, model)
+    trimmed, block_truncated = compress_context_blocks(context_text, allowed, model)
+    if not block_truncated:
+        trimmed = truncate_to_token_limit(context_text, allowed, model)
     logger.info(
         f"prompt_budget: review context {ctx_tokens}→{count_tokens(trimmed, model)} tokens "
         f"for {provider} (budget={allowed})"
     )
-    return trimmed + "\n\n[...(context đã rút gọn cho phù hợp model)...]"
+    return trimmed + "\n\n[...(context truncated to fit the model)...]"
 
 
 def fit_prompt_for_provider(
@@ -105,7 +108,7 @@ def fit_prompt_for_provider(
         trimmed = truncate_to_token_limit(context, context_budget, model)
         fitted = (
             f"{prefix}{trimmed}\n\n"
-            f"[...(context đã rút gọn cho {provider})...]"
+            f"[...(context truncated for {provider})...]"
             f"{suffix}"
         )
         logger.info(
@@ -122,7 +125,7 @@ def fit_prompt_for_provider(
         trimmed = truncate_to_token_limit(context, context_budget, model)
         fitted = (
             f"{prefix}{marker}{trimmed}\n\n"
-            f"[...(đoạn trích đã rút gọn cho {provider})...]"
+            f"[...(excerpt truncated for {provider})...]"
         )
         logger.info(f"prompt_budget: {provider} snippet truncated (user budget={allowed})")
         return fitted, True

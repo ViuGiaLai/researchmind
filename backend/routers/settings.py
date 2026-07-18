@@ -2,6 +2,7 @@ import json
 
 from fastapi import APIRouter, Body, HTTPException
 from common.text_utils import redact_api_key
+from common.secret_store import SecretStorageError, set_secret
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -14,10 +15,7 @@ from chat.generator_factory import build_generator
 router = APIRouter(prefix="/api", tags=["Settings"])
 
 ENV_ONLY_KEYS = {
-    "llama_server_url", "claude_api_key", "deepseek_api_key", "gemini_api_key",
-    "groq_api_key", "github_api_key", "freemodel_api_key",
-    "openrouter_api_key", "openrouter_api_deep_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key",
-    "nvidia_api_key", "nvidia_deepseek_api_key", "github_deepseek_v3_api_key",
+    "llama_server_url",
     "local_model", "claude_model", "deepseek_model", "gemini_model",
     "groq_model", "github_model", "freemodel_model",
     "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
@@ -34,6 +32,9 @@ async def get_settings():
         "local_model": settings.local_model,
         "local_max_tokens": settings.local_max_tokens,
         "llm_mode": settings.llm_mode,
+        "cloud_ai_consent": settings.cloud_ai_consent,
+        "diagnostics_consent": settings.diagnostics_consent,
+        "redact_metadata_for_cloud": settings.redact_metadata_for_cloud,
         "claude_api_key": "***" if settings.claude_api_key else "",
         "claude_model": settings.claude_model,
         "deepseek_api_key": "***" if settings.deepseek_api_key else "",
@@ -92,9 +93,18 @@ async def update_settings(new_settings: dict = Body(...)):
     try:
         for key, value in new_settings.items():
             if hasattr(settings, key):
-                if key in ("claude_api_key", "deepseek_api_key", "gemini_api_key", "groq_api_key", "nvidia_api_key", "github_api_key", "github_deepseek_v3_api_key", "freemodel_api_key", "openrouter_api_key", "openrouter_api_deep_key", "cohere_api_key", "cloudflare_api_key", "cerebras_api_key", "nvidia_deepseek_api_key"):
+                if key.endswith("_api_key"):
                     if value == "***" or (not value and getattr(settings, key, None)):
                         continue
+                    try:
+                        set_secret(key, str(value))
+                    except SecretStorageError as exc:
+                        raise HTTPException(status_code=503, detail=str(exc)) from exc
+                    setattr(settings, key, value)
+                    stored = session.query(Setting).filter(Setting.key == key).first()
+                    if stored:
+                        session.delete(stored)
+                    continue
                 if key in ("task_provider_map", "task_fallback_map", "task_ultimate_fallback_chain"):
                     if isinstance(value, str):
                         pass

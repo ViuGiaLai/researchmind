@@ -171,6 +171,10 @@ hiddenimports = [
     'win32_setctime',
     'loguru',
     'loguru._logger',
+    'keyring',
+    'keyring.backends',
+    'cryptography',
+    'cryptography.hazmat.primitives.asymmetric.ed25519',
 ]
 
 # Thu thập toàn bộ module của ChromaDB

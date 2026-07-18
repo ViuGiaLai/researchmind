@@ -85,7 +85,7 @@ class ContextBuilder:
         for i, chunk in enumerate(chunks[:max_chunks]):
             title = chunk.get("paper_title", chunk.get("title", ""))
             page = chunk.get("page_number")
-            label = f"[{title}]" + (f" (trang {page})" if page else "")
+            label = f"[{title}]" + (f" (page {page})" if page else "")
             content = f"{label}\n{chunk.get('content', chunk.get('text', ''))}"
             self.add(content, priority=0.8, source_type="search",
                      metadata={"title": title, "page": page})
@@ -98,14 +98,14 @@ class ContextBuilder:
         recent = messages[-(max_pairs * 2):]  # limit pairs
         parts = []
         for msg in recent:
-            role = "Người" if msg.get("role") == "user" else "Trợ lý"
+            role = "User" if msg.get("role") == "user" else "Assistant"
             parts.append(f"{role}: {msg.get('content', '')}")
         if parts:
             self.add("\n".join(parts), priority=0.6, source_type="history")
 
     def add_insight(self, content: str, label: str = "") -> None:
         """Add an analysis insight with medium priority."""
-        text = f"[Phân tích: {label}]\n{content}" if label else content
+        text = f"[Analysis: {label}]\n{content}" if label else content
         self.add(text, priority=0.5, source_type="insight",
                  metadata={"label": label})
 

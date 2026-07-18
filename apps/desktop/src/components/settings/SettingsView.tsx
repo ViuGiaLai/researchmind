@@ -7,6 +7,8 @@ import {
   type ThemePreference,
 } from "../../lib/theme";
 import { LanguageSwitcher } from "../shared/LanguageSwitcher";
+import { LicensePanel } from "./LicensePanel";
+import { PrivacyCenter } from "./PrivacyCenter";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
@@ -46,6 +48,7 @@ import { resetWelcomeTourSeen } from "../help/WelcomeTour";
 import type { DiagnosticsResponse } from "../../lib/api";
 import { SubTabBar } from "../shared/SubTabBar";
 import type { HelpSectionId } from "../help/helpContent";
+import { useConfirmDialog } from "../shared/ConfirmDialog";
 
 interface SettingsViewProps {
   onOpenHelp?: (section: HelpSectionId) => void;
@@ -65,6 +68,7 @@ interface SpecsResult {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartTour, onReplaySetup }) => {
   const { t } = useTranslation();
+  const { confirm, confirmationDialog } = useConfirmDialog();
   // ── LLM Mode ────────────────────────────────────────────────
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
@@ -320,7 +324,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         confirmMsg = t("settings.move_storage_confirm_warning", { path: selected, free_gb: space.free_gb });
       }
       
-      const proceed = window.confirm(confirmMsg);
+      const proceed = await confirm(confirmMsg, { destructive: space.warning });
       if (!proceed) {
         setStorageMsg(null);
         return;
@@ -371,7 +375,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   };
 
   const handleClearData = async () => {
-    const confirmClear = window.confirm(t("settings.data_clear_confirm"));
+    const confirmClear = await confirm(t("settings.data_clear_confirm"), { destructive: true });
     if (!confirmClear) return;
 
     setActionLoading(true);
@@ -388,7 +392,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   };
 
   const handleResetApp = async () => {
-    const confirmReset = window.confirm(t("settings.data_reset_confirm"));
+    const confirmReset = await confirm(t("settings.data_reset_confirm"), { destructive: true });
     if (!confirmReset) return;
 
     setActionLoading(true);
@@ -441,7 +445,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   };
 
   const handleRebuildFts = async () => {
-    const ok = window.confirm(t("settings.fts_rebuild_confirm"));
+    const ok = await confirm(t("settings.fts_rebuild_confirm"));
     if (!ok) return;
 
     setRebuildingFts(true);
@@ -489,12 +493,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     setDiagMsg({ type: "success", text: t("settings.diag_tour_launch") });
   };
 
-  const handleReplaySetupWizard = () => {
+  const handleReplaySetupWizard = async () => {
     if (!onReplaySetup) {
       setDiagMsg({ type: "error", text: t("settings.diag_wizard_unavailable") });
       return;
     }
-    const ok = window.confirm(t("settings.wizard_confirm"));
+    const ok = await confirm(t("settings.wizard_confirm"));
     if (!ok) return;
     onReplaySetup();
   };
@@ -502,7 +506,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const diagStatus = (ok: boolean) => (ok ? "ok" : "warn");
 
   const handleClearCache = async () => {
-    const confirmClear = window.confirm(t("settings.confirm_clear_cache"));
+    const confirmClear = await confirm(t("settings.confirm_clear_cache"), { destructive: true });
     if (!confirmClear) return;
 
     setClearingCache(true);
@@ -650,11 +654,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       ]
     : [];
 
-  type SettingsSection = "general" | "diagnostics" | "ai" | "data" | "advanced";
+  type SettingsSection = "general" | "privacy" | "diagnostics" | "ai" | "data" | "advanced";
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
 
   const settingsTabs = [
     { key: "general" as const, label: t("settings.section_general"), icon: IconMonitor },
+    { key: "privacy" as const, label: t("privacy.title"), icon: IconLock },
     { key: "diagnostics" as const, label: t("settings.section_diagnostics"), icon: IconActivity },
     { key: "ai" as const, label: t("settings.section_ai"), icon: IconBrain },
     { key: "data" as const, label: t("settings.section_data"), icon: IconFolder },
@@ -664,6 +669,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
   const sectionMeta: Record<SettingsSection, { desc: string }> = {
     general: {
       desc: t("settings.section_general_desc"),
+    },
+    privacy: {
+      desc: t("privacy.description"),
     },
     diagnostics: {
       desc: t("settings.section_diagnostics_desc"),
@@ -687,6 +695,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
   return (
     <div className="settings-view">
+      {confirmationDialog}
       <div className="settings-shell">
         <header className="settings-toolbar">
           <div className="settings-toolbar-text">
@@ -723,8 +732,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         />
 
         <div className="settings-content">
+            {activeSection === "privacy" && <PrivacyCenter />}
             {activeSection === "general" && (
               <div className="settings-general-grid">
+      <LicensePanel />
       <div className="settings-section settings-section--span">
         <h3 className="settings-section-title">
           <IconBrain size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />

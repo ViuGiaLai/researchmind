@@ -7,6 +7,14 @@
   flex-shrink: 0;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.sub-tab-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .sub-tab-bar--underline {
@@ -42,6 +50,8 @@
   font-weight: 500;
   white-space: nowrap;
   border-radius: var(--radius-sm);
+  flex: 0 0 auto;
+  min-height: 36px;
 }
 
 .sub-tab-bar__btn:hover {

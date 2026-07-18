@@ -949,6 +949,10 @@
 }
 
 .tag-remove {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
   cursor: pointer;
   color: var(--color-text-secondary);
 }

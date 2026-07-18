@@ -1,3 +1,5 @@
+import { HELP_SECTIONS_EN as HELP_SECTIONS_EN_IMPORTED } from "./helpContent.en";
+
 export type HelpSectionId =
   | "home"
   | "getting-started"
@@ -68,7 +70,7 @@ export const GITHUB_URL = "https://github.com/researchmind/researchmind";
 export const BUG_REPORT_URL = "https://github.com/researchmind/researchmind/issues/new";
 export const CONTACT_EMAIL = "support@researchmind.app";
 
-export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
+export const HELP_SECTIONS_VI: Record<HelpSectionId, HelpSectionContent> = {
   home: {
     id: "home",
     title: "Trung tâm trợ giúp",
@@ -350,6 +352,17 @@ export const HELP_SECTIONS: Record<HelpSectionId, HelpSectionContent> = {
     ],
   },
 };
+
+export { HELP_SECTIONS_EN } from "./helpContent.en";
+
+export function getHelpSections(language: string): Record<HelpSectionId, HelpSectionContent> {
+  if (language.toLowerCase().startsWith("vi")) return HELP_SECTIONS_VI;
+  return requireEnglishHelpSections();
+}
+
+function requireEnglishHelpSections(): Record<HelpSectionId, HelpSectionContent> {
+  return HELP_SECTIONS_EN_IMPORTED;
+}
 
 export const WELCOME_TOUR_STEPS = [
   {

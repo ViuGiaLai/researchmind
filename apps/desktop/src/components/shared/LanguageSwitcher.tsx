@@ -6,7 +6,6 @@ import { setLanguage, type SupportedLang } from "../../i18n";
 const LANGUAGES: { code: SupportedLang; labelKey: string }[] = [
   { code: "vi", labelKey: "language.vi" },
   { code: "en", labelKey: "language.en" },
-  { code: "ja", labelKey: "language.ja" },
 ];
 
 export const LanguageSwitcher: React.FC = () => {
@@ -24,9 +23,12 @@ export const LanguageSwitcher: React.FC = () => {
         {LANGUAGES.map(({ code, labelKey }) => (
           <button
             key={code}
+            type="button"
             className={`language-switcher__btn ${currentLang === code ? "active" : ""}`}
             onClick={() => setLanguage(code)}
             title={t(labelKey) as string}
+            aria-pressed={currentLang === code}
+            lang={code}
           >
             {t(labelKey) as string}
           </button>
