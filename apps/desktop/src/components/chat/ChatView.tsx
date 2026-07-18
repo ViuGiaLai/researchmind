@@ -1762,6 +1762,13 @@ export const ChatView: React.FC<{
         </div>
         <textarea
           className="chat-view-textarea"
+          lang={
+            (i18n.resolvedLanguage || i18n.language || "").split("-")[0] === "vi"
+              || /[\u0102\u00C2\u0110\u00CA\u00D4\u01A0\u01AF\u0103\u00E2\u0111\u00EA\u00F4\u01A1\u01B0\u1EA0-\u1EF9]/.test(input)
+              ? "vi"
+              : (i18n.resolvedLanguage || i18n.language || "en").split("-")[0]
+          }
+          spellCheck={false}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

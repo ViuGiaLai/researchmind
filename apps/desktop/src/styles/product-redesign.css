@@ -112,11 +112,19 @@ html:lang(vi) body {
 }
 
 .chat-view-text:lang(vi),
-.chat-view-text:lang(vi) * {
+.chat-view-text:lang(vi) *,
+.chat-view-textarea:lang(vi) {
   letter-spacing: normal !important;
   word-spacing: normal !important;
   font-feature-settings: normal;
   text-rendering: auto;
+}
+
+.chat-view-textarea:lang(vi) {
+  font-family: "Segoe UI", "Arial", "Tahoma", sans-serif !important;
+  font-synthesis: none;
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
 }
 button, input, select, textarea { font: inherit; }
 button, [role="button"], a { -webkit-tap-highlight-color: transparent; }
@@ -479,11 +487,23 @@ button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active
 }
 .chat-view-input:focus-within {
   border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px var(--color-focus-ring), var(--shadow-md) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 22%, transparent), var(--shadow-md) !important;
 }
 .chat-view-textarea {
   background: transparent !important;
   box-shadow: none !important;
+  padding-inline: 6px !important;
+}
+.chat-view-input > :focus-visible,
+.chat-view-input > .chat-view-mode-container :focus-visible {
+  outline: none;
+}
+.chat-view-mode-select-trigger {
+  border-radius: calc(var(--radius-lg) - 5px);
+}
+.chat-view-mode-select-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+  background: var(--color-primary-muted);
 }
 .chat-view-send-btn {
   border-radius: var(--radius-sm);
