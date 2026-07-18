@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
@@ -218,6 +219,33 @@ def _serialize_authors(authors_list: list) -> str:
     return json.dumps(authors_list, ensure_ascii=False)
 
 
+def _parse_pdf_authors(raw: str) -> list[str]:
+    cleaned = _clean_metadata_string(raw).strip()
+    if not cleaned:
+        return []
+    parts = re.split(r"\s*(?:;|\r?\n|\band\b|\|)\s*", cleaned, flags=re.IGNORECASE)
+    if len(parts) == 1 and "," in cleaned:
+        parts = [part.strip() for part in cleaned.split(",")]
+    ignored = {"unknown", "anonymous", "n/a", "none"}
+    return [
+        part.strip()
+        for part in parts
+        if part.strip() and part.strip().lower() not in ignored and "@" not in part
+    ]
+
+
+def _extract_metadata_year(*values: str) -> Optional[int]:
+    for value in values:
+        if not value:
+            continue
+        match = re.search(r"(?:D:)?((?:19|20)\d{2})", str(value))
+        if match:
+            year = int(match.group(1))
+            if 1900 <= year <= datetime.now().year + 1:
+                return year
+    return None
+
+
 def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     path = Path(file_path)
 
@@ -263,20 +291,14 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         meta = doc.metadata or {}
         title = _clean_metadata_string(meta.get("title", "").strip()) or path.stem
         authors_raw = _clean_metadata_string(meta.get("author", "").strip())
-        authors_list = [a.strip() for a in authors_raw.split(";") if a.strip()] if authors_raw else []
+        authors_list = _parse_pdf_authors(authors_raw)
         authors_json = _serialize_authors(authors_list)
 
-        year = None
-        year_str = meta.get("creationDate", "")
-        if year_str and len(year_str) >= 4:
-            try:
-                year = int(year_str[:4])
-            except ValueError:
-                pass
-        if not year:
-            years_found = re.findall(r"\b(19|20)\d{2}\b", path.stem)
-            if years_found:
-                year = int(years_found[0])
+        year = _extract_metadata_year(
+            meta.get("creationDate", ""),
+            meta.get("modDate", ""),
+            path.stem,
+        )
 
         doi = meta.get("identifier", "").strip() or ""
         doc.close()

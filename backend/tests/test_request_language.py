@@ -26,9 +26,12 @@ def test_x_language_overrides_accept_language_for_legacy_clients():
 
 
 def test_request_language_reaches_prompt_instruction():
-    set_request_language("en-US")
-    assert get_prompt_language("Vietnamese query") == "en"
-    assert "Write the complete response in English." in get_language_instruction("Vietnamese query")
+    try:
+        set_request_language("en-US")
+        assert get_prompt_language("Vietnamese query") == "en"
+        assert "Write the complete response in English." in get_language_instruction("Vietnamese query")
+    finally:
+        set_request_language("")
 
 
 def test_unsupported_request_language_falls_back_safely():

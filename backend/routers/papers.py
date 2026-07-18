@@ -546,7 +546,7 @@ async def import_folder(
                 paper_id=file_id,
                 file_path=str(save_path),
                 title=paper_title or doc_file.name,
-                authors=doc.authors.split(",") if doc.authors else []
+                authors=_parse_authors(doc.authors)
             )
             import_results.append({
                 "job_id": job_id,
@@ -718,6 +718,9 @@ def _parse_and_index_image_paper(
     try:
         session.query(Paper).filter(Paper.id == file_id).update({
             "title": paper_title,
+            "authors": doc.authors,
+            "year": doc.year,
+            "doi": doc.doi,
             "page_count": doc.page_count,
             "file_size": doc.file_size,
             "language": doc.language,
@@ -822,7 +825,7 @@ def _parse_and_index_document_paper(
             paper_id=file_id,
             file_path=file_path,
             title=paper_title or filename,
-            authors=doc.authors.split(",") if doc.authors else [],
+            authors=_parse_authors(doc.authors),
         ))
     except Exception:
         pass
@@ -1011,9 +1014,30 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
                 "is_valid": cr.is_valid,
             })
 
+        session = get_session(state.engine)
+        try:
+            paper = session.query(Paper).filter(Paper.id == paper_id).first()
+            if paper:
+                paper.doi = paper.doi or doi
+                current_authors = _parse_authors(paper.authors)
+                if not current_authors and cr and cr.is_valid and cr.authors:
+                    paper.authors = json.dumps(cr.authors, ensure_ascii=False)
+                authoritative_year = (
+                    cr.year if cr and cr.is_valid and cr.year
+                    else (oa.publication_year if oa else None)
+                )
+                if authoritative_year:
+                    paper.year = int(authoritative_year)
+                session.commit()
+        except Exception as db_error:
+            session.rollback()
+            logger.warning(f"Could not persist enriched metadata for {paper_id}: {db_error}")
+        finally:
+            session.close()
+
         logger.info(f"Background enrichment done for {title} (DOI: {doi})")
-    except Exception:
-        pass
+    except Exception as enrichment_error:
+        logger.warning(f"Background metadata enrichment failed for {paper_id}: {enrichment_error}")
 
 
 def _retry_import_job(job_id: str):
