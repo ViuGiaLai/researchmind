@@ -518,7 +518,10 @@ if __name__ == "__main__":
     # Khi chạy bằng PyInstaller (.exe), sys.frozen = True
     is_frozen = getattr(sys, "frozen", False)
     if is_frozen:
-        # PyInstaller: truyền trực tiếp object app và reload=False để tránh lỗi import động
+        import logging
+        if sys.stderr is None:
+            sys.stderr = open(os.devnull, "w", encoding="utf-8")
+        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
         uvicorn.run(
             app,
             host=settings.host,
