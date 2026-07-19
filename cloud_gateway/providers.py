@@ -162,8 +162,16 @@ class ProviderRouter:
         bases = {
             "groq": "https://api.groq.com/openai/v1",
             "openrouter": "https://openrouter.ai/api/v1",
+            "openrouter_r1": "https://openrouter.ai/api/v1",
             "cerebras": "https://api.cerebras.ai/v1",
             "cloudflare": self.settings.cloudflare_url.rstrip("/"),
+            "deepseek": "https://api.deepseek.com",
+            "github": "https://models.inference.ai.azure.com",
+            "github_deepseek_v3": "https://models.inference.ai.azure.com",
+            "nvidia": "https://integrate.api.nvidia.com/v1",
+            "nvidia_deepseek": "https://integrate.api.nvidia.com/v1",
+            "freemodel": "https://freemodel.dev/v1",
+            "cohere": "https://api.cohere.ai/compatibility/v1",
         }
         if provider not in bases:
             raise ProviderError(f"Unsupported provider: {provider}")

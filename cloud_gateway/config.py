@@ -20,29 +20,71 @@ class GatewaySettings(BaseSettings):
     max_output_tokens: int = 4096
     provider_timeout: float = 120.0
 
+    # ─── Gemini ────────────────────────────────────────────────────
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+
+    # ─── Groq ──────────────────────────────────────────────────────
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
+
+    # ─── OpenRouter ────────────────────────────────────────────────
     openrouter_api_key: str = ""
     openrouter_model: str = "deepseek/deepseek-chat-v3-0324"
+    openrouter_r1_api_key: str = ""
+    openrouter_r1_model: str = "deepseek/deepseek-r1"
+
+    # ─── Cerebras ──────────────────────────────────────────────────
     cerebras_api_key: str = ""
     cerebras_model: str = "qwen-3-235b-a22b-instruct-2507"
+
+    # ─── Cloudflare Workers AI ─────────────────────────────────────
     cloudflare_api_key: str = ""
     cloudflare_model: str = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
     cloudflare_url: str = ""
+
+    # ─── Claude ────────────────────────────────────────────────────
     claude_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
 
+    # ─── DeepSeek ──────────────────────────────────────────────────
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"
+
+    # ─── GitHub Models ─────────────────────────────────────────────
+    github_api_key: str = ""
+    github_model: str = "gpt-4o-mini"
+    github_deepseek_v3_api_key: str = ""
+    github_deepseek_v3_model: str = "DeepSeek-V3-0324"
+
+    # ─── NVIDIA ────────────────────────────────────────────────────
+    nvidia_api_key: str = ""
+    nvidia_model: str = "moonshotai/kimi-k2.6"
+    nvidia_deepseek_api_key: str = ""
+    nvidia_deepseek_model: str = "deepseek-ai/deepseek-v4-pro"
+
+    # ─── FreeModel ─────────────────────────────────────────────────
+    freemodel_api_key: str = ""
+    freemodel_model: str = "gpt-4o-mini"
+
+    # ─── Cohere ────────────────────────────────────────────────────
+    cohere_api_key: str = ""
+    cohere_model: str = "command-r-plus"
+
     # Task maps contain provider names, never credentials.
     task_provider_map: str = (
-        '{"chat":"gemini","rag":"gemini","summary":"gemini",'
-        '"review":"gemini","verify":"gemini","critique":"gemini",'
-        '"debate":"gemini","gap":"gemini","insight":"gemini",'
-        '"quality_check":"gemini","research":"gemini",'
-        '"synthesis":"gemini","entity":"gemini","translate":"gemini"}'
+        '{"chat":"gemini","rag":"gemini","summary":"groq",'
+        '"daily_reader":"github","review":"nvidia_deepseek",'
+        '"verify":"gemini","critique":"gemini","debate":"nvidia_deepseek",'
+        '"gap":"nvidia_deepseek","insight":"github",'
+        '"quality_check":"github","research":"groq",'
+        '"synthesis":"groq","entity":"cerebras","translate":"gemini"}'
     )
-    provider_fallback_chain: str = "groq,cerebras,cloudflare,openrouter,claude"
+    provider_fallback_chain: str = (
+        "groq,cerebras,cloudflare,nvidia,nvidia_deepseek,"
+        "github,github_deepseek_v3,cohere,openrouter,openrouter_r1,"
+        "deepseek,freemodel,claude"
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
