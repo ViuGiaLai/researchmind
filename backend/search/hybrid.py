@@ -61,10 +61,13 @@ class HybridSearch:
                     logger.info("Power Saver Mode: Unloading BGE-Reranker model to free RAM")
                     self._cross_encoder = None
                     import gc
-                    import torch
                     gc.collect()
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
+                    try:
+                        import torch
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    except ImportError:
+                        pass
         t = threading.Thread(target=check_idle, daemon=True)
         t.start()
 

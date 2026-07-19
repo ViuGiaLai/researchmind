@@ -31,15 +31,6 @@ binaries = []
 hiddenimports = [
     # === Web framework ===
     'uvicorn',
-    'uvicorn.loggers',
-    'uvicorn.loops',
-    'uvicorn.loops.auto',
-    'uvicorn.protocols',
-    'uvicorn.protocols.http',
-    'uvicorn.protocols.http.auto',
-    'uvicorn.protocols.websockets',
-    'uvicorn.protocols.websockets.auto',
-    'app_state',
     'starlette',
     'pydantic',
     'pydantic_settings',
@@ -48,73 +39,41 @@ hiddenimports = [
 
     # === Database ===
     'sqlalchemy',
-    'aiosqlite',
 
     # === Templates ===
     'jinja2',
-    'jinja2.ext',
     'markupsafe',
 
     # === HTTP client ===
     'httpx',
-    'anyio',
     'certifi',
-    'httpcore',
-    'idna',
-    'sniffio',
 
     # === PDF / OCR / Image ===
     'fitz',             # PyMuPDF
     'PIL',
-    'PIL._imaging',
-    'PIL.ExifTags',
-    'PIL.Image',
-    'PIL.ImageDraw',
-    'PIL.ImageFont',
     'numpy',
     'onnxruntime',
-    'cv2',              # opencv-python
     'pyclipper',
     'shapely',
-    'six',
 
     # === ChromaDB core ===
     'tqdm',
     'bcrypt',
-    'build',
     'hnswlib',
     'grpc',
-    'grpc._channel',
-    'grpc.aio',
-    'importlib_resources',
-    'kubernetes',
-    'kubernetes.client',
-    'kubernetes.config',
-    'kubernetes.watch',
     'mmh3',
     'orjson',
     'overrides',
-    'posthog',
     'pypika',
     'tenacity',
-    'typer',
-    'rich',
     'yaml',
     'typing_extensions',
-    'opentelemetry',
-    'opentelemetry.sdk',
-    'opentelemetry.sdk.trace',
-    'opentelemetry.sdk.resources',
-    'opentelemetry.exporter.otlp.proto.grpc',
-    'opentelemetry.instrumentation.fastapi',
 
-    # === Tokenizers & Huggingface ===
+    # === Tokenizers (chromadb lazy dep for ONNX embeddings) ===
     'tokenizers',
-    'huggingface_hub',
 
     # === LLM Providers ===
     'anthropic',
-    'groq',
 
     # === Token counting ===
     'tiktoken',
@@ -122,57 +81,26 @@ hiddenimports = [
     # === Graph / Community detection ===
     'networkx',
     'community',         # python-louvain
-    'graspologic',
 
     # === Document export/import ===
     'docx',              # python-docx
     'ebooklib',
     'fpdf',              # fpdf2
     'lxml',
-    'lxml.etree',
-    'lxml.html',
-    'defusedxml',
-    'fontTools',
 
     # === Web search ===
     'duckduckgo_search',
-    'click',
-    'primp',
 
-    # === ML / Embedding / Reranking ===
+    # === ML / Embedding / Reranking (optional — guarded by try/except) ===
     'sentence_transformers',
     'transformers',
-    'torch',
-    'torch.nn',
-    'torch.nn.modules',
-    'torch.jit',
-    'torch._C',
-    'torch.utils',
-    'torch.utils.data',
     'sklearn',
     'sklearn.cluster',
     'sklearn.metrics',
-    'scipy',
-    'scipy.sparse',
-    'scipy.cluster',
-    'joblib',
-    'narwhals',
-    'threadpoolctl',
-    'filelock',
-    'fsspec',
-    'setuptools',
-    'sympy',
-    'safetensors',
-    'regex',
-    'packaging',
 
     # === System ===
     'psutil',
-    'distro',
-    'colorama',
-    'win32_setctime',
     'loguru',
-    'loguru._logger',
     'keyring',
     'keyring.backends',
     'cryptography',
@@ -197,7 +125,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['torch'],
     noarchive=False,
     optimize=0,
 )
