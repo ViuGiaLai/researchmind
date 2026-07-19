@@ -59,6 +59,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# License keys (private)
+*.pem
+
 # Blackbox
 .blackbox
 
