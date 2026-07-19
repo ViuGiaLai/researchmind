@@ -95,8 +95,16 @@ class Embedder:
 
         gateway_url = getattr(settings, "researchmind_cloud_url", "").rstrip("/")
         if gateway_url:
-            token = get_request_bearer_token() or getattr(settings, "researchmind_cloud_token", "")
-            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            shared = getattr(settings, "researchmind_cloud_token", "")
+            user_token = get_request_bearer_token()
+            if shared:
+                headers = {"Authorization": f"Bearer {shared}"}
+                if user_token:
+                    headers["X-User-Token"] = user_token
+            elif user_token:
+                headers = {"Authorization": f"Bearer {user_token}"}
+            else:
+                headers = {}
             response = httpx.post(
                 f"{gateway_url}/v1/embeddings", headers=headers,
                 json={"texts": texts, "model": self.model_name},

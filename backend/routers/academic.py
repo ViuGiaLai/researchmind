@@ -315,8 +315,16 @@ async def translate_papers(request: Request, body: dict = Body(...)):
         for chunk in _chunk_papers(batch, 6):
             if gateway_url:
                 from common.request_context import get_request_bearer_token
-                token = get_request_bearer_token() or getattr(settings, "researchmind_cloud_token", "")
-                gateway_headers = {"Authorization": f"Bearer {token}"} if token else {}
+                shared = getattr(settings, "researchmind_cloud_token", "")
+                user_token = get_request_bearer_token()
+                if shared:
+                    gateway_headers = {"Authorization": f"Bearer {shared}"}
+                    if user_token:
+                        gateway_headers["X-User-Token"] = user_token
+                elif user_token:
+                    gateway_headers = {"Authorization": f"Bearer {user_token}"}
+                else:
+                    gateway_headers = {}
                 prompt = json.dumps(chunk, ensure_ascii=False)
                 response = await client.post(
                     f"{gateway_url}/v1/generate",
