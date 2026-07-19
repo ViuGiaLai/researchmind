@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Documentation — ResearchMind</title>
+  <meta name="description" content="Complete documentation for ResearchMind: import, collections, hybrid search, AI chat, review builder, evidence matrix, insights, graph, workspace, settings, and more." />
+  <link rel="icon" type="image/x-icon" href="icon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Docs-specific overrides – light, no effects */
+    .docs-layout {
+      display: flex;
+      gap: 40px;
+      padding: 100px 0 60px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    .docs-sidebar {
+      flex: 0 0 280px;
+      position: sticky;
+      top: 100px;
+      align-self: flex-start;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 16px;
+      border-right: 1px solid var(--border-subtle);
+    }
+    .docs-sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .docs-sidebar li {
+      margin-bottom: 4px;
+    }
+    .docs-sidebar a {
+      display: block;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: none;
+    }
+    .docs-sidebar a:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .docs-sidebar a.active {
+      background: rgba(59,130,246,0.06);
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+    .docs-sidebar .heading {
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 12px 12px 4px;
+      margin-top: 8px;
+    }
+    .docs-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .docs-content .section-block {
+      padding: 40px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .docs-content .section-block:last-of-type {
+      border-bottom: none;
+    }
+    .docs-content h1 {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 16px;
+    }
+    .docs-content h2 {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin: 28px 0 12px;
+    }
+    .docs-content h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 20px 0 8px;
+    }
+    .docs-content h4 {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 16px 0 6px;
+    }
+    .docs-content p, .docs-content li {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.75;
+      max-width: 72ch;
+    }
+    .docs-content p { margin-bottom: 14px; }
+    .docs-content ul, .docs-content ol {
+      padding-left: 20px;
+      margin-bottom: 14px;
+    }
+    .docs-content li { margin-bottom: 6px; }
+    .docs-content code {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      background: var(--bg-surface);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+    .docs-content .note {
+      padding: 16px 20px;
+      border-left: 4px solid var(--accent-blue);
+      background: rgba(59,130,246,0.02);
+      border-radius: var(--radius-sm);
+      margin: 16px 0;
+    }
+    .docs-content .note strong { color: var(--accent-blue); }
+    .docs-toc-mobile {
+      display: none;
+      margin-bottom: 24px;
+    }
+    .docs-toc-mobile select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-body);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    @media (max-width: 1024px) {
+      .docs-sidebar { flex-basis: 220px; }
+    }
+    @media (max-width: 768px) {
+      .docs-layout { flex-direction: column; padding: 80px 0 40px; }
+      .docs-sidebar {
+        display: none;
+        position: static;
+        max-height: none;
+        border-right: none;
+        padding-right: 0;
+      }
+      .docs-sidebar.open { display: block; }
+      .docs-toc-mobile { display: block; }
+      .docs-content h1 { font-size: 1.8rem; }
+      .docs-content h2 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar (giống các trang khác) -->
+  <nav class="navbar" id="navbar">
+    <a href="index.html" class="nav-brand">
+      <img src="icon.ico" alt="ResearchMind" class="nav-brand-img" />
+      <span class="nav-brand-text">Research<span>Mind</span></span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="docs.html" class="active-page">Docs</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="index.html#download" class="nav-cta">Download</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- Documentation Layout -->
+  <div class="container docs-layout">
+
+    <!-- Sidebar -->
+    <aside class="docs-sidebar" id="docsSidebar">
+      <div style="padding:8px 0 16px;font-weight:700;font-size:0.9rem;">Table of Contents</div>
+      <ul>
+        <li class="heading">Getting Started</li>
+        <li><a href="#getting-started" class="active">1. Getting Started</a></li>
+        <li><a href="#import">2. Import &amp; Library</a></li>
+        <li><a href="#collections">3. Collections &amp; Organization</a></li>
+        <li><a href="#search">4. Hybrid Search</a></li>
+        <li><a href="#chat">5. AI Chat</a></li>
+        <li><a href="#review-builder">6. Literature Review Builder</a></li>
+        <li><a href="#evidence-matrix">7. Evidence Matrix</a></li>
+        <li><a href="#insights">8. Insights &amp; Analysis</a></li>
+        <li><a href="#verification">9. Academic Verification</a></li>
+        <li><a href="#deep-research">10. Deep Research</a></li>
+        <li><a href="#graph">11. Graph &amp; Personal Brain</a></li>
+        <li><a href="#workspace">12. Workspace &amp; Projects</a></li>
+        <li><a href="#ai-providers">13. AI Providers Configuration</a></li>
+        <li><a href="#settings">14. Settings &amp; System</a></li>
+        <li><a href="#licensing">15. Licensing &amp; Account</a></li>
+        <li><a href="#faq">16. FAQ</a></li>
+      </ul>
+    </aside>
+
+    <!-- Mobile TOC -->
+    <div class="docs-toc-mobile">
+      <select id="mobileToc" onchange="location.hash=this.value;this.blur();">
+        <option value="#getting-started">1. Getting Started</option>
+        <option value="#import">2. Import & Library</option>
+        <option value="#collections">3. Collections & Organization</option>
+        <option value="#search">4. Hybrid Search</option>
+        <option value="#chat">5. AI Chat</option>
+        <option value="#review-builder">6. Literature Review Builder</option>
+        <option value="#evidence-matrix">7. Evidence Matrix</option>
+        <option value="#insights">8. Insights & Analysis</option>
+        <option value="#verification">9. Academic Verification</option>
+        <option value="#deep-research">10. Deep Research</option>
+        <option value="#graph">11. Graph & Personal Brain</option>
+        <option value="#workspace">12. Workspace & Projects</option>
+        <option value="#ai-providers">13. AI Providers</option>
+        <option value="#settings">14. Settings & System</option>
+        <option value="#licensing">15. Licensing & Account</option>
+        <option value="#faq">16. FAQ</option>
+      </select>
+    </div>
+
+    <!-- Content -->
+    <main class="docs-content">
+
+      <!-- 1. Getting Started -->
+      <section id="getting-started" class="section-block">
+        <h1>1. Getting Started</h1>
+        <h2>1.1 System Requirements</h2>
+        <ul>
+          <li><strong>OS:</strong> Windows 10/11 (64-bit), macOS (Apple Silicon &amp; Intel), Linux (Ubuntu/Debian/Fedora)</li>
+          <li><strong>RAM:</strong> 8 GB minimum, 16 GB recommended for local LLM (7B models)</li>
+          <li><strong>Storage:</strong> ~500 MB app + additional for index, cache, and GGUF models</li>
+          <li><strong>Optional:</strong> Python 3.11+ for local AI mode</li>
+        </ul>
+
+        <h2>1.2 Quick Install</h2>
+        <p>Download the latest release from <a href="https://github.com/ViuGiaLai/researchmind/releases" target="_blank">GitHub Releases</a>. The application bundles the Python backend for a seamless experience.</p>
+
+        <h2>1.3 First Launch &amp; Setup Wizard</h2>
+        <p>On first run, ResearchMind will:</p>
+        <ul>
+          <li>Initialize the local SQLite database (<code>researchmind.db</code>)</li>
+          <li>Create the ChromaDB vector index</li>
+          <li>Launch the backend FastAPI server (auto‑starts)</li>
+          <li>Prompt you to choose your AI provider (Cloud Free, API key, or Local)</li>
+        </ul>
+        <div class="note"><strong>Tip:</strong> The setup wizard guides you through provider configuration. You can skip and configure later in Settings.</div>
+
+        <h2>1.4 Troubleshooting Installation</h2>
+        <ul>
+          <li><strong>Backend fails to start:</strong> Ensure Python 3.11+ is installed and ports 8000–8005 are free.</li>
+          <li><strong>Index rebuild:</strong> If search fails, go to Settings → System → Rebuild FTS Index.</li>
+          <li><strong>Logs:</strong> Check <code>~/.researchmind/logs/</code> for detailed error logs.</li>
+        </ul>
+      </section>
+
+      <!-- 2. Import & Library -->
+      <section id="import" class="section-block">
+        <h2>2. Import &amp; Library</h2>
+        <h3>2.1 Supported Formats</h3>
+        <ul>
+          <li>PDF (with OCR for scanned documents via RapidOCR)</li>
+          <li>DOCX, EPUB, TXT, MD, HTML</li>
+          <li>BibTeX (.bib) and RIS (.ris)</li>
+          <li>Zotero (direct sync from SQLite)</li>
+        </ul>
+
+        <h3>2.2 Import Methods</h3>
+        <ul>
+          <li><strong>Drag &amp; Drop:</strong> Drop files/folders directly into the Library view.</li>
+          <li><strong>Scan Folder:</strong> Import all supported files from a directory.</li>
+          <li><strong>Zotero Sync:</strong> Connect your Zotero account to sync metadata and PDFs.</li>
+          <li><strong>Import Metadata Only:</strong> Add papers by DOI, arXiv ID, or manual entry.</li>
+        </ul>
+
+        <h3>2.3 Import Queue &amp; Status Tracking</h3>
+        <p>Each file goes through a queue with real‑time progress:</p>
+        <ul>
+          <li><code>queued</code> → <code>parsing</code> → <code>embedding</code> → <code>indexing</code> → <code>OCR</code> (if needed) → <code>summarizing</code> → <code>ready</code></li>
+          <li>Status is displayed per file; you can retry individual failed jobs.</li>
+        </ul>
+
+        <h3>2.4 Retry Import &amp; Manual OCR</h3>
+        <ul>
+          <li>Click <strong>Retry</strong> on any failed import to restart processing.</li>
+          <li><strong>Manual OCR:</strong> Trigger OCR again for scanned PDFs (useful if the first attempt failed).</li>
+        </ul>
+
+        <h3>2.5 BibTeX &amp; RIS Import</h3>
+        <p>ResearchMind parses standard BibTeX and RIS files to extract metadata (title, authors, year, journal, DOI). You can import these files along with or without associated PDFs.</p>
+
+        <h3>2.6 Paper Management</h3>
+        <ul>
+          <li><strong>View / Edit:</strong> Click any paper to see details, edit metadata, add notes.</li>
+          <li><strong>Delete:</strong> Remove a paper from your library (also removes its chunks and vector entries).</li>
+          <li><strong>Star / Read Status:</strong> Mark papers as starred or read to track progress.</li>
+          <li><strong>Bulk Operations:</strong> Select multiple papers to add to collections, delete, or change status.</li>
+        </ul>
+      </section>
+
+      <!-- 3. Collections & Organization -->
+      <section id="collections" class="section-block">
+        <h2>3. Collections &amp; Organization</h2>
+        <h3>3.1 Creating &amp; Managing Collections</h3>
+        <ul>
+          <li><strong>Create:</strong> Name your collection and optionally add a description.</li>
+          <li><strong>Edit / Delete:</strong> Update collection name/description or delete it (papers remain in library).</li>
+          <li><strong>Add/Remove Papers:</strong> Drag papers into a collection or use the bulk action menu.</li>
+        </ul>
+
+        <h3>3.2 Saved Searches</h3>
+        <p>Save any search query with filters (collection, tag, year, type). Saved searches appear in the sidebar for quick access.</p>
+
+        <h3>3.3 Tags &amp; Filters</h3>
+        <ul>
+          <li>Assign custom tags to papers.</li>
+          <li>Filter by collection, tag, publication year, document type, read status, and starred.</li>
+        </ul>
+
+        <h3>3.4 Bulk Operations</h3>
+        <p>Select multiple papers to add to a collection, delete, change read status, or apply tags.</p>
+      </section>
+
+      <!-- 4. Hybrid Search -->
+      <section id="search" class="section-block">
+        <h2>4. Hybrid Search</h2>
+        <p>ResearchMind combines three retrieval strategies for maximum relevance:</p>
+        <h3>4.1 BM25 Full‑Text Search</h3>
+        <p>Fast keyword matching using SQLite FTS5. Supports stemming, stop‑word removal, and prefix searches.</p>
+        <h3>4.2 Vector Semantic Search</h3>
+        <p>Dense vector retrieval using <strong>bge‑m3</strong> embeddings stored in ChromaDB. Finds conceptually similar content even when keywords don't match.</p>
+        <h3>4.3 Cross‑Encoder Reranking</h3>
+        <p>An optional cross‑encoder model re‑ranks the top results from BM25 and vector search to improve precision.</p>
+        <h3>4.4 Filters</h3>
+        <ul>
+          <li>Collection membership</li>
+          <li>Tags</li>
+          <li>Publication year range</li>
+          <li>Document type (PDF, DOCX, etc.)</li>
+          <li>Read status / starred</li>
+        </ul>
+        <h3>4.5 Saved Searches</h3>
+        <p>Save any search with its filters for one‑click re‑use.</p>
+      </section>
+
+      <!-- 5. AI Chat -->
+      <section id="chat" class="section-block">
+        <h2>5. AI Chat</h2>
+        <h3>5.1 Chat Modes</h3>
+        <ul>
+          <li><strong>Free Mode:</strong> General AI chat with optional paper context.</li>
+          <li><strong>Evidence‑Only Mode:</strong> Responses must be cited from your library.</li>
+          <li><strong>Critique Mode:</strong> AI critically analyses papers' methodologies and limitations.</li>
+          <li><strong>Debate Mode:</strong> Multiple AI personas debate a research question.</li>
+        </ul>
+
+        <h3>5.2 Multi‑Paper Conversations</h3>
+        <p>Select multiple papers to include as context. The AI can compare and synthesize across them.</p>
+
+        <h3>5.3 Citation Panel &amp; Trust Panel</h3>
+        <p>Each response includes source chips with page numbers. Click to expand the exact quote. The trust panel shows confidence scores for each claim.</p>
+
+        <h3>5.4 Suggest Questions</h3>
+        <p>AI generates recommended questions based on the paper(s) you're currently viewing.</p>
+
+        <h3>5.5 Chat History &amp; Usage</h3>
+        <ul>
+          <li>View all past conversations.</li>
+          <li>Delete individual chat sessions.</li>
+          <li>Usage stats: number of messages, tokens consumed.</li>
+        </ul>
+
+        <h3>5.6 Reasoning Mode</h3>
+        <ul>
+          <li><strong>Fast Mode:</strong> Quick, concise answers.</li>
+          <li><strong>Deep (Reasoning) Mode:</strong> More thorough, step‑by‑step reasoning (higher latency, more tokens).</li>
+        </ul>
+
+        <h3>5.7 Multi‑Language Support</h3>
+        <p>Chat supports English, Vietnamese, Japanese, and more (depends on provider). You can switch language in Settings.</p>
+      </section>
+
+      <!-- 6. Literature Review Builder -->
+      <section id="review-builder" class="section-block">
+        <h2>6. Literature Review Builder</h2>
+        <h3>6.1 Generate Outline</h3>
+        <p>Select a set of papers and ask the AI to generate a structured outline for your literature review.</p>
+
+        <h3>6.2 Generate Draft (7 Sections)</h3>
+        <p>Create a full draft with the standard sections: Background, Methods, Results, Discussion, Gap Analysis, Future Directions, and Conclusion.</p>
+
+        <h3>6.3 Streaming Draft Generation</h3>
+        <p>Watch the draft being written in real‑time, section by section.</p>
+
+        <h3>6.4 Individual Section Generation &amp; Regeneration</h3>
+        <p>Regenerate any section independently with new instructions or after editing other sections.</p>
+
+        <h3>6.5 Quality Check</h3>
+        <p>AI evaluates the draft on coherence, completeness, citation coverage, and academic tone.</p>
+
+        <h3>6.6 Save, Version, Restore</h3>
+        <ul>
+          <li>Save multiple drafts per project.</li>
+          <li>View version history and restore any previous version.</li>
+        </ul>
+
+        <h3>6.7 Export</h3>
+        <ul>
+          <li><strong>DOCX:</strong> For Microsoft Word.</li>
+          <li><strong>Markdown:</strong> For online publishing.</li>
+          <li><strong>LaTeX:</strong> For academic journals.</li>
+        </ul>
+      </section>
+
+      <!-- 7. Evidence Matrix -->
+      <section id="evidence-matrix" class="section-block">
+        <h2>7. Evidence Matrix</h2>
+        <h3>7.1 Custom Criteria Definition</h3>
+        <p>Define your own evaluation criteria (e.g., sample size, blinding, statistical power).</p>
+
+        <h3>7.2 AI Claim Extraction</h3>
+        <p>AI extracts relevant claims from each paper and maps them to your criteria, with source quotes.</p>
+
+        <h3>7.3 Visual Comparison Table</h3>
+        <p>Rows = criteria, columns = papers. Cells contain extracted claims with clickable quotes.</p>
+
+        <h3>7.4 Save &amp; Version Matrix</h3>
+        <p>Save multiple matrices and track changes over time.</p>
+
+        <h3>7.5 Export to CSV</h3>
+        <p>Export the matrix for further analysis in Excel or other tools.</p>
+      </section>
+
+      <!-- 8. Insights & Analysis -->
+      <section id="insights" class="section-block">
+        <h2>8. Insights &amp; Analysis</h2>
+        <h3>8.1 Research Gap Analysis</h3>
+        <p>Automatically detect gaps in your literature—topics that are underrepresented or conflicting.</p>
+
+        <h3>8.2 Conflict Detection</h3>
+        <p>Identify papers that contradict each other on methodology, findings, or conclusions.</p>
+
+        <h3>8.3 Topic Suggestion</h3>
+        <p>AI suggests new research topics based on your library's current coverage.</p>
+
+        <h3>8.4 Research Evolution Map</h3>
+        <p>Timeline view showing how a field has evolved over time (based on publication dates and citation networks).</p>
+
+        <h3>8.5 Paper Comparison</h3>
+        <p>Side‑by‑side comparison of two or more papers on multiple dimensions (methodology, results, limitations).</p>
+      </section>
+
+      <!-- 9. Academic Verification -->
+      <section id="verification" class="section-block">
+        <h2>9. Academic Verification</h2>
+        <h3>9.1 DOI Lookup</h3>
+        <p>Query OpenAlex, Crossref, and Semantic Scholar to fetch metadata for a DOI.</p>
+
+        <h3>9.2 Claim Verification</h3>
+        <p>Given a claim, the AI searches external sources to verify or refute it.</p>
+
+        <h3>9.3 Paper Discovery</h3>
+        <p>Find new papers related to your library via academic APIs.</p>
+
+        <h3>9.4 PDF Proxy</h3>
+        <p>Download publicly available PDFs through our proxy (for open‑access papers).</p>
+      </section>
+
+      <!-- 10. Deep Research -->
+      <section id="deep-research" class="section-block">
+        <h2>10. Deep Research</h2>
+        <h3>10.1 Deep Research Mode</h3>
+        <p>AI performs multi‑step research: decomposes your question, searches, reads papers, synthesizes, and returns a comprehensive report.</p>
+
+        <h3>10.2 Query Decomposition</h3>
+        <p>Complex questions are broken into sub‑queries, each answered separately, then aggregated into a final answer.</p>
+      </section>
+
+      <!-- 11. Graph & Personal Brain -->
+      <section id="graph" class="section-block">
+        <h2>11. Graph &amp; Personal Brain</h2>
+        <h3>11.1 Paper Relationship Graph</h3>
+        <p>Visual network of papers connected by embedding similarity, citations, co‑authors, and shared topics.</p>
+
+        <h3>11.2 GraphRAG</h3>
+        <ul>
+          <li><strong>Global Search:</strong> Search across the entire knowledge graph.</li>
+          <li><strong>Local Search:</strong> Search within the neighbourhood of a specific paper.</li>
+          <li><strong>Drift Search:</strong> Detect emerging topics or shifts in research direction.</li>
+        </ul>
+
+        <h3>11.3 Cluster Detection</h3>
+        <p>Automatically group papers into thematic clusters (e.g., "Transformer Models", "RCT Methods").</p>
+
+        <h3>11.4 Personal Brain</h3>
+        <ul>
+          <li><strong>Reading Stats:</strong> Time spent, pages read, papers completed.</li>
+          <li><strong>Suggestions:</strong> Papers recommended based on your reading history.</li>
+          <li><strong>Tag Cloud:</strong> Visual representation of your most used tags.</li>
+        </ul>
+      </section>
+
+      <!-- 12. Workspace & Projects -->
+      <section id="workspace" class="section-block">
+        <h2>12. Workspace &amp; Projects</h2>
+        <h3>12.1 Workspaces &amp; Members</h3>
+        <p>Create separate workspaces for different research areas. Invite team members (Pro/Lab) and manage permissions.</p>
+
+        <h3>12.2 Projects</h3>
+        <p>Organise papers, reviews, evidence matrices, and chats into projects within a workspace.</p>
+
+        <h3>12.3 Screening Board &amp; PRISMA</h3>
+        <ul>
+          <li>Systematic review screening with <strong>Include / Exclude / Maybe</strong> statuses.</li>
+          <li>Auto‑generate a PRISMA flow diagram based on your screening decisions.</li>
+        </ul>
+
+        <h3>12.4 Annotations &amp; Highlights</h3>
+        <p>Highlight text and add margin notes on PDFs. All annotations are searchable and linked to the paper.</p>
+
+        <h3>12.5 Reading Progress</h3>
+        <p>Track percentage of pages read for each paper.</p>
+
+        <h3>12.6 Backup &amp; Restore</h3>
+        <ul>
+          <li><strong>Backup:</strong> Export your entire database (papers, chunks, vectors, settings) to a ZIP file.</li>
+          <li><strong>Restore:</strong> Import a previous backup.</li>
+          <li><strong>Privacy Data Export:</strong> Export all personal data in a machine‑readable format (JSON).</li>
+        </ul>
+      </section>
+
+      <!-- 13. AI Providers Configuration -->
+      <section id="ai-providers" class="section-block">
+        <h2>13. AI Providers Configuration</h2>
+        <h3>13.1 Cloud Free Mode</h3>
+        <p>Default mode, no setup required. Limited daily quota (fair use).</p>
+
+        <h3>13.2 Gemini, DeepSeek, Claude, Groq</h3>
+        <p>Enter your API key in Settings → AI Providers. Test the connection with the "Validate" button.</p>
+
+        <h3>13.3 Local AI (llama-server, GGUF)</h3>
+        <p>Download a GGUF model (e.g., Llama 3 7B) and run <code>llama-server</code>. Point ResearchMind to the local endpoint (default <code>http://localhost:8080</code>).</p>
+
+        <h3>13.4 Provider Fallback Chain</h3>
+        <p>Define an ordered list of providers. If one fails, the next in chain is used automatically.</p>
+
+        <h3>13.5 API Key Validation</h3>
+        <p>Test your API key before saving to ensure it's valid.</p>
+
+        <h3>13.6 Test Embedding Connection</h3>
+        <p>Verify that the embedding model (bge‑m3) is reachable and working.</p>
+      </section>
+
+      <!-- 14. Settings & System -->
+      <section id="settings" class="section-block">
+        <h2>14. Settings &amp; System</h2>
+        <h3>14.1 General Settings</h3>
+        <ul>
+          <li>Interface language</li>
+          <li>Default AI provider</li>
+          <li>Theme (Light/Dark) — currently Light</li>
+        </ul>
+
+        <h3>14.2 Cache Management</h3>
+        <ul>
+          <li>View cache size (embeddings, search results, LLM responses).</li>
+          <li>Clear cache to free up disk space.</li>
+        </ul>
+
+        <h3>14.3 System Diagnostics</h3>
+        <ul>
+          <li>Health metrics: backend status, database integrity.</li>
+          <li>Reliability score: success rate of AI calls.</li>
+          <li>Detect system specs: RAM, GPU, CPU.</li>
+        </ul>
+
+        <h3>14.4 Rebuild Index</h3>
+        <ul>
+          <li><strong>Rebuild FTS Index:</strong> Re‑create the full‑text search index.</li>
+          <li><strong>Rebuild Vector Index:</strong> Re‑embed all papers (time‑consuming).</li>
+        </ul>
+      </section>
+
+      <!-- 15. Licensing & Account -->
+      <section id="licensing" class="section-block">
+        <h2>15. Licensing &amp; Account</h2>
+        <h3>15.1 Free vs Pro vs Lab</h3>
+        <ul>
+          <li><strong>Free:</strong> 50 papers, basic search, 14‑day Pro trial.</li>
+          <li><strong>Pro ($4/mo):</strong> Unlimited papers, all AI features, priority support.</li>
+          <li><strong>Lab:</strong> Team features, custom deployment, dedicated support.</li>
+        </ul>
+
+        <h3>15.2 License Activation</h3>
+        <p>Enter your license key (sent via email after purchase) to activate Pro or Lab features.</p>
+
+        <h3>15.3 Google Sign‑in</h3>
+        <p>Optional: Sign in with your Google account to sync settings across devices (no library data is synced).</p>
+      </section>
+
+      <!-- 16. FAQ -->
+      <section id="faq" class="section-block">
+        <h2>16. FAQ</h2>
+
+        <h3>Privacy &amp; Data</h3>
+        <div class="faq-item">
+          <p><strong>Is my data private?</strong><br>Yes. ResearchMind is local‑first. Your PDFs, notes, and indexes stay on your machine. Cloud AI is only used when you explicitly enable it and send a query.</p>
+        </div>
+        <div class="faq-item">
+          <p><strong>What happens to my data if I uninstall?</strong><br>Local data persists in the application data directory. You can delete it from Settings or manually remove the ResearchMind folder.</p>
+        </div>
+
+        <h3>Offline Usage</h3>
+        <div class="faq-item">
+          <p><strong>Can I use ResearchMind offline?</strong><br>Yes. Use local AI models (llama-server, GGUF) for fully offline operation. Library management and search work without internet.</p>
+        </div>
+
+        <h3>Troubleshooting</h3>
+        <div class="faq-item">
+          <p><strong>Import fails / OCR not working.</strong><br>Check that the file isn't corrupted. For OCR, ensure you have sufficient RAM (scanned PDFs require more memory). Use the "Retry" button or trigger manual OCR.</p>
+        </div>
+        <div class="faq-item">
+          <p><strong>AI provider returns errors.</strong><br>Validate your API key in Settings. Check provider status. Enable fallback chain to automatically switch to another provider.</p>
+        </div>
+        <div class="faq-item">
+          <p><strong>Local LLM not loading.</strong><br>Ensure <code>llama-server</code> is running with the correct model path. Check that the endpoint URL in Settings matches.</p>
+        </div>
+
+        <h3>Support</h3>
+        <div class="faq-item">
+          <p><strong>Where can I get help?</strong><br>Email <a href="mailto:support@researchmind.app">support@researchmind.app</a>. Response times: Free – 3–5 days, Pro – 2 days, Lab – 1 day.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-top">
+            <img src="icon.ico" alt="ResearchMind" class="footer-brand-img" />
+            <span class="footer-brand-name">Research<span>Mind</span></span>
+          </div>
+          <p class="footer-brand-desc">AI-powered research workspace for academics. Your data stays on your machine. Cloud AI is optional.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="index.html#download">Download</a></li>
+            <li><a href="https://github.com/ViuGiaLai/researchmind/releases">Releases</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="docs.html">Documentation</a></li>
+            <li><a href="blog.html">Blog</a></li>
+            <li><a href="legal.html#privacy">Privacy Policy</a></li>
+            <li><a href="legal.html#terms">Terms of Service</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a></li>
+            <li><a href="mailto:support@researchmind.app">Email</a></li>
+            <li><a href="legal.html#support">Support</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copy">&copy; 2026 ResearchMind &mdash; MIT License &bull; Local-first research AI</p>
+        <div class="footer-social">
+          <a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a>
+          <a href="legal.html#support">Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    // Highlight active sidebar link on scroll
+    document.addEventListener('DOMContentLoaded', function() {
+      const sections = document.querySelectorAll('.section-block');
+      const navLinks = document.querySelectorAll('.docs-sidebar a');
+      const mobileSelect = document.getElementById('mobileToc');
+
+      function updateActive() {
+        let currentId = '';
+        sections.forEach(section => {
+          const rect = section.getBoundingClientRect();
+          if (rect.top <= 120) {
+            currentId = section.getAttribute('id');
+          }
+        });
+        if (currentId) {
+          navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + currentId);
+          });
+          if (mobileSelect) {
+            mobileSelect.value = '#' + currentId;
+          }
+        }
+      }
+
+      window.addEventListener('scroll', updateActive, { passive: true });
+      // Set initial active
+      setTimeout(updateActive, 100);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Features — ResearchMind</title>
+  <meta name="description" content="Complete feature list for ResearchMind: import, collections, hybrid search, AI chat, review builder, evidence matrix, discovery, projects, insights, graph, deep analysis, and more." />
+  <link rel="icon" type="image/x-icon" href="icon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Features Layout – Sidebar + Content */
+    .features-layout {
+      display: flex;
+      gap: 40px;
+      padding: 100px 0 60px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    .features-sidebar {
+      flex: 0 0 280px;
+      position: sticky;
+      top: 96px;
+      align-self: flex-start;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 16px;
+      border-right: 1px solid var(--border-subtle);
+    }
+    .features-sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .features-sidebar li {
+      margin-bottom: 2px;
+    }
+    .features-sidebar a {
+      display: block;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .features-sidebar a:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .features-sidebar a.active {
+      background: rgba(59,130,246,0.06);
+      color: var(--accent-blue);
+      font-weight: 600;
+    }
+    .features-sidebar .heading {
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 12px 12px 4px;
+      margin-top: 8px;
+    }
+
+    .features-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .features-content .section-block {
+      padding: 32px 0 40px;
+      border-bottom: 1px solid var(--border-subtle);
+      scroll-margin-top: 88px;
+    }
+    .features-content .section-block:last-of-type {
+      border-bottom: none;
+    }
+    .features-content h2 {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .features-content h2 .badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: white;
+      background: var(--accent-blue);
+      padding: 2px 10px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.3px;
+    }
+    .features-content h3 {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 16px 0 6px;
+    }
+    .features-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .features-content ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 12px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 16px;
+    }
+    .features-content ul li {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      padding: 3px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .features-content ul li::before {
+      content: '●';
+      color: var(--accent-blue);
+      font-size: 0.5rem;
+    }
+    .features-content .feature-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    .features-content .feature-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    .features-content .feature-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    .feature-card-compact {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-sm);
+    }
+    .feature-card-compact .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .feature-card-compact .icon.blue { background: rgba(59,130,246,0.08); color: var(--accent-blue); }
+    .feature-card-compact .icon.purple { background: rgba(139,92,246,0.08); color: var(--accent-purple); }
+    .feature-card-compact .icon.teal { background: rgba(6,182,212,0.08); color: var(--accent-teal); }
+    .feature-card-compact .icon.emerald { background: rgba(16,185,129,0.08); color: var(--accent-emerald); }
+    .feature-card-compact .icon.amber { background: rgba(251,191,36,0.08); color: #d97706; }
+    .feature-card-compact .icon.rose { background: rgba(244,63,94,0.08); color: #e11d48; }
+    .feature-card-compact .icon.slate { background: rgba(100,116,139,0.08); color: var(--text-secondary); }
+    .feature-card-compact h4 {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .feature-card-compact p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    /* Mobile TOC */
+    .features-toc-mobile {
+      display: none;
+      margin-bottom: 24px;
+    }
+    .features-toc-mobile select {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--bg-body);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      cursor: pointer;
+    }
+
+    @media (max-width: 1024px) {
+      .features-sidebar { flex-basis: 220px; }
+    }
+    @media (max-width: 768px) {
+      .features-layout { flex-direction: column; padding: 80px 0 40px; }
+      .features-sidebar {
+        display: none;
+        position: static;
+        max-height: none;
+        border-right: none;
+        padding-right: 0;
+      }
+      .features-sidebar.open { display: block; }
+      .features-toc-mobile { display: block; }
+      .features-content .feature-grid-2,
+      .features-content .feature-grid-3,
+      .features-content .feature-grid-4 { grid-template-columns: 1fr; }
+      .features-content ul { grid-template-columns: 1fr; }
+      .features-content h2 { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar" id="navbar">
+    <a href="index.html" class="nav-brand">
+      <img src="icon.ico" alt="ResearchMind" class="nav-brand-img" />
+      <span class="nav-brand-text">Research<span>Mind</span></span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="features.html" class="active-page">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="index.html#download" class="nav-cta">Download</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- Features Layout -->
+  <div class="container features-layout">
+
+    <!-- Sidebar -->
+    <aside class="features-sidebar" id="featuresSidebar">
+      <div style="padding:8px 12px 16px;font-weight:700;font-size:0.9rem;">All Features</div>
+      <ul>
+        <li class="heading">Core</li>
+        <li><a href="#import" class="active">1. Import &amp; Indexing</a></li>
+        <li><a href="#library">2. Library &amp; Collections</a></li>
+        <li><a href="#search">3. Hybrid Search</a></li>
+        <li><a href="#chat">4. AI Chat</a></li>
+        <li><a href="#review">5. Review Builder</a></li>
+        <li><a href="#evidence">6. Evidence Matrix</a></li>
+
+        <li class="heading">Discover &amp; Analyze</li>
+        <li><a href="#discovery">7. Discovery</a></li>
+        <li><a href="#workspace">8. Project Workspace</a></li>
+        <li><a href="#insights">9. Insights</a></li>
+        <li><a href="#deep">10. Deep Analysis</a></li>
+        <li><a href="#graph">11. Knowledge Graph</a></li>
+        <li><a href="#brain">12. Personal Brain</a></li>
+
+        <li class="heading">Configure &amp; Control</li>
+        <li><a href="#ai-providers">13. AI Providers</a></li>
+        <li><a href="#privacy">14. Privacy &amp; Data</a></li>
+        <li><a href="#licensing">15. Licensing &amp; Account</a></li>
+        <li><a href="#help">16. Help &amp; Experience</a></li>
+      </ul>
+    </aside>
+
+    <!-- Mobile TOC -->
+    <div class="features-toc-mobile">
+      <select id="mobileTocFeatures" onchange="location.hash=this.value;this.blur();">
+        <option value="#import">1. Import &amp; Indexing</option>
+        <option value="#library">2. Library &amp; Collections</option>
+        <option value="#search">3. Hybrid Search</option>
+        <option value="#chat">4. AI Chat</option>
+        <option value="#review">5. Review Builder</option>
+        <option value="#evidence">6. Evidence Matrix</option>
+        <option value="#discovery">7. Discovery</option>
+        <option value="#workspace">8. Project Workspace</option>
+        <option value="#insights">9. Insights</option>
+        <option value="#deep">10. Deep Analysis</option>
+        <option value="#graph">11. Knowledge Graph</option>
+        <option value="#brain">12. Personal Brain</option>
+        <option value="#ai-providers">13. AI Providers</option>
+        <option value="#privacy">14. Privacy &amp; Data</option>
+        <option value="#licensing">15. Licensing &amp; Account</option>
+        <option value="#help">16. Help &amp; Experience</option>
+      </select>
+    </div>
+
+    <!-- Content -->
+    <main class="features-content">
+
+      <!-- 1. Import -->
+      <section id="import" class="section-block">
+        <h2>1. Import &amp; Indexing <span class="badge">Core</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">📄</div><h4>Multi-Format</h4><p>PDF, DOCX, EPUB, TXT, MD, HTML, BibTeX, RIS, Zotero</p></div>
+          <div class="feature-card-compact"><div class="icon teal">⏳</div><h4>Smart Queue</h4><p>queued → parsing → embedding → indexing → OCR → summarizing → ready</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🔄</div><h4>OCR &amp; Retry</h4><p>RapidOCR for scanned PDFs. Manual OCR retry on failure.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📁</div><h4>Scan Folder</h4><p>Import all supported files from a directory with one click.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">🔗</div><h4>Zotero Sync</h4><p>Direct sync with Zotero SQLite — metadata and PDFs.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">📋</div><h4>BibTeX / RIS</h4><p>Import metadata from BibTeX and RIS files.</p></div>
+        </div>
+      </section>
+
+      <!-- 2. Library -->
+      <section id="library" class="section-block">
+        <h2>2. Library &amp; Collections <span class="badge">Core</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">⭐</div><h4>Paper Management</h4><p>Star, read status, edit metadata, delete. Bulk operations.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">📂</div><h4>Collections</h4><p>Create, edit, delete. Add/remove papers. Organise by topic.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🔖</div><h4>Saved Searches</h4><p>Save any search with filters. Quick access from sidebar.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">🏷️</div><h4>Tags &amp; Filters</h4><p>Custom tags. Filter by collection, tag, year, type, status.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">🖍️</div><h4>Highlights Library</h4><p>View all highlights, filter by paper, search, chat from highlight.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">📖</div><h4>PDF Viewer</h4><p>Inline viewing, page nav, highlights, notes, reading progress.</p></div>
+        </div>
+      </section>
+
+      <!-- 3. Search -->
+      <section id="search" class="section-block">
+        <h2>3. Hybrid Search <span class="badge">Core</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">🔍</div><h4>BM25 + Vector + Rerank</h4><p>SQLite FTS5 + ChromaDB + optional cross-encoder.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🎯</div><h4>Advanced Filters</h4><p>Collection, tag, year, type, read status, starred.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">💾</div><h4>Saved Searches</h4><p>Save queries with filters. One-click reuse.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📊</div><h4>Confidence Scoring</h4><p>Calibrated scores for each result.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">💡</div><h4>Search Suggestions</h4><p>Real‑time suggestions as you type.</p></div>
+        </div>
+      </section>
+
+      <!-- 4. Chat -->
+      <section id="chat" class="section-block">
+        <h2>4. AI Chat <span class="badge">Core</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">💬</div><h4>5 Chat Modes</h4><p>Free, Evidence‑Only, Critique, Debate, Verify.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">📚</div><h4>Multi‑Paper</h4><p>Select multiple papers for comparison and synthesis.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">📎</div><h4>Citation &amp; Trust</h4><p>Source chips, page numbers, trust scores per claim.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">🤔</div><h4>Suggest Questions</h4><p>AI generates recommended questions based on paper.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">⚡</div><h4>Reasoning Modes</h4><p>Fast vs Deep (reasoning) mode.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">🌐</div><h4>Multi‑Language</h4><p>English, Vietnamese, Japanese. Backend adapts.</p></div>
+        </div>
+      </section>
+
+      <!-- 5. Review -->
+      <section id="review" class="section-block">
+        <h2>5. Literature Review Builder <span class="badge">Core</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">📝</div><h4>7‑Section Review</h4><p>Background → Methods → Results → Discussion → Gap → Future → Conclusion.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">📋</div><h4>Outline &amp; Streaming</h4><p>Generate outline first, then stream full draft in real‑time.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">✏️</div><h4>Section Regeneration</h4><p>Regenerate any section independently.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">✅</div><h4>Quality Check</h4><p>AI evaluates coherence, completeness, citation coverage.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">📁</div><h4>Versions &amp; Restore</h4><p>Save drafts, view history, restore previous versions.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">📤</div><h4>Export</h4><p>DOCX, Markdown, LaTeX, HTML.</p></div>
+        </div>
+      </section>
+
+      <!-- 6. Evidence -->
+      <section id="evidence" class="section-block">
+        <h2>6. Evidence Matrix <span class="badge">Core</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">📊</div><h4>Custom Criteria</h4><p>Define your own evaluation criteria.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🔎</div><h4>AI Claim Extraction</h4><p>Extract claims with source quotes per paper.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">📋</div><h4>Comparison Table</h4><p>Rows = criteria, columns = papers. Click for quotes.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">💾</div><h4>Draft Versioning</h4><p>Save, rename, delete multiple drafts.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">📤</div><h4>Export to CSV</h4><p>For further analysis in Excel or other tools.</p></div>
+        </div>
+      </section>
+
+      <!-- 7. Discovery -->
+      <section id="discovery" class="section-block">
+        <h2>7. Discovery <span class="badge">Discover</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">🌐</div><h4>External Search</h4><p>Search OpenAlex and Semantic Scholar for new papers.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🔎</div><h4>Filters</h4><p>Year range, open‑access only.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🌍</div><h4>Translation</h4><p>Translate titles and abstracts (EN → VI).</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">➕</div><h4>One‑Click Import</h4><p>Add papers directly from discovery results.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">💾</div><h4>Save Search Strategy</h4><p>Save queries for later reuse.</p></div>
+        </div>
+      </section>
+
+      <!-- 8. Workspace -->
+      <section id="workspace" class="section-block">
+        <h2>8. Project Workspace <span class="badge">Discover</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">📁</div><h4>Projects</h4><p>CRUD for research projects. Assign research questions.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">👥</div><h4>Collaborators</h4><p>Add team members (Pro/Lab). Full audit trail.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🔄</div><h4>Living Review</h4><p>Register queries; system monitors and alerts for new papers.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📋</div><h4>Screening Board</h4><p>Include / Exclude / Maybe. Auto‑generate PRISMA diagram.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">🖍️</div><h4>Annotations</h4><p>Highlight, notes on PDFs. Track reading progress.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">📎</div><h4>Evidence Collection</h4><p>Collect quotes and notes into project artifacts.</p></div>
+        </div>
+      </section>
+
+      <!-- 9. Insights -->
+      <section id="insights" class="section-block">
+        <h2>9. Insights <span class="badge">Analyze</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">🔎</div><h4>Gap Detection</h4><p>Identify under‑represented topics in your library.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">⚡</div><h4>Conflict Analysis</h4><p>Detect methodology conflicts and contradictions.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">💡</div><h4>Topic Suggestions</h4><p>AI proposes new research topics.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📈</div><h4>Evolution Map</h4><p>Timeline of field evolution by publication dates.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">📊</div><h4>Paper Comparison</h4><p>Side‑by‑side comparison of multiple papers.</p></div>
+        </div>
+      </section>
+
+      <!-- 10. Deep -->
+      <section id="deep" class="section-block">
+        <h2>10. Deep Analysis <span class="badge">Analyze</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">⚙️</div><h4>5‑Step Pipeline</h4><p>Summary → Critique → Conflict → Gap → Debate. Runs in parallel.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">📥</div><h4>Drag &amp; Drop</h4><p>Drop PDFs to auto‑import, index, and run analysis.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🔄</div><h4>Regenerate</h4><p>Regenerate any step or the entire pipeline.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📊</div><h4>Stepper Status</h4><p>Visual progress bar with animated loading messages.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">📋</div><h4>Copy &amp; Export</h4><p>Copy any section to clipboard.</p></div>
+        </div>
+      </section>
+
+      <!-- 11. Graph -->
+      <section id="graph" class="section-block">
+        <h2>11. Knowledge Graph <span class="badge">Analyze</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">🌐</div><h4>Automated Build</h4><p>extract → cluster → summarize. Real‑time progress.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🔍</div><h4>Entity Explorer</h4><p>Browse entities, communities, and relationships.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🎨</div><h4>Visualization</h4><p>Interactive D3/force‑directed graph. Pan, zoom, click.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">🔎</div><h4>3 Query Strategies</h4><p>Local, Global, Drift — search the graph.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">📊</div><h4>Stats Dashboard</h4><p>Entities, relationships, communities, reports.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">🗑️</div><h4>Cancel / Delete</h4><p>Cancel running build, clear or delete graph.</p></div>
+        </div>
+      </section>
+
+      <!-- 12. Brain -->
+      <section id="brain" class="section-block">
+        <h2>12. Personal Brain <span class="badge">Personal</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">📊</div><h4>Reading Stats</h4><p>Papers read, time spent, pages per day, streaks.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">💡</div><h4>Recommendations</h4><p>Personalised suggestions based on reading history.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🏷️</div><h4>Tag Organization</h4><p>Organise knowledge by tags and topic clusters.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📅</div><h4>Daily Suggestions</h4><p>Priority‑based recommendations delivered daily.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">🔥</div><h4>Reading Streaks</h4><p>Track daily reading consistency.</p></div>
+        </div>
+      </section>
+
+      <!-- 13. AI Providers -->
+      <section id="ai-providers" class="section-block">
+        <h2>13. AI Providers <span class="badge">Configure</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">☁️</div><h4>Cloud Free</h4><p>Ready to use. Limited daily quota.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🔑</div><h4>BYOK</h4><p>Gemini, DeepSeek, Claude, Groq. Validate keys.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🖥️</div><h4>Local AI</h4><p>llama‑server, GGUF models. Offline capable.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">🔗</div><h4>Fallback Chain</h4><p>Ordered list. Auto‑switch on failure.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">✅</div><h4>Key Validation</h4><p>Test API keys before saving. Cache management.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">🧪</div><h4>Test Embedding</h4><p>Verify bge‑m3 connection.</p></div>
+        </div>
+      </section>
+
+      <!-- 14. Privacy -->
+      <section id="privacy" class="section-block">
+        <h2>14. Privacy &amp; Data <span class="badge">Configure</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">🔒</div><h4>Local‑First</h4><p>All data stays on your machine.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">⚖️</div><h4>Cloud AI Consent</h4><p>Toggle on/off. Redact metadata before sending.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">💾</div><h4>Backup &amp; Restore</h4><p>ZIP backups of your entire database.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">📤</div><h4>Data Export</h4><p>JSON export of all personal data.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">📋</div><h4>Diagnostic Logs</h4><p>View and delete logs. Control what's sent.</p></div>
+        </div>
+      </section>
+
+      <!-- 15. Licensing -->
+      <section id="licensing" class="section-block">
+        <h2>15. Licensing &amp; Account <span class="badge">Configure</span></h2>
+        <div class="feature-grid-3">
+          <div class="feature-card-compact"><div class="icon blue">💳</div><h4>Plans</h4><p>Free (50 papers, 14‑day trial), Pro (unlimited), Lab (team).</p></div>
+          <div class="feature-card-compact"><div class="icon purple">🔑</div><h4>License Activation</h4><p>Enter key to activate. View entitlements and expiry.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">🔐</div><h4>Google Sign‑In</h4><p>Optional OAuth login. Sync settings across devices.</p></div>
+        </div>
+      </section>
+
+      <!-- 16. Help -->
+      <section id="help" class="section-block">
+        <h2>16. Help &amp; Experience <span class="badge">UX</span></h2>
+        <div class="feature-grid-4">
+          <div class="feature-card-compact"><div class="icon blue">🎓</div><h4>Welcome Tour</h4><p>5‑step onboarding tour.</p></div>
+          <div class="feature-card-compact"><div class="icon purple">❓</div><h4>Help Center</h4><p>Context‑sensitive help.</p></div>
+          <div class="feature-card-compact"><div class="icon teal">⌨️</div><h4>Command Palette</h4><p>Ctrl+K quick navigation.</p></div>
+          <div class="feature-card-compact"><div class="icon emerald">⌨️</div><h4>Shortcuts</h4><p>Full keyboard shortcut guide.</p></div>
+          <div class="feature-card-compact"><div class="icon amber">🌐</div><h4>Multi‑Language</h4><p>EN, VI, JP.</p></div>
+          <div class="feature-card-compact"><div class="icon rose">📱</div><h4>Responsive</h4><p>4 viewport levels.</p></div>
+          <div class="feature-card-compact"><div class="icon slate">🛡️</div><h4>Error Handling</h4><p>Backend unavailable, retry, error boundaries.</p></div>
+          <div class="feature-card-compact"><div class="icon slate">⏳</div><h4>Skeleton Loading</h4><p>Graceful loading states.</p></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-top">
+            <img src="icon.ico" alt="ResearchMind" class="footer-brand-img" />
+            <span class="footer-brand-name">Research<span>Mind</span></span>
+          </div>
+          <p class="footer-brand-desc">AI-powered research workspace for academics. Your data stays on your machine. Cloud AI is optional.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul><li><a href="features.html">Features</a></li><li><a href="pricing.html">Pricing</a></li><li><a href="index.html#download">Download</a></li><li><a href="https://github.com/ViuGiaLai/researchmind/releases">Releases</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul><li><a href="docs.html">Documentation</a></li><li><a href="blog.html">Blog</a></li><li><a href="legal.html#privacy">Privacy Policy</a></li><li><a href="legal.html#terms">Terms of Service</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a></li><li><a href="mailto:support@researchmind.app">Email</a></li><li><a href="legal.html#support">Support</a></li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copy">&copy; 2026 ResearchMind &mdash; MIT License &bull; Local-first research AI</p>
+        <div class="footer-social"><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a><a href="legal.html#support">Support</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    // Active sidebar link on scroll
+    document.addEventListener('DOMContentLoaded', function() {
+      const sections = document.querySelectorAll('.section-block');
+      const navLinks = document.querySelectorAll('.features-sidebar a');
+      const mobileSelect = document.getElementById('mobileTocFeatures');
+
+      function updateActive() {
+        let currentId = '';
+        sections.forEach(function(section) {
+          var rect = section.getBoundingClientRect();
+          if (rect.top <= 120) {
+            currentId = section.getAttribute('id');
+          }
+        });
+        if (currentId) {
+          navLinks.forEach(function(link) {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + currentId);
+          });
+          if (mobileSelect) {
+            mobileSelect.value = '#' + currentId;
+          }
+        }
+      }
+
+      window.addEventListener('scroll', updateActive, { passive: true });
+      setTimeout(updateActive, 100);
+    });
+  </script>
+</body>
+</html>

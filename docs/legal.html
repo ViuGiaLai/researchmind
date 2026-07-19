@@ -1,69 +1,183 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Policies & Support — ResearchMind</title>
-  <meta name="description" content="ResearchMind privacy policy, terms of service, refund policy, and support information.">
-  <link rel="icon" href="icon.ico">
-  <link rel="stylesheet" href="style.css">
-  <style>
-    .legal-shell{width:min(900px,calc(100% - 32px));margin:0 auto;padding:32px 0 80px}
-    .legal-nav{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 42px}
-    .legal-nav a{color:var(--text-secondary);text-decoration:none;border-bottom:1px solid var(--border-color);padding:7px 0}
-    .legal-section{padding:32px 0;border-top:1px solid var(--border-color)}
-    .legal-section h1,.legal-section h2{letter-spacing:-.04em}
-    .legal-section p,.legal-section li{max-width:72ch;color:var(--text-secondary);line-height:1.75}
-    .legal-note{padding:14px 16px;border:1px solid var(--border-color);border-radius:var(--radius-md);background:var(--bg-card)}
-  </style>
+  <meta name="description" content="ResearchMind privacy policy, terms of service, refund policy, and support." />
+  <link rel="icon" type="image/x-icon" href="icon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="legal-shell">
-    <a href="index.html" class="btn btn-outline">← ResearchMind</a>
-    <nav class="legal-nav" aria-label="Policies">
-      <a href="#privacy">Privacy</a>
+  <div class="ambient-mesh">
+    <div class="mesh-blob mesh-blob-1"></div>
+    <div class="mesh-blob mesh-blob-2"></div>
+    <div class="mesh-blob mesh-blob-3"></div>
+  </div>
+
+  <nav class="navbar" id="navbar">
+    <a href="index.html" class="nav-brand">
+      <img src="icon.ico" alt="ResearchMind" class="nav-brand-img" />
+      <span class="nav-brand-text">Research<span>Mind</span></span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="index.html#download" class="nav-cta">Download</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1>Policies &amp; <span class="gradient-text">Support</span></h1>
+      <p>Privacy, terms, refunds, and how to get help.</p>
+    </div>
+  </div>
+
+  <div class="content-shell">
+    <div class="content-nav">
+      <a href="#privacy" class="active-nav">Privacy</a>
       <a href="#terms">Terms</a>
       <a href="#refund">Refunds</a>
       <a href="#support">Support</a>
-    </nav>
+    </div>
 
-    <section id="privacy" class="legal-section">
-      <p class="promo-badge">Updated July 17, 2026</p>
+    <section id="privacy" class="content-section reveal">
       <h1>Privacy Policy</h1>
+      <p><strong>Last updated:</strong> July 17, 2026</p>
       <p>ResearchMind is a local-first desktop application. PDFs, notes, chat history, SQLite databases, and vector indexes stay on your device by default. Creating an account does not sync your library to the cloud.</p>
+
       <h2>Data that may leave your device</h2>
       <ul>
         <li>When you choose a cloud AI provider, the content required for your request and your API key are sent directly to that provider.</li>
         <li>DOI lookup and academic search send queries to OpenAlex, Crossref, Semantic Scholar, or services displayed in the app.</li>
         <li>Optional sign-in sends minimal identity data to Firebase Authentication.</li>
       </ul>
+
+      <h2>Data Security</h2>
       <p>ResearchMind does not sell your research data. Crash reporting or telemetry are only enabled with clear notice and explicit consent. You can delete local data from Settings or uninstall the app using support guidelines.</p>
+
+      <div class="content-note">
+        <strong>Privacy first:</strong> Your research data belongs to you. We designed ResearchMind so that even if you never connect to the internet, the entire application works. Your intellectual property stays on your machine.
+      </div>
+
+      <h2>Contact</h2>
       <p>Privacy inquiries: <a href="mailto:support@researchmind.app">support@researchmind.app</a>.</p>
     </section>
 
-    <section id="terms" class="legal-section">
+    <section id="terms" class="content-section reveal">
       <h2>Terms of Service</h2>
       <p>ResearchMind assists research but does not replace reading primary sources, academic peer review, or professional advice. AI-generated results may be incorrect, incomplete, or produce inaccurate citations; users are responsible for verification before publication.</p>
+
+      <h3>Acceptable Use</h3>
       <ul>
         <li>Do not use the product to infringe copyright, gain unauthorized access, or process data you do not have the right to use.</li>
         <li>Personal licenses may not be shared, resold, or used by multiple people beyond the scope of your plan.</li>
         <li>Third-party API costs are borne by the user when using their own API key.</li>
         <li>The service may be updated to fix security issues, comply with laws, or improve compatibility.</li>
       </ul>
-      <p class="legal-note"><strong>Required before selling:</strong> legal entity or individual business name, contact address, tax ID, and applicable dispute resolution authority.</p>
+
+      <h3>Disclaimer</h3>
+      <p>ResearchMind is provided "as is" without warranty of any kind. The developers are not liable for any damages arising from the use of this software, including but not limited to incorrect research conclusions, data loss, or service interruptions.</p>
+
+      <div class="content-note">
+        <strong>Commercial use:</strong> Organizations using ResearchMind in a commercial or institutional setting should contact us for appropriate licensing terms.
+      </div>
     </section>
 
-    <section id="refund" class="legal-section">
+    <section id="refund" class="content-section reveal">
       <h2>Refund Policy</h2>
-      <p>Customers may request a refund within 14 days of the first purchase if the product does not work on the published system requirements and support cannot resolve the issue. Refunds are not available for third-party API costs, terms violations, or renewals used beyond this period.</p>
-      <p>Send an email with your order ID, purchase email, app version, and error description. If approved, the associated license will be revoked and the refund processed within 7–10 business days.</p>
+      <p>Customers may request a refund within 14 days of the first purchase if the product does not work on the published system requirements and support cannot resolve the issue.</p>
+
+      <h3>Non-Refundable Items</h3>
+      <ul>
+        <li>Third-party API costs incurred through your own API key</li>
+        <li>Terms of service violations</li>
+        <li>Renewals used beyond the 14-day refund window</li>
+      </ul>
+
+      <h3>How to Request a Refund</h3>
+      <p>Send an email to <a href="mailto:support@researchmind.app">support@researchmind.app</a> with your order ID, purchase email, app version, and error description. If approved, the associated license will be revoked and the refund processed within 7–10 business days.</p>
     </section>
 
-    <section id="support" class="legal-section">
+    <section id="support" class="content-section reveal">
       <h2>Support Policy</h2>
-      <p>Email: <a href="mailto:support@researchmind.app">support@researchmind.app</a>. Target response times: 2 business days for Pro, 1 business day for Lab. Support includes setup, activation, import/index issues, and reproducible functionality bugs.</p>
+      <p>Email: <a href="mailto:support@researchmind.app">support@researchmind.app</a></p>
+
+      <h3>Response Times</h3>
+      <ul>
+        <li><strong>Free tier:</strong> Best effort, typically 3–5 business days</li>
+        <li><strong>Pro:</strong> 2 business days</li>
+        <li><strong>Lab:</strong> 1 business day</li>
+      </ul>
+
+      <h3>Scope of Support</h3>
+      <p>Support includes setup, activation, import/index issues, and reproducible functionality bugs. We do not provide consulting on research methodology or statistical analysis.</p>
+
+      <h3>Reporting Issues</h3>
       <p>When reporting issues, do not send papers or API keys unless requested through a secure channel. Include your app version, operating system, reproduction steps, and logs verified to contain no sensitive data.</p>
+
+      <div class="content-note">
+        <strong>Quick tip:</strong> Most common issues are covered in our <a href="docs.html">documentation</a>. Check there first for faster resolution.
+      </div>
     </section>
-  </main>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-top">
+            <img src="icon.ico" alt="ResearchMind" class="footer-brand-img" />
+            <span class="footer-brand-name">Research<span>Mind</span></span>
+          </div>
+          <p class="footer-brand-desc">AI-powered research workspace for academics. Your data stays on your machine. Cloud AI is optional.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="index.html#download">Download</a></li>
+            <li><a href="https://github.com/ViuGiaLai/researchmind/releases">Releases</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="docs.html">Documentation</a></li>
+            <li><a href="blog.html">Blog</a></li>
+            <li><a href="legal.html#privacy">Privacy Policy</a></li>
+            <li><a href="legal.html#terms">Terms of Service</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a></li>
+            <li><a href="mailto:support@researchmind.app">Email</a></li>
+            <li><a href="legal.html#support">Support</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copy">&copy; 2026 ResearchMind &mdash; MIT License &bull; Local-first research AI</p>
+        <div class="footer-social">
+          <a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a>
+          <a href="legal.html#support">Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
