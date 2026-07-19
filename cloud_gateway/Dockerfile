@@ -5,9 +5,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8080
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
+COPY requirements.txt /app/cloud_gateway/
+RUN pip install --no-cache-dir -r /app/cloud_gateway/requirements.txt
+COPY . /app/cloud_gateway/
 
 RUN useradd --create-home --uid 10001 gateway
 USER gateway
