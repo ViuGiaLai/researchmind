@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type Paper } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
 import { IconChat, IconFileText, IconFolder, IconLibrary, IconSearch, IconSettings } from "../Icons";
 
@@ -71,7 +72,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose, o
               {loading ? <div className="command-loading">{t("common.loading")}</div> : papers.map((paper) => (
                 <button type="button" key={paper.id} onClick={() => { onOpenPaper(paper.id); onClose(); }}>
                   <IconFileText size={15} />
-                  <span><strong>{paper.title || paper.filename}</strong><small>{paper.year || t("command.unknown_year")}</small></span>
+                  <span><strong>{paperDisplayTitle(paper.title, paper.filename)}</strong><small>{paper.year || t("command.unknown_year")}</small></span>
                   <em>{t("command.ask")}</em>
                 </button>
               ))}

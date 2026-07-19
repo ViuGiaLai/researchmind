@@ -77,7 +77,8 @@
 }
 
 html, body, #root { width: 100%; min-width: 0; height: 100%; background: var(--color-bg); }
-body { font-family: var(--font-sans); font-size: 14px; line-height: 1.55; letter-spacing: -.006em; }
+body { font-family: var(--font-sans); font-size: 14px; line-height: 1.55; }
+body:lang(en) { letter-spacing: -.006em; }
 
 /*
  * Vietnamese glyph shaping guard.
@@ -87,14 +88,34 @@ body { font-family: var(--font-sans); font-size: 14px; line-height: 1.55; letter
 :lang(vi) {
   letter-spacing: normal !important;
   word-spacing: normal !important;
-  font-kerning: auto;
-  font-variant-ligatures: normal;
-  font-feature-settings: normal;
-  text-rendering: auto;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "kern" 0, "liga" 0;
+  text-rendering: geometricPrecision;
+  font-synthesis: none;
 }
 
 html:lang(vi) body {
   font-family: "Segoe UI", "Arial", "Tahoma", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Long-form Vietnamese content (summaries, notes, review body) */
+.vi-text-safe,
+html:lang(vi) .preview-summary-content,
+html:lang(vi) .summary-item-value,
+html:lang(vi) .summary-text,
+html:lang(vi) .library-card-title,
+html:lang(vi) .preview-title,
+html:lang(vi) .metadata-value,
+html:lang(vi) .review-paper-chip__label {
+  font-family: "Segoe UI", "Arial", "Tahoma", sans-serif !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  font-feature-settings: "kern" 0, "liga" 0 !important;
+  font-variant-ligatures: none !important;
+  text-rendering: geometricPrecision;
+  font-synthesis: none;
 }
 
 /*
@@ -509,6 +530,21 @@ button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active
   border-radius: var(--radius-sm);
 }
 .evidence-matrix-view, .review-builder { padding: 22px 24px 30px; }
+
+/* Review Builder paper chips — truncate long titles / IDs cleanly */
+.review-paper-chip {
+  max-width: min(100%, 320px);
+  min-width: 0;
+}
+.review-paper-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 260px;
+  display: inline-block;
+  letter-spacing: normal;
+}
 
 /* Cross-page workspace consistency --------------------------------------- */
 :where(

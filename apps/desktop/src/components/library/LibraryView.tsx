@@ -2,6 +2,11 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
 import { api, Collection, Paper, RelatedPaper, Highlight, ChunkMatch, getAuthenticatedApiUrl } from "../../lib/api";
+import {
+  paperDisplayAuthors,
+  paperDisplayTitle,
+  repairVietnameseDisplayText,
+} from "../../lib/paperDisplay";
 import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
@@ -488,7 +493,7 @@ export const LibraryView: React.FC<{
     try {
       const res = await api.getRelatedPaperMatches(activePaper.id, otherPaperId, 10);
       setMatchModalData({
-        sourceTitle: activePaper.title || activePaper.filename,
+        sourceTitle: paperDisplayTitle(activePaper.title, activePaper.filename),
         otherTitle: otherTitle || res.other_paper_title,
         similarity,
         matches: res.matches,
@@ -806,12 +811,15 @@ export const LibraryView: React.FC<{
                 </div>
                 <div className="library-card-content">
                   <div className="library-card-header">
-                    <span className="library-card-title">{p.title || p.filename}</span>
+                    <span className="library-card-title" title={paperDisplayTitle(p.title, p.filename)}>
+                      {paperDisplayTitle(p.title, p.filename)}
+                    </span>
                   </div>
                   <div className="library-card-meta">
-                    {p.authors && p.authors !== "[]" && (
-                      <span>{p.authors.replace(/[\[\]"']/g, "")} · </span>
-                    )}
+                    {(() => {
+                      const authors = paperDisplayAuthors(p.authors);
+                      return authors.length > 0 ? <span>{authors.join(", ")} · </span> : null;
+                    })()}
                     {p.year && <span>{p.year} · </span>}
                     <span>{p.language.toUpperCase()} · </span>
                     <span>{p.page_count || "?"} {t("library_view.page_unit")}</span>
@@ -862,8 +870,8 @@ export const LibraryView: React.FC<{
         {activePaper ? (
           <>
             <div className="preview-header">
-              <h3 className="preview-title" title={activePaper.title || activePaper.filename}>
-                {activePaper.title || activePaper.filename}
+              <h3 className="preview-title" title={paperDisplayTitle(activePaper.title, activePaper.filename)}>
+                {paperDisplayTitle(activePaper.title, activePaper.filename)}
               </h3>
                {panelNarrow ? (
                 <div className="preview-actions-narrow">
@@ -1098,8 +1106,8 @@ export const LibraryView: React.FC<{
                       </span>
                       <span className="preview-summary-label">{t("library_view.summary_label")}</span>
                     </div>
-                    <div className="preview-summary-content">
-                      {activePaper.auto_summary.split('\n').map((line, i) => {
+                    <div className="preview-summary-content vi-text-safe">
+                      {repairVietnameseDisplayText(activePaper.auto_summary).split('\n').map((line, i) => {
                         if (line.startsWith('###')) return <h4 key={i} className="summary-heading">{line.replace(/^#+\s*/, '')}</h4>;
                         if (line.startsWith('* **')) {
                           const parts = line.replace(/^\*\s*/, '').split(':');
@@ -1181,9 +1189,10 @@ export const LibraryView: React.FC<{
                   <div className="metadata-item">
                     <span className="metadata-label">{t("library_view.author_label")}</span>
                     <span className="metadata-value">
-                      {activePaper.authors && activePaper.authors !== "[]"
-                        ? activePaper.authors.replace(/[\[\]"']/g, "")
-                        : t("library_view.info_missing")}
+                      {(() => {
+                        const authors = paperDisplayAuthors(activePaper.authors);
+                        return authors.length > 0 ? authors.join(", ") : t("library_view.info_missing");
+                      })()}
                     </span>
                   </div>
 
@@ -1433,7 +1442,7 @@ export const LibraryView: React.FC<{
               <div className="pdf-iframe-container">
                 <PdfViewer
                   paperId={activePaper.id}
-                  paperTitle={activePaper.title || activePaper.filename}
+                  paperTitle={paperDisplayTitle(activePaper.title, activePaper.filename)}
                   totalPages={activePaper.page_count}
                   mode="embedded"
                 />

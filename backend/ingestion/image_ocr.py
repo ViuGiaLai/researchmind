@@ -13,6 +13,7 @@ from loguru import logger
 # ocr_image_bytes holds it while get_ocr_engine performs lazy initialization.
 _ocr_lock = threading.RLock()
 _global_ocr_engine = None
+_MISSING = object()
 
 MIN_IMAGE_DIM = 80
 MIN_IMAGE_BYTES = 4096
@@ -30,10 +31,13 @@ def get_ocr_engine():
     global _global_ocr_engine
     with _ocr_lock:
         if _global_ocr_engine is None:
-            from rapidocr_onnxruntime import RapidOCR
-
-            _global_ocr_engine = RapidOCR()
-        return _global_ocr_engine
+            try:
+                from rapidocr_onnxruntime import RapidOCR
+                _global_ocr_engine = RapidOCR()
+            except ImportError:
+                logger.warning("OCR engine not available (install rapidocr-onnxruntime + opencv-python)")
+                _global_ocr_engine = _MISSING
+        return None if _global_ocr_engine is _MISSING else _global_ocr_engine
 
 
 def _image_dimensions(image_bytes: bytes) -> Optional[tuple[int, int]]:
@@ -112,6 +116,12 @@ def ocr_image_bytes(
             if res and len(res) > 1 and str(res[1]).strip()
         ]
         text = "\n".join(lines).strip()
+        if text:
+            try:
+                from .metadata_quality import normalize_ocr_page_text
+                text = normalize_ocr_page_text(text)
+            except Exception:
+                pass
         return text if len(text) >= min_chars else None
     except Exception as exc:
         logger.warning(f"Image OCR failed: {exc}")

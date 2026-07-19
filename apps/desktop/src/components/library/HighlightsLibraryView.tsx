@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
 import { api, Paper, Highlight, ChatResponse, getAuthenticatedApiUrl } from "../../lib/api";
+import { paperDisplayAuthors, paperDisplayTitle } from "../../lib/paperDisplay";
 import { useToast } from "../shared/Toast";
 import { HighlightListSkeleton } from "../shared/Skeleton";
 import { MarkdownRenderer } from "../chat/MarkdownRenderer";
@@ -306,7 +307,7 @@ export const HighlightsLibraryView: React.FC<{
   }, [selectedPaper?.tags]);
 
   const filteredPapers = papers.filter((p) =>
-    (p.title || p.filename).toLowerCase().includes(searchPaperQuery.toLowerCase())
+    paperDisplayTitle(p.title, p.filename).toLowerCase().includes(searchPaperQuery.toLowerCase())
   );
 
   const filteredHighlights = highlights.filter((h) => {
@@ -408,8 +409,8 @@ export const HighlightsLibraryView: React.FC<{
                   onClick={() => setSelectedPaper(p)}
                   className={`hl-paper-item ${isActive ? "active" : ""}`}
                 >
-                  <div className="hl-paper-item-title" title={p.title || p.filename}>
-                    {p.title || p.filename}
+                  <div className="hl-paper-item-title" title={paperDisplayTitle(p.title, p.filename)}>
+                    {paperDisplayTitle(p.title, p.filename)}
                   </div>
                   <div className="hl-paper-item-meta">
                     {p.authors && p.authors !== "[]"
@@ -432,12 +433,13 @@ export const HighlightsLibraryView: React.FC<{
               <div className="hl-content-header-info">
                 <span className="hl-content-header-badge">{t("highlights.badge")}</span>
                 <h2 className="hl-content-header-title">
-                  {selectedPaper.title || selectedPaper.filename}
+                  {paperDisplayTitle(selectedPaper.title, selectedPaper.filename)}
                 </h2>
                 <p className="hl-content-header-meta">
-                  {t("highlights.author_fallback")}: {selectedPaper.authors && selectedPaper.authors !== "[]"
-                    ? selectedPaper.authors.replace(/[\[\]"']/g, "")
-                    : t("highlights.author_fallback")}{" "}
+                  {t("highlights.author_fallback")}: {(() => {
+                    const authors = paperDisplayAuthors(selectedPaper.authors);
+                    return authors.length > 0 ? authors.join(", ") : t("highlights.author_fallback");
+                  })()}{" "}
                   • {t("highlights.year", { year: selectedPaper.year || "N/A" })}
                 </p>
               </div>
@@ -737,7 +739,7 @@ export const HighlightsLibraryView: React.FC<{
                             {/* Source info bar */}
                             <div className="hl-evidence-source">
                               <span className="hl-evidence-source-label">
-                                {t("highlights.source_label", { title: selectedPaper.title || selectedPaper.filename })}
+                                {t("highlights.source_label", { title: paperDisplayTitle(selectedPaper.title, selectedPaper.filename) })}
                               </span>
                               {h.page_hint && (
                                 <span className="hl-evidence-source-page">
@@ -894,7 +896,7 @@ export const HighlightsLibraryView: React.FC<{
               <div className="hl-pdf-overlay-header-left">
                 <IconFileText size={16} />
                 <span className="hl-pdf-overlay-title">
-                  {selectedPaper?.title || selectedPaper?.filename || "PDF Viewer"}
+                  {selectedPaper ? paperDisplayTitle(selectedPaper.title, selectedPaper.filename) : "PDF Viewer"}
                 </span>
                 {pdfOverlayUrl?.includes("#page=") && (
                   <span className="hl-pdf-overlay-page-badge">

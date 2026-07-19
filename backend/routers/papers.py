@@ -25,6 +25,13 @@ from ingestion.parser import (
     create_image_stub_document,
 )
 from ingestion.chunker import SentenceSplitter
+from ingestion.metadata_quality import (
+    clean_authors,
+    display_title,
+    is_poor_title,
+    repair_vietnamese_ocr_text,
+    resolve_paper_title,
+)
 
 router = APIRouter(prefix="/api/papers", tags=["Papers"])
 jobs_router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
@@ -38,20 +45,30 @@ def _parse_authors(authors_str: str) -> list[str]:
     try:
         val = json.loads(authors_str)
         if isinstance(val, list):
-            return val
+            return clean_authors([str(a) for a in val])
     except (json.JSONDecodeError, TypeError):
         pass
     
     try:
         val = json.loads(authors_str.replace("'", '"'))
         if isinstance(val, list):
-            return val
+            return clean_authors([str(a) for a in val])
     except Exception:
         pass
         
     import re
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
-    return [a.strip() for a in cleaned.split(",") if a.strip()]
+    return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
+
+
+def _resolve_doc_title(doc, original_filename: str | None = None) -> str:
+    """Score-based title from metadata, page text, and original filename."""
+    return resolve_paper_title(
+        metadata_title=getattr(doc, "title", None),
+        suggested_title=getattr(doc, "suggested_title", None),
+        filename=original_filename or getattr(doc, "filename", None),
+        stored_path=getattr(doc, "path", None),
+    )
 
 
 def _parse_highlights_json(content: str) -> list[dict]:
@@ -253,10 +270,13 @@ def _extract_partial_objects(s: str) -> list[dict]:
 
 def _paper_to_dict(paper) -> dict:
     """Convert a Paper ORM object to a dictionary."""
+    safe_title = display_title(paper.title, paper.filename)
+    raw_summary = getattr(paper, "auto_summary", "") or ""
+    safe_summary = repair_vietnamese_ocr_text(raw_summary) if raw_summary else ""
     return {
         "id": paper.id,
         "filename": paper.filename,
-        "title": paper.title,
+        "title": safe_title,
         "authors": json.dumps(_parse_authors(paper.authors), ensure_ascii=False),
         "year": paper.year,
         "doi": paper.doi,
@@ -270,7 +290,8 @@ def _paper_to_dict(paper) -> dict:
         "layout_stats": _parse_layout_stats(getattr(paper, "layout_stats", "")),
         "tags": paper.tags,
         "notes": paper.notes,
-        "auto_summary": getattr(paper, "auto_summary", ""),
+        "auto_summary": safe_summary,
+        "auto_summary_lang": getattr(paper, "auto_summary_lang", "") or "",
         "read_status": paper.read_status,
         "starred": bool(paper.starred),
         "created_at": str(paper.created_at) if paper.created_at else None,
@@ -394,7 +415,7 @@ async def import_document(
     if is_image:
         # Return immediately; RapidOCR model load can take minutes on first run.
         doc = create_image_stub_document(str(save_path), file.filename)
-        paper_title = getattr(doc, "suggested_title", None) or doc.title
+        paper_title = _resolve_doc_title(doc, file.filename or safe_name)
 
         session = get_session(state.engine)
         try:
@@ -506,7 +527,7 @@ async def import_folder(
             shutil.copy2(str(doc_file), str(save_path))
             _update_import_job(job_id, status="saved", stage="saved", progress=35, paper_id=file_id, file_path=str(save_path))
 
-            paper_title = getattr(doc, "suggested_title", None) or doc.title
+            paper_title = _resolve_doc_title(doc, doc_file.name)
 
             session = get_session(state.engine)
             try:
@@ -714,12 +735,12 @@ def _parse_and_index_image_paper(
             session.close()
         return
 
-    paper_title = getattr(doc, "suggested_title", None) or doc.title
+    paper_title = _resolve_doc_title(doc, filename)
     session = get_session(state.engine)
     try:
         session.query(Paper).filter(Paper.id == file_id).update({
             "title": paper_title,
-            "authors": doc.authors,
+            "authors": json.dumps(_parse_authors(doc.authors), ensure_ascii=False),
             "year": doc.year,
             "doi": doc.doi,
             "page_count": doc.page_count,
@@ -778,7 +799,7 @@ def _parse_and_index_document_paper(
         _update_import_job(job_id, status="failed", stage="parsing", progress=100, error=err)
         return
 
-    paper_title = getattr(doc, "suggested_title", None) or doc.title
+    paper_title = _resolve_doc_title(doc, filename)
 
     session = get_session(state.engine)
     try:
@@ -786,7 +807,7 @@ def _parse_and_index_document_paper(
             id=file_id,
             filename=filename,
             title=paper_title,
-            authors=doc.authors,
+            authors=json.dumps(_parse_authors(doc.authors), ensure_ascii=False),
             year=doc.year,
             doi=doc.doi,
             page_count=doc.page_count,
@@ -893,7 +914,7 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
         metadatas = [
             {
                 "paper_id": file_id,
-                "paper_title": doc.title or doc.filename,
+                "paper_title": _resolve_doc_title(doc, getattr(doc, "filename", None)),
                 "chunk_index": c.index,
                 "page_number": c.page_number or 0,
                 "section_header": c.section_header or "",
@@ -928,7 +949,7 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
             summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
 Use this Markdown format:
 
-### 🧠 ResearchMind Auto Summary:
+### ResearchMind Auto Summary:
 * **Core Idea**: [One sentence describing the main idea or objective]
 * **Contributions**: [One or two lines describing the main scientific contributions]
 * **Weaknesses / Limitations**: [One line describing the discussed limitations]
@@ -1022,13 +1043,24 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
                 paper.doi = paper.doi or doi
                 current_authors = _parse_authors(paper.authors)
                 if not current_authors and cr and cr.is_valid and cr.authors:
-                    paper.authors = json.dumps(cr.authors, ensure_ascii=False)
+                    paper.authors = json.dumps(clean_authors(cr.authors), ensure_ascii=False)
                 authoritative_year = (
                     cr.year if cr and cr.is_valid and cr.year
                     else (oa.publication_year if oa else None)
                 )
                 if authoritative_year:
                     paper.year = int(authoritative_year)
+                # Replace poor local titles with Crossref/OpenAlex when available
+                remote_title = None
+                if cr and cr.is_valid and getattr(cr, "title", None):
+                    remote_title = cr.title
+                elif oa and getattr(oa, "title", None):
+                    remote_title = oa.title
+                if remote_title and (is_poor_title(paper.title) or not paper.title):
+                    paper.title = resolve_paper_title(
+                        metadata_title=remote_title,
+                        filename=paper.filename,
+                    )
                 session.commit()
         except Exception as db_error:
             session.rollback()
@@ -1080,11 +1112,12 @@ def _retry_import_job(job_id: str):
         paper = session.query(Paper).filter(Paper.id == job.paper_id).first() if job.paper_id else None
         if not paper:
             paper_id = job.paper_id or str(uuid.uuid4())
+            resolved_title = _resolve_doc_title(doc, job.filename)
             paper = Paper(
                 id=paper_id,
                 filename=job.filename,
-                title=doc.title,
-                authors=doc.authors,
+                title=resolved_title,
+                authors=json.dumps(_parse_authors(doc.authors), ensure_ascii=False),
                 year=doc.year,
                 doi=doc.doi,
                 page_count=doc.page_count,
@@ -1105,8 +1138,8 @@ def _retry_import_job(job_id: str):
                 state.vector.delete_paper_chunks(paper.id)
             except Exception as e:
                 logger.warning(f"ChromaDB delete before retry failed: {e}")
-            paper.title = doc.title
-            paper.authors = doc.authors
+            paper.title = _resolve_doc_title(doc, job.filename)
+            paper.authors = json.dumps(_parse_authors(doc.authors), ensure_ascii=False)
             paper.year = doc.year
             paper.doi = doc.doi
             paper.page_count = doc.page_count
@@ -1623,7 +1656,7 @@ async def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: i
             "matches": matches,
             "paper_id": paper_id,
             "other_paper_id": other_paper_id,
-            "other_paper_title": other_paper.title or other_paper.filename,
+            "other_paper_title": display_title(other_paper.title, other_paper.filename),
             "model_info": {
                 "name": settings.embedding_model,
                 "mode": settings.embedding_mode,
@@ -1661,7 +1694,7 @@ async def generate_citations(body: dict):
             if not authors_list:
                 authors_list = ["Unknown"]
 
-            title = paper.title or paper.filename.replace(".pdf", "").replace("_", " ")
+            title = display_title(paper.title, paper.filename)
             year = paper.year or "n.d."
             doi = paper.doi or ""
             pages = paper.page_count

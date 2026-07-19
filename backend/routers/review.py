@@ -21,6 +21,7 @@ from academic.paper_check import check_papers_ready
 from common.i18n import t, get_language
 from db.database import get_session
 from db.models import Paper, ReviewDraft, EvidenceMatrixDraft
+from ingestion.metadata_quality import clean_authors, display_title
 
 def _parse_authors(authors_str: str) -> list[str]:
     if not authors_str:
@@ -28,20 +29,20 @@ def _parse_authors(authors_str: str) -> list[str]:
     try:
         val = json.loads(authors_str)
         if isinstance(val, list):
-            return val
+            return clean_authors([str(a) for a in val])
     except (json.JSONDecodeError, TypeError):
         pass
     
     try:
         val = json.loads(authors_str.replace("'", '"'))
         if isinstance(val, list):
-            return val
+            return clean_authors([str(a) for a in val])
     except Exception:
         pass
         
     import re
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
-    return [a.strip() for a in cleaned.split(",") if a.strip()]
+    return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
 
 
 router = APIRouter(prefix="/api/review/builder", tags=["review"])
@@ -305,7 +306,7 @@ async def _generate_bibliography(paper_ids: list[str], paper_titles: dict, lang:
             if not authors_list:
                 authors_list = ["Unknown"]
 
-            title = paper.title or paper.filename.replace(".pdf", "").replace("_", " ")
+            title = display_title(paper.title, paper.filename)
             year = paper.year or "n.d."
             doi = paper.doi or ""
             pages = paper.page_count
@@ -364,7 +365,7 @@ async def generate_outline(request: Request, body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
         paper_abstracts = {}
         for p in papers_db:
             summary = p.auto_summary or p.abstract or ""
@@ -499,7 +500,7 @@ async def generate_draft(request: Request, body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
     finally:
         session.close()
 
@@ -552,7 +553,7 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
         session = get_session(state.engine)
         try:
             papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-            paper_titles = {p.id: p.title or p.filename for p in papers_db}
+            paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
         finally:
             session.close()
 
@@ -634,7 +635,7 @@ async def generate_section(request: Request, body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
     finally:
         session.close()
 
@@ -665,7 +666,7 @@ async def generate_matrix(request: Request, body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
     finally:
         session.close()
 
@@ -1475,7 +1476,7 @@ async def generate_evidence_matrix(request: Request, body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
     finally:
         session.close()
 

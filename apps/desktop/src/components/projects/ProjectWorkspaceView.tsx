@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type LivingReviewSubscription, type Paper, type ResearchArtifact, type ResearchProject, type ResearchProjectDetail, type ReviewAuditEvent, type WorkspaceMember } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import {
   IconArrowRight,
   IconBookOpen,
@@ -261,7 +262,7 @@ export const ProjectWorkspaceView: React.FC<ProjectWorkspaceViewProps> = ({ onSt
                 <div className="project-add-paper">
                   <select value={paperToAdd} onChange={(event) => setPaperToAdd(event.target.value)}>
                     <option value="">{t("projects.add_from_library")}</option>
-                    {availablePapers.map((paper) => <option key={paper.id} value={paper.id}>{paper.title || paper.filename}</option>)}
+                    {availablePapers.map((paper) => <option key={paper.id} value={paper.id}>{paperDisplayTitle(paper.title, paper.filename)}</option>)}
                   </select>
                   <button type="button" onClick={() => void addPaper()} disabled={!paperToAdd || saving}><IconPlus size={14} />{t("projects.add")}</button>
                 </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
 import { ProgressSidebar } from "./ProgressSidebar";
@@ -271,7 +272,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
         : (await api.listPapers(1, 200)).papers;
       const next = sourcePapers.map((p) => ({
         id: p.id,
-        title: p.title || "",
+        title: paperDisplayTitle(p.title, (p as { filename?: string }).filename),
         authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
       }));
       setPapers(next);
@@ -794,10 +795,13 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
               }}>
                 {papers.map((p) => {
                   const selected = selectedIds.includes(p.id);
+                  const label = paperDisplayTitle(p.title);
                   return (
                     <div
                       key={p.id}
                       onClick={() => togglePaper(p.id)}
+                      className="review-paper-chip"
+                      title={label}
                       style={{
                         padding: "8px 14px", borderRadius: 8,
                         border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-border, rgba(148, 163, 184, 0.15))"}`,
@@ -806,10 +810,12 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                         color: selected ? "var(--color-primary)" : "var(--color-text, #e2e8f0)",
                         transition: "all 0.15s", userSelect: "none",
                         display: "flex", alignItems: "center", gap: 6,
+                        maxWidth: "100%",
+                        minWidth: 0,
                       }}
                     >
-                      {selected ? <IconCheck size={14} style={{ color: "var(--color-primary)" }} /> : <IconFileText size={14} />}
-                      {p.title}
+                      {selected ? <IconCheck size={14} style={{ color: "var(--color-primary)", flexShrink: 0 }} /> : <IconFileText size={14} style={{ flexShrink: 0 }} />}
+                      <span className="review-paper-chip__label">{label}</span>
                     </div>
                   );
                 })}

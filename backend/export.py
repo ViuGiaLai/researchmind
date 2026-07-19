@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from common.i18n import t, get_language
 from db.database import get_session
 from db.models import Paper, Chunk
+from ingestion.metadata_quality import clean_authors, display_title, repair_vietnamese_ocr_text
 
 router = APIRouter(prefix="/api/papers", tags=["Export"])
 
@@ -46,20 +47,19 @@ def _parse_authors(authors_str: str) -> list[str]:
     try:
         val = json.loads(authors_str)
         if isinstance(val, list):
-            return val
+            return clean_authors([str(a) for a in val])
     except (json.JSONDecodeError, TypeError):
         pass
     
     try:
         val = json.loads(authors_str.replace("'", '"'))
         if isinstance(val, list):
-            return val
+            return clean_authors([str(a) for a in val])
     except Exception:
         pass
         
-    import re
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
-    return [a.strip() for a in cleaned.split(",") if a.strip()]
+    return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
 
 def _get_paper_data(paper_id: str, session: Session) -> dict | None:
     """Fetch paper metadata + chunks from DB."""
@@ -93,7 +93,7 @@ def _get_paper_data(paper_id: str, session: Session) -> dict | None:
 
     return {
         "id": paper.id,
-        "title": paper.title or paper.filename.replace(".pdf", "").replace("_", " "),
+        "title": display_title(paper.title, paper.filename),
         "filename": paper.filename,
         "authors": authors_list,
         "year": paper.year,
@@ -103,7 +103,7 @@ def _get_paper_data(paper_id: str, session: Session) -> dict | None:
         "file_size": paper.file_size,
         "tags": tags_list,
         "notes": paper.notes or "",
-        "auto_summary": paper.auto_summary or "",
+        "auto_summary": repair_vietnamese_ocr_text(paper.auto_summary or ""),
         "read_status": paper.read_status or "unread",
         "starred": bool(paper.starred),
         "status": paper.status,
