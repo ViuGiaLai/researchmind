@@ -123,6 +123,12 @@ See detailed version notes at [`VERSION/`](VERSION/).
 
 ---
 
+Library <img width="1919" height="1139" alt="image" src="https://github.com/user-attachments/assets/cf6827fc-907e-4d3c-96ba-5f1240d5960d" />
+Discovery <img width="1919" height="1147" alt="image" src="https://github.com/user-attachments/assets/b1aab3a9-ccac-4914-b14b-e1cf7b11bf29" />
+AI Chat <img width="1919" height="1131" alt="image" src="https://github.com/user-attachments/assets/2da619ef-6357-427b-b66b-8bb771c2e660" />
+Review Builder <img width="1919" height="1147" alt="image" src="https://github.com/user-attachments/assets/bd62bcc9-544c-4bec-90d9-d598c9e49f27" />
+Highlights <img width="1915" height="1146" alt="image" src="https://github.com/user-attachments/assets/08201a55-d304-4730-84ed-6a2253933058" />
+
 ## License
 
 MIT License
