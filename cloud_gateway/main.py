@@ -37,6 +37,7 @@ def validate_size(request: GenerateRequest) -> int:
     return size
 
 
+@app.get("/health")
 @app.get("/v1/health")
 async def health():
     return {"status": "ok", "providers": ProviderRouter(settings).candidates("chat")}
