@@ -52,6 +52,11 @@
   "settings.data_dir_moved": "Storage directory moved successfully: {path}",
   "settings.data_dir_move_fail": "Error moving data directory: {error}",
   "settings.reset_done": "Application reset to initial state successfully.",
+  "system.cleared_summary": "🧹 Cleared: {papers} papers, {chunks} chunks, {vectors} vectors, {history} chat history.",
+  "system.files_deleted": "\n📄 Deleted PDFs: {files}",
+  "system.files_truncated": ", ... and {count} more files",
+  "system.settings_kept": "\n✅ Settings kept.",
+
   "settings.auto_detect_windows_only": "Auto-detect only supports Windows.",
   "settings.zotero_not_found": "Zotero data directory not found. Please enter manually.",
   "settings.daily_limit_reached": "You have used all {limit} free questions today. Please switch to your own API Key or Local mode.",
@@ -154,6 +159,7 @@
   "personal.review_title": "Create Literature Review",
   "personal.review_desc": "With many unread papers, let AI summarize and review for you.",
   "personal.action_create_review": "Create Review",
+  "personal.action_import_pdf": "Import PDF",
   "personal.suggestion_header": "## Today's Reading Suggestions",
 
   "verify.paper_not_found": "⚠️ Paper not found: {label}. Please select again from your library.",
@@ -172,6 +178,16 @@
   "search.filter_syntax": "Hybrid search across all indexed PDFs with support for tag: filters.",
   "export.docx_not_installed": "python-docx is not installed. Run: pip install python-docx",
   "export.fpdf_not_installed": "fpdf2 is not installed. Run: pip install fpdf2",
+
+  "auth.oauth_session_expired_title": "Login session expired",
+  "auth.oauth_session_expired_msg": "Please go back to ResearchMind and try again.",
+  "auth.oauth_cancelled_title": "Login cancelled",
+  "auth.oauth_cancelled_msg": "You cancelled the login or Google could not complete it.",
+  "auth.oauth_cancelled_msg2": "You can go back to ResearchMind to try again.",
+  "auth.oauth_verify_failed_title": "Cannot complete",
+  "auth.oauth_verify_failed_msg": "Could not verify Google response. Please try again.",
+  "auth.oauth_complete_title": "Login complete",
+  "auth.oauth_complete_msg": "Please reopen ResearchMind",
 
   "provider.error.github_invalid_token": "GitHub Token is invalid. Get a PAT at https://github.com/settings/tokens",
   "provider.error.github_quota": "GitHub Models quota exceeded.",
@@ -262,5 +278,12 @@
   "review.dimension_label_limitation": "⚠️ Limitations",
   "review.dimension_label_finding": "💡 Key Finding",
   "review.extract_failed": "Cannot extract.",
-  "review.extract_error": "Extraction error."
+  "review.extract_error": "Extraction error.",
+  "review.outline_desc_background": "Overview of the research field",
+  "review.outline_desc_related_work": "Related works",
+  "review.outline_desc_methodology": "Methodology comparison",
+  "review.outline_desc_findings": "Key research findings",
+  "review.outline_desc_limitations": "Limitations of current studies",
+  "review.outline_desc_gaps": "Research gaps",
+  "review.outline_desc_future": "Future research directions"
 }

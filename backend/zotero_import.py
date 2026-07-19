@@ -623,7 +623,7 @@ def _copy_and_index_pdf(
     except Exception as e:
         session.rollback()
         logger.error(f"Failed to update paper after PDF copy: {e}")
-        return {"status": "error", "error": f"Lỗi cập nhật database: {str(e)}"}
+        return {"status": "error", "error": t("import.db_save_error", lang, error=str(e))}
     finally:
         session.close()
 

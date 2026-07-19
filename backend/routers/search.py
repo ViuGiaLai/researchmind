@@ -256,7 +256,7 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
         
         suggestions = []
         for tag in tags_res:
-            suggestions.append(f"Tháº»: {tag}")
+            suggestions.append(f"Tag: {tag}")
         for p in papers_res:
             suggestions.append(p["title"])
 

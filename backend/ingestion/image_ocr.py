@@ -154,9 +154,9 @@ def extract_pdf_page_image_text(
             if not caption and len(captions) == 1:
                 caption = next(iter(captions.values()), "")
 
-            label = f"Hình {fig_num}" if fig_num in captions or caption else f"Hình ảnh {fig_num}"
-            page_label = f" trang {page_num}" if page_num else ""
-            header = f"[Nội dung {label}{page_label}]"
+            label = f"Figure {fig_num}" if fig_num in captions or caption else f"Image {fig_num}"
+            page_label = f" p. {page_num}" if page_num else ""
+            header = f"[Image content {label}{page_label}]"
             if caption:
                 header += f": {caption}"
             snippets.append(f"{header}\n{ocr_text}")
@@ -193,7 +193,7 @@ def extract_docx_image_text(doc, max_images: int = MAX_IMAGES_PER_DOC) -> list[s
             ocr_text = ocr_image_bytes(blob, skip_byte_size_check=True)
             if ocr_text:
                 img_count += 1
-                snippets.append(f"[Nội dung hình ảnh {img_count}]: {ocr_text}")
+                snippets.append(f"[Image content {img_count}]: {ocr_text}")
         except Exception as exc:
             logger.debug(f"Skip DOCX image: {exc}")
     return snippets
@@ -209,5 +209,5 @@ def extract_docx_table_text(doc) -> list[str]:
             if cells:
                 rows_text.append(" | ".join(cells))
         if rows_text:
-            parts.append(f"[Bảng {table_index + 1}]\n" + "\n".join(rows_text))
+            parts.append(f"[Table {table_index + 1}]\n" + "\n".join(rows_text))
     return parts

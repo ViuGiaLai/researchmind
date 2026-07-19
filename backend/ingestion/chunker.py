@@ -37,7 +37,7 @@ def count_tokens(text: str) -> int:
 
 
 # Image OCR blocks — kept as dedicated RAG chunks (not merged into long text chunks)
-IMAGE_BLOCK_PREFIXES = ("[Nội dung hình", "[Nội dung Hình", "[Hình ảnh", "[Hình ")
+IMAGE_BLOCK_PREFIXES = ("[Image content", "[Image:")
 
 
 def _is_image_block(paragraph: str) -> bool:
@@ -96,7 +96,7 @@ class SentenceSplitter:
                         index=len(chunks),
                         text=para,
                         page_number=page_num,
-                        section_header=fig_header or "Hình/Biểu đồ",
+                        section_header=fig_header or "Figure/Diagram",
                         token_count=count_tokens(para),
                     ))
                     continue

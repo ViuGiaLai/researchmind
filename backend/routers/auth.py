@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from common.firebase_auth import FirebaseAuthError, upsert_user_profile
+from common.i18n import t, get_language
 from config.settings import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -40,7 +41,7 @@ class DesktopOAuthStatus(DesktopOAuthStart):
     pass
 
 
-def _oauth_callback_page(title: str, message: str, *, success: bool = False) -> HTMLResponse:
+def _oauth_callback_page(title: str, message: str, *, success: bool = False, lang: str = "vi") -> HTMLResponse:
     accent = "#2dd4bf" if success else "#fca5a5"
     auto_close = """
       <script>
@@ -48,7 +49,7 @@ def _oauth_callback_page(title: str, message: str, *, success: bool = False) -> 
       </script>
     """ if success else ""
     return HTMLResponse(f"""<!doctype html>
-<html lang="vi">
+<html lang="{lang}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -115,16 +116,17 @@ async def start_desktop_google_sign_in(payload: DesktopOAuthStart):
 
 
 @router.get("/desktop/google/callback", response_class=HTMLResponse)
-async def finish_desktop_google_sign_in(state: str = "", code: str = "", error: str = ""):
+async def finish_desktop_google_sign_in(request: Request, state: str = "", code: str = "", error: str = ""):
     """Receive Google's browser callback and save its ID token for one polling client."""
+    lang = get_language(request)
     async with _desktop_oauth_lock:
         _clear_expired_sessions()
         session = _desktop_oauth_sessions.get(state)
         if not session:
-            return _oauth_callback_page("Phiên đăng nhập đã hết hạn", "Hãy quay lại ResearchMind và bắt đầu lại.")
+            return _oauth_callback_page(t("auth.oauth_session_expired_title", lang), t("auth.oauth_session_expired_msg", lang), lang=lang)
         if error or not code:
-            session.error = "Bạn đã hủy hoặc Google không thể hoàn tất đăng nhập."
-            return _oauth_callback_page("Đăng nhập đã hủy", "Bạn có thể quay lại ResearchMind để thử lại.")
+            session.error = t("auth.oauth_cancelled_msg", lang)
+            return _oauth_callback_page(t("auth.oauth_cancelled_title", lang), t("auth.oauth_cancelled_msg2", lang), lang=lang)
 
     client_id, client_secret, callback_url = _oauth_config()
     try:
@@ -147,15 +149,15 @@ async def finish_desktop_google_sign_in(state: str = "", code: str = "", error: 
         async with _desktop_oauth_lock:
             session = _desktop_oauth_sessions.get(state)
             if session:
-                session.error = "Không thể xác minh phản hồi Google. Hãy thử lại."
-        return _oauth_callback_page("Không thể hoàn tất", "Quay lại ResearchMind để thử lại.")
+                session.error = t("auth.oauth_verify_failed_msg", lang)
+        return _oauth_callback_page(t("auth.oauth_verify_failed_title", lang), t("auth.oauth_verify_failed_msg", lang), lang=lang)
 
     async with _desktop_oauth_lock:
         session = _desktop_oauth_sessions.get(state)
         if not session:
-            return _oauth_callback_page("Phiên đăng nhập đã hết hạn", "Hãy quay lại ResearchMind và bắt đầu lại.")
+            return _oauth_callback_page(t("auth.oauth_session_expired_title", lang), t("auth.oauth_session_expired_msg", lang), lang=lang)
         session.id_token = id_token
-    return _oauth_callback_page("Đăng nhập hoàn tất", "Vui lòng mở lại ứng dụng ResearchMind ", success=True)
+    return _oauth_callback_page(t("auth.oauth_complete_title", lang), t("auth.oauth_complete_msg", lang), success=True, lang=lang)
 
 
 @router.post("/desktop/google/status")

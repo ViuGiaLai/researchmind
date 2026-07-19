@@ -50,7 +50,7 @@ def create_image_stub_document(file_path: str, original_filename: str | None = N
     path = Path(file_path)
     name = original_filename or path.name
     title = path.stem.replace("_", " ").replace("-", " ").strip() or name
-    stub_text = f"[Hình ảnh: {name}]\n(Đang OCR và lập chỉ mục...)"
+    stub_text = f"[Image: {name}]\n(OCR and indexing in progress...)"
     return ExtractedDocument(
         path=str(path.absolute()),
         filename=name,
@@ -481,7 +481,7 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
                         authors_list = [a.strip() for a in val.split(",") if a.strip()]
 
     # Remove markdown syntax for clean plain text; keep image alt text
-    clean = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'[Hình ảnh: \1]', text)
+    clean = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'[Image: \1]', text)
     clean = re.sub(r'\[([^\]]*)\]\([^)]+\)', r'\1', clean)
     clean = re.sub(r'#{1,6}\s+', '', clean)
     clean = re.sub(r'[*_~`]', '', clean)
@@ -495,21 +495,21 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
         src = src.strip().split()[0]  # drop optional title after space
         if src.startswith(("http://", "https://", "data:")):
             if alt.strip():
-                image_ocr_parts.append(f"[Hình ảnh: {alt.strip()}]")
+                image_ocr_parts.append(f"[Image: {alt.strip()}]")
             continue
         img_path = (path.parent / src).resolve()
         if not img_path.exists() or img_path.suffix.lower() not in IMAGE_EXTENSIONS:
             if alt.strip():
-                image_ocr_parts.append(f"[Hình ảnh: {alt.strip()}]")
+                image_ocr_parts.append(f"[Image: {alt.strip()}]")
             continue
         try:
             img_bytes = img_path.read_bytes()
             ocr_text = ocr_image_bytes(img_bytes, skip_byte_size_check=True)
             label = alt.strip() or img_path.name
             if ocr_text:
-                image_ocr_parts.append(f"[Nội dung hình ảnh {label}]: {ocr_text}")
+                image_ocr_parts.append(f"[Image content {label}]: {ocr_text}")
             elif label:
-                image_ocr_parts.append(f"[Hình ảnh: {label}]")
+                image_ocr_parts.append(f"[Image: {label}]")
         except Exception as exc:
             logger.debug(f"Skip markdown image {img_path}: {exc}")
 
@@ -564,9 +564,9 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
         title = (img.get("title") or "").strip()
         src = (img.get("src") or "").strip()
         if alt or title:
-            image_notes.append(f"[Hình ảnh: {alt or title}]")
+            image_notes.append(f"[Image: {alt or title}]")
         elif src:
-            image_notes.append(f"[Hình ảnh: {Path(src).name}]")
+            image_notes.append(f"[Image: {Path(src).name}]")
 
         if src and not src.startswith(("http://", "https://", "data:")):
             img_path = (path.parent / src).resolve()
@@ -575,7 +575,7 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
                     ocr_text = ocr_image_bytes(img_path.read_bytes(), skip_byte_size_check=True)
                     if ocr_text:
                         label = alt or title or img_path.name
-                        image_notes.append(f"[Nội dung hình ảnh {label}]: {ocr_text}")
+                        image_notes.append(f"[Image content {label}]: {ocr_text}")
                 except Exception as exc:
                     logger.debug(f"Skip HTML image {img_path}: {exc}")
 
@@ -692,8 +692,8 @@ def _extract_image(file_path: str) -> Optional[ExtractedDocument]:
     if not ocr_text:
         logger.warning(f"No OCR text extracted from image: {file_path}")
         ocr_text = (
-            f"[Hình ảnh: {path.name}]\n"
-            "(Chưa trích xuất được văn bản tự động. Dùng «Chạy OCR lại» trong thư viện để thử lại.)"
+            f"[Image: {path.name}]\n"
+            "(Could not extract text automatically. Use \"Re-run OCR\" in the library.)"
         )
         ocr_failed = 1
 

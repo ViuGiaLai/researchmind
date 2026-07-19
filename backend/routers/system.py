@@ -554,6 +554,7 @@ async def move_storage(request: Request, body: dict = Body(...)):
 async def clear_all_data(request: Request):
     """Clear all papers, chunks, chat history, and files (retains settings)."""
     _require_local_client(request)
+    lang = get_language(request)
     deleted = {"papers": 0, "chunks": 0, "chat_history": 0, "chroma_chunks": 0, "files": []}
 
     try:
@@ -621,17 +622,14 @@ async def clear_all_data(request: Request):
         file_list = deleted["files"][:5]
         file_preview = ", ".join(file_list)
         if len(deleted["files"]) > 5:
-            file_preview += f", ... và {len(deleted['files'])-5} file khác"
+            file_preview += t("system.files_truncated", lang, count=len(deleted['files'])-5)
 
-        result_msg = (
-            f"🧹 Đã xoá: {deleted['papers']} papers, "
-            f"{deleted['chunks']} chunks, "
-            f"{deleted['chroma_chunks']} vectors, "
-            f"{deleted['chat_history']} lịch sử chat."
-        )
+        result_msg = t("system.cleared_summary", lang,
+            papers=deleted['papers'], chunks=deleted['chunks'],
+            vectors=deleted['chroma_chunks'], history=deleted['chat_history'])
         if file_preview:
-            result_msg += f"\n📄 File PDF đã xoá: {file_preview}"
-        result_msg += "\n✅ Giữ lại cài đặt."
+            result_msg += t("system.files_deleted", lang, files=file_preview)
+        result_msg += t("system.settings_kept", lang)
 
         logger.info(f"✅ {result_msg}")
         return {"success": True, "message": result_msg}
@@ -815,8 +813,8 @@ async def detect_zotero_data_dir(request: Request):
         "path": str(detected.resolve()),
         "method": method,
         "has_storage": has_storage,
-        "message": f"Đã phát hiện thư mục Zotero: {detected_path}" if has_storage
-        else f"Đã phát hiện thư mục Zotero ({detected_path}), nhưng không tìm thấy thư mục storage/",
+        "message": t("zotero.detected_path", lang, path=detected_path) if has_storage
+        else t("zotero.detected_no_storage", lang, path=detected_path),
     }
 
 

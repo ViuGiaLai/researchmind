@@ -1,7 +1,8 @@
 import asyncio
 import json
 from common.structured_output import parse_structured_output
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
+from common.i18n import t, get_language
 from loguru import logger
 
 from app_state import state
@@ -52,11 +53,12 @@ def _insight_preflight(paper_ids) -> dict | None:
 
 
 @router.post("/gap")
-async def find_research_gap(body: dict = Body(...)):
+async def find_research_gap(request: Request, body: dict = Body(...)):
     """
     Find research gaps across indexed papers.
     Uses RAG to retrieve relevant chunks, then LLM analyzes what's missing.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
     preflight = _insight_preflight(paper_ids)
     if preflight:
@@ -71,7 +73,7 @@ async def find_research_gap(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
@@ -105,11 +107,12 @@ Cite every evidence-based claim as [Paper title, page X] when a page is supplied
 
 
 @router.post("/conflict")
-async def find_conflicts(body: dict = Body(...)):
+async def find_conflicts(request: Request, body: dict = Body(...)):
     """
     Find contradictions and conflicts between papers.
     Uses RAG to retrieve diverse chunks, then LLM compares claims.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
     preflight = _insight_preflight(paper_ids)
     if preflight:
@@ -124,7 +127,7 @@ async def find_conflicts(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
@@ -159,11 +162,12 @@ Compare claims only when the papers address sufficiently similar questions, popu
 
 
 @router.post("/topic")
-async def suggest_topics(body: dict = Body(...)):
+async def suggest_topics(request: Request, body: dict = Body(...)):
     """
     Suggest research topics based on papers in the library.
     Uses RAG to retrieve diverse chunks, then LLM generates topic suggestions.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
     preflight = _insight_preflight(paper_ids)
     if preflight:
@@ -178,7 +182,7 @@ async def suggest_topics(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để đề xuất đề tài. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
@@ -216,11 +220,12 @@ For each proposal, explain which documented gap or limitation motivates it and c
 
 
 @router.post("/evolution")
-async def find_evolution_map(body: dict = Body(...)):
+async def find_evolution_map(request: Request, body: dict = Body(...)):
     """
     Analyze research evolution across papers.
     Uses RAG to retrieve diverse chunks, then LLM maps the evolution of ideas.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
     preflight = _insight_preflight(paper_ids)
     if preflight:
@@ -235,7 +240,7 @@ async def find_evolution_map(body: dict = Body(...)):
 
     if not retrieval.context_text.strip():
         return {
-            "answer": "Không đủ dữ liệu để phân tích evolution map. Hãy import thêm paper vào thư viện.",
+            "answer": t("insights.insufficient_data", lang),
             "citations": [],
             "model_used": "none",
             "papers_used": [],
@@ -270,16 +275,17 @@ Cite every stage as [Paper title, page X] when a page is supplied, otherwise [Pa
 
 
 @router.post("/compare")
-async def compare_papers(body: dict = Body(...)):
+async def compare_papers(request: Request, body: dict = Body(...)):
     """
     Compare multiple selected papers side-by-side.
     Uses concurrent LLM calls to extract Objective, Methodology, Dataset, Findings, and Limitations.
     """
+    lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
-            "answer": "Vui lòng chọn ít nhất 2 tài liệu để tiến hành so sánh.",
+            "answer": t("insights.select_min_two", lang),
             "citations": [],
             "model_used": "",
             "papers_used": [],
@@ -315,11 +321,11 @@ async def compare_papers(body: dict = Body(...)):
                 "id": paper_id,
                 "title": title,
                 "data": {
-                    "objective": "Không có dữ liệu văn bản.",
-                    "methodology": "Không có dữ liệu văn bản.",
-                    "dataset": "Không có dữ liệu văn bản.",
-                    "findings": "Không có dữ liệu văn bản.",
-                    "limitations": "Không có dữ liệu văn bản."
+                    "objective": t("insights.no_text_data_objective", lang),
+                    "methodology": t("insights.no_text_data_methodology", lang),
+                    "dataset": t("insights.no_text_data_dataset", lang),
+                    "findings": t("insights.no_text_data_findings", lang),
+                    "limitations": t("insights.no_text_data_limitations", lang)
                 },
                 "model_used": "none"
             }
@@ -359,16 +365,16 @@ Paper excerpts:\n{retrieval.context_text}"""
             logger.warning(f"Failed to parse LLM comparison JSON for {title}: {e}")
             fallback_text = content.strip()
             data = {
-                "objective": fallback_text[:500] if fallback_text else "Không thể trích xuất chi tiết.",
-                "methodology": "LLM trả về JSON không hợp lệ; xem phần mục tiêu để đọc fallback text.",
-                "dataset": "Không thể trích xuất chi tiết.",
-                "findings": fallback_text[:500] if fallback_text else "Không thể trích xuất chi tiết.",
-                "limitations": "Không thể trích xuất chi tiết.",
+                "objective": fallback_text[:500] if fallback_text else t("insights.extract_failed", lang),
+                "methodology": t("insights.extract_failed", lang),
+                "dataset": t("insights.extract_failed", lang),
+                "findings": fallback_text[:500] if fallback_text else t("insights.extract_failed", lang),
+                "limitations": t("insights.extract_failed", lang),
             }
             
         for key in ["objective", "methodology", "dataset", "findings", "limitations"]:
             if key not in data or not str(data[key]).strip():
-                data[key] = "Không thể trích xuất chi tiết."
+                data[key] = t("insights.extract_failed", lang)
                 
         return {
             "id": paper_id,
@@ -386,20 +392,20 @@ Paper excerpts:\n{retrieval.context_text}"""
     results = await asyncio.gather(*tasks)
 
     # Format into columns & rows for frontend table
-    columns = ["Tiêu chí"]
+    columns = [t("review.column_criterion", lang)]
     for res in results:
         columns.append(res["title"])
         
     rows = [
-        ["🎯 Mục tiêu nghiên cứu", *[res["data"]["objective"] for res in results]],
-        ["⚙️ Phương pháp", *[res["data"]["methodology"] for res in results]],
-        ["📊 Dữ liệu & Thực nghiệm", *[res["data"]["dataset"] for res in results]],
-        ["🔬 Kết quả chính", *[res["data"]["findings"] for res in results]],
-        ["⚠️ Hạn chế & Điểm yếu", *[res["data"]["limitations"] for res in results]]
+        [t("review.extract_title_objective", lang), *[res["data"]["objective"] for res in results]],
+        [t("review.extract_title_methodology", lang), *[res["data"]["methodology"] for res in results]],
+        [t("review.matrix_label_dataset", lang), *[res["data"]["dataset"] for res in results]],
+        [t("review.extract_title_findings", lang), *[res["data"]["findings"] for res in results]],
+        [t("review.extract_title_limitations", lang), *[res["data"]["limitations"] for res in results]]
     ]
 
     # Build markdown table for synthesis/exporting
-    md = f"## 📊 Ma trận so sánh tài liệu (Document Comparison Matrix)\n\n"
+    md = f"## {t('review.matrix_md_title', lang)}\n\n"
     md += "| " + " | ".join(columns) + " |\n"
     md += "| " + " | ".join(["---"] * len(columns)) + " |\n"
     for r in rows:

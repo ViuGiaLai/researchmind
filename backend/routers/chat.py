@@ -11,7 +11,7 @@ from loguru import logger
 from academic.paper_check import check_papers_ready
 from app_state import state
 from config.settings import settings
-from common.i18n import get_prompt_language
+from common.i18n import get_prompt_language, t, get_language
 from common.ai_observability import increment as increment_ai_metric
 from common.text_utils import count_tokens
 from chat.citation_entailment import entailment_score, support_label, MultilingualEntailmentVerifier
@@ -73,8 +73,8 @@ def _get_chat_cache(key: str) -> dict | None:
     return entry["response"]
 
 
-def _stream_cached_chat(cached: dict):
-    yield f"data: {json.dumps({'status': 'Trả lời từ cache...'})}\n\n"
+def _stream_cached_chat(cached: dict, lang: str = "vi"):
+    yield f"data: {json.dumps({'status': t('chat.cached_response', lang)})}\n\n"
     yield f"data: {json.dumps({'chunk': cached.get('answer', '')})}\n\n"
     done_payload = {
         'done': True,
@@ -392,13 +392,13 @@ def count_free_queries_today(session) -> int:
     ).count()
 
 
-async def _stream_chat(req: Request, query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None, strict_evidence: bool = False, paper_page_map: dict[str, int | None] | None = None):
+async def _stream_chat(req: Request, query: str, context_text: str, session_id: str, paper_ids: list, timing=None, cache_key: str | None = None, reasoning_mode: str = "fast", task_type: str = "chat", paper_title_map: dict[str, str] | None = None, chunk_map: dict[tuple[str, int | None], dict] | None = None, strict_evidence: bool = False, paper_page_map: dict[str, int | None] | None = None, lang: str = "vi"):
     """Stream chat response chunks and save to history once completed."""
     timing = timing or {}
     stream_start = time_mod.time()
     first_token_at = None
     full_response = ""
-    yield f"data: {json.dumps({'status': 'Dang ket noi model...'})}\n\n"
+    yield f"data: {json.dumps({'status': t('chat.connecting_model', lang)})}\n\n"
     stream_generator = state.generator.stream_generate(query, context_text, reasoning_mode=reasoning_mode, task_type=task_type, strict_evidence=strict_evidence)
     for chunk in stream_generator:
         if await req.is_disconnected():
@@ -565,6 +565,8 @@ async def chat(req: Request, request: dict = Body(...)):
     reasoning_mode = request.get("reasoning_mode", "fast")
     strict_evidence = request.get("strict_evidence", False)
 
+    lang = get_language(req)
+
     if not message.strip():
         raise HTTPException(status_code=400, detail="Message is required")
 
@@ -575,7 +577,7 @@ async def chat(req: Request, request: dict = Body(...)):
     elif collection_id:
         paper_ids = _resolve_collection_paper_ids(collection_id)
         if not paper_ids:
-            return {"answer": "Collection này chưa có tài liệu để chat.", "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
+            return {"answer": t("chat.empty_collection", lang), "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
         paper_error = check_papers_ready(paper_ids)
         if paper_error:
             return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
@@ -587,7 +589,7 @@ async def chat(req: Request, request: dict = Body(...)):
             if used >= settings.free_cloud_daily_limit:
                 raise HTTPException(
                     status_code=429,
-                    detail=f"Bạn đã dùng hết {settings.free_cloud_daily_limit} câu hỏi miễn phí trong ngày. Vui lòng chuyển sang dùng API Key cá nhân hoặc Local mode."
+                    detail=t("settings.daily_limit_reached", lang, limit=settings.free_cloud_daily_limit)
                 )
         finally:
             session.close()
@@ -608,7 +610,7 @@ async def chat(req: Request, request: dict = Body(...)):
             session.close()
         if not paper_ids:
             return {
-                "answer": "Collection này chưa có tài liệu để chat.",
+                "answer": t("chat.empty_collection", lang),
                 "citations": [],
                 "model_used": "",
                 "papers_used": [],
@@ -633,7 +635,7 @@ async def chat(req: Request, request: dict = Body(...)):
         increment_ai_metric("chat.cache.hit")
         logger.info(f"CHAT_CACHE hit total={time_mod.time() - t0:.3f}s")
         if stream:
-            return StreamingResponse(_stream_cached_chat(cached), media_type="text/event-stream")
+            return StreamingResponse(_stream_cached_chat(cached, lang), media_type="text/event-stream")
         return cached
     increment_ai_metric("chat.cache.miss")
     daily_budget = max(0, int(getattr(settings, "ai_daily_token_budget", 0) or 0))
@@ -713,6 +715,7 @@ async def chat(req: Request, request: dict = Body(...)):
                 chunk_map,
                 strict_evidence,
                 paper_page_map,
+                lang=lang,
             ),
             media_type="text/event-stream",
         )

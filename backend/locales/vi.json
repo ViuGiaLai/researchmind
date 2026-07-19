@@ -52,6 +52,11 @@
   "settings.data_dir_moved": "Đã chuyển thư mục lưu trữ thành công: {path}",
   "settings.data_dir_move_fail": "Lỗi khi chuyển thư mục dữ liệu: {error}",
   "settings.reset_done": "Đã reset ứng dụng về trạng thái ban đầu thành công.",
+  "system.cleared_summary": "🧹 Đã xoá: {papers} papers, {chunks} chunks, {vectors} vectors, {history} lịch sử chat.",
+  "system.files_deleted": "\n📄 File PDF đã xoá: {files}",
+  "system.files_truncated": ", ... và {count} file khác",
+  "system.settings_kept": "\n✅ Giữ lại cài đặt.",
+
   "settings.auto_detect_windows_only": "Auto-detect chỉ hỗ trợ Windows.",
   "settings.zotero_not_found": "Không tìm thấy thư mục Zotero data. Vui lòng nhập thủ công.",
   "settings.daily_limit_reached": "Bạn đã dùng hết {limit} câu hỏi miễn phí trong ngày. Vui lòng chuyển sang dùng API Key cá nhân hoặc Local mode.",
@@ -155,6 +160,7 @@
   "personal.review_title": "Tạo Literature Review",
   "personal.review_desc": "Với nhiều paper chưa đọc, hãy để AI tóm tắt và review giúp bạn.",
   "personal.action_create_review": "Tạo Review",
+  "personal.action_import_pdf": "Import PDF",
   "personal.suggestion_header": "## Gợi ý đọc hôm nay",
 
   "verify.paper_not_found": "⚠️ Không tìm thấy paper: {label}. Vui lòng chọn lại từ thư viện.",
@@ -173,6 +179,16 @@
   "search.filter_syntax": "Hybrid search across all indexed PDFs with support for tag: filters.",
   "export.docx_not_installed": "python-docx chưa được cài đặt. Chạy lệnh: pip install python-docx",
   "export.fpdf_not_installed": "fpdf2 chưa được cài đặt. Chạy lệnh: pip install fpdf2",
+
+  "auth.oauth_session_expired_title": "Phiên đăng nhập đã hết hạn",
+  "auth.oauth_session_expired_msg": "Hãy quay lại ResearchMind và bắt đầu lại.",
+  "auth.oauth_cancelled_title": "Đăng nhập đã hủy",
+  "auth.oauth_cancelled_msg": "Bạn đã hủy hoặc Google không thể hoàn tất đăng nhập.",
+  "auth.oauth_cancelled_msg2": "Bạn có thể quay lại ResearchMind để thử lại.",
+  "auth.oauth_verify_failed_title": "Không thể hoàn tất",
+  "auth.oauth_verify_failed_msg": "Quay lại ResearchMind để thử lại.",
+  "auth.oauth_complete_title": "Đăng nhập hoàn tất",
+  "auth.oauth_complete_msg": "Vui lòng mở lại ứng dụng ResearchMind ",
 
   "provider.error.github_invalid_token": "GitHub Token không hợp lệ. Lấy PAT tại https://github.com/settings/tokens",
   "provider.error.github_quota": "Đã hết hạn mức GitHub Models.",
@@ -263,5 +279,12 @@
   "review.dimension_label_limitation": "⚠️ Hạn chế",
   "review.dimension_label_finding": "💡 Phát hiện chính",
   "review.extract_failed": "Không thể trích xuất.",
-  "review.extract_error": "Lỗi trích xuất."
+  "review.extract_error": "Lỗi trích xuất.",
+  "review.outline_desc_background": "Tổng quan về lĩnh vực nghiên cứu",
+  "review.outline_desc_related_work": "Các công trình liên quan",
+  "review.outline_desc_methodology": "So sánh phương pháp",
+  "review.outline_desc_findings": "Kết quả nghiên cứu chính",
+  "review.outline_desc_limitations": "Hạn chế của các nghiên cứu",
+  "review.outline_desc_gaps": "Khoảng trống nghiên cứu",
+  "review.outline_desc_future": "Hướng phát triển tương lai"
 }

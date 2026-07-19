@@ -4,10 +4,11 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from loguru import logger
 
 from app_state import state
+from common.i18n import t, get_language
 from config.settings import settings
 from db.database import get_session
 from db.models import ChatHistory, Paper
@@ -21,12 +22,13 @@ _daily_cache: dict = {"data": None, "date": ""}
 # ─── Personalized Knowledge Brain ────────────────────────────────
 
 @router.get("/brain")
-async def get_personal_brain():
+async def get_personal_brain(request: Request):
     """
     Personalized Knowledge Brain: analyzes the user's library and reading
     patterns to provide personalized insights.
     """
     session = get_session(state.engine)
+    lang = get_language(request)
     try:
         all_papers = session.query(Paper).filter(Paper.status == "indexed").all()
         total_papers = len(all_papers)
@@ -133,57 +135,63 @@ async def get_personal_brain():
         if total_papers == 0:
             insights.append({
                 "type": "info",
-                "title": "Bắt đầu hành trình nghiên cứu",
-                "description": "Hãy import PDF đầu tiên để xây dựng thư viện nghiên cứu của bạn.",
-                "action": "Import PDF",
+                "title": t("personal.start_title", lang),
+                "description": t("personal.start_desc", lang),
+                "action": t("personal.action_import_pdf", lang),
             })
         else:
             if len(unread_papers) > 0:
                 insights.append({
                     "type": "action",
-                    "title": f"{len(unread_papers)} paper chưa đọc",
-                    "description": f"Bạn có {len(unread_papers)} paper chờ xử lý. Hãy bắt đầu với paper quan trọng nhất.",
-                    "action": "Xem thư viện",
+                    "title": t("personal.unread_papers_title", lang, count=len(unread_papers)),
+                    "description": t("personal.unread_papers_desc", lang, count=len(unread_papers)),
+                    "action": t("personal.action_view_library", lang),
                 })
 
             if len(read_papers) > 0 and total_papers > 0:
                 pct = round(len(read_papers) / total_papers * 100)
+                if pct > 70:
+                    motivation = t("personal.motivation_excellent", lang)
+                elif pct > 30:
+                    motivation = t("personal.motivation_keep_going", lang)
+                else:
+                    motivation = t("personal.motivation_read_more", lang)
                 insights.append({
                     "type": "progress",
-                    "title": f"Tiến độ đọc: {pct}%",
-                    "description": f"Bạn đã đọc {len(read_papers)}/{total_papers} paper. {'Tuyệt vời!' if pct > 70 else 'Cố gắng lên!' if pct > 30 else 'Hãy đọc thêm paper nhé!'}",
+                    "title": t("personal.reading_progress_title", lang, pct=pct),
+                    "description": t("personal.reading_progress_desc", lang, read_count=len(read_papers), total=total_papers, motivation=motivation),
                 })
 
             if top_topics:
                 top_topic = top_topics[0][0]
                 insights.append({
                     "type": "insight",
-                    "title": f"Chủ đề quan tâm nhất: {top_topic}",
-                    "description": f"Bạn đang tập trung nhiều vào '{top_topic}'. Hãy tìm thêm paper liên quan để mở rộng kiến thức.",
+                    "title": t("personal.top_topic_title", lang, topic=top_topic),
+                    "description": t("personal.top_topic_desc", lang, topic=top_topic),
                 })
 
             if len(languages) > 1:
                 langs = ", ".join([f"{lang}: {count}" for lang, count in languages.most_common(3)])
                 insights.append({
                     "type": "info",
-                    "title": "Ngôn ngữ đa dạng",
-                    "description": f"Thư viện của bạn có nhiều ngôn ngữ: {langs}. Điều này cho thấy bạn tiếp cận nghiên cứu từ nhiều nguồn.",
+                    "title": t("personal.multi_lang_title", lang),
+                    "description": t("personal.multi_lang_desc", lang, langs=langs),
                 })
 
             if len(starred_papers) > 0:
                 starred_titles = [p.title or p.filename for p in starred_papers[:3]]
                 insights.append({
                     "type": "insight",
-                    "title": f"{len(starred_papers)} paper yêu thích",
-                    "description": f"Các paper được yêu thích: {', '.join(starred_titles[:2])}{'...' if len(starred_titles) > 2 else ''}. Đây có thể là hướng nghiên cứu chính của bạn.",
+                    "title": t("personal.starred_title", lang, count=len(starred_papers)),
+                    "description": t("personal.starred_desc", lang, titles=", ".join(starred_titles[:2]) + ("..." if len(starred_titles) > 2 else "")),
                 })
 
             if total_papers >= 3 and len(read_papers) < total_papers // 2:
                 insights.append({
                     "type": "action",
-                    "title": "Tạo Literature Review",
-                    "description": "Với nhiều paper chưa đọc, hãy để AI tóm tắt và review giúp bạn.",
-                    "action": "Tạo Review",
+                    "title": t("personal.review_title", lang),
+                    "description": t("personal.review_desc", lang),
+                    "action": t("personal.action_create_review", lang),
                 })
 
         return {
@@ -201,12 +209,13 @@ async def get_personal_brain():
 # ─── Daily AI Reader ─────────────────────────────────────────────
 
 @router.get("/daily-reader")
-async def get_daily_reader():
+async def get_daily_reader(request: Request):
     """
     Daily AI Reader: suggests papers to read each day based on user's
     interests, reading history, and paper metadata.
     """
     session = get_session(state.engine)
+    lang = get_language(request)
     try:
         all_papers = session.query(Paper).filter(Paper.status == "indexed").all()
 
@@ -281,7 +290,7 @@ Use Markdown headings and write in the user's language."""
                 rag_error = rag_unavailable_message()
                 if rag_error:
                     daily_suggestion = {
-                        "suggestion": f"## Gợi ý đọc hôm nay\n\n{rag_error}",
+                        "suggestion": t("personal.suggestion_header", lang) + "\n\n" + rag_error,
                         "model_used": "unavailable",
                     }
                 else:
@@ -307,7 +316,7 @@ Use Markdown headings and write in the user's language."""
                     ]
                     if fallback_titles:
                         daily_suggestion = {
-                            "suggestion": "## Gợi ý đọc hôm nay\n\n" + "\n".join(
+                            "suggestion": t("personal.suggestion_header", lang) + "\n\n" + "\n".join(
                                 f"- {title}" for title in fallback_titles
                             ),
                             "model_used": "local-fallback",

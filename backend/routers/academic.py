@@ -18,7 +18,7 @@ from fastapi.responses import Response
 from loguru import logger
 
 from config.settings import settings
-from common.i18n import get_output_language_name, get_prompt_language
+from common.i18n import t, get_output_language_name, get_prompt_language
 
 from academic.openalex import get_work_by_doi as oa_get, search_works as oa_search
 from academic.crossref import get_work_by_doi as cr_get
@@ -416,4 +416,4 @@ async def invalidate_cache(doi: str):
     """Xoá cache cho DOI cụ thể, lần truy vấn sau sẽ fetch lại từ API."""
     cache_invalidate_doi(doi)
     logger.info(f"VERIFY_CACHE invalidated doi={doi}")
-    return {"status": "ok", "doi": doi, "message": f"Đã xoá cache cho {doi}"}
+    return {"status": "ok", "doi": doi, "message": t("academic.cache_cleared", doi=doi)}

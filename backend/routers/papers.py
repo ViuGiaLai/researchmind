@@ -13,6 +13,7 @@ from loguru import logger
 
 from sqlalchemy import or_
 
+from common.i18n import t
 from app_state import state
 from config.settings import settings
 from db.database import get_session
@@ -703,7 +704,7 @@ def _parse_and_index_image_paper(
             status="failed",
             stage="ocr",
             progress=100,
-            error="Không thể OCR hình ảnh.",
+            error=t("import.ocr_fail"),
         )
         session = get_session(state.engine)
         try:
@@ -865,7 +866,7 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
                 status=next_status,
                 stage="ocr" if next_status == "needs_ocr" else "indexing",
                 progress=100,
-                error="Không trích xuất đủ text. Tài liệu có thể là PDF scan cần OCR lại." if next_status == "needs_ocr" else "Không tạo được chunk từ tài liệu.",
+                error=t("import.pdf_retry_scanned") if next_status == "needs_ocr" else t("import.chunk_fail"),
             )
             return
 
@@ -1050,7 +1051,7 @@ def _retry_import_job(job_id: str):
         if not file_path or not Path(file_path).exists():
             job.status = "failed"
             job.stage = "retry"
-            job.error = "Không tìm thấy file để retry."
+            job.error = t("import.file_not_found_retry")
             job.progress = 100
             job.finished_at = datetime.utcnow()
             session.commit()
@@ -1879,7 +1880,7 @@ async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
             return {
                 "highlights": [],
                 "paper_id": paper_id,
-                "message": "Paper chưa được index đầy đủ để tạo highlights.",
+                "message": t("papers.highlights_not_ready"),
             }
 
         highlight_prompt = f"""Select up to {limit} high-value passages from the supplied paper excerpts.
