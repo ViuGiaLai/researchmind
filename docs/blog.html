@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog — ResearchMind Updates</title>
+  <meta name="description" content="ResearchMind blog with product updates, release notes, research tips, and academic productivity insights." />
+  <link rel="icon" type="image/x-icon" href="icon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="ambient-mesh">
+    <div class="mesh-blob mesh-blob-1"></div>
+    <div class="mesh-blob mesh-blob-2"></div>
+    <div class="mesh-blob mesh-blob-3"></div>
+  </div>
+
+  <nav class="navbar" id="navbar">
+    <a href="index.html" class="nav-brand">
+      <img src="icon.ico" alt="ResearchMind" class="nav-brand-img" />
+      <span class="nav-brand-text">Research<span>Mind</span></span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="blog.html" class="active-page">Blog</a></li>
+      <li><a href="index.html#download" class="nav-cta">Download</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <div class="page-hero">
+    <div class="container">
+      <h1><span class="gradient-text">Updates</span> &amp; Insights</h1>
+      <p>Product announcements, research tips, and behind-the-scenes stories from the ResearchMind team.</p>
+    </div>
+  </div>
+
+  <section class="section" style="padding-top:0;">
+    <div class="container">
+      <!-- Featured Post -->
+      <article class="blog-card blog-card-featured reveal" style="border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-card);margin-bottom:40px;">
+        <div class="blog-card-image" style="background:linear-gradient(135deg, rgba(139,92,246,0.08), rgba(6,182,212,0.08));display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+        </div>
+        <div class="blog-card-body" style="padding:32px;">
+          <span class="blog-card-tag">Release</span>
+          <h3 style="font-size:1.3rem;">ResearchMind v0.6: Evidence Matrix, Review Builder &amp; Local AI</h3>
+          <p>We're thrilled to announce ResearchMind v0.6, our biggest update yet. This release introduces the Evidence Matrix for paper comparison, a full Literature Review Builder, and support for local AI models via llama-server.</p>
+          <span class="blog-card-date">July 15, 2026</span>
+        </div>
+      </article>
+
+      <!-- Blog Grid -->
+      <div class="blog-grid">
+        <article class="blog-card reveal reveal-delay-1">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Feature</span>
+            <h3>Hybrid Search: Three-stage retrieval explained</h3>
+            <p>How ResearchMind combines BM25, vector search, and cross-encoder reranking to deliver the most relevant results.</p>
+            <span class="blog-card-date">July 8, 2026</span>
+          </div>
+        </article>
+
+        <article class="blog-card reveal reveal-delay-2">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Guide</span>
+            <h3>Getting the most out of RAG Chat</h3>
+            <p>Tips and best practices for using citation-grounded AI chat in your research workflow.</p>
+            <span class="blog-card-date">June 28, 2026</span>
+          </div>
+        </article>
+
+        <article class="blog-card reveal reveal-delay-3">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Guide</span>
+            <h3>Systematic reviews with ResearchMind</h3>
+            <p>A step-by-step guide to conducting systematic literature reviews using the screening board and review builder.</p>
+            <span class="blog-card-date">June 20, 2026</span>
+          </div>
+        </article>
+
+        <article class="blog-card reveal reveal-delay-4">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Release</span>
+            <h3>v0.5: OCR, Zotero sync, and performance improvements</h3>
+            <p>Version 0.5 brings OCR support for scanned PDFs, direct Zotero synchronization, and significant indexing speed improvements.</p>
+            <span class="blog-card-date">June 5, 2026</span>
+          </div>
+        </article>
+
+        <article class="blog-card reveal reveal-delay-5">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Philosophy</span>
+            <h3>Why local-first AI matters for academic research</h3>
+            <p>Privacy, data sovereignty, and offline access are essential for serious academic work. Here's our philosophy.</p>
+            <span class="blog-card-date">May 22, 2026</span>
+          </div>
+        </article>
+
+        <article class="blog-card reveal reveal-delay-6">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Release</span>
+            <h3>v0.4: Evidence mode and critique tools</h3>
+            <p>Introducing evidence-only chat mode, AI-powered paper critique, and the first version of multi-paper comparison tools.</p>
+            <span class="blog-card-date">May 10, 2026</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <div class="cta-section reveal">
+    <div class="container">
+      <div class="cta-card">
+        <h2>Stay updated</h2>
+        <p>Follow us on GitHub for the latest releases and join the discussion.</p>
+        <div class="cta-actions">
+          <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-primary" target="_blank" rel="noopener">Follow on GitHub</a>
+          <a href="index.html" class="btn btn-secondary">Back to Home <span class="arrow">→</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-top">
+            <img src="icon.ico" alt="ResearchMind" class="footer-brand-img" />
+            <span class="footer-brand-name">Research<span>Mind</span></span>
+          </div>
+          <p class="footer-brand-desc">AI-powered research workspace for academics. Your data stays on your machine. Cloud AI is optional.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="pricing.html">Pricing</a></li>
+            <li><a href="index.html#download">Download</a></li>
+            <li><a href="https://github.com/ViuGiaLai/researchmind/releases">Releases</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="docs.html">Documentation</a></li>
+            <li><a href="blog.html">Blog</a></li>
+            <li><a href="legal.html#privacy">Privacy Policy</a></li>
+            <li><a href="legal.html#terms">Terms of Service</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a></li>
+            <li><a href="mailto:support@researchmind.app">Email</a></li>
+            <li><a href="legal.html#support">Support</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-copy">&copy; 2026 ResearchMind &mdash; MIT License &bull; Local-first research AI</p>
+        <div class="footer-social">
+          <a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a>
+          <a href="legal.html#support">Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

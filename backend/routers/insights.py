@@ -11,6 +11,7 @@ from db.database import get_session
 from db.models import CollectionPaper
 from academic.paper_check import check_papers_ready
 from common.rag_ready import rag_unavailable_message
+from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
 
@@ -304,7 +305,7 @@ async def compare_papers(request: Request, body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
-        paper_titles = {p.id: p.title or p.filename for p in papers_db}
+        paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
     finally:
         session.close()
 

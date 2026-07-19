@@ -520,6 +520,7 @@ async def move_storage(request: Request, body: dict = Body(...)):
         db_session.close()
 
         state.vector = VectorSearch(settings.chroma_dir)
+        state.vector.collection
 
         state.hybrid = HybridSearch(
             bm25_search=state.bm25,
@@ -679,6 +680,7 @@ async def reset_app(request: Request):
         db_session.close()
 
         state.vector = VectorSearch(settings.chroma_dir)
+        state.vector.collection
 
         state.hybrid = HybridSearch(
             bm25_search=state.bm25,

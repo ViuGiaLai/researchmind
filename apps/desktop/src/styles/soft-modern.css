@@ -3,23 +3,37 @@
    Soft shadow · teal accent · elevation · responsive shell
    ═══════════════════════════════════════════════════════════ */
 
-/* ── Base typography ── */
-body {
+/* ── Base typography ──
+ * Negative tracking is English-only. Vietnamese must keep normal spacing
+ * or WebView/font fallback splits diacritic syllables visually.
+ */
+body:lang(en) {
   font-feature-settings: "kern", "liga";
   letter-spacing: -0.012em;
 }
 
-h1, h2, h3, h4,
-.rm-page-header h2,
-.settings-page-title,
-.search-hero-title,
-.wow-title,
-.graph-header-left h2,
-.discovery-header h2,
-.daily-reader-hero-title,
-.personal-brain-header h2 {
+html:lang(en) h1,
+html:lang(en) h2,
+html:lang(en) h3,
+html:lang(en) h4,
+html:lang(en) .rm-page-header h2,
+html:lang(en) .settings-page-title,
+html:lang(en) .search-hero-title,
+html:lang(en) .wow-title,
+html:lang(en) .graph-header-left h2,
+html:lang(en) .discovery-header h2,
+html:lang(en) .daily-reader-hero-title,
+html:lang(en) .personal-brain-header h2 {
   letter-spacing: -0.022em;
   font-weight: 600;
+}
+
+html:lang(vi) h1,
+html:lang(vi) h2,
+html:lang(vi) h3,
+html:lang(vi) h4 {
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 /* ── Hide harsh decorative glows ── */

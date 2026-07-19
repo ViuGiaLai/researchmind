@@ -233,6 +233,7 @@ async def lifespan(app: FastAPI):
             state.bm25 = BM25Search(db_session)
             state.bm25.ensure_fts_table()
             state.vector = VectorSearch(settings.chroma_dir)
+            state.vector.collection  # Eager-init ChromaDB client in startup thread
             state.hybrid = HybridSearch(
                 bm25_search=state.bm25,
                 vector_search=state.vector,

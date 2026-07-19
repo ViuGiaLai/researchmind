@@ -72,7 +72,8 @@ def get_output_language_name(lang: str) -> str:
 
 
 def infer_language(text: str, default: str = _DEFAULT_LANG) -> str:
-    return "ja" if any(0x3040 <= ord(char) <= 0x9FFF for char in text) else ("vi" if any(ord(char) > 127 for char in text) else ("en" if re.search(r"[A-Za-z]", text) else default))
+    stripped = re.sub(r'[\U0001F000-\U0010FFFF\u2600-\u27BF]', '', text)
+    return "ja" if any(0x3040 <= ord(char) <= 0x9FFF for char in stripped) else ("vi" if any(ord(char) > 127 for char in stripped) else ("en" if re.search(r"[A-Za-z]", stripped) else default))
 
 
 def get_prompt_language(user_text: str = "", requested_language: str = "") -> str:

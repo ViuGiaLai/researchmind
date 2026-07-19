@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api, getAuthenticatedApiUrl, Paper } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import {
   IconSpinner,
   IconSearch,
@@ -367,7 +368,7 @@ export const InsightsView: React.FC<{
                     {selectedPaperIds.includes(p.id) ? "✓" : ""}
                   </span>
                   <span className="insights-paper-chip-title">
-                    {p.title || p.filename}
+                    {paperDisplayTitle(p.title, p.filename)}
                   </span>
                 </button>
               ))}
@@ -438,7 +439,7 @@ export const InsightsView: React.FC<{
               <div className="insights-papers-list">
                 {result.papers_used.map((pid) => {
                   const p = papers.find((pp) => pp.id === pid);
-                  const title = p?.title || p?.filename || pid.slice(0, 12);
+                  const title = p ? paperDisplayTitle(p.title, p.filename) : pid.slice(0, 12);
                   return <span key={pid} className="insights-paper-tag">{title}</span>;
                 })}
               </div>

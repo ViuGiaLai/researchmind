@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { api, Paper } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import {
   IconSpinner,
   IconCheck,
@@ -559,8 +560,8 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
                       <IconFileText size={24} />
                     </div>
                     <div className="wow-paper-info">
-                      <h4 className="wow-paper-title-text" title={paper.title || paper.filename}>
-                        {paper.title || paper.filename}
+                      <h4 className="wow-paper-title-text" title={paperDisplayTitle(paper.title, paper.filename)}>
+                        {paperDisplayTitle(paper.title, paper.filename)}
                       </h4>
                       <p className="wow-paper-meta-text">
                         {paper.year ? `${paper.year} · ` : ""}
@@ -594,7 +595,7 @@ export const WowAnalysisView: React.FC<WowAnalysisViewProps> = ({
               </button>
               <h2 className="wow-report-paper-title">
                 <IconFileText size={24} className="wow-doc-icon" />
-                {selectedPaper.title || selectedPaper.filename}
+                {paperDisplayTitle(selectedPaper.title, selectedPaper.filename)}
               </h2>
               <p className="wow-report-paper-meta">
                 {selectedPaper.authors && (

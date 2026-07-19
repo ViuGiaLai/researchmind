@@ -1,483 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ResearchMind — AI Research Assistant (Desktop)</title>
-  <meta name="description" content="ResearchMind v0.6 — Manage your paper library, RAG chat with citations, critique, evidence matrix, and deep analysis. Local-first, supports cloud AI or fully offline.">
-
-  <link rel="icon" type="image/x-icon" href="icon.ico">
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResearchMind — AI Research Assistant</title>
+  <meta name="description" content="Local-first AI research assistant. Manage papers, RAG chat with citations, critique, evidence matrix, and deep analysis." />
+  <link rel="icon" type="image/x-icon" href="icon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="glow-bg glow-1"></div>
-  <div class="glow-bg glow-2"></div>
-  <div class="glow-bg glow-3"></div>
 
-  <header class="navbar">
-    <div class="container navbar-container">
-      <div class="logo">
-        <div class="logo-brand">
-          <img src="icon.ico" alt="ResearchMind" class="logo-img">
-          <span class="logo-text">ResearchMind</span>
-        </div>
-        <span class="logo-sub">v0.6.0 · Desktop</span>
+  <nav class="navbar" id="navbar">
+    <a href="index.html" class="nav-brand">
+      <img src="icon.ico" alt="ResearchMind" class="nav-brand-img" />
+      <span class="nav-brand-text">Research<span>Mind</span></span>
+    </a>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="features.html">Features</a></li>
+      <li><a href="pricing.html">Pricing</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="blog.html">Blog</a></li>
+      <li><a href="index.html#download" class="nav-cta">Download</a></li>
+    </ul>
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" type="button">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <section class="hero" id="home">
+    <div class="container">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Local-first · Open Source · v0.6
+      </div>
+      <h1 class="hero-title">
+        Academic Research with <br /><span class="gradient-text">AI Workspace</span>
+      </h1>
+      <p class="hero-desc">
+        A desktop app to manage your PDF library, perform semantic search,
+        chat with citations, critique papers, build evidence matrices, and
+        run deep analysis — choose Cloud Free, your own API, or go fully offline.
+      </p>
+      <div class="hero-actions">
+        <a href="#download" class="btn btn-primary">Download Free Trial</a>
+        <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-secondary" target="_blank" rel="noopener">GitHub</a>
       </div>
 
-      <nav class="nav-menu">
-        <a href="#welcome" class="nav-link">Home</a>
-        <a href="#demo" class="nav-link">Interface</a>
-        <a href="#features" class="nav-link">Features</a>
-        <a href="#download" class="btn btn-outline nav-btn">Download</a>
-      </nav>
-
-      <button class="mobile-menu-toggle" aria-label="Open menu">
-        <span class="bar bar-1"></span>
-        <span class="bar bar-2"></span>
-        <span class="bar bar-3"></span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Hero -->
-  <section id="welcome" class="hero-section">
-    <div class="container hero-container">
-      <div class="hero-grid">
-        <div class="hero-content">
-          <div class="promo-badge">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-accent); margin-right: 6px;">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>Local-first · Index &amp; chat on your machine</span>
-          </div>
-
-          <h1 class="hero-title">
-            Academic Research with <span class="text-gradient">AI Workspace</span>
-          </h1>
-
-          <p class="hero-desc">
-            A desktop app (Tauri) to manage your PDF library, perform semantic search, chat with citations,
-            critique papers, build evidence matrices, and run deep analysis — choose Cloud Free, your own API, or go fully offline.
-          </p>
-
-          <div class="hero-actions">
-            <a href="#demo" class="btn btn-primary">View Interface</a>
-            <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-secondary" target="_blank" rel="noopener">GitHub</a>
-          </div>
-
-          <div class="hero-stats-panel">
-            <div class="stat-item">
-              <strong>Hybrid</strong>
-              <span>FTS5 + Vector + Rerank</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-              <strong>RAG</strong>
-              <span>Chat · Critique · Debate</span>
-            </div>
-            <div class="stat-divider"></div>
-            <div class="stat-item">
-              <strong>?</strong>
-              <span>Built-in Help Center</span>
-            </div>
-          </div>
+      <div class="hero-video-wrapper">
+        <div class="video-overlay">
+          <button class="video-play-btn" aria-label="Play video">
+            <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21 5,3"/></svg>
+          </button>
         </div>
-
-        <div class="hero-visual">
-          <div class="hero-logo-wrapper">
-            <div class="logo-orbit orbit-1"></div>
-            <div class="logo-orbit orbit-2"></div>
-            <img src="icon.ico" alt="ResearchMind" class="hero-main-logo">
-            <div class="logo-glow-aura"></div>
-          </div>
-        </div>
+        <iframe
+          src="https://www.youtube.com/embed/dQw4w9WgXcQ?enablejsapi=1&rel=0&modestbranding=1"
+          title="ResearchMind Demo"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
       </div>
     </div>
   </section>
 
-  <!-- Interactive mockup -->
-  <section id="demo" class="demo-section">
+  <div class="trust-bar">
     <div class="container">
-      <div class="section-header">
-        <h2 class="section-title">Live Application Interface</h2>
-        <p class="section-subtitle">Sidebar and core modules matching ResearchMind Desktop v0.6 — click tabs to explore each area.</p>
-      </div>
-
-      <div class="app-mockup-frame">
-        <div class="app-window-header">
-          <div class="window-dots">
-            <span class="dot red"></span>
-            <span class="dot yellow"></span>
-            <span class="dot green"></span>
-          </div>
-          <div class="window-title-bar">ResearchMind Desktop v0.6.0</div>
-          <div class="window-help-dot" title="Help Center">?</div>
-        </div>
-      </div>
-
-      <div class="app-mockup-body">
-        <aside class="mock-sidebar">
-          <div class="sidebar-brand-wrapper">
-            <img src="icon.ico" alt="" class="mini-logo">
-            <span>ResearchMind</span>
-          </div>
-
-          <nav class="mock-nav">
-            <button class="mock-nav-btn active" data-target="library-tab">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z"/></svg>
-              <span>Library</span>
-            </button>
-            <button class="mock-nav-btn" data-target="chat-tab">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>AI Chat</span>
-            </button>
-            <button class="mock-nav-btn" data-target="review-tab">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
-              <span>Review</span>
-            </button>
-            <button class="mock-nav-btn" data-target="evidence-tab">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
-              <span>Evidence</span>
-            </button>
-            <div class="mock-nav-divider"></div>
-            <button class="mock-nav-btn mock-nav-labs" data-target="wow-tab">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
-              <span>Labs</span>
-            </button>
-          </nav>
-
-          <div class="sidebar-footer">
-            <div class="local-badge">
-              <span class="badge-dot"></span>
-              <span>Local Data</span>
-            </div>
-          </div>
-        </aside>
-
-        <main class="mock-main-view">
-          <!-- Library -->
-          <div id="library-tab" class="tab-content active">
-            <div class="mock-subtabs">
-              <span class="mock-subtab active">Library</span>
-              <span class="mock-subtab">Highlights</span>
-              <span class="mock-subtab">Search</span>
-              <span class="mock-subtab">Discovery</span>
-            </div>
-            <div class="library-dropzone">
-              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" class="drop-icon">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-              </svg>
-              <h4>Scan folder or import PDF</h4>
-              <p>Parse · chunk · embedding · OCR for scanned PDFs</p>
-            </div>
-            <div class="library-list-box">
-              <h4 class="list-title">Indexed Library (sample)</h4>
-              <div class="list-item">
-                <div class="item-info">
-                  <span class="item-name">systematic_review_methods_2024.pdf</span>
-                  <span class="item-size">2.1 MB · 48 pages · Read</span>
-                </div>
-                <span class="item-tag success">Ready</span>
-              </div>
-              <div class="list-item">
-                <div class="item-info">
-                  <span class="item-name">transformer_survey.pdf</span>
-                  <span class="item-size">1.2 MB · 22 pages</span>
-                </div>
-                <span class="item-tag success">Ready</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Chat -->
-          <div id="chat-tab" class="tab-content">
-            <div class="chat-viewport">
-              <div class="chat-msg user">
-                <div class="avatar">U</div>
-                <div class="msg-bubble">Compare the methodologies of the 2 selected papers and cite specific pages.</div>
-              </div>
-              <div class="chat-msg ai">
-                <div class="avatar-ai">AI</div>
-                <div class="msg-bubble">
-                  Paper A uses a <strong>randomized controlled trial</strong> (n=240), while Paper B is an <strong>observational cohort</strong>.
-                  <br><br>
-                  <span class="cite-chip">[1] p.12</span>
-                  <span class="cite-chip">[2] p.8–9</span>
-                  <br><small style="opacity:.75">Mode: Evidence-only · Trust panel shows claim confidence</small>
-                </div>
-              </div>
-            </div>
-            <div class="chat-input-wrapper">
-              <span class="mock-mode-pill">Free</span>
-              <input type="text" class="chat-input-field" placeholder="Ask about your research..." disabled>
-              <button class="chat-send-btn" disabled aria-label="Send">↑</button>
-            </div>
-          </div>
-
-          <!-- Review -->
-          <div id="review-tab" class="tab-content">
-            <div class="mock-subtabs">
-              <span class="mock-subtab active">Review</span>
-              <span class="mock-subtab">Insights</span>
-              <span class="mock-subtab">Screening</span>
-            </div>
-            <div class="wow-insights-grid" style="grid-template-columns: 1fr;">
-              <div class="wow-card green">
-                <div class="wow-card-header">
-                  <span class="wow-label">Literature Review Builder</span>
-                  <span class="wow-val">7 sections</span>
-                </div>
-                <p class="wow-text">Background → Methods → Results → Discussion → Gap → Future — inline editing, regenerate per section, export DOCX / Markdown.</p>
-              </div>
-              <div class="wow-card blue">
-                <div class="wow-card-header">
-                  <span class="wow-label">Screening board</span>
-                  <span class="wow-val">Include / Exclude</span>
-                </div>
-                <p class="wow-text">Filter papers by systematic review criteria with maybe status, notes, and quick statistics.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Evidence -->
-          <div id="evidence-tab" class="tab-content">
-            <div class="paper-header-box">
-              <div class="paper-badge">Evidence Matrix</div>
-              <h3 class="paper-title">Evidence matrix by criterion</h3>
-              <p class="paper-meta">Rows = criteria · Columns = papers · Cells = sourced quotes</p>
-            </div>
-            <div class="evidence-matrix-mock">
-              <div class="matrix-row matrix-head"><span>Criterion</span><span>Paper A</span><span>Paper B</span></div>
-              <div class="matrix-row"><span>Sample size</span><span class="cell yes">n=240</span><span class="cell yes">n=1.2k</span></div>
-              <div class="matrix-row"><span>Blinding</span><span class="cell yes">Yes</span><span class="cell no">No</span></div>
-              <div class="matrix-row"><span>Limitation</span><span class="cell partial">Short-term</span><span class="cell partial">Selection bias</span></div>
-            </div>
-          </div>
-
-          <!-- Labs -->
-          <div id="wow-tab" class="tab-content">
-            <div class="mock-subtabs">
-              <span class="mock-subtab active">Deep Analysis</span>
-              <span class="mock-subtab">Brain</span>
-              <span class="mock-subtab">Read Today</span>
-              <span class="mock-subtab">Graph</span>
-            </div>
-            <div class="wow-insights-grid">
-              <div class="wow-card green">
-                <div class="wow-card-header">
-                  <span class="wow-label">Core claims</span>
-                  <span class="wow-val">Done</span>
-                </div>
-                <p class="wow-text">Multi-step pipeline: summary, methodology, limitations, contributions, next steps — each section has a status badge.</p>
-              </div>
-              <div class="wow-card blue">
-                <div class="wow-card-header">
-                  <span class="wow-label">Critique &amp; Debate</span>
-                  <span class="wow-val">AI</span>
-                </div>
-                <p class="wow-text">Academic critique and multi-persona debate directly from papers in your library.</p>
-              </div>
-              <div class="wow-card red">
-                <div class="wow-card-header">
-                  <span class="wow-label">Graph &amp; Brain</span>
-                  <span class="wow-val">Labs</span>
-                </div>
-                <p class="wow-text">Paper relationship graph and personal brain — reading suggestions, tags, statistics over time.</p>
-              </div>
-            </div>
-          </div>
-        </main>
+      <p class="trust-label">Built with industry standards</p>
+      <div class="trust-logos">
+        <span class="trust-logo">Tauri</span>
+        <span class="trust-logo">FastAPI</span>
+        <span class="trust-logo">ChromaDB</span>
+        <span class="trust-logo">SQLite</span>
+        <span class="trust-logo">React</span>
+        <span class="trust-logo">TypeScript</span>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- Features -->
-  <section id="features" class="features-section">
+  <section class="section" id="features">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">v0.6 Features</h2>
-        <p class="section-subtitle">Built for PhD students, scholars, and systematic review teams — powered by Tauri + FastAPI.</p>
+        <span class="section-label">v0.6 Features</span>
+        <h2 class="section-title">Built for researchers who value privacy &amp; performance</h2>
+        <p class="section-desc">Everything you need to manage, read, and synthesize research — all on your machine.</p>
       </div>
-
-      <div class="features-grid features-grid-6">
+      <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon-box">
+          <div class="feature-icon blue">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
           </div>
           <h3>Import &amp; Index</h3>
-          <p>PDF, DOCX, EPUB, BibTeX, RIS, Zotero. Status queue, OCR for scanned PDFs, bge-m3 embedding + ChromaDB.</p>
+          <p>PDF, DOCX, EPUB, BibTeX, RIS, Zotero. OCR for scanned PDFs, bge-m3 embedding + ChromaDB.</p>
         </div>
-
         <div class="feature-card">
-          <div class="feature-icon-box">
+          <div class="feature-icon purple">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           </div>
           <h3>Hybrid Search</h3>
           <p>BM25 (SQLite FTS5) + vector semantic + cross-encoder rerank. Saved search, filter by collection/tag/year.</p>
         </div>
-
         <div class="feature-card">
-          <div class="feature-icon-box">
+          <div class="feature-icon teal">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
           <h3>RAG Chat</h3>
           <p>Streaming, multi-paper, Evidence-only mode, citation panel, DOI verification, trust panel.</p>
         </div>
-
         <div class="feature-card">
-          <div class="feature-icon-box">
+          <div class="feature-icon emerald">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
           </div>
           <h3>Review &amp; Screening</h3>
           <p>Insights, screening board, 7-section review builder, comparison matrix, export DOCX/Markdown.</p>
         </div>
-
         <div class="feature-card">
-          <div class="feature-icon-box">
+          <div class="feature-icon amber">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
           </div>
           <h3>Evidence Matrix</h3>
           <p>Extract claims by criterion, sourced quotes, visual comparison table across papers.</p>
         </div>
-
         <div class="feature-card">
-          <div class="feature-icon-box">
+          <div class="feature-icon rose">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
           </div>
-          <h3>Help Center</h3>
-          <p>Docs, FAQ, keyboard shortcuts, release notes — ? button in the corner, keeps the sidebar clean.</p>
-        </div>
-      </div>
-
-      <div class="ai-modes-panel">
-        <h4 class="specs-panel-title">AI Modes (Settings)</h4>
-        <div class="ai-modes-grid">
-          <div class="ai-mode-chip"><strong>Cloud Free</strong><span>Ready to use</span></div>
-          <div class="ai-mode-chip"><strong>Custom API</strong><span>Gemini · DeepSeek · Claude · Groq</span></div>
-          <div class="ai-mode-chip"><strong>Local</strong><span>llama-server · GGUF offline</span></div>
+          <h3>Graph &amp; Brain</h3>
+          <p>Paper relationship graph and personal brain — reading suggestions, tags, statistics over time.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="pricing" class="features-section">
+  <section class="section" style="padding-top:0;">
     <div class="container">
       <div class="section-header">
-        <p class="promo-badge">14-day free trial</p>
-        <h2 class="section-title">Choose the plan that fits your research</h2>
-        <p class="section-subtitle">Your library data stays on your machine. Use local AI or bring your own API key.</p>
+        <span class="section-label">Workflow</span>
+        <h2 class="section-title">From paper to insight in 3 steps</h2>
       </div>
-      <div class="download-grid pricing-grid">
-        <article class="download-card">
-          <h3>Free</h3><p class="price-value">$0</p>
-          <p class="plat-desc">Library, import and hybrid search after trial ends.</p>
-          <a href="#download" class="btn btn-outline btn-full">Download Free Trial</a>
-        </article>
-        <article class="download-card pricing-featured">
-          <span class="pricing-label">Best value</span>
-          <h3>Pro</h3><p class="price-value">$4 <small>/ month</small></p>
-          <p class="plat-desc">Chat, Review, Export, Graph, Insights &amp; Verify.</p>
-          <a href="mailto:sales@researchmind.app?subject=ResearchMind%20Pro%20Purchase" class="btn btn-primary btn-full">Subscribe Pro</a>
-        </article>
-        <article class="download-card">
-          <h3>Lab</h3><p class="price-value">Contact</p>
-          <p class="plat-desc">For research teams needing deployment and priority support.</p>
-          <a href="mailto:sales@researchmind.app?subject=ResearchMind%20Lab" class="btn btn-secondary btn-full">Contact Us</a>
-        </article>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>Import &amp; Index</h3>
+          <p>Drag &amp; drop PDFs, sync Zotero, or scan folders. Your papers are parsed, chunked, and embedded automatically.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>Search &amp; Chat</h3>
+          <p>Hybrid search finds anything instantly. Chat with your papers using RAG — every answer comes with citations.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>Synthesize &amp; Export</h3>
+          <p>Build evidence matrices, generate structured reviews, compare papers, and export to DOCX, Markdown, or LaTeX.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- Download -->
-  <section id="download" class="download-section">
+  <section class="section" style="padding-top:0;">
     <div class="container">
       <div class="section-header">
-        <h2 class="section-title">Download ResearchMind Desktop</h2>
-        <p class="section-subtitle">Built with Tauri v2 · Current version <strong>v0.6.0</strong>. Requires companion Python backend (auto-starts during dev/build).</p>
+        <span class="section-label">Testimonials</span>
+        <h2 class="section-title">Loved by researchers worldwide</h2>
       </div>
+      <div class="testimonial-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">“ResearchMind has completely changed how I manage my literature review. The hybrid search is incredibly fast, and the evidence matrix saved me weeks of work.”</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">JD</div>
+            <div class="testimonial-info">
+              <span class="testimonial-name">Dr. Jane Doe</span>
+              <span class="testimonial-role">PhD Candidate, CS</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">“I was sceptical about local-first AI, but ResearchMind delivers. The critique mode is like having a senior colleague review my work.”</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">MS</div>
+            <div class="testimonial-info">
+              <span class="testimonial-name">Dr. Mark Smith</span>
+              <span class="testimonial-role">Postdoc, Epidemiology</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <p class="testimonial-text">“The review builder alone is worth the subscription. I generated a 7-section literature review in minutes and exported to LaTeX.”</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">AL</div>
+            <div class="testimonial-info">
+              <span class="testimonial-name">Prof. Anna Lee</span>
+              <span class="testimonial-role">Associate Professor, History</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
+  <section class="section" style="padding-top:0;">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">FAQ</span>
+        <h2 class="section-title">Frequently asked questions</h2>
+      </div>
+      <div style="max-width:720px;margin:0 auto;">
+        <div class="faq-item">
+          <h3 class="faq-question">Is my data private?</h3>
+          <p class="faq-answer">Yes. ResearchMind is local-first. Your PDFs, notes, and indexes stay on your machine. Cloud AI is only used when you explicitly enable it and send a query.</p>
+        </div>
+        <div class="faq-item">
+          <h3 class="faq-question">Can I use ResearchMind offline?</h3>
+          <p class="faq-answer">Yes. Use local AI models (llama-server, GGUF) for fully offline operation. Library management and search work without any internet connection.</p>
+        </div>
+        <div class="faq-item">
+          <h3 class="faq-question">What happens to my data if I uninstall?</h3>
+          <p class="faq-answer">Local data persists in the application data directory. You can delete it from Settings or manually remove the ResearchMind folder.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-label">Download</span>
+        <h2 class="section-title">Get ResearchMind Desktop</h2>
+        <p class="section-desc">Built with Tauri v2 · Current version <strong>v0.6.0</strong>. Requires companion Python backend (auto-starts).</p>
+      </div>
       <div class="download-grid">
         <div class="download-card">
-          <div class="platform-icon">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.45H0V3.449zM0 12.45h9.75v9.45L0 20.551v-8.101zM11.25 1.9L24 0v11.55H11.25V1.9zm12.75 10.55V24l-12.75-1.9v-9.65H24z"/></svg>
-          </div>
+          <div class="download-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.45H0V3.449zM0 12.45h9.75v9.45L0 20.551v-8.101zM11.25 1.9L24 0v11.55H11.25V1.9zm12.75 10.55V24l-12.75-1.9v-9.65H24z"/></svg></div>
           <h3>Windows</h3>
-          <p class="plat-desc">Windows 10 / 11 (64-bit)</p>
-          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-primary btn-full" target="_blank" rel="noopener">Download from GitHub Releases</a>
-          <span class="plat-meta">v0.6.0 · Installer / Portable</span>
+          <p class="download-desc">Windows 10 / 11 (64-bit)</p>
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-primary btn-full" target="_blank" rel="noopener">Download Installer</a>
+          <span class="download-meta">v0.6.0 · Installer / Portable</span>
         </div>
-
         <div class="download-card">
-          <div class="platform-icon">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.029-3.91 1.183-4.961 3.014-2.117 3.675-.54 9.102 1.51 12.067 1.007 1.452 2.2 3.076 3.774 3.02 1.524-.059 2.098-.98 3.938-.98 1.829 0 2.365.98 3.96.95 1.624-.03 2.661-1.47 3.661-2.93 1.154-1.69 1.632-3.32 1.66-3.4-.03-.01-3.18-1.22-3.21-4.82-.03-3.02 2.48-4.47 2.58-4.53-1.42-2.08-3.62-2.3-4.4-2.36-2.035-.17-3.325 1.04-4.262 1.04zm3.09-4.556c.846-1.025 1.411-2.454 1.253-3.877-1.22.049-2.697.817-3.57 1.839-.77.889-1.442 2.338-1.262 3.738 1.353.104 2.733-.675 3.579-1.7z"/></svg>
-          </div>
+          <div class="download-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.029-3.91 1.183-4.961 3.014-2.117 3.675-.54 9.102 1.51 12.067 1.007 1.452 2.2 3.076 3.774 3.02 1.524-.059 2.098-.98 3.938-.98 1.829 0 2.365.98 3.96.95 1.624-.03 2.661-1.47 3.661-2.93 1.154-1.69 1.632-3.32 1.66-3.4-.03-.01-3.18-1.22-3.21-4.82-.03-3.02 2.48-4.47 2.58-4.53-1.42-2.08-3.62-2.3-4.4-2.36-2.035-.17-3.325 1.04-4.262 1.04zm3.09-4.556c.846-1.025 1.411-2.454 1.253-3.877-1.22.049-2.697.817-3.57 1.839-.77.889-1.442 2.338-1.262 3.738 1.353.104 2.733-.675 3.579-1.7z"/></svg></div>
           <h3>macOS</h3>
-          <p class="plat-desc">Apple Silicon &amp; Intel</p>
-          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-secondary btn-full" target="_blank" rel="noopener">Download from GitHub Releases</a>
-          <span class="plat-meta">v0.6.0 · .dmg</span>
+          <p class="download-desc">Apple Silicon &amp; Intel</p>
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-secondary btn-full" target="_blank" rel="noopener">Download .dmg</a>
+          <span class="download-meta">v0.6.0 · Universal</span>
         </div>
-
         <div class="download-card">
-          <div class="platform-icon">
-            <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-          </div>
+          <div class="download-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
           <h3>Linux</h3>
-          <p class="plat-desc">Ubuntu · Debian · Fedora</p>
-          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-outline btn-full" target="_blank" rel="noopener">Download from GitHub Releases</a>
-          <span class="plat-meta">v0.6.0 · AppImage / .deb</span>
+          <p class="download-desc">Ubuntu · Debian · Fedora</p>
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-secondary btn-full" target="_blank" rel="noopener">Download AppImage</a>
+          <span class="download-meta">v0.6.0 · AppImage / .deb</span>
         </div>
       </div>
 
-      <div class="specs-panel">
+      <div class="specs-panel" style="margin-top:48px;">
         <h4 class="specs-panel-title">System Requirements</h4>
-        <div class="specs-panel-grid">
-          <div class="spec-col">
-            <span class="spec-label">Dev stack</span>
-            <strong class="spec-val">Node 22+, pnpm, Python 3.11+, Rust, Tauri CLI</strong>
-          </div>
-          <div class="spec-col">
-            <span class="spec-label">RAM</span>
-            <strong class="spec-val">8 GB minimum · 16 GB recommended (local LLM 7B)</strong>
-          </div>
-          <div class="spec-col">
-            <span class="spec-label">Storage</span>
-            <strong class="spec-val">~500 MB app + additional for index, cache, and GGUF models (if using local)</strong>
-          </div>
+        <div class="specs-grid">
+          <div><h4>Dev Stack</h4><p>Node 22+, pnpm, Python 3.11+, Rust, Tauri CLI</p></div>
+          <div><h4>RAM</h4><p>8 GB minimum · 16 GB recommended (local LLM 7B)</p></div>
+          <div><h4>Storage</h4><p>~500 MB app + additional for index, cache, and GGUF models</p></div>
         </div>
-        <p class="dev-hint">From source: <code class="inline-code">pnpm install</code> → <code class="inline-code">cd backend && pip install -r requirements.txt</code> → <code class="inline-code">pnpm tauri dev</code></p>
+        <p class="specs-hint">From source: <code>pnpm install</code> → <code>cd backend && pip install -r requirements.txt</code> → <code>pnpm tauri dev</code></p>
       </div>
     </div>
   </section>
 
-  <footer class="footer">
-    <div class="container footer-container">
-      <div class="footer-logo">
-        <div class="footer-logo-brand">
-          <img src="icon.ico" alt="" class="footer-logo-img">
-          <span class="footer-logo-text">ResearchMind</span>
+  <div class="cta-section">
+    <div class="container">
+      <div class="cta-card">
+        <h2>Ready to transform your research workflow?</h2>
+        <p>Download ResearchMind and start your 14-day free trial. No credit card required.</p>
+        <div class="cta-actions">
+          <a href="https://github.com/ViuGiaLai/researchmind/releases/latest" class="btn btn-primary" target="_blank" rel="noopener">Download Free Trial</a>
+          <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
         </div>
-        <span class="footer-logo-sub">MIT License · Local-first research AI</span>
       </div>
+    </div>
+  </div>
 
-      <div class="footer-links">
-        <a href="legal.html#privacy">Privacy</a>
-        <a href="legal.html#terms">Terms</a>
-        <a href="legal.html#refund">Refunds</a>
-        <a href="legal.html#support">Support</a>
-        <a href="https://github.com/ViuGiaLai/researchmind" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://github.com/ViuGiaLai/researchmind/issues" target="_blank" rel="noopener">Report Issue</a>
-        <a href="https://github.com/ViuGiaLai/researchmind/releases" target="_blank" rel="noopener">Releases</a>
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-top">
+            <img src="icon.ico" alt="ResearchMind" class="footer-brand-img" />
+            <span class="footer-brand-name">Research<span>Mind</span></span>
+          </div>
+          <p class="footer-brand-desc">AI-powered research workspace for academics. Your data stays on your machine. Cloud AI is optional.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul><li><a href="features.html">Features</a></li><li><a href="pricing.html">Pricing</a></li><li><a href="index.html#download">Download</a></li><li><a href="https://github.com/ViuGiaLai/researchmind/releases">Releases</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul><li><a href="docs.html">Documentation</a></li><li><a href="blog.html">Blog</a></li><li><a href="legal.html#privacy">Privacy Policy</a></li><li><a href="legal.html#terms">Terms of Service</a></li></ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul><li><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a></li><li><a href="mailto:support@researchmind.app">Email</a></li><li><a href="legal.html#support">Support</a></li></ul>
+        </div>
       </div>
-
-      <p class="footer-copyright">
-        &copy; 2026 ResearchMind — Your research data stays on your machine. Cloud AI is optional.
-      </p>
+      <div class="footer-bottom">
+        <p class="footer-copy">&copy; 2026 ResearchMind &mdash; MIT License &bull; Local-first research AI</p>
+        <div class="footer-social"><a href="https://github.com/ViuGiaLai/researchmind" target="_blank">GitHub</a><a href="legal.html#support">Support</a></div>
+      </div>
     </div>
   </footer>
 

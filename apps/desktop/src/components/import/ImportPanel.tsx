@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ImportJob } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import {
   IconFileText,
   IconNotebookPen,
@@ -766,10 +767,10 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
                     <span
                       className="import-result-name"
                       style={{ cursor: r.paper_id ? "pointer" : "default" }}
-                      onClick={() => r.paper_id && startEditing(i, r.title || r.filename)}
+                      onClick={() => r.paper_id && startEditing(i, paperDisplayTitle(r.title, r.filename))}
                       title={r.paper_id ? t("import.click_rename") : ""}
                     >
-                      {r.title || r.filename}
+                      {paperDisplayTitle(r.title, r.filename)}
                       {r.paper_id && (
                         <IconEdit size={11} style={{ marginLeft: 6, opacity: 0.4 }} />
                       )}

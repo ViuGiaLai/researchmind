@@ -13,6 +13,7 @@ from config.settings import settings
 from db.database import get_session
 from db.models import ChatHistory, Paper
 from common.rag_ready import rag_unavailable_message
+from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/personal", tags=["Personal"])
 
@@ -179,7 +180,7 @@ async def get_personal_brain(request: Request):
                 })
 
             if len(starred_papers) > 0:
-                starred_titles = [p.title or p.filename for p in starred_papers[:3]]
+                starred_titles = [display_title(p.title, p.filename) for p in starred_papers[:3]]
                 insights.append({
                     "type": "insight",
                     "title": t("personal.starred_title", lang, count=len(starred_papers)),
@@ -244,7 +245,7 @@ async def get_daily_reader(request: Request):
         for p in all_papers:
             summary = {
                 "id": p.id,
-                "title": p.title or p.filename,
+                "title": display_title(p.title, p.filename),
                 "authors": "",
                 "year": p.year,
                 "language": p.language,
@@ -311,7 +312,7 @@ Use Markdown headings and write in the user's language."""
 
                 if daily_suggestion is None:
                     fallback_titles = [
-                        p.title or p.filename
+                        display_title(p.title, p.filename)
                         for p in (unread_papers or reading_papers or all_papers)[:3]
                     ]
                     if fallback_titles:
@@ -355,7 +356,7 @@ Use Markdown headings and write in the user's language."""
                 pass
             entry = {
                 "paper_id": p.id,
-                "title": p.title or p.filename,
+                "title": display_title(p.title, p.filename),
                 "authors": "",
                 "year": p.year,
                 "pages": p.page_count or 0,

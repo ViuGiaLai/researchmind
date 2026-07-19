@@ -15,6 +15,15 @@ from .image_ocr import (
     extract_docx_image_text,
     extract_docx_table_text,
 )
+from .metadata_quality import (
+    clean_authors,
+    display_title,
+    humanize_filename,
+    is_poor_title,
+    normalize_ocr_page_text,
+    resolve_paper_title,
+    strip_uuid_prefix,
+)
 
 _ocr_lock = threading.Lock()
 
@@ -49,7 +58,7 @@ def create_image_stub_document(file_path: str, original_filename: str | None = N
     """Fast metadata-only stub for image imports; OCR runs in background."""
     path = Path(file_path)
     name = original_filename or path.name
-    title = path.stem.replace("_", " ").replace("-", " ").strip() or name
+    title = resolve_paper_title(filename=name, stored_path=str(path))
     stub_text = f"[Image: {name}]\n(OCR and indexing in progress...)"
     return ExtractedDocument(
         path=str(path.absolute()),
@@ -73,7 +82,7 @@ def create_image_stub_document(file_path: str, original_filename: str | None = N
 def _extract_title_from_text(text: str, fallback: str, max_chars: int = 150) -> str:
     """Get first meaningful line from text as a suggested title."""
     for line in text.split("\n"):
-        line = line.strip()
+        line = normalize_ocr_page_text(line).strip()
         if not line:
             continue
         # Skip short lines (page numbers, headers)
@@ -83,8 +92,12 @@ def _extract_title_from_text(text: str, fallback: str, max_chars: int = 150) -> 
         alpha_ratio = sum(1 for c in line if c.isalpha()) / max(len(line), 1)
         if alpha_ratio < 0.4:
             continue
+        # Skip logo/caption/junk lines that pollute library titles
+        if is_poor_title(line):
+            continue
         return line[:max_chars].strip()
-    return fallback
+    cleaned_fallback = humanize_filename(fallback) or fallback
+    return cleaned_fallback[:max_chars].strip()
 
 
 def extract_document(file_path: str) -> Optional[ExtractedDocument]:
@@ -174,7 +187,7 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
                     ocr_text_list = [res[1] for res in ocr_results if res and len(res) > 1]
                     ocr_text = "\n".join(ocr_text_list)
                     if ocr_text.strip():
-                        text = ocr_text
+                        text = normalize_ocr_page_text(ocr_text)
                         ocr_succeeded = True
                         total_elapse = sum(elapse) if isinstance(elapse, (list, tuple)) else (elapse or 0.0)
                         logger.info(f"Page {page_num + 1} OCR completed in {total_elapse:.2f}s")
@@ -192,6 +205,9 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
             )
             if image_snippets:
                 text = (text.rstrip() + "\n\n" + "\n".join(image_snippets)).strip()
+
+        if text:
+            text = normalize_ocr_page_text(text)
         doc.close()
     except Exception as e:
         logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
@@ -226,12 +242,7 @@ def _parse_pdf_authors(raw: str) -> list[str]:
     parts = re.split(r"\s*(?:;|\r?\n|\band\b|\|)\s*", cleaned, flags=re.IGNORECASE)
     if len(parts) == 1 and "," in cleaned:
         parts = [part.strip() for part in cleaned.split(",")]
-    ignored = {"unknown", "anonymous", "n/a", "none"}
-    return [
-        part.strip()
-        for part in parts
-        if part.strip() and part.strip().lower() not in ignored and "@" not in part
-    ]
+    return clean_authors([part.strip() for part in parts if part.strip()])
 
 
 def _extract_metadata_year(*values: str) -> Optional[int]:
@@ -286,10 +297,13 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
     full_text_parts = [text_by_page[p] for p in sorted(text_by_page.keys())]
     full_text = "\n".join(full_text_parts)
 
+    # Prefer humanized original name (strip storage UUID) over raw path.stem
+    filename_fallback = humanize_filename(path.name) or strip_uuid_prefix(path.stem) or path.stem
+
     try:
         doc = fitz.open(file_path)
         meta = doc.metadata or {}
-        title = _clean_metadata_string(meta.get("title", "").strip()) or path.stem
+        metadata_title = _clean_metadata_string(meta.get("title", "").strip())
         authors_raw = _clean_metadata_string(meta.get("author", "").strip())
         authors_list = _parse_pdf_authors(authors_raw)
         authors_json = _serialize_authors(authors_list)
@@ -297,6 +311,7 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         year = _extract_metadata_year(
             meta.get("creationDate", ""),
             meta.get("modDate", ""),
+            filename_fallback,
             path.stem,
         )
 
@@ -304,16 +319,23 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         doc.close()
     except Exception as meta_err:
         logger.warning(f"Failed to extract metadata for {file_path}: {meta_err}")
-        title = path.stem
+        metadata_title = ""
         authors_json = "[]"
         year = None
         doi = ""
 
     language = _detect_language(full_text[:2000])
 
-    # Extract suggested title from first page text (fallback if metadata title is poor)
+    # Suggested title from first page — only used if it passes quality checks
     first_page_text = text_by_page.get(1, "")
-    suggested_title = _extract_title_from_text(first_page_text, path.stem)
+    suggested_title = _extract_title_from_text(first_page_text, filename_fallback)
+
+    title = resolve_paper_title(
+        metadata_title=metadata_title,
+        suggested_title=suggested_title,
+        filename=path.name,
+        stored_path=str(path),
+    )
 
     return ExtractedDocument(
         path=str(path.absolute()),
@@ -696,8 +718,15 @@ def _extract_image(file_path: str) -> Optional[ExtractedDocument]:
             "(Could not extract text automatically. Use \"Re-run OCR\" in the library.)"
         )
         ocr_failed = 1
+    else:
+        ocr_text = normalize_ocr_page_text(ocr_text)
 
-    title = path.stem.replace("_", " ").replace("-", " ").strip() or path.name
+    suggested = _extract_title_from_text(ocr_text, humanize_filename(path.name) or path.name)
+    title = resolve_paper_title(
+        suggested_title=suggested,
+        filename=path.name,
+        stored_path=str(path),
+    )
     language = _detect_language(ocr_text[:2000])
 
     return ExtractedDocument(
@@ -715,7 +744,7 @@ def _extract_image(file_path: str) -> Optional[ExtractedDocument]:
         ocr_pages_count=0 if ocr_failed else 1,
         ocr_pages_failed=ocr_failed,
         is_scanned=True,
-        suggested_title=title,
+        suggested_title=suggested,
     )
 
 

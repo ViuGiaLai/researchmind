@@ -65,6 +65,10 @@ __pycache__/
 # Blackbox
 .blackbox
 
+.codegraph
+.claude
+.agents
+
 # nhật ký
 nhat-ky-thuc-tap
 tham_khao

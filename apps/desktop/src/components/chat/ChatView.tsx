@@ -2,6 +2,7 @@
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
 import { api, getAuthenticatedApiUrl, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
+import { paperDisplayTitle } from "../../lib/paperDisplay";
 import { VerifyPanel } from "./VerifyPanel";
 import { TrustPanel } from "./TrustPanel";
 import { PdfViewer } from "../pdf/PdfViewer";
@@ -281,7 +282,7 @@ export const ChatView: React.FC<{
         if (cancelled) return;
         setAvailablePapers(data.papers.map(p => ({
           id: p.id,
-          title: p.title || p.filename,
+          title: paperDisplayTitle(p.title, p.filename),
           authors: p.authors || "",
         })));
       })

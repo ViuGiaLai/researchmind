@@ -21,6 +21,7 @@ from db.models import (
     ResearchArtifact, ReviewAuditEvent,
     ScreeningDecision, SyncChange, SyncDevice, Workspace, WorkspaceMember,
 )
+from ingestion.metadata_quality import clean_authors, display_title
 
 router = APIRouter(prefix="/api", tags=["Workspace"])
 
@@ -267,8 +268,12 @@ async def get_project(project_id: str):
             "status": project.status,
             "papers": [{
                 "id": paper.id,
-                "title": paper.title or paper.filename,
-                "authors": json.loads(paper.authors or "[]"),
+                "title": display_title(paper.title, paper.filename),
+                "authors": clean_authors(
+                    json.loads(paper.authors or "[]")
+                    if (paper.authors or "").strip().startswith("[")
+                    else [a.strip() for a in (paper.authors or "").split(",") if a.strip()]
+                ),
                 "year": paper.year,
                 "page_count": paper.page_count,
                 "status": paper.status,
@@ -812,8 +817,14 @@ async def check_living_review(subscription_id: str):
             haystack = f"{paper.title or ''} {paper.abstract or ''}".lower()
             if terms and any(term in haystack for term in terms):
                 matches.append({
-                    "id": paper.id, "title": paper.title or paper.filename,
-                    "authors": json.loads(paper.authors or "[]"), "year": paper.year,
+                    "id": paper.id,
+                    "title": display_title(paper.title, paper.filename),
+                    "authors": clean_authors(
+                        json.loads(paper.authors or "[]")
+                        if (paper.authors or "").strip().startswith("[")
+                        else [a.strip() for a in (paper.authors or "").split(",") if a.strip()]
+                    ),
+                    "year": paper.year,
                     "created_at": _iso(paper.created_at),
                 })
         now = datetime.utcnow()

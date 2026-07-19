@@ -82,7 +82,12 @@ class SentenceSplitter:
         current_page = 1
 
         for page_num in sorted(text_by_page.keys()):
-            page_text = text_by_page[page_num]
+            page_text = text_by_page[page_num] or ""
+            try:
+                from ingestion.metadata_quality import normalize_ocr_page_text
+                page_text = normalize_ocr_page_text(page_text)
+            except Exception:
+                pass
             paragraphs = self._split_paragraphs(page_text)
 
             for para in paragraphs:

@@ -114,20 +114,34 @@
 /* ── Library split view ── */
 .library-split-view {
   height: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.library-main-panel,
+.library-preview-panel {
+  min-width: 0;
+}
+
+/* Avoid nested horizontal scrollbars at any size */
+.library-split-view,
+.library-main-panel,
+.library-preview-panel,
+.library-list,
+.preview-body {
+  max-width: 100%;
 }
 
 @media (max-width: 1100px) {
   .hub-shell__content > .library-split-view {
-    height: auto;
+    height: 100%;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
   }
 
   .library-split-view {
     flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
   }
 
   .library-main-panel {
@@ -135,6 +149,16 @@
     max-height: min(42vh, 380px);
     flex-shrink: 0;
     border-bottom: 1px solid var(--color-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .library-main-panel .library-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .library-splitter {
@@ -144,8 +168,10 @@
   .library-preview-panel {
     min-width: 0;
     flex: 1;
-    min-height: 280px;
+    min-height: 0;
     height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 }
 

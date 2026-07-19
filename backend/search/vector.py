@@ -11,22 +11,19 @@ import os
 
 # Disable ChromaDB telemetry before importing chromadb
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_OTEL_GRANULARITY"] = "none"
+
+import chromadb
+import chromadb.telemetry.product.posthog
+
+# Monkey-patch telemetry once at module level (before any client is created)
+chromadb.telemetry.product.posthog.Posthog.capture = lambda self, event: None
 
 from typing import Optional
 from dataclasses import dataclass
 from pathlib import Path
 from loguru import logger
 import numpy as np
-import chromadb
-
-
-def _patch_chromadb_telemetry():
-    """Monkey-patch chromadb telemetry to suppress posthog version errors."""
-    try:
-        import chromadb.telemetry.product.posthog
-        chromadb.telemetry.product.posthog.Posthog.capture = lambda self, event: None
-    except Exception:
-        pass
 
 
 @dataclass
@@ -53,8 +50,6 @@ class VectorSearch:
         if self._client is not None:
             return
 
-        import chromadb
-        _patch_chromadb_telemetry()
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=str(self.persist_dir))
         logger.info(f"ChromaDB client initialized at: {self.persist_dir}")

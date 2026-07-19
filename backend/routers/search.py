@@ -6,6 +6,7 @@ from app_state import state
 from config.settings import settings
 from db.database import get_session
 from db.models import CollectionPaper, Paper
+from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/search", tags=["Search"])
 
@@ -236,7 +237,7 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
         
         matched_tags = set()
         matched_papers = [
-            {"id": row.id, "title": row.title or row.filename}
+            {"id": row.id, "title": display_title(row.title, row.filename)}
             for row in title_matches
         ]
         
