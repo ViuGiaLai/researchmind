@@ -171,16 +171,17 @@ jobs:
 
       - name: Publish SHA-256 checksums
         shell: bash
+        working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BUNDLE_DIR="apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle"
           if [ ! -d "$BUNDLE_DIR" ]; then
             echo "Bundle directory not found at $BUNDLE_DIR, searching..."
-            BUNDLE_DIR=$(find apps/desktop/src-tauri/target -type d -name bundle | head -1)
+            BUNDLE_DIR=$(find "${{ github.workspace }}" -type d -name bundle -path "*/target/*/release/bundle" | head -1)
             if [ -z "$BUNDLE_DIR" ]; then
               echo "No bundle directory found — listing target tree:"
-              find apps/desktop/src-tauri/target -maxdepth 6 -type d | head -30 || true
+              find "${{ github.workspace }}/apps/desktop/src-tauri/target" -maxdepth 6 -type d 2>/dev/null || echo "(no target directory)"
               exit 1
             fi
             echo "Found bundle at $BUNDLE_DIR"
