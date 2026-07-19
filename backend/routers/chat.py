@@ -821,8 +821,10 @@ async def get_chat_usage(request: Request):
     """Get hosted quota when available, otherwise return local BYOK usage."""
     if settings.researchmind_cloud_url:
         import httpx
-        authorization = request.headers.get("Authorization", "")
-        headers = {"Authorization": authorization} if authorization else {}
+        token = settings.researchmind_cloud_token
+        if not token:
+            token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(
