@@ -48,8 +48,8 @@ async def require_user(authorization: str = Header(default="")) -> dict:
 
 def validate_auth_configuration() -> None:
     settings = get_settings()
-    if settings.production and not settings.firebase_project_id:
-        raise RuntimeError("FIREBASE_PROJECT_ID is required in production")
     if settings.production and settings.allow_unauthenticated:
         raise RuntimeError("ALLOW_UNAUTHENTICATED cannot be enabled in production")
+    if settings.production and not settings.firebase_project_id and not settings.gateway_shared_token:
+        raise RuntimeError("FIREBASE_PROJECT_ID or GATEWAY_SHARED_TOKEN is required in production")
 
