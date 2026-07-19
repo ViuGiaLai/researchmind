@@ -10,10 +10,15 @@ from ..types import GenerationResult
 
 class CloudGatewayProviderMixin:
     def _gateway_headers(self) -> dict[str, str]:
-        token = get_request_bearer_token() or getattr(self, "researchmind_cloud_token", "")
+        shared = getattr(self, "researchmind_cloud_token", "")
+        user_token = get_request_bearer_token()
         headers = {"Content-Type": "application/json"}
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        if shared:
+            headers["Authorization"] = f"Bearer {shared}"
+            if user_token:
+                headers["X-User-Token"] = user_token
+        elif user_token:
+            headers["Authorization"] = f"Bearer {user_token}"
         return headers
 
     def _gateway_payload(self, prompt: str, max_tokens: int, system_prompt_override: str | None = None) -> dict:
