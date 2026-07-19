@@ -1694,7 +1694,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
 
             {activeSection === "advanced" && (
               <>
-      {/* ── Provider Routing ────────────────────────────────── */}
+      {/* ── Provider Routing (chỉ hiện ở chế độ BYOK/custom) ── */}
+      {llmMode !== "cloud_free" && (
       <div className="settings-section">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
@@ -1836,6 +1837,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           </div>
         </details>
       </div>
+      )}
 
       {/* ── System Info ───────────────────────────────────── */}
       <div className="settings-section">
