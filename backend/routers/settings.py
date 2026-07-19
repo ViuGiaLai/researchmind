@@ -16,6 +16,7 @@ from chat.generator_factory import build_generator
 router = APIRouter(prefix="/api", tags=["Settings"])
 
 ENV_ONLY_KEYS = {
+    "researchmind_cloud_token",
     "llama_server_url",
     "local_model", "claude_model", "deepseek_model", "gemini_model",
     "groq_model", "github_model", "freemodel_model",
@@ -33,6 +34,8 @@ async def get_settings():
         "local_model": settings.local_model,
         "local_max_tokens": settings.local_max_tokens,
         "llm_mode": settings.llm_mode,
+        "researchmind_cloud_url": settings.researchmind_cloud_url,
+        "researchmind_cloud_enabled": bool(settings.researchmind_cloud_url),
         "cloud_ai_consent": settings.cloud_ai_consent,
         "diagnostics_consent": settings.diagnostics_consent,
         "redact_metadata_for_cloud": settings.redact_metadata_for_cloud,

@@ -31,6 +31,7 @@ from .providers.openai_provider import OpenAIProviderMixin
 from .providers.gemini_provider import GeminiProviderMixin
 from .providers.claude_provider import ClaudeProviderMixin
 from .providers.local_provider import LocalProviderMixin
+from .providers.cloud_gateway_provider import CloudGatewayProviderMixin
 from .cache_version import cache_fingerprint
 from .provider_resilience import provider_health
 from common.ai_observability import trace
@@ -44,6 +45,7 @@ class Generator(
     GeminiProviderMixin,
     ClaudeProviderMixin,
     LocalProviderMixin,
+    CloudGatewayProviderMixin,
 ):
     """LLM response generator.
 
@@ -97,6 +99,9 @@ class Generator(
         custom_cloud_provider: str = "deepseek",
         local_max_tokens: int = 160,
         task_ultimate_fallback_chain: str = "",
+        researchmind_cloud_url: str = "",
+        researchmind_cloud_token: str = "",
+        researchmind_cloud_timeout: float = 120.0,
     ):
         self.llama_server_url = llama_server_url.rstrip("/")
         self.local_model = local_model
@@ -138,6 +143,9 @@ class Generator(
         self.cerebras_url = cerebras_url.rstrip("/")
         self.mode = "cloud_custom" if mode == "cloud" else mode
         self.custom_cloud_provider = custom_cloud_provider
+        self.researchmind_cloud_url = researchmind_cloud_url.rstrip("/")
+        self.researchmind_cloud_token = researchmind_cloud_token
+        self.researchmind_cloud_timeout = researchmind_cloud_timeout
 
         # Per-task provider routing (Phase 1)
         self.task_provider_map: dict[str, str] = {}
@@ -207,6 +215,9 @@ class Generator(
         task_type = task_type.strip().lower() if task_type else ""
         if not task_type:
             return None
+
+        if self.researchmind_cloud_url and self.mode == "cloud_free":
+            return "researchmind_cloud"
         
         # An explicit per-task route is authoritative. Reasoning-mode routing is
         # only a default when the task has no configured provider.
@@ -360,7 +371,11 @@ class Generator(
         """
         user_prompt = self._fit_prompt(user_prompt, provider, max_tokens, system_prompt_override)
         try:
-            if provider == "github":
+            if provider == "researchmind_cloud":
+                if not self.researchmind_cloud_url:
+                    return None
+                return self._generate_cloud_gateway(user_prompt, max_tokens, system_prompt_override)
+            elif provider == "github":
                 if not self.github_api_key:
                     return None
                 return self._generate_github(user_prompt, self.github_api_key, self.github_model, max_tokens, system_prompt_override)
@@ -478,6 +493,7 @@ class Generator(
         Tries primary first, then fallback chain, then returns None.
         Returns GenerationResult on success, None if all fail.
         """
+        self._local.task_type = task_type
         provider = self._get_provider_for_task(task_type)
         if not provider:
             return None
@@ -509,7 +525,12 @@ class Generator(
         """
         user_prompt = self._fit_prompt(user_prompt, provider, max_tokens)
         try:
-            if provider == "github":
+            if provider == "researchmind_cloud":
+                if not self.researchmind_cloud_url:
+                    return
+                yield from self._stream_cloud_gateway(user_prompt, max_tokens)
+                return
+            elif provider == "github":
                 if not self.github_api_key:
                     return
                 yield from self._stream_openai(user_prompt, self.github_api_key, self.github_model, self.github_url, max_tokens)
@@ -594,6 +615,7 @@ class Generator(
         """Streaming version of _route_by_task.
         Tries primary first, then fallback, then returns (no yield = use chain).
         """
+        self._local.task_type = task_type
         provider = self._get_provider_for_task(task_type)
         if not provider:
             return

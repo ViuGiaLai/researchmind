@@ -65,15 +65,19 @@ jobs:
         shell: bash
         env:
           LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
+          RESEARCHMIND_CLOUD_URL: ${{ vars.RESEARCHMIND_CLOUD_URL }}
         run: |
-          : > backend/.env
-          test ! -s backend/.env
+          mkdir -p apps/desktop/src-tauri/resources
+          if [ -z "$RESEARCHMIND_CLOUD_URL" ]; then
+            echo "RESEARCHMIND_CLOUD_URL repository variable is required"
+            exit 1
+          fi
+          printf '{"url":"%s"}' "$RESEARCHMIND_CLOUD_URL" > apps/desktop/src-tauri/resources/gateway.json
           if [ -z "$LICENSE_PUBLIC_KEY" ]; then
             echo "Repository variable LICENSE_PUBLIC_KEY is required for commercial releases"
             exit 1
           fi
           printf '%s' "$LICENSE_PUBLIC_KEY" > backend/config/license_public_key.txt
-          echo "✅ .env created ($(wc -c < backend/.env) bytes)"
 
       - name: Setup Node
         uses: actions/setup-node@v4

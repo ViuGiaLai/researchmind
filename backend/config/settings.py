@@ -76,6 +76,35 @@ def get_license_public_key() -> str:
         return ""
 
 
+def get_public_gateway_url() -> str:
+    """Load the non-secret gateway URL from env or a bundled JSON resource."""
+    configured = os.environ.get("RESEARCHMIND_CLOUD_URL", "").strip()
+    if configured:
+        return configured.rstrip("/")
+    candidates: list[Path] = []
+    resource_dir = os.environ.get("RESEARCHMIND_RESOURCE_DIR", "").strip()
+    if resource_dir:
+        candidates.append(Path(resource_dir) / "gateway.json")
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).parent
+        candidates.extend([exe_dir / "gateway.json", exe_dir / "resources" / "gateway.json"])
+    # Development: check backend/, project root, and config/
+    candidates.append(Path(__file__).resolve().parent / "gateway.json")
+    candidates.append(Path(__file__).resolve().parent.parent / "gateway.json")
+    candidates.insert(0, Path.cwd() / "gateway.json")
+    seen: set[Path] = set()
+    for path in candidates:
+        if path in seen:
+            continue
+        seen.add(path)
+        try:
+            value = json.loads(path.read_text(encoding="utf-8")).get("url", "").strip()
+            if value:
+                return value.rstrip("/")
+        except (OSError, ValueError, AttributeError):
+            continue
+    return ""
+
 class Settings(BaseSettings):
     # Backend
     host: str = "127.0.0.1"
@@ -136,6 +165,10 @@ class Settings(BaseSettings):
     provider_timeout: float = 180.0
     provider_max_retries: int = 1
     provider_retry_backoff: float = 0.35
+    # Public hosted inference endpoint; provider API keys stay on the gateway.
+    researchmind_cloud_url: str = get_public_gateway_url()
+    researchmind_cloud_token: str = ""
+    researchmind_cloud_timeout: float = 120.0
     nvidia_timeout: float = 8.0
     openai_stream_timeout: float = 3.0
     llama_server_url: str = "http://127.0.0.1:8080"

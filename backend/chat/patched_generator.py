@@ -39,7 +39,13 @@ class PatchedGenerator(
         # generation; otherwise long RAG contexts fail only when streamed.
         user_prompt = self._fit_prompt(user_prompt, provider, max_tokens)
         try:
-            if provider == "github":
+            if provider == "researchmind_cloud":
+                if not self.researchmind_cloud_url:
+                    return
+                self._set_model(f"researchmind_cloud/...")
+                yield from self._stream_cloud_gateway(user_prompt, max_tokens)
+                return
+            elif provider == "github":
                 if not self.github_api_key:
                     return
                 self._set_model(f"github/{self.github_model}")

@@ -1,0 +1,81 @@
+"""Hosted inference adapter with no upstream provider credentials."""
+
+import json
+import httpx
+from loguru import logger
+
+from common.request_context import get_request_bearer_token
+from ..types import GenerationResult
+
+
+class CloudGatewayProviderMixin:
+    def _gateway_headers(self) -> dict[str, str]:
+        token = get_request_bearer_token() or getattr(self, "researchmind_cloud_token", "")
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
+
+    def _gateway_payload(self, prompt: str, max_tokens: int, system_prompt_override: str | None = None) -> dict:
+        return {
+            "task_type": getattr(self._local, "task_type", "chat") or "chat",
+            "system_prompt": system_prompt_override or self._get_system_prompt(),
+            "user_prompt": prompt,
+            "language": getattr(self._local, "lang", "auto"),
+            "max_tokens": max_tokens,
+            "temperature": 0.3,
+        }
+
+    def _generate_cloud_gateway(self, prompt: str, max_tokens: int = 1024, system_prompt_override: str | None = None) -> GenerationResult:
+        try:
+            response = self.http_client.post(
+                f"{self.researchmind_cloud_url}/v1/generate",
+                headers=self._gateway_headers(),
+                json=self._gateway_payload(prompt, max_tokens, system_prompt_override),
+                timeout=self.researchmind_cloud_timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = str(data.get("content", ""))
+            citations = self._extract_citations(content)
+            content = self._verify_citations(content, citations)
+            return GenerationResult(
+                content=content,
+                citations=citations,
+                model_used=f"researchmind_cloud/{data.get('provider', 'unknown')}/{data.get('model', 'unknown')}",
+                finish_reason=str(data.get("finish_reason", "stop")),
+            )
+        except httpx.HTTPStatusError as exc:
+            logger.warning("ResearchMind gateway returned HTTP {}", exc.response.status_code)
+            self._local.last_provider_failure = {
+                "kind": "rate_limit" if exc.response.status_code == 429 else "gateway_http",
+                "retryable": exc.response.status_code >= 500,
+            }
+        except Exception as exc:
+            logger.warning("ResearchMind gateway failed: {}", exc)
+        return GenerationResult(
+            content="The hosted AI service is temporarily unavailable.",
+            citations=[], model_used="researchmind_cloud/error", finish_reason="error",
+        )
+
+    def _stream_cloud_gateway(self, prompt: str, max_tokens: int = 1024):
+        with httpx.Client(timeout=self.researchmind_cloud_timeout) as client:
+            with client.stream(
+                "POST",
+                f"{self.researchmind_cloud_url}/v1/generate/stream",
+                headers=self._gateway_headers(),
+                json=self._gateway_payload(prompt, max_tokens),
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    event = json.loads(line)
+                    event_type = event.get("type")
+                    if event_type == "meta":
+                        self._set_model(f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}")
+                    elif event_type == "delta":
+                        yield str(event.get("content", ""))
+                    elif event_type == "error":
+                        raise RuntimeError(str(event.get("content", "Gateway stream failed")))
+

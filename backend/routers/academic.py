@@ -264,8 +264,9 @@ async def translate_papers(request: Request, body: dict = Body(...)):
         return {"translations": []}
 
     api_key = settings.gemini_translate_api_key or settings.gemini_api_key
-    if not api_key:
-        raise HTTPException(status_code=400, detail="Missing Gemini API key. Set GEMINI_TRANSLATE_API_KEY or GEMINI_API_KEY in .env")
+    gateway_url = getattr(settings, "researchmind_cloud_url", "").rstrip("/")
+    if not api_key and not gateway_url:
+        raise HTTPException(status_code=400, detail="Hosted translation is not configured")
 
     requested_language = body.get("language") or getattr(request.state, "lang", "")
     target_language = get_prompt_language("", requested_language)
@@ -312,6 +313,38 @@ async def translate_papers(request: Request, body: dict = Body(...)):
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         for chunk in _chunk_papers(batch, 6):
+            if gateway_url:
+                from common.request_context import get_request_bearer_token
+                token = get_request_bearer_token() or getattr(settings, "researchmind_cloud_token", "")
+                gateway_headers = {"Authorization": f"Bearer {token}"} if token else {}
+                prompt = json.dumps(chunk, ensure_ascii=False)
+                response = await client.post(
+                    f"{gateway_url}/v1/generate",
+                    headers=gateway_headers,
+                    json={
+                        "task_type": "translate",
+                        "system_prompt": system_prompt,
+                        "user_prompt": f"Translate only the title and abstract values in this JSON into {target_language_name}:\n\n{prompt}",
+                        "language": target_language,
+                        "max_tokens": 4096,
+                        "temperature": 0.1,
+                    },
+                )
+                response.raise_for_status()
+                raw = response.json().get("content", "")
+                try:
+                    parsed = json.loads(raw)
+                    translations = parsed if isinstance(parsed, list) else parsed.get("translations", [])
+                except json.JSONDecodeError as exc:
+                    raise HTTPException(status_code=502, detail="Hosted translation returned invalid JSON") from exc
+                for index, _paper in enumerate(chunk):
+                    translated = translations[index] if index < len(translations) else {}
+                    result.append({
+                        "title_vi": translated.get("title_vi") or translated.get("title") or "",
+                        "abstract_vi": translated.get("abstract_vi") or translated.get("abstract") or "",
+                    })
+                continue
+
             data = None
             last_error: Exception | None = None
             for model in model_candidates:

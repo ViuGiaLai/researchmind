@@ -35,3 +35,40 @@ services:
         sync: false
       - key: GOOGLE_APPLICATION_CREDENTIALS
         value: /etc/secrets/firebase-service-account.json
+
+  - type: web
+    name: researchmind-gateway
+    runtime: docker
+    plan: starter
+    healthCheckPath: /v1/health
+    dockerfilePath: ./cloud_gateway/Dockerfile
+    dockerContext: .
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GATEWAY_SHARED_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: CLOUDFLARE_API_KEY
+        sync: false
+      - key: CLOUDFLARE_URL
+        sync: false
+      - key: CLAUDE_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false

@@ -817,8 +817,25 @@ async def clear_chat_history():
 
 
 @router.get("/chat/usage")
-async def get_chat_usage():
-    """Get daily free cloud usage stats."""
+async def get_chat_usage(request: Request):
+    """Get hosted quota when available, otherwise return local BYOK usage."""
+    if settings.researchmind_cloud_url:
+        import httpx
+        authorization = request.headers.get("Authorization", "")
+        headers = {"Authorization": authorization} if authorization else {}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(
+                    f"{settings.researchmind_cloud_url.rstrip('/')}/v1/quota",
+                    headers=headers,
+                )
+                response.raise_for_status()
+                data = response.json()
+                used = int(data.get("requests_used", 0))
+                limit = int(data.get("requests_limit", 0))
+                return {"used": used, "limit": limit, "remaining": max(0, limit - used), "mode": "researchmind_cloud"}
+        except Exception as exc:
+            logger.warning(f"Could not load hosted quota: {exc}")
     session = get_session(state.engine)
     try:
         used = count_free_queries_today(session)
@@ -828,13 +845,8 @@ async def get_chat_usage():
             "remaining": max(0, settings.free_cloud_daily_limit - used),
             "mode": settings.llm_mode,
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
     finally:
         session.close()
-
-
-# ─── Review ──────────────────────────────────────────────────────
 
 @router.post("/review")
 async def review(request: dict = Body(...)):

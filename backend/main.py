@@ -40,6 +40,7 @@ from loguru import logger
 from app_state import state
 from config.settings import settings
 from common.i18n import get_language, set_request_language, t
+from common.request_context import set_request_bearer_token, reset_request_bearer_token
 from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token
 from common.secret_store import SecretStorageError, get_secret, set_secret
 from db.database import get_engine, get_session
@@ -84,6 +85,7 @@ def load_persisted_settings():
     Deployment-only connection settings continue to come from environment.
     """
     env_only_keys = {
+        "researchmind_cloud_token",
         "llama_server_url", "local_model", "claude_model", "deepseek_model", "gemini_model",
         "groq_model", "github_model", "freemodel_model",
         "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
@@ -304,6 +306,9 @@ async def lifespan(app: FastAPI):
                 custom_cloud_provider=settings.custom_cloud_provider,
                 local_max_tokens=settings.local_max_tokens,
                 task_ultimate_fallback_chain=getattr(settings, "task_ultimate_fallback_chain", ""),
+                researchmind_cloud_url=getattr(settings, "researchmind_cloud_url", ""),
+                researchmind_cloud_token=getattr(settings, "researchmind_cloud_token", ""),
+                researchmind_cloud_timeout=getattr(settings, "researchmind_cloud_timeout", 120.0),
             )
 
             from graph.storage import GraphStore
@@ -407,6 +412,17 @@ if frontend_dist.exists():
 
 
 # ─── Global Exception Handler ────────────────────────────────────
+
+@app.middleware("http")
+async def request_token_context_middleware(request: Request, call_next):
+    """Forward only the current user's short-lived token to hosted inference."""
+    authorization = request.headers.get("Authorization", "")
+    token = authorization.removeprefix("Bearer ").strip() if authorization.startswith("Bearer ") else ""
+    context_marker = set_request_bearer_token(token)
+    try:
+        return await call_next(request)
+    finally:
+        reset_request_bearer_token(context_marker)
 
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):

@@ -135,14 +135,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
     "gap", "debate", "review", "research", "synthesis", "graph",
   ] as const;
   const ALL_PROVIDERS = [
-    "github", "gemini", "deepseek", "nvidia_deepseek", "groq", "nvidia", "freemodel",
-    "claude", "openrouter", "cohere", "cloudflare", "cerebras", "local",
+    "researchmind_cloud", "github", "gemini", "deepseek", "nvidia_deepseek", "groq",
+    "nvidia", "freemodel", "claude", "openrouter", "cohere", "cloudflare", "cerebras", "local",
   ] as const;
   const PROVIDER_LABELS: Record<string, string> = {
-    github: "GitHub Models", gemini: "Gemini", deepseek: "DeepSeek",
-    nvidia_deepseek: "NVIDIA DeepSeek", groq: "Groq", nvidia: "Nvidia NIM",
-    freemodel: "FreeModel", claude: "Claude", openrouter: "OpenRouter",
-    cohere: "Cohere", cloudflare: "Cloudflare", cerebras: "Cerebras", local: "Local",
+    researchmind_cloud: "ResearchMind Cloud", github: "GitHub Models", gemini: "Gemini",
+    deepseek: "DeepSeek", nvidia_deepseek: "NVIDIA DeepSeek", groq: "Groq",
+    nvidia: "Nvidia NIM", freemodel: "FreeModel", claude: "Claude",
+    openrouter: "OpenRouter", cohere: "Cohere", cloudflare: "Cloudflare",
+    cerebras: "Cerebras", local: "Local",
   };
   const TASK_LABELS: Record<string, string> = {
     summary: t("chat.quick_summary"), daily_reader: t("labs.daily_read"), chat: t("nav.chat"),
@@ -607,22 +608,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         }
       }
 
-      await api.updateSettings({
+      const updatePayload: Record<string, any> = {
         llm_mode: llmMode,
         custom_cloud_provider: customCloudProvider,
-        claude_api_key: claudeApiKey,
         claude_model: claudeModel,
-        deepseek_api_key: deepseekApiKey,
         deepseek_model: deepseekModel,
-        gemini_api_key: geminiApiKey,
         gemini_model: geminiModel,
-        groq_api_key: groqApiKey,
         groq_model: groqModel,
-        nvidia_api_key: nvidiaApiKey,
         nvidia_model: nvidiaModel,
-        github_api_key: githubApiKey,
         github_model: githubModel,
-        freemodel_api_key: freemodelApiKey,
         freemodel_model: freemodelModel,
         llama_server_url: llamaServerUrl,
         local_model: localModel,
@@ -639,7 +633,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
         task_provider_map: taskProviderMapStr,
         task_fallback_map: taskFallbackMapStr,
         ai_daily_token_budget: Math.max(0, dailyTokenBudget),
-      });
+      };
+      // Chỉ gửi API key khi ở chế độ BYOK (cloud_custom)
+      if (llmMode === "cloud_custom") {
+        updatePayload.claude_api_key = claudeApiKey;
+        updatePayload.deepseek_api_key = deepseekApiKey;
+        updatePayload.gemini_api_key = geminiApiKey;
+        updatePayload.groq_api_key = groqApiKey;
+        updatePayload.nvidia_api_key = nvidiaApiKey;
+        updatePayload.github_api_key = githubApiKey;
+        updatePayload.freemodel_api_key = freemodelApiKey;
+      }
+      await api.updateSettings(updatePayload);
       if (zoteroDataDir.trim()) {
         await api.saveZoteroPath(zoteroDataDir.trim());
       }
@@ -1157,27 +1162,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
           ))}
         </div>
 
-        {/* Cloud Free stats */}
+        {/* Cloud Free — ResearchMind Gateway */}
         {llmMode === "cloud_free" && (
-          <div className="settings-mode-detail settings-usage-banner">
-            <div className="settings-usage-banner-inner">
-              <div>
-                <span className="settings-usage-title">
-                  <IconZap size={16} /> {t("settings.ai_usage_title")}
-                </span>
-              </div>
-              <div className="settings-usage-count">
-                {usage ? (
-                  <>
-                    <strong>{usage.used} / {usage.limit}</strong>
-                    <span>{t("settings.ai_usage_questions")}</span>
-                  </>
-                ) : (
-                  <span>{t("settings.ai_usage_loading")}</span>
-                )}
+          <>
+            <div className="settings-mode-detail settings-usage-banner">
+              <div className="settings-usage-banner-inner">
+                <div>
+                  <span className="settings-usage-title">
+                    <IconZap size={16} /> {t("settings.ai_usage_title")}
+                  </span>
+                </div>
+                <div className="settings-usage-count">
+                  {usage ? (
+                    <>
+                      <strong>{usage.used} / {usage.limit}</strong>
+                      <span>{t("settings.ai_usage_questions")}</span>
+                    </>
+                  ) : (
+                    <span>{t("settings.ai_usage_loading")}</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+            <p className="settings-field-hint" style={{ marginTop: 8 }}>
+              <IconWithText icon={IconCloud} size={14}>
+                {t("settings.gateway_active") || "ResearchMind Cloud Gateway — No API key required"}
+              </IconWithText>
+            </p>
+          </>
         )}
 
         {/* Custom Cloud settings */}

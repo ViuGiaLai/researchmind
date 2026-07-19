@@ -10,6 +10,8 @@ datas = [
     ('backend/db', 'db'),
     ('backend/routers', 'routers'),
     ('backend/prompts', 'prompts'),
+    ('backend/locales', 'locales'),
+    ('backend/evaluation/fixtures', 'evaluation/fixtures'),
     ('backend/common', 'common'),
     ('backend/graph', 'graph'),
     ('backend/academic', 'academic'),

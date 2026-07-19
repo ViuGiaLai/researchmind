@@ -52,4 +52,7 @@ def build_generator() -> Generator:
         custom_cloud_provider=settings.custom_cloud_provider,
         local_max_tokens=settings.local_max_tokens,
         task_ultimate_fallback_chain=getattr(settings, "task_ultimate_fallback_chain", ""),
+        researchmind_cloud_url=getattr(settings, "researchmind_cloud_url", ""),
+        researchmind_cloud_token=getattr(settings, "researchmind_cloud_token", ""),
+        researchmind_cloud_timeout=getattr(settings, "researchmind_cloud_timeout", 120.0),
     )

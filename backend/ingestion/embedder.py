@@ -91,6 +91,22 @@ class Embedder:
 
     def _embed_gemini(self, texts: list[str]) -> list[list[float]]:
         import httpx
+        from common.request_context import get_request_bearer_token
+
+        gateway_url = getattr(settings, "researchmind_cloud_url", "").rstrip("/")
+        if gateway_url:
+            token = get_request_bearer_token() or getattr(settings, "researchmind_cloud_token", "")
+            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            response = httpx.post(
+                f"{gateway_url}/v1/embeddings", headers=headers,
+                json={"texts": texts, "model": self.model_name},
+                timeout=getattr(settings, "researchmind_cloud_timeout", 120.0),
+            )
+            response.raise_for_status()
+            embeddings = response.json().get("embeddings", [])
+            if embeddings and self._cloud_dim is None:
+                self._cloud_dim = len(embeddings[0])
+            return embeddings
 
         api_key = settings.gemini_api_key
         if not api_key:
