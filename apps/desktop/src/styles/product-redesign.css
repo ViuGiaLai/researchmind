@@ -482,8 +482,8 @@ button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active
 .page-loading-state svg { color: var(--color-primary); }
 
 /* Workflow-specific density and reading comfort. */
-.library-main-panel { width: clamp(380px, 52vw, 720px); flex-shrink: 1; background: var(--color-bg-subtle); }
-.library-preview-panel { background: var(--color-surface); }
+.library-main-panel { flex: 1 1 480px; min-width: 380px; max-width: 720px; width: auto; background: var(--color-bg-subtle); }
+.library-preview-panel { flex: 2 1 360px; min-width: 280px; background: var(--color-surface); }
 .library-splitter { width: 5px; background: var(--color-border-subtle); }
 .chat-view-messages > :where(.chat-view-empty, .chat-view-msg) {
   width: min(calc(100% - 48px), 960px);

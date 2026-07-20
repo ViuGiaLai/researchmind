@@ -221,6 +221,14 @@ export const LibraryView: React.FC<{
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  useEffect(() => {
+    const onResize = () => {
+      const panel = splitViewRef.current?.querySelector('.library-main-panel') as HTMLElement | null;
+      if (panel && panel.style.width) panel.style.width = '';
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [showNarrowMenu, setShowNarrowMenu] = useState(false);
   useEffect(() => {
     if (!showNarrowMenu) return;

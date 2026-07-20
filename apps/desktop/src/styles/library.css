@@ -638,8 +638,8 @@
 }
 
 .library-main-panel {
-  width: 420px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 380px;
   display: flex;
   flex-direction: column;
   height: 100%;
