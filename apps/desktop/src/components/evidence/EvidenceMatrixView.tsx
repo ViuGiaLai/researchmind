@@ -220,22 +220,65 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
     }
   }, [toast, t]);
 
-  const exportCsv = useCallback(() => {
+  const exportExcel = useCallback(() => {
     if (!matrix) return;
-    const headers = matrix.columns.join(",");
-    const rows = matrix.rows.map(r => {
-      const cells = r.cells.map(c => `"${c.value.replace(/"/g, '""')}"`).join(",");
-      return `"${r.criterion}",${cells}`;
+
+    // Generate styled HTML string for Excel
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">`;
+    html += `<head><meta charset="utf-8"/>`;
+    html += `<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Bảng đối chiếu bằng chứng</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->`;
+    html += `<style>`;
+    html += `table { border-collapse: collapse; margin: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }`;
+    html += `th { background-color: #10b981; color: #ffffff; font-weight: bold; border: 1px solid #059669; padding: 12px 16px; text-align: left; font-size: 14px; }`;
+    html += `td { border: 1px solid #e2e8f0; padding: 12px 16px; vertical-align: top; font-size: 13px; color: #1e293b; line-height: 1.5; }`;
+    html += `.criterion-cell { background-color: #f8fafc; font-weight: bold; color: #0f172a; border-right: 2px solid #10b981; }`;
+    html += `.quote-box { font-style: italic; color: #475569; background-color: #f1f5f9; border-left: 3px solid #10b981; padding: 8px; margin-top: 6px; border-radius: 4px; }`;
+    html += `.meta-line { font-size: 11px; color: #64748b; margin-top: 6px; }`;
+    html += `.confidence-high { color: #10b981; font-weight: bold; }`;
+    html += `.confidence-medium { color: #d97706; font-weight: bold; }`;
+    html += `.confidence-low { color: #dc2626; font-weight: bold; }`;
+    html += `</style></head><body>`;
+    html += `<table><thead><tr>`;
+    html += `<th>Tiêu chí đối chiếu</th>`;
+    matrix.columns.forEach(col => {
+      html += `<th>${col}</th>`;
     });
-    const csv = `${headers}\n${rows.join("\n")}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    html += `</tr></thead><tbody>`;
+    
+    matrix.rows.forEach(row => {
+      html += `<tr>`;
+      html += `<td class="criterion-cell">${row.criterion}</td>`;
+      row.cells.forEach(cell => {
+        const confClass = `confidence-${cell.confidence}`;
+        const confText = cell.confidence === "high" ? "Độ tin cậy cao" : cell.confidence === "medium" ? "Độ tin cậy trung bình" : "Độ tin cậy thấp";
+        
+        let cellHtml = `<div>${cell.value}</div>`;
+        if (cell.quote) {
+          cellHtml += `<div class="quote-box">&ldquo;${cell.quote}&rdquo;</div>`;
+        }
+        cellHtml += `<div class="meta-line">`;
+        cellHtml += `<span class="${confClass}">● ${confText}</span>`;
+        if (cell.page) {
+          cellHtml += ` &middot; Trang ${cell.page}`;
+        }
+        cellHtml += ` &middot; ${cell.status === "user_verified" ? "Đã xác nhận" : "AI trích xuất"}`;
+        cellHtml += `</div>`;
+        
+        html += `<td>${cellHtml}</td>`;
+      });
+      html += `</tr>`;
+    });
+    
+    html += `</tbody></table></body></html>`;
+
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "evidence-matrix.csv";
+    a.download = "evidence-matrix.xls";
     a.click();
     URL.revokeObjectURL(url);
-    toast.addToast("success", t("evidence.toast_csv_success"));
+    toast.addToast("success", t("evidence.toast_excel_success") || "Xuất file Excel thành công!");
   }, [matrix, toast, t]);
 
   const openPdf = (paperId: string, page: number | null, quote: string) => {
@@ -284,8 +327,8 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
 
           <div className="rm-table-wrap" style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-              <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportCsv}>
-                <IconDownload size={12} /> {t("evidence.export_csv")}
+              <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportExcel}>
+                <IconDownload size={12} /> {t("evidence.export_excel") || "Xuất Excel"}
               </button>
             </div>
             <table className="rm-table evidence-matrix-table">
