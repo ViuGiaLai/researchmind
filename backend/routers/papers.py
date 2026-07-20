@@ -273,6 +273,17 @@ def _paper_to_dict(paper) -> dict:
     safe_title = display_title(paper.title, paper.filename)
     raw_summary = getattr(paper, "auto_summary", "") or ""
     safe_summary = repair_vietnamese_ocr_text(raw_summary) if raw_summary else ""
+    thumb_path = settings.data_dir / "thumbs" / f"{paper.id}.jpg"
+    file_ext = Path(paper.file_path).suffix.lower()
+    if thumb_path.exists():
+        thumbnail_url = f"http://127.0.0.1:{settings.port}/static/thumbs/{paper.id}.jpg"
+    elif file_ext in IMAGE_EXTENSIONS and Path(paper.file_path).exists():
+        # For images, serve the file itself as the thumbnail
+        from urllib.parse import quote
+        fname = Path(paper.file_path).name
+        thumbnail_url = f"http://127.0.0.1:{settings.port}/static/papers/{quote(fname)}"
+    else:
+        thumbnail_url = ""
     return {
         "id": paper.id,
         "filename": paper.filename,
@@ -294,6 +305,7 @@ def _paper_to_dict(paper) -> dict:
         "auto_summary_lang": getattr(paper, "auto_summary_lang", "") or "",
         "read_status": paper.read_status,
         "starred": bool(paper.starred),
+        "thumbnail_url": thumbnail_url,
         "created_at": str(paper.created_at) if paper.created_at else None,
         "indexed_at": str(paper.indexed_at) if paper.indexed_at else None,
     }
@@ -1461,6 +1473,62 @@ async def retry_paper_ocr(paper_id: str, background_tasks: BackgroundTasks):
 
     background_tasks.add_task(_retry_import_job, job_id)
     return {"status": "queued", "job_id": job_id, "paper_id": paper_id}
+
+
+@router.post("/{paper_id}/regenerate-summary")
+async def regenerate_summary(paper_id: str):
+    """Regenerate the AI summary for a paper on demand."""
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        intro_chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
+        conclusion_chunk = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.desc()).first()
+
+        if not intro_chunks:
+            raise HTTPException(status_code=400, detail="Paper has no indexed chunks yet")
+
+        summary_context = "\n".join([c.content for c in intro_chunks])
+        if conclusion_chunk and conclusion_chunk.chunk_index > 2:
+            summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
+
+        summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
+Use this Markdown format:
+
+### ResearchMind Auto Summary:
+* **Core Idea**: [One sentence describing the main idea or objective]
+* **Contributions**: [One or two lines describing the main scientific contributions]
+* **Weaknesses / Limitations**: [One line describing the discussed limitations]
+
+Do not infer contributions or limitations that are absent from the context. Preserve technical terms and numerical results. Write concisely in the output language specified by the system."""
+
+        import asyncio
+        result = await asyncio.to_thread(
+            state.generator.generate,
+            query=summary_prompt,
+            context_text=summary_context,
+            task_type="summary",
+        )
+
+        new_summary = ""
+        if result and result.content:
+            new_summary = result.content
+            paper.auto_summary = new_summary
+            paper.auto_summary_lang = settings.output_language or "auto"
+            session.commit()
+            logger.info(f"Regenerated auto-summary for {paper.filename}")
+        else:
+            logger.warning(f"Summary generation returned empty for {paper.filename}")
+
+        return {
+            "status": "ok",
+            "auto_summary": new_summary,
+            "auto_summary_lang": paper.auto_summary_lang or "",
+        }
+    finally:
+        session.close()
 
 
 @router.get("/{paper_id}/file")

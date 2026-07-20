@@ -68,6 +68,34 @@
   .app-sidebar:not(.collapsed) .sidebar-collapse-btn {
     display: none;
   }
+
+  .app-sidebar:not(.collapsed) .sidebar-command-label,
+  .app-sidebar:not(.collapsed) .sidebar-command-shortcut {
+    display: none;
+  }
+
+  .app-sidebar:not(.collapsed) .sidebar-command-btn {
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+    width: 40px;
+    margin-inline: auto;
+    padding: 8px;
+  }
+
+  .app-sidebar:not(.collapsed) .sidebar-group-label {
+    display: none;
+  }
+
+  .app-sidebar:not(.collapsed) .app-help-btn {
+    justify-content: center;
+    width: 40px;
+    padding: 8px;
+  }
+
+  .app-sidebar:not(.collapsed) .app-help-btn-label {
+    display: none;
+  }
 }
 
 /* ── Sub-navigation tabs ── */

@@ -164,6 +164,9 @@ def _migrate_auto_summary(engine):
             if "auto_summary_lang" not in columns:
                 conn.execute(text("ALTER TABLE papers ADD COLUMN auto_summary_lang TEXT DEFAULT ''"))
                 logger.info("Migration: Added auto_summary_lang column to papers table")
+            if "thumbnail_path" not in columns:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN thumbnail_path TEXT DEFAULT ''"))
+                logger.info("Migration: Added thumbnail_path column to papers table")
             conn.commit()
     except Exception as e:
         logger.warning(f"Paper schema migration skipped (may already exist): {e}")
@@ -182,6 +185,43 @@ def _migrate_review_draft_versions(engine):
                 conn.commit()
     except Exception as e:
         logger.warning(f"ReviewDraft versions migration skipped: {e}")
+
+
+def _generate_missing_thumbnails():
+    """Generate thumbnails for existing PDFs that don't have one yet."""
+    import fitz
+    from db.database import get_session
+    from db.models import Paper
+    thumb_dir = settings.data_dir / "thumbs"
+    thumb_dir.mkdir(parents=True, exist_ok=True)
+    session = get_session(state.engine)
+    try:
+        papers = session.query(Paper).filter(Paper.file_path.ilike("%.pdf")).all()
+        generated = 0
+        for p in papers:
+            thumb_file = thumb_dir / f"{p.id}.jpg"
+            if thumb_file.exists():
+                continue
+            pdf_path = Path(p.file_path)
+            if not pdf_path.exists():
+                continue
+            try:
+                doc = fitz.open(str(pdf_path))
+                if len(doc) > 0:
+                    page0 = doc[0]
+                    mat = fitz.Matrix(72 / 150, 72 / 150)
+                    pix = page0.get_pixmap(matrix=mat)
+                    pix.save(str(thumb_file), jpg_quality=85)
+                    generated += 1
+                doc.close()
+            except Exception:
+                continue
+        if generated:
+            logger.info(f"Generated {generated} missing thumbnail(s) for existing papers")
+    except Exception as e:
+        logger.warning(f"Missing thumbnail generation failed: {e}")
+    finally:
+        session.close()
 
 
 @asynccontextmanager
@@ -320,6 +360,8 @@ async def lifespan(app: FastAPI):
 
             logger.info("RAG pipeline initialized")
             recover_interrupted_import_jobs()
+
+            _generate_missing_thumbnails()
             state.backend_ready = True
             state.init_message = t("startup.ready", "vi")
             logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
@@ -374,6 +416,9 @@ from fastapi.responses import FileResponse
 # The Render disk can be empty when the process is imported. The directory is
 # created in the lifespan hook before any request is served.
 app.mount("/static/papers", StaticFiles(directory=settings.papers_dir, check_dir=False), name="papers")
+thumbs_dir = settings.data_dir / "thumbs"
+thumbs_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/thumbs", StaticFiles(directory=thumbs_dir, check_dir=False), name="thumbs")
 
 
 # ─── Register Routers ────────────────────────────────────────────

@@ -6,6 +6,29 @@ import { IconSearch, IconSpinner, IconDownload, IconCheck, IconSparkle, IconBrai
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
 
+const THUMB_GRADIENTS: [string, string][] = [
+  ["#f44336", "#e57373"], ["#e91e63", "#f06292"], ["#9c27b0", "#ba68c8"],
+  ["#673ab7", "#9575cd"], ["#3f51b5", "#7986cb"], ["#2196f3", "#64b5f6"],
+  ["#03a9f4", "#4fc3f7"], ["#009688", "#4db6ac"], ["#4caf50", "#81c784"],
+  ["#8bc34a", "#aed581"], ["#ff9800", "#ffb74d"], ["#ff5722", "#ff8a65"],
+  ["#795548", "#a1887f"], ["#607d8b", "#90a4ae"], ["#d32f2f", "#ef5350"],
+  ["#1976d2", "#42a5f5"], ["#388e3c", "#66bb6a"], ["#f57c00", "#ff9800"],
+  ["#455a64", "#78909c"], ["#5d4037", "#8d6e63"],
+];
+
+function getThumbPlaceholder(title: string): { letter: string; gradient: string } {
+  const clean = title.trim();
+  const letter = clean ? clean[0].toUpperCase() : "?";
+  let hash = 0;
+  for (let i = 0; i < clean.length; i++) {
+    hash = ((hash << 5) - hash) + clean.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % THUMB_GRADIENTS.length;
+  const [c1, c2] = THUMB_GRADIENTS[idx];
+  return { letter, gradient: `linear-gradient(135deg, ${c1}, ${c2})` };
+}
+
 export const DiscoveryView: React.FC = () => {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
@@ -227,53 +250,59 @@ export const DiscoveryView: React.FC = () => {
               const isImported = imported.has(key);
               const paperTranslation = translations.get(key);
               const showVi = translateMode === "vi" && paperTranslation;
+              const { letter, gradient } = getThumbPlaceholder(paper.title);
               return (
                 <div key={`${key}-${i}`} className="discovery-result-card">
-                  <div className="discovery-result-title">
-                    {showVi ? paperTranslation!.title_vi : paper.title}
+                  <div className="discovery-thumb" style={{ background: gradient }}>
+                    <span className="discovery-thumb-letter">{letter}</span>
                   </div>
-                  <div className="discovery-result-meta">
-                    {paper.authors.slice(0, 4).join(", ")}{paper.authors.length > 4 ? " et al." : ""}
-                    {paper.year && <span> {"\u00b7"} {paper.year}</span>}
-                    {" \u00b7 "}{paper.citation_count} {t("discovery.citations_count")}
-                    {paper.journal && <span> {"\u00b7"} {paper.journal}</span>}
-                  </div>
-                  {(showVi ? paperTranslation!.abstract_vi : paper.abstract) && (
-                    <div className="discovery-result-abstract">
-                      {showVi ? paperTranslation!.abstract_vi : paper.abstract}
+                  <div className="discovery-result-body">
+                    <div className="discovery-result-title">
+                      {showVi ? paperTranslation!.title_vi : paper.title}
                     </div>
-                  )}
-                  <div className="discovery-result-footer">
-                    <span className={`discovery-source-badge source-${paper.source}`}>
-                      {paper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}
-                    </span>
-                    <div className="discovery-actions">
-                      <button
-                        type="button"
-                        className={`discovery-action-btn discovery-import-btn${isImported ? " imported" : ""}`}
-                        onClick={() => handleImport(paper)}
-                        disabled={isImporting || isImported}
-                      >
-                        {isImported ? <IconCheck size={12} /> : isImporting ? <IconSpinner size={12} /> : <IconDownload size={12} />}
-                        {isImported ? t("discovery.in_library") : isImporting ? t("discovery.importing") : t("discovery.add_to_library")}
-                      </button>
-                      <button
-                        type="button"
-                        className="discovery-action-btn discovery-detail-btn"
-                        onClick={() => setDetailPaper(paper)}
-                      >
-                        <IconEye size={12} />
-                        {t("discovery.detail")}
-                      </button>
-                      <button
-                        type="button"
-                        className="discovery-action-btn discovery-pdf-btn"
-                        onClick={() => handleOpenPdf(paper)}
-                        title={paper.pdf_url ? t("discovery.open_pdf") : t("discovery.open_source")}
-                      >
-                        <IconBookOpen size={12} />
-                        {paper.pdf_url ? t("discovery.open_pdf") : t("discovery.open_source")}
-                      </button>
+                    <div className="discovery-result-meta">
+                      {paper.authors.slice(0, 4).join(", ")}{paper.authors.length > 4 ? " et al." : ""}
+                      {paper.year && <span> {"\u00b7"} {paper.year}</span>}
+                      {" \u00b7 "}{paper.citation_count} {t("discovery.citations_count")}
+                      {paper.journal && <span> {"\u00b7"} {paper.journal}</span>}
+                    </div>
+                    {(showVi ? paperTranslation!.abstract_vi : paper.abstract) && (
+                      <div className="discovery-result-abstract">
+                        {showVi ? paperTranslation!.abstract_vi : paper.abstract}
+                      </div>
+                    )}
+                    <div className="discovery-result-footer">
+                      <span className={`discovery-source-badge source-${paper.source}`}>
+                        {paper.source === "openalex" ? "OpenAlex" : "Semantic Scholar"}
+                      </span>
+                      <div className="discovery-actions">
+                        <button
+                          type="button"
+                          className={`discovery-action-btn discovery-import-btn${isImported ? " imported" : ""}`}
+                          onClick={() => handleImport(paper)}
+                          disabled={isImporting || isImported}
+                        >
+                          {isImported ? <IconCheck size={12} /> : isImporting ? <IconSpinner size={12} /> : <IconDownload size={12} />}
+                          {isImported ? t("discovery.in_library") : isImporting ? t("discovery.importing") : t("discovery.add_to_library")}
+                        </button>
+                        <button
+                          type="button"
+                          className="discovery-action-btn discovery-detail-btn"
+                          onClick={() => setDetailPaper(paper)}
+                        >
+                          <IconEye size={12} />
+                          {t("discovery.detail")}
+                        </button>
+                        <button
+                          type="button"
+                          className="discovery-action-btn discovery-pdf-btn"
+                          onClick={() => handleOpenPdf(paper)}
+                          title={paper.pdf_url ? t("discovery.open_pdf") : t("discovery.open_source")}
+                        >
+                          <IconBookOpen size={12} />
+                          {paper.pdf_url ? t("discovery.open_pdf") : t("discovery.open_source")}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

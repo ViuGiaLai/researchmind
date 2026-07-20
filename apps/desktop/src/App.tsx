@@ -179,6 +179,17 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 960) {
+        setSidebarCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem("researchmind:last-tab", activeTab);
     } catch {

@@ -175,6 +175,7 @@ export interface Paper {
   auto_summary_lang?: string;
   read_status: string;
   starred: boolean;
+  thumbnail_url?: string;
   layout_stats?: Record<string, { columns: number; multicolumn: boolean }> | null;
   created_at: string | null;
   indexed_at: string | null;

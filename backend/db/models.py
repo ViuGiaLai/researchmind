@@ -36,6 +36,7 @@ class Paper(Base):
     ocr_pages_count = Column(Integer, default=0)
     ocr_pages_failed = Column(Integer, default=0)
     is_scanned = Column(Integer, default=0)
+    thumbnail_path = Column(String, default="")
     read_status = Column(String, default="unread")  # unread / reading / read
     starred = Column(Integer, default=0)
     layout_stats = Column(Text, default="")  # JSON: per-page column detection stats
