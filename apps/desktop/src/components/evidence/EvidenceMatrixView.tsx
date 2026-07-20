@@ -403,7 +403,7 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
                       onClick={() => togglePaper(p.id)}
                     >
                       <div className="evidence-row-checkbox">
-                        {isSelected && <IconCheck size={12} />}
+                        {isSelected && <IconCheck size={14} />}
                       </div>
                       <div className="evidence-paper-thumb">
                         {p.thumbnail_url ? (
@@ -413,12 +413,22 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
                         )}
                       </div>
                       <div className="evidence-paper-row-content">
-                        <h3 className="evidence-paper-row-title" title={p.title}>{p.title}</h3>
+                        <div className="evidence-paper-row-title-row">
+                          <h3 className="evidence-paper-row-title" title={p.title}>{p.title}</h3>
+                          <button
+                            type="button"
+                            className="evidence-paper-pdf-btn"
+                            onClick={(e) => { e.stopPropagation(); openPdf(p.id, 1, ""); }}
+                            title="Open PDF"
+                          >
+                            <IconFileText size={14} />
+                          </button>
+                        </div>
                         <div className="evidence-paper-row-meta">
                           {p.authors || t("common.unknown_author")}
                         </div>
                         {p.auto_summary && (
-                          <div className="evidence-paper-row-abstract">{p.auto_summary}</div>
+                          <div className="evidence-paper-row-abstract">{p.auto_summary.replace(/^#{1,6}\s+|^>\s+|[*_]{2,}|`{1,3}/gm, '').trim()}</div>
                         )}
                       </div>
                     </div>

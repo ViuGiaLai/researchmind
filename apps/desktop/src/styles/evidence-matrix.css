@@ -141,20 +141,22 @@
 .evidence-row-checkbox {
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: 6px;
   border: 2px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   color: transparent;
+  margin-top: 2px;
 }
 
 .evidence-paper-row.selected .evidence-row-checkbox {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-on-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
 }
 
 .evidence-paper-thumb {
@@ -181,15 +183,45 @@
   min-width: 0;
 }
 
+.evidence-paper-row-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
 .evidence-paper-row-title {
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--color-text);
   line-height: 1.4;
-  margin: 0 0 2px;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.evidence-paper-pdf-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.evidence-paper-pdf-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.06);
 }
 
 .evidence-paper-row-meta {
@@ -198,6 +230,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 2px;
 }
 
 .evidence-paper-row-abstract {
