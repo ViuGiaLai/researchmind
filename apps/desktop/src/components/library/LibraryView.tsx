@@ -11,6 +11,7 @@ import { ImportPanel } from "../import/ImportPanel";
 import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
+import { useConfirmDialog } from "../shared/ConfirmDialog";
 import { PdfViewer } from "../pdf/PdfViewer";
 import {
   IconBrain,
@@ -37,7 +38,7 @@ import {
 } from "../Icons";
 
 const PAGE_SIZE = 500;
-const VIRTUAL_ROW_HEIGHT = 88;
+const VIRTUAL_ROW_HEIGHT = 96;
 const VIRTUAL_OVERSCAN = 6;
 
 const renderStatusIcon = (status: string, size = 16) => {
@@ -99,6 +100,7 @@ export const LibraryView: React.FC<{
   });
   const [targetCollectionId, setTargetCollectionId] = useState<string>("");
   const toast = useToast();
+  const { confirm, confirmationDialog } = useConfirmDialog();
 
   // Zotero-style preview panel states
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
@@ -345,16 +347,23 @@ export const LibraryView: React.FC<{
     });
   };
 
-  const deletePaper = async (id: string) => {
-    if (!confirm(t("library_view.confirm_delete"))) return;
+  const deletePaper = async (p: Paper) => {
+    const name = paperDisplayTitle(p.title, p.filename);
+    const ok = await confirm(
+      t("library_view.confirm_delete_msg", { name }),
+      { destructive: true, title: t("library_view.confirm_delete_title") },
+    );
+    if (!ok) return;
     try {
-      await api.deletePaper(id);
-      if (activePaper?.id === id) {
+      await api.deletePaper(p.id);
+      toast.addToast("success", t("library_view.deleted_msg", { name }));
+      if (activePaper?.id === p.id) {
         setActivePaper(null);
       }
       loadPapers();
     } catch (e) {
       console.error("Failed to delete paper:", e);
+      toast.addToast("error", t("library_view.delete_error"));
     }
   };
 
@@ -814,8 +823,12 @@ export const LibraryView: React.FC<{
                 >
                   <div className={`checkbox ${selected.has(p.id) ? "checked" : ""}`} />
                 </div>
-                <div className="library-card-icon">
-                  <IconFileText size={24} />
+                <div className="library-card-thumb">
+                  {p.thumbnail_url ? (
+                    <img src={p.thumbnail_url} alt="" className="library-card-thumb-img" loading="lazy" />
+                  ) : (
+                    <IconFileText size={24} />
+                  )}
                 </div>
                 <div className="library-card-content">
                   <div className="library-card-header">
@@ -847,7 +860,7 @@ export const LibraryView: React.FC<{
                   <button className="library-action-btn" onClick={() => toggleStar(p.id, p.starred)} title={t("library_view.favorite")}>
                     <IconStar size={16} className={p.starred ? "starred" : ""} />
                   </button>
-                  <button className="library-action-btn danger" onClick={() => deletePaper(p.id)} title={t("library_view.delete")}>
+                  <button className="library-action-btn danger" onClick={() => deletePaper(p)} title={t("library_view.delete")}>
                     <IconTrash size={16} />
                   </button>
                 </div>
@@ -1563,6 +1576,7 @@ export const LibraryView: React.FC<{
           </div>
         )}
       </div>
+      {confirmationDialog}
     </div>
   );
 };

@@ -6,6 +6,7 @@ from typing import Optional
 from dataclasses import dataclass
 from loguru import logger
 import threading
+from config.settings import settings
 
 from .layout_parser import reorder_page_text, detect_layout_stats
 from .image_ocr import (
@@ -336,6 +337,22 @@ def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
         filename=path.name,
         stored_path=str(path),
     )
+
+    # Generate thumbnail from the first page
+    try:
+        doc_thumb = fitz.open(file_path)
+        if len(doc_thumb) > 0:
+            page0 = doc_thumb[0]
+            mat = fitz.Matrix(72 / 150, 72 / 150)  # 72 DPI
+            pix = page0.get_pixmap(matrix=mat)
+            thumb_dir = settings.data_dir / "thumbs"
+            thumb_dir.mkdir(parents=True, exist_ok=True)
+            thumb_file = thumb_dir / f"{path.stem.split('_')[0]}.jpg"
+            pix.save(str(thumb_file), jpg_quality=85)
+            logger.info(f"Thumbnail saved: {thumb_file}")
+        doc_thumb.close()
+    except Exception as thumb_err:
+        logger.warning(f"Thumbnail generation failed for {file_path}: {thumb_err}")
 
     return ExtractedDocument(
         path=str(path.absolute()),
