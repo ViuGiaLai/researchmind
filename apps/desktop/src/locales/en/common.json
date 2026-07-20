@@ -831,6 +831,7 @@
     "criteria_unit": "criteria",
     "rename_btn": "Rename",
     "delete_btn": "Delete",
+    "continue_btn": "Continue",
     "pdf_modal": "PDF — Page {n}",
     "rename_prompt": "Rename draft",
     "toast_rename_success": "Renamed.",

@@ -601,6 +601,7 @@
     "criteria_unit": "基準",
     "rename_btn": "名称変更",
     "delete_btn": "削除",
+    "continue_btn": "続ける",
     "pdf_modal": "PDF — {n}ページ",
     "rename_prompt": "ドラフト名を変更",
     "toast_rename_success": "名称を変更しました。",

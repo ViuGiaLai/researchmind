@@ -784,6 +784,7 @@
     "criteria_unit": "tiêu chí",
     "rename_btn": "Đổi tên",
     "delete_btn": "Xóa",
+    "continue_btn": "Tiếp tục",
     "pdf_modal": "PDF — Trang {n}",
     "rename_prompt": "Đổi tên bản nháp",
     "toast_rename_success": "Đã đổi tên.",

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api, getAuthenticatedApiUrl, EvidenceMatrixDraftSummary } from "../../lib/api";
 import { useToast } from "../shared/Toast";
-import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText, IconRefresh } from "../Icons";
+import { IconSpinner, IconFileText, IconDownload, IconSearch, IconBrain, IconClock, IconClose, IconCheck, IconWarning, IconError, IconBot, IconWithText, IconRefresh, IconTrash, IconEdit } from "../Icons";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
 import { usePromptDialog } from "../shared/ConfirmDialog";
 
@@ -62,7 +62,7 @@ interface EvidenceMatrixViewProps {
 export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectId, initialPaperIds = [] }) => {
   const { t } = useTranslation();
   const { prompt, promptDialog } = usePromptDialog();
-  const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
+  const [papers, setPapers] = useState<{ id: string; title: string; authors: string; thumbnail_url?: string; auto_summary?: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [matrix, setMatrix] = useState<EvidenceMatrix | null>(null);
@@ -70,13 +70,19 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
   const [activePdf, setActivePdf] = useState<{ paperId: string; page: number; quote: string } | null>(null);
   const pdfDialogRef = useDialogFocus<HTMLDivElement>(Boolean(activePdf), () => setActivePdf(null));
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const toast = useToast();
 
-  // Load papers and history from server
   useEffect(() => {
     const source = projectId ? api.getProject(projectId).then(data => data.papers) : api.listPapers(1, 100).then(data => data.papers);
-    source.then(sourcePapers => {
-      const next = sourcePapers.map(p => ({ id: p.id, title: p.title || "", authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || "") }));
+    source.then((sourcePapers: any[]) => {
+      const next = sourcePapers.map(p => ({
+        id: p.id,
+        title: p.title || "",
+        authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
+        thumbnail_url: (p as any).thumbnail_url,
+        auto_summary: (p as any).auto_summary,
+      }));
       setPapers(next);
       const available = new Set(next.map(p => p.id));
       setSelectedIds(initialPaperIds.filter(id => available.has(id)));
@@ -165,7 +171,6 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
 
       const title = autoTitle(paperNames);
 
-      // Save to server
       const saveRes = await api.saveEvidenceMatrixDraft({
         title,
         paper_ids: selectedIds,
@@ -178,7 +183,6 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
       });
 
       if (saveRes.id) {
-        // Reload draft list
         await loadDraftList();
       }
     } catch {
@@ -239,222 +243,269 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
     setActivePdf({ paperId, page, quote });
   };
 
-  const allSelected = selectedIds.length === papers.length && papers.length > 0;
+  const filteredPapers = papers.filter(p =>
+    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.authors.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="rm-page evidence-matrix-view">
-      <div className="rm-page-actions">
-        <div className="rm-page-header" style={{ marginBottom: 0 }}>
-          <h2>
-            <IconBrain size={22} className="icon-gradient" />
-            {t("evidence.title")}
-          </h2>
-          <p className="rm-page-subtitle" style={{ margin: "6px 0 0", color: "var(--color-text-secondary)", fontSize: "0.86rem" }}>
-            {t("evidence.description")}
-          </p>
-        </div>
-        {matrix && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              className="rm-btn rm-btn--sm rm-btn--outline"
-              onClick={() => { setMatrix(null); setExpandedCell(null); }}
-            >
-              <IconClose size={14} /> {t("evidence.new_matrix")}
-            </button>
-            <button
-              type="button"
-              className="rm-btn rm-btn--sm rm-btn--primary"
-              onClick={generateMatrix}
-              disabled={generating}
-            >
-              {generating ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
-              {generating ? t("evidence.regenerating") : t("evidence.regenerate")}
-            </button>
+    <div className="evidence-layout-container">
+      {matrix ? (
+        <div className="rm-page evidence-matrix-view">
+          <div className="rm-page-actions">
+            <div className="rm-page-header" style={{ marginBottom: 0 }}>
+              <h2>
+                <IconBrain size={22} className="icon-gradient" />
+                {t("evidence.title")}
+              </h2>
+              <p className="rm-page-subtitle" style={{ margin: "6px 0 0", color: "var(--color-text-secondary)", fontSize: "0.86rem" }}>
+                {t("evidence.description")}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="rm-btn rm-btn--sm rm-btn--outline"
+                onClick={() => { setMatrix(null); setExpandedCell(null); }}
+              >
+                <IconClose size={14} /> {t("evidence.new_matrix")}
+              </button>
+              <button
+                type="button"
+                className="rm-btn rm-btn--sm rm-btn--primary"
+                onClick={generateMatrix}
+                disabled={generating}
+              >
+                {generating ? <IconSpinner size={14} /> : <IconRefresh size={14} />}
+                {generating ? t("evidence.regenerating") : t("evidence.regenerate")}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
 
-      {!matrix && (
-        <>
-          <div className="evidence-paper-selection" style={{ marginBottom: 12 }}>
-            <div className="rm-page-actions">
-              <div className="rm-section-label" style={{ marginBottom: 0 }}>
-                <IconFileText size={16} />
-                <span>{t("evidence.papers_count", { n: selectedIds.length, m: papers.length })}</span>
+          <div className="rm-table-wrap" style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+              <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportCsv}>
+                <IconDownload size={12} /> {t("evidence.export_csv")}
+              </button>
+            </div>
+            <table className="rm-table evidence-matrix-table">
+              <thead>
+                <tr>
+                  <th style={{ minWidth: 120 }}>{t("evidence.criteria_header")}</th>
+                  {matrix.columns.map((col, i) => (
+                    <th key={i} className="rm-table-th--primary" style={{ minWidth: 200 }}>
+                      {col.length > 50 ? col.slice(0, 50) + "..." : col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {matrix.rows.map((row, ri) => (
+                  <tr key={ri}>
+                    <td className="rm-table-td--criterion">{row.criterion}</td>
+                    {row.cells.map((cell, ci) => {
+                      const isExpanded = expandedCell?.row === ri && expandedCell?.col === ci;
+                      return (
+                        <td
+                          key={ci}
+                          className={`rm-table-td--clickable${isExpanded ? " rm-table-td--expanded" : ""}`}
+                          onClick={() => setExpandedCell(isExpanded ? null : { row: ri, col: ci })}
+                        >
+                          <div style={{ marginBottom: 6 }}>
+                            {isExpanded ? cell.value : cell.value.length > 120 ? cell.value.slice(0, 120) + "..." : cell.value}
+                          </div>
+                          {cell.quote && (
+                            <div className="rm-quote">
+                              &ldquo;{cell.quote.length > 100 ? cell.quote.slice(0, 100) + "..." : cell.quote}&rdquo;
+                              {cell.page && <span style={{ display: "block", marginTop: 2, fontSize: "0.7rem" }}>{t("evidence.page_label", { n: cell.page })}</span>}
+                            </div>
+                          )}
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                            {cell.page && (
+                              <button
+                                type="button"
+                                className="rm-btn rm-btn--xs"
+                                onClick={(e) => { e.stopPropagation(); openPdf(cell.paper_id, cell.page, cell.quote); }}
+                              >
+                                <IconWithText icon={IconFileText} size={12}>
+                                  {t("evidence.open_pdf_page", { n: cell.page })}
+                                </IconWithText>
+                              </button>
+                            )}
+                            <span className={`rm-badge ${CONFIDENCE_BADGE[cell.confidence]}`}>
+                              <IconWithText icon={CONFIDENCE_ICON[cell.confidence]} size={12}>
+                                {t(`evidence.confidence_${cell.confidence}`)}
+                              </IconWithText>
+                            </span>
+                            <span className={`rm-badge ${cell.status === "user_verified" ? "rm-badge--success" : "rm-badge--muted"}`}>
+                              {cell.status === "user_verified" ? (
+                                <IconWithText icon={IconCheck} size={12}>{t("evidence.confirmed_badge")}</IconWithText>
+                              ) : (
+                                <IconWithText icon={IconBot} size={12}>{t("evidence.ai_extracted_badge")}</IconWithText>
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="evidence-setup-layout">
+          <div className="evidence-setup-main">
+            <div className="evidence-header-box">
+              <div className="evidence-icon-wrapper">
+                <IconBrain size={24} />
               </div>
-              <div style={{ display: "flex", gap: 4 }}>
-                <button type="button" className={`rm-btn rm-btn--xs rm-btn--chip${allSelected ? " active" : ""}`} onClick={selectAll}>
-                  {t("evidence.select_all")}
+              <div className="evidence-header-text">
+                <h2>{t("evidence.title") || "Ma trận so sánh"}</h2>
+                <p>{t("evidence.description") || "So sánh bằng chứng theo từng paper để xác minh claim, quote và mức độ tin cậy."}</p>
+              </div>
+            </div>
+
+            <div className="evidence-controls-row">
+              <div className="evidence-search-wrapper">
+                <IconSearch size={16} className="evidence-search-icon" />
+                <input
+                  type="text"
+                  className="evidence-search-input"
+                  placeholder="Tìm kiếm tài liệu..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="evidence-actions-group">
+                <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={selectAll}>
+                  {t("evidence.select_all") || "Chọn tất cả"}
                 </button>
                 <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={deselectAll}>
-                  {t("evidence.deselect")}
+                  {t("evidence.deselect") || "Bỏ chọn"}
                 </button>
               </div>
             </div>
-            <div className="rm-chip-group">
-              {papers.length === 0 ? (
-                <span className="rm-card-meta" style={{ padding: 4 }}>{t("evidence.empty_library")}</span>
+
+            <div className="evidence-paper-list-container">
+              {filteredPapers.length === 0 ? (
+                <div className="rm-section-hint" style={{ padding: "40px 0", textAlign: "center" }}>
+                  {t("evidence.empty_library") || "Thư viện trống hoặc không tìm thấy tài liệu phù hợp"}
+                </div>
               ) : (
-                papers.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={`rm-chip${selectedIds.includes(p.id) ? " selected" : ""}`}
-                    onClick={() => togglePaper(p.id)}
-                    title={p.title}
-                  >
-                    {p.title.length > 35 ? p.title.slice(0, 35) + "..." : p.title}
-                  </button>
-                ))
+                filteredPapers.map(p => {
+                  const isSelected = selectedIds.includes(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`evidence-paper-row${isSelected ? " selected" : ""}`}
+                      onClick={() => togglePaper(p.id)}
+                    >
+                      <div className="evidence-row-checkbox">
+                        {isSelected && <IconCheck size={12} />}
+                      </div>
+                      <div className="evidence-paper-thumb">
+                        {p.thumbnail_url ? (
+                          <img src={p.thumbnail_url} alt="" loading="lazy" />
+                        ) : (
+                          <IconFileText size={28} />
+                        )}
+                      </div>
+                      <div className="evidence-paper-row-content">
+                        <h3 className="evidence-paper-row-title" title={p.title}>{p.title}</h3>
+                        <div className="evidence-paper-row-meta">
+                          {p.authors || t("common.unknown_author")}
+                        </div>
+                        {p.auto_summary && (
+                          <div className="evidence-paper-row-abstract">{p.auto_summary}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              className="rm-btn rm-btn--primary"
-              onClick={generateMatrix}
-              disabled={generating || selectedIds.length < 2}
-            >
-              {generating ? <IconSpinner size={14} /> : <IconSearch size={14} />}
-              {generating ? t("evidence.analyzing") : t("evidence.create_matrix")}
-            </button>
-          </div>
-        </>
-      )}
-
-      {matrix && (
-        <div className="rm-table-wrap">
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-            <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportCsv}>
-              <IconDownload size={12} /> {t("evidence.export_csv")}
-            </button>
-          </div>
-          <table className="rm-table evidence-matrix-table">
-            <thead>
-              <tr>
-                <th style={{ minWidth: 120 }}>{t("evidence.criteria_header")}</th>
-                {matrix.columns.map((col, i) => (
-                  <th key={i} className="rm-table-th--primary" style={{ minWidth: 200 }}>
-                    {col.length > 50 ? col.slice(0, 50) + "..." : col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.rows.map((row, ri) => (
-                <tr key={ri}>
-                  <td className="rm-table-td--criterion">{row.criterion}</td>
-                  {row.cells.map((cell, ci) => {
-                    const isExpanded = expandedCell?.row === ri && expandedCell?.col === ci;
-                    return (
-                      <td
-                        key={ci}
-                        className={`rm-table-td--clickable${isExpanded ? " rm-table-td--expanded" : ""}`}
-                        onClick={() => setExpandedCell(isExpanded ? null : { row: ri, col: ci })}
-                      >
-                        <div style={{ marginBottom: 6 }}>
-                          {isExpanded ? cell.value : cell.value.length > 120 ? cell.value.slice(0, 120) + "..." : cell.value}
-                        </div>
-                        {cell.quote && (
-                          <div className="rm-quote">
-                            &ldquo;{cell.quote.length > 100 ? cell.quote.slice(0, 100) + "..." : cell.quote}&rdquo;
-                            {cell.page && <span style={{ display: "block", marginTop: 2, fontSize: "0.7rem" }}>{t("evidence.page_label", { n: cell.page })}</span>}
-                          </div>
-                        )}
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
-                          {cell.page && (
-                            <button
-                              type="button"
-                              className="rm-btn rm-btn--xs"
-                              onClick={(e) => { e.stopPropagation(); openPdf(cell.paper_id, cell.page, cell.quote); }}
-                            >
-                              <IconWithText icon={IconFileText} size={12}>
-                                {t("evidence.open_pdf_page", { n: cell.page })}
-                              </IconWithText>
-                            </button>
-                          )}
-                          <span className={`rm-badge ${CONFIDENCE_BADGE[cell.confidence]}`}>
-                            <IconWithText icon={CONFIDENCE_ICON[cell.confidence]} size={12}>
-                              {t(`evidence.confidence_${cell.confidence}`)}
-                            </IconWithText>
-                          </span>
-                          <span className={`rm-badge ${cell.status === "user_verified" ? "rm-badge--success" : "rm-badge--muted"}`}>
-                            {cell.status === "user_verified" ? (
-                              <IconWithText icon={IconCheck} size={12}>{t("evidence.confirmed_badge")}</IconWithText>
-                            ) : (
-                              <IconWithText icon={IconBot} size={12}>{t("evidence.ai_extracted_badge")}</IconWithText>
-                            )}
-                          </span>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div style={{ flexShrink: 0 }}>
-        <div className="rm-section-label">
-          <IconClock size={14} />
-          <span>{t("evidence.drafts_label", { n: history.length })}</span>
-        </div>
-        {history.length === 0 ? (
-          <div className="rm-section-hint">{t("evidence.no_drafts")}</div>
-        ) : (
-          <div className="rm-history-list">
-            {history.map(entry => (
-              <div
-                key={entry.id}
-                className="rm-history-item"
-                role="button"
-                tabIndex={0}
-                onClick={() => loadFullDraft(entry.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    loadFullDraft(entry.id);
-                  }
-                }}
+          <div className="evidence-setup-sidebar">
+            <div className="evidence-sidebar-btn-wrapper">
+              <button
+                type="button"
+                className="evidence-create-matrix-btn"
+                onClick={generateMatrix}
+                disabled={generating || selectedIds.length < 2}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="rm-history-item-title">
-                    {entry.title || entry.paperNames.join(" • ")}
-                  </div>
-                  <div className="rm-history-item-meta">
-                    <span>{entry.paperNames.length} {t("evidence.papers_unit")}</span>
-                    {entry.criterionCount !== undefined && <span>{entry.criterionCount} {t("evidence.criteria_unit")}</span>}
-                    <span>{formatServerDate(entry.updated_at)}</span>
-                  </div>
+                {generating ? <IconSpinner size={16} /> : <IconBrain size={16} />}
+                <span>{generating ? t("evidence.analyzing") : (t("evidence.create_matrix") || "Tạo ma trận so sánh")}</span>
+              </button>
+            </div>
+
+            <div className="evidence-drafts-header">
+              <span className="evidence-drafts-title">
+                {t("evidence.drafts_label", { n: history.length }).replace(/\(\d+\)/, "") || "BẢN NHÁP GẦN ĐÂY"}
+              </span>
+            </div>
+
+            <div className="evidence-sidebar-drafts-list">
+              {history.length === 0 ? (
+                <div className="rm-section-hint" style={{ fontSize: "12px", textAlign: "center", padding: "20px 0" }}>
+                  {t("evidence.no_drafts") || "Không có bản nháp nào"}
                 </div>
-                <div className="rm-history-actions">
-                  <button
-                    type="button"
-                    className="rm-btn rm-btn--icon rm-btn--ghost"
-                    onClick={(e) => { e.stopPropagation(); renameHistoryEntry(entry.id); }}
-                    title={t("evidence.rename_btn")}
-                  >
-                    <IconRefresh size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    className="rm-btn rm-btn--icon rm-btn--ghost"
-                    onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
-                    title={t("evidence.delete_btn")}
-                  >
-                    <IconClose size={12} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ) : (
+                history.map(entry => (
+                  <div key={entry.id} className="evidence-sidebar-draft-card">
+                    <div className="evidence-draft-card-header">
+                      <h4 className="evidence-draft-card-title">{entry.title || entry.paperNames.join(" • ")}</h4>
+                    </div>
+                    <div className="evidence-draft-card-meta">
+                      <span>
+                        <IconFileText size={11} /> {entry.paperNames.length} papers
+                      </span>
+                      {entry.criterionCount !== undefined && (
+                        <span>
+                          <IconBrain size={11} /> {entry.criterionCount} criteria
+                        </span>
+                      )}
+                    </div>
+                    <div className="evidence-draft-card-meta">
+                      <span><IconClock size={11} /> {formatServerDate(entry.updated_at)}</span>
+                    </div>
+                    <div className="evidence-draft-card-actions">
+                      <div className="evidence-draft-card-action-btns">
+                        <button
+                          type="button"
+                          className="evidence-draft-card-icon-btn"
+                          onClick={(e) => { e.stopPropagation(); renameHistoryEntry(entry.id); }}
+                          title={t("evidence.rename_btn")}
+                        >
+                          <IconEdit size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="evidence-draft-card-icon-btn"
+                          onClick={(e) => { e.stopPropagation(); deleteHistoryEntry(entry.id); }}
+                          title={t("evidence.delete_btn")}
+                        >
+                          <IconTrash size={12} />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="evidence-draft-card-continue-btn"
+                        onClick={() => loadFullDraft(entry.id)}
+                      >
+                        <span>{t("evidence.continue_btn") || "Tiếp tục"}</span>
+                        <span>&rarr;</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {activePdf && (
         <div className="rm-overlay evidence-pdf-overlay" onClick={() => setActivePdf(null)}>
