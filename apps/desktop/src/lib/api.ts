@@ -6,6 +6,7 @@
  */
 
 import i18n from "../i18n";
+import { getCurrentToken } from "./auth-token";
 import { getFirebaseIdToken } from "./firebase";
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
@@ -13,7 +14,7 @@ export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:87
 /** URL for iframe downloads. Firebase tokens are short-lived and only used
  * where browsers cannot attach the Authorization header themselves. */
 export function getAuthenticatedApiUrl(path: string): string {
-  const token = getFirebaseIdToken();
+  const token = getBestToken();
   if (!token) return `${BASE_URL}${path}`;
   const [pathAndQuery, fragment] = path.split("#", 2);
   const separator = pathAndQuery.includes("?") ? "&" : "?";
@@ -41,8 +42,16 @@ export function createApiHeaders(
   };
 }
 
+function getBestToken(): string {
+  // 1. Try the PluggableAuth token bridge first (Phase 2+)
+  const pluggableToken = getCurrentToken();
+  if (pluggableToken) return pluggableToken;
+  // 2. Fall back to Firebase (legacy)
+  return getFirebaseIdToken();
+}
+
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
-  return createApiHeaders(getFirebaseIdToken(), getLangHeader(), extra);
+  return createApiHeaders(getBestToken(), getLangHeader(), extra);
 }
 
 function parseApiError(status: number, text: string): string {
@@ -1435,6 +1444,60 @@ export const api = {
       section,
       use_cache: useCache,
     }),
+
+  generateReviewSectionStream: (
+    paperIds: string[],
+    section: string,
+    handlers: {
+      onStart?: (section: string, title: string) => void;
+      onChunk?: (section: string, delta: string) => void;
+      onProgress?: (section: string, message: string) => void;
+      onDone?: (data: ReviewSectionResponse & { section: string }) => void;
+      onError?: (error: string) => void;
+    }
+  ) => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/review/builder/section/stream`, {
+          method: "POST",
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ paper_ids: paperIds, section, use_cache: false }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          handlers.onError?.(parseApiError(res.status, text));
+          return;
+        }
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            const dataPart = line.replace(/^data: /, "").trim();
+            if (!dataPart) continue;
+            try {
+              const evt = JSON.parse(dataPart);
+              if (evt.type === "start") handlers.onStart?.(evt.section, evt.title);
+              else if (evt.type === "chunk") handlers.onChunk?.(evt.section, evt.delta);
+              else if (evt.type === "progress") handlers.onProgress?.(evt.section, evt.message);
+              else if (evt.type === "done") handlers.onDone?.(evt);
+              else if (evt.type === "error") handlers.onError?.(evt.error);
+            } catch { /* ignore malformed SSE */ }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") handlers.onError?.(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return { abort: () => controller.abort() };
+  },
 
   generateReviewMatrix: (paperIds: string[], useCache: boolean = false) =>
     request<ReviewMatrixResponse>("POST", "/api/review/builder/matrix", {

@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCheck, IconCopy, IconEdit, IconKey, IconLock, IconSpinner, IconUser } from "../Icons";
-import { useFirebaseAuth } from "../../lib/firebase";
+import { useAuth } from "../../lib/auth-provider";
 import "./account.css";
 
 interface AccountViewProps {
@@ -15,17 +15,20 @@ function initials(value: string): string {
 
 export function AccountView({ onOpenSettings }: AccountViewProps) {
   const { t } = useTranslation();
-  const auth = useFirebaseAuth();
+  const auth = useAuth();
   const user = auth.user;
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.displayName || "");
+  const [name, setName] = useState(user?.name || "");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
 
   const provider = useMemo(() => user?.providerData.find((item) => item.providerId !== "firebase")?.providerId || "password", [user]);
-  const providerLabel = provider === "google.com" ? "Google" : t("account.email_password");
-  const displayName = user?.displayName || user?.email?.split("@")[0] || t("account.researcher");
+  const providerLabel =
+    provider === "google.com" ? "Google" :
+    provider === "clerk" ? "Clerk" :
+    t("account.email_password");
+  const displayName = user?.name || user?.email?.split("@")[0] || t("account.researcher");
 
   if (!user) return null;
 
@@ -76,13 +79,18 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
       <div className="account-grid">
         <section className="account-profile-card">
           <div className="account-profile-top">
-            <div className="account-avatar" aria-hidden="true">
-              {user.photoURL ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" /> : initials(displayName)}
+            <div className="account-avatar-large">
+              {auth.user.imageUrl ? (
+                <img src={auth.user.imageUrl} alt="" referrerPolicy="no-referrer" />
+              ) : (
+                (auth.user.name || auth.user.email || "R").slice(0, 1).toUpperCase()
+              )}
             </div>
-            <div className="account-profile-copy">
-              <span>{t("account.signed_in")}</span>
-              <h2>{displayName}</h2>
-              <p>{user.email}</p>
+            <div className="account-hero-info">
+              <h2>{auth.user.name || t("account.default_name")}</h2>
+              <div className="account-hero-email">
+                {auth.user.email}
+              </div>
             </div>
           </div>
           <div className="account-profile-actions">

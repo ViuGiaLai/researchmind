@@ -1,0 +1,19 @@
+﻿{
+  "name": "researchmind-cloud-sync",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute researchmind_db --file=./schema.sql --local",
+    "db:init:remote": "wrangler d1 execute researchmind_db --file=./schema.sql --remote"
+  },
+  "dependencies": {
+    "hono": "^4.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240320.1",
+    "typescript": "^5.0.4",
+    "wrangler": "^3.38.0"
+  }
+}

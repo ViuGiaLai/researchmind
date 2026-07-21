@@ -321,66 +321,76 @@ export const GraphView: React.FC = () => {
         </div>
       </div>
 
-      {/* Build progress bar */}
+      {/* Build progress card — premium animated */}
       {isBuilding && buildProgress && (
-        <div className="graph-build-progress">
-          <div className="graph-progress-bar-container">
+        <div className="graph-build-card" style={{ margin: "16px 24px" }}>
+          <div className="graph-build-title">
+            {buildProgress.phase === "extract"
+              ? t("graph.extracting")
+              : buildProgress.phase === "cluster"
+              ? t("graph.clustering")
+              : buildProgress.phase === "summarize"
+              ? t("graph.summarizing")
+              : t("graph.building")}
+          </div>
+          <div className="graph-build-message">{buildProgress.message}</div>
+          <div className="graph-progress-bar">
             <div
-              className="graph-progress-bar"
+              className="graph-progress-fill"
               style={{ width: `${Math.max(buildProgress.percent, 2)}%` }}
             />
           </div>
-          <div className="graph-progress-info">
-            <span className="graph-progress-message">{buildProgress.message}</span>
-            <span className="graph-progress-pct">{buildProgress.percent}%</span>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
+            <span>{buildProgress.current} / {buildProgress.total} chunks</span>
+            <span style={{ fontWeight: 600, color: "var(--color-primary)" }}>{buildProgress.percent}%</span>
           </div>
         </div>
       )}
 
-      {/* Error banner (build-level) */}
+      {/* Error banner */}
       {buildError && (
-        <div className="graph-error">
+        <div style={{
+          margin: "12px 24px", padding: "10px 14px", borderRadius: 8,
+          background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)",
+          color: "var(--color-error, #f87171)", fontSize: "0.82rem",
+        }}>
           {buildError}
         </div>
       )}
 
-      {/* Stats bar */}
+      {/* Stats bar — premium chips */}
       {stats && (
         <div className="graph-stats-bar">
-          <div className="stat-item">
-            <span className="stat-value">{stats.entities}</span>
-            <span className="stat-label">{t("graph.stat_entities")}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-value">{stats.relationships}</span>
-            <span className="stat-label">{t("graph.stat_relations")}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-value">{stats.communities}</span>
-            <span className="stat-label">{t("graph.stat_communities")}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-value">{stats.community_reports}</span>
-            <span className="stat-label">{t("graph.stat_reports")}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-value">{stats.text_units}</span>
-            <span className="stat-label">{t("graph.stat_text_units")}</span>
-          </div>
+          {[
+            { label: t("graph.stat_entities"), value: stats.entities, color: "#2dd4bf" },
+            { label: t("graph.stat_relations"), value: stats.relationships, color: "#818cf8" },
+            { label: t("graph.stat_communities"), value: stats.communities, color: "#f472b6" },
+            { label: t("graph.stat_reports"), value: stats.community_reports, color: "#fb923c" },
+            { label: t("graph.stat_text_units"), value: stats.text_units, color: "#a3e635" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="graph-stat-chip">
+              <div className="graph-stat-dot" style={{ background: color }} />
+              <strong>{value.toLocaleString()}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty state — premium */}
       {!stats && !loadingState && (
         <div className="graph-empty">
-          <IconGraph size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
+          <div className="graph-empty-icon">
+            <IconGraph size={28} style={{ color: "var(--color-primary)" }} />
+          </div>
           <h3>{t("graph.empty_heading")}</h3>
           <p>{t("graph.empty_text")}</p>
-          <p style={{ fontSize: "0.8rem", marginTop: 8, color: "var(--color-text-muted)" }}>
+          <p style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4 }}>
             {t("graph.empty_hint")}
           </p>
         </div>
       )}
+
 
       {/* Tabs — only show when graph has data or is building */}
       {(stats || isBuilding) && (

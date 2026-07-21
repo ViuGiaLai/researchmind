@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
+import { api, ReviewSection, ReviewSectionResponse, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
 import { paperDisplayTitle } from "../../lib/paperDisplay";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
@@ -61,6 +61,8 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [generatingSections, setGeneratingSections] = useState<Set<string>>(new Set());
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generatingOutline, setGeneratingOutline] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<Record<string, string>>({});
+  const sectionStreamRef = useRef<{ abort: () => void } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [evidence, setEvidence] = useState<Record<string, EvidenceItem[]>>({});
   const [, setEvidenceLoading] = useState<Set<string>>(new Set());
@@ -389,26 +391,40 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
     }
   };
 
-  const handleGenerateSection = async (sectionKey: string) => {
+  const handleGenerateSection = (sectionKey: string) => {
+    // Abort any existing stream for this section
+    sectionStreamRef.current?.abort();
+
     setGeneratingSections((prev) => new Set(prev).add(sectionKey));
-    try {
-      const res = await api.generateReviewSection(selectedIds, sectionKey, false);
-      if (res.error) {
-        toast.addToast("error", res.error);
-        return;
-      }
-      setSections((prev) => ({ ...prev, [sectionKey]: res }));
-      setFullText(rebuildFullText(title, { ...sections, [sectionKey]: res }, outlineSections));
-      loadEvidence(sectionKey);
-    } catch (e) {
-      toast.addToast("error", t("review_builder.error_create_section", { msg: e instanceof Error ? e.message : String(e) }));
-    } finally {
-      setGeneratingSections((prev) => {
-        const next = new Set(prev);
-        next.delete(sectionKey);
-        return next;
-      });
-    }
+    setStreamingContent((prev) => ({ ...prev, [sectionKey]: "" }));
+
+    sectionStreamRef.current = api.generateReviewSectionStream(selectedIds, sectionKey, {
+      onStart: () => {
+        setStreamingContent((prev) => ({ ...prev, [sectionKey]: "" }));
+      },
+      onChunk: (_sec, delta) => {
+        setStreamingContent((prev) => ({ ...prev, [sectionKey]: (prev[sectionKey] || "") + delta }));
+      },
+      onProgress: () => { /* keep-alive */ },
+      onDone: (data) => {
+        const res = data as ReviewSectionResponse & { section: string };
+        setSections((prev) => {
+          const updated = { ...prev, [sectionKey]: res };
+          setFullText(rebuildFullText(title, updated, outlineSections));
+          return updated;
+        });
+        setStreamingContent((prev) => { const next = { ...prev }; delete next[sectionKey]; return next; });
+        setGeneratingSections((prev) => { const next = new Set(prev); next.delete(sectionKey); return next; });
+        loadEvidence(sectionKey);
+        sectionStreamRef.current = null;
+      },
+      onError: (err) => {
+        toast.addToast("error", err);
+        setStreamingContent((prev) => { const next = { ...prev }; delete next[sectionKey]; return next; });
+        setGeneratingSections((prev) => { const next = new Set(prev); next.delete(sectionKey); return next; });
+        sectionStreamRef.current = null;
+      },
+    });
   };
 
   const rebuildFullText = (reviewTitle: string, sectionMap: Record<string, ReviewSection>, outline: OutlineSection[]) => {
@@ -1044,13 +1060,14 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                       section={sec.key}
                       title={sec.title}
                       description={sec.description}
-                      content={secData?.content}
+                      content={streamingContent[sec.key] ?? secData?.content}
                       loading={generatingSections.has(sec.key)}
                       evidenceCount={secData?.chunks_used || evidence[sec.key]?.length}
                       paperCount={secData?.papers_used?.length}
                       status={sectionStatus[sec.key]}
                       issues={secIssues.length > 0 ? secIssues : undefined}
                       citations={secData?.citations}
+                      isStreaming={sec.key in streamingContent}
                       onGenerate={handleGenerateSection}
                       onEdit={(key) => {
                         setActiveSection(key);

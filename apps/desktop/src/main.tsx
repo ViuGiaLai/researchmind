@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { AuthGate } from "./components/auth/AuthGate";
-import { FirebaseAuthProvider } from "./lib/firebase";
+import { PluggableAuthProvider } from "./lib/auth-provider";
 import { initTheme } from "./lib/theme";
 import { ToastProvider } from "./components/shared/Toast";
 import { installGlobalDiagnosticHandlers } from "./lib/diagnosticLog";
@@ -31,11 +31,11 @@ installGlobalDiagnosticHandlers();
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <FirebaseAuthProvider>
+      <PluggableAuthProvider>
         <ToastProvider>
           <AuthGate><App /></AuthGate>
         </ToastProvider>
-      </FirebaseAuthProvider>
+      </PluggableAuthProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

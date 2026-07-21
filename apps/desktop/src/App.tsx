@@ -27,7 +27,10 @@ import { useToast } from "./components/shared/Toast";
 import { SubTabBar } from "./components/shared/SubTabBar";
 import { CommandPalette, type CommandTarget } from "./components/shared/CommandPalette";
 import { api, BASE_URL } from "./lib/api";
-import { useFirebaseAuth } from "./lib/firebase";
+import { useAuth } from "./lib/auth-provider";
+import { SyncStatus } from "./components/auth/SyncStatus";
+import { MasterPasswordModal } from "./components/auth/MasterPasswordModal";
+import { SyncDaemon } from "./lib/sync";
 
 type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account";
 
@@ -108,8 +111,8 @@ const ReviewHub: React.FC<{
 
 function App() {
   const { addToast } = useToast();
-  const auth = useFirebaseAuth();
-  const requestSignIn = () => window.dispatchEvent(new Event("researchmind:open-auth"));
+  const auth = useAuth();
+  const requestSignIn = () => auth.signIn();
   const { t } = useTranslation();
   const [commandOpen, setCommandOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(() => {
@@ -124,6 +127,7 @@ function App() {
   const [chatPaperIds, setChatPaperIds] = useState<string[]>([]);
   const [initialQuery, setInitialQuery] = useState<string | undefined>(undefined);
   const [initialMode, setInitialMode] = useState<"chat" | "review" | "critique" | "debate" | "verify">("chat");
+  const [e2eeLocked, setE2eeLocked] = useState(false);
   const [chatSessionKey, setChatSessionKey] = useState(0);
   const [activeProjectId, setActiveProjectId] = useState<string | undefined>(() => {
     try { return localStorage.getItem("researchmind:active-project") || undefined; } catch { return undefined; }
@@ -414,6 +418,28 @@ function App() {
     setActiveTab("wow");
   };
 
+  // Check if E2EE master password needs to be set (when user logs in without salt)
+  useEffect(() => {
+    if (!auth.user) {
+      setE2eeLocked(false);
+      return;
+    }
+    const hasSalt = localStorage.getItem("rm_e2ee_salt");
+    // If salt exists, user has already set up E2EE — ask for unlock
+    // If no salt, they'll set it up on first use (modal shown on first note)
+    setE2eeLocked(!!hasSalt && !localStorage.getItem("rm_e2ee_unlocked"));
+  }, [auth.user]);
+
+  // Start/stop background sync daemon when auth state changes
+  // Note: auth.getToken intentionally omitted from deps — its reference
+  // changes every render but its behavior is stable (reads localStorage).
+  useEffect(() => {
+    if (!auth.user) return;
+    const daemon = new SyncDaemon(auth.getToken);
+    daemon.start();
+    return () => daemon.stop();
+  }, [auth.user]);
+
   useEffect(() => {
     const onCommandKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -614,16 +640,17 @@ function App() {
                 v0.6.0
               </div>
             </div>
-            {auth.enabled && auth.user && (
+            <SyncStatus />
+            {auth.user && (
               <button className={`sidebar-account-entry ${activeTab === "account" ? "active" : ""}`} type="button" onClick={() => setActiveTab("account")}>
                 <span className="sidebar-account-avatar" aria-hidden="true">
-                  {auth.user.photoURL ? <img src={auth.user.photoURL} alt="" referrerPolicy="no-referrer" /> : (auth.user.displayName || auth.user.email || "R").slice(0, 1).toUpperCase()}
+                  {auth.user.imageUrl ? <img src={auth.user.imageUrl} alt="" referrerPolicy="no-referrer" /> : (auth.user.name || auth.user.email || "R").slice(0, 1).toUpperCase()}
                 </span>
-                <span className="sidebar-account-copy"><strong>{auth.user.displayName || t("account.default_name")}</strong><small>{auth.user.email || t("account.manage_account")}</small></span>
+                <span className="sidebar-account-copy"><strong>{auth.user.name || t("account.default_name")}</strong><small>{auth.user.email || t("account.manage_account")}</small></span>
                 <IconUser size={16} />
               </button>
             )}
-            {auth.enabled && !auth.user && (
+            {!auth.user && (
               <button className="sidebar-account-entry" type="button" onClick={requestSignIn}>
                 <span className="sidebar-account-avatar" aria-hidden="true"><IconUser size={16} /></span>
                 <span className="sidebar-account-copy"><strong>{t("auth.optional_sign_in")}</strong><small>{t("auth.optional_sign_in_hint")}</small></span>
@@ -632,7 +659,7 @@ function App() {
             )}
           </div>
         )}
-        {sidebarCollapsed && auth.enabled && auth.user && (
+        {sidebarCollapsed && auth.user && (
           <button
             className={`sidebar-account-collapsed ${activeTab === "account" ? "active" : ""}`}
             type="button"
@@ -641,11 +668,11 @@ function App() {
             aria-label={t("account.eyebrow")}
           >
             <span className="sidebar-account-avatar" aria-hidden="true">
-              {auth.user.photoURL ? <img src={auth.user.photoURL} alt="" referrerPolicy="no-referrer" /> : (auth.user.displayName || auth.user.email || "R").slice(0, 1).toUpperCase()}
+              {auth.user.imageUrl ? <img src={auth.user.imageUrl} alt="" referrerPolicy="no-referrer" /> : (auth.user.name || auth.user.email || "R").slice(0, 1).toUpperCase()}
             </span>
           </button>
         )}
-        {sidebarCollapsed && auth.enabled && !auth.user && (
+        {sidebarCollapsed && !auth.user && (
           <button className="sidebar-account-collapsed" type="button" onClick={requestSignIn} title={t("auth.sign_in")} aria-label={t("auth.sign_in")}><IconUser size={18} /></button>
         )}
       </aside>
@@ -739,6 +766,15 @@ function App() {
           sectionId={helpSection}
           onClose={() => setHelpSection(null)}
           onNavigate={setHelpSection}
+        />
+      )}
+
+      {e2eeLocked && (
+        <MasterPasswordModal
+          onUnlock={() => {
+            localStorage.setItem("rm_e2ee_unlocked", "true");
+            setE2eeLocked(false);
+          }}
         />
       )}
 

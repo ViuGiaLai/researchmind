@@ -643,7 +643,68 @@ async def generate_section(request: Request, body: dict = Body(...)):
     return result
 
 
-# ─── Comparison Matrix ───────────────────────────────────────
+@router.post("/section/stream")
+async def generate_section_stream(request: Request, body: dict = Body(...)):
+    """Stream generation of a single review section as SSE events.
+
+    Events:
+      {"type": "start", "section": "<key>", "title": "<title>"}
+      {"type": "chunk", "section": "<key>", "delta": "<text>"}
+      {"type": "done",  "section": "<key>", "content": "<full>",
+       "citations": [...], "papers_used": [...], "chunks_used": N}
+      {"type": "error", "error": "<msg>"}
+    """
+    lang = get_language(request)
+    paper_ids = body.get("paper_ids", [])
+    section = body.get("section", "")
+    use_cache = body.get("use_cache", False)
+
+    async def event_stream():
+        if not paper_ids:
+            yield f"data: {json.dumps({'type': 'error', 'error': t('review.select_min_one', lang)}, ensure_ascii=False)}\n\n"
+            return
+
+        if section not in SECTION_CONFIG and section != "bibliography":
+            yield f"data: {json.dumps({'type': 'error', 'error': t('review.invalid_section', lang, section=section)}, ensure_ascii=False)}\n\n"
+            return
+
+        paper_error = check_papers_ready(paper_ids)
+        if paper_error:
+            yield f"data: {json.dumps({'type': 'error', 'error': paper_error}, ensure_ascii=False)}\n\n"
+            return
+
+        session = get_session(state.engine)
+        try:
+            papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
+            paper_titles = {p.id: display_title(p.title, p.filename) for p in papers_db}
+        finally:
+            session.close()
+
+        title = SECTION_TITLES.get(section, section)
+        yield f"data: {json.dumps({'type': 'start', 'section': section, 'title': title}, ensure_ascii=False)}\n\n"
+
+        # Emit small progress chunks to keep the connection alive
+        yield f"data: {json.dumps({'type': 'progress', 'section': section, 'message': t('review.retrieving_evidence', lang)}, ensure_ascii=False)}\n\n"
+
+        result = await _generate_section(paper_ids, section, paper_titles, use_cache=use_cache, lang=lang)
+
+        if "error" in result and result["error"]:
+            yield f"data: {json.dumps({'type': 'error', 'error': result['error']}, ensure_ascii=False)}\n\n"
+            return
+
+        # Stream the content in small chunks to animate in the UI
+        content = result.get("content", "")
+        chunk_size = 60
+        for i in range(0, len(content), chunk_size):
+            delta = content[i:i + chunk_size]
+            yield f"data: {json.dumps({'type': 'chunk', 'section': section, 'delta': delta}, ensure_ascii=False)}\n\n"
+            await asyncio.sleep(0.01)
+
+        yield f"data: {json.dumps({'type': 'done', 'section': section, 'content': content, 'title': title, 'citations': result.get('citations', []), 'papers_used': result.get('papers_used', []), 'chunks_used': result.get('chunks_used', 0), 'model_used': result.get('model_used', '')}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 
 @router.post("/matrix")
 async def generate_matrix(request: Request, body: dict = Body(...)):

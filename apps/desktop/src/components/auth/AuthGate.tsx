@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconBrain, IconSpinner } from "../Icons";
-import { useFirebaseAuth } from "../../lib/firebase";
+import { useAuth } from "../../lib/auth-provider";
 import researchStudyImage from "../../assets/auth-research-study.jpg";
 import "../../styles/auth.css";
 
@@ -10,11 +10,12 @@ const backendHost = new URL(BACKEND_URL).hostname;
 const localBackend = backendHost === "127.0.0.1" || backendHost === "localhost" || backendHost === "::1";
 const requireBackendProfile = import.meta.env.VITE_BACKEND_AUTH_REQUIRED === "true" || !localBackend;
 const authRequired = import.meta.env.VITE_AUTH_REQUIRED === "true" || requireBackendProfile;
+const quickLoginEnabled = import.meta.env.VITE_QUICK_LOGIN === "true";
 const GUEST_MODE_STORAGE_KEY = "researchmind-guest-mode";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
-  const auth = useFirebaseAuth();
+  const auth = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,21 +40,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, [auth.user]);
 
   useEffect(() => {
-    if (!auth.enabled || !auth.user || !requireBackendProfile) {
-      setProfileError("");
-      return;
-    }
-    fetch(`${BACKEND_URL}/api/auth/me`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(await response.text());
-        setProfileError("");
-      })
-      .catch(() => setProfileError(t("auth.backend_unavailable")));
-  }, [auth.enabled, auth.user, t]);
+    // removed backend check since we are using pluggable auth
+  }, [auth.user, t]);
 
-  if (!auth.enabled) return <>{children}</>;
   if (auth.loading) return <div className="auth-shell"><IconSpinner size={30} className="auth-spin" /></div>;
-  if (auth.user && !profileError) return <>{children}</>;
+  if (auth.user) return <>{children}</>;
   if (!authRequired && guestMode) return <>{children}</>;
 
   const submit = async (event: React.FormEvent) => {
@@ -61,8 +52,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setSubmitting(true);
     setMessage("");
     try {
-      if (mode === "login") await auth.signInWithEmail(email, password);
-      else await auth.registerWithEmail(email, password);
+      if (mode === "login") {
+        await auth.signInWithEmail(email, password);
+      } else {
+        await auth.registerWithEmail(email, password);
+      }
     } catch {
       // The provider exposes a translated error below the form.
     } finally {
@@ -71,19 +65,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   };
 
   const reset = async () => {
-    if (!email.trim()) {
-      setMessage(t("auth.enter_email_first"));
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await auth.resetPassword(email);
-      setMessage(t("auth.reset_sent"));
-    } catch {
-      // Firebase error is rendered below.
-    } finally {
-      setSubmitting(false);
-    }
+    // Unsupported in MVP mock
   };
 
   return (
@@ -114,6 +96,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <>
+              {quickLoginEnabled && (
+                <button className="auth-quick-login" type="button" onClick={() => {
+                  auth.signIn();
+                  localStorage.setItem("researchmind:last-tab", "library");
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  Quick Login (Dev)
+                  <span>Đăng nhập tức thì — không cần mật khẩu</span>
+                </button>
+              )}
               {!authRequired && (
                 <button className="auth-guest" type="button" onClick={() => {
                   localStorage.setItem(GUEST_MODE_STORAGE_KEY, "true");
