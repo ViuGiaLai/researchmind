@@ -634,6 +634,7 @@
     "toast_find_sources": "Tính năng tự động tìm nguồn sẽ có trong bản cập nhật sau.",
     "toast_keep_cited": "Tính năng lọc claim chỉ giữ bằng chứng sẽ có trong bản cập nhật sau.",
     "toast_export_claim": "Xuất bản kiểm chứng sẽ có trong bản cập nhật sau.",
+    "toast_pdf_saved": "Đã lưu {count} highlight vào file PDF",
     "toast_export_success": "Đã tải {format} thành công",
     "toast_export_error": "Xuất {format} thất bại",
     "toast_export_report_error": "Xuất báo cáo thất bại. Vui lòng kiểm tra kết nối backend.",
@@ -817,7 +818,9 @@
     "error": "Lỗi",
     "info": "Thông báo",
     "warning": "Cảnh báo",
-    "dismiss": "Đóng thông báo"
+    "dismiss": "Đóng thông báo",
+    "free_30_limit": "Bạn đã dùng hết 30/30 lượt miễn phí hôm nay. Thử lại vào ngày mai hoặc chuyển Local AI mode trong Settings.",
+    "cloud_unavailable": "Dịch vụ đám mây tạm thời không khả dụng."
   },
   "help": {
     "center": "Trung tâm trợ giúp",
@@ -1594,7 +1597,8 @@
     "close": "Đóng PDF",
     "close_aria": "Đóng",
     "resize": "Đổi kích thước panel PDF",
-    "preview_title": "Xem trước PDF"
+    "preview_title": "Xem trước PDF",
+    "save_highlighted": "Lưu Highlighted"
   },
   "folder": {
     "empty": "Chưa có thư mục nào được chọn.",

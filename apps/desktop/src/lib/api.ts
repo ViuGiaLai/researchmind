@@ -218,6 +218,7 @@ export interface ChatResponse {
   model_used: string;
   papers_used: string[];
   chunks_used: number;
+  warning?: string;
 }
 
 export interface Stats {
@@ -822,7 +823,7 @@ export const api = {
     const stream: {
       onChunk: ((text: string) => void) | null;
       onStatus: ((text: string) => void) | null;
-      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number, modified_content?: string) => void) | null;
+      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number, modified_content?: string, warning?: string) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
     } = { onChunk: null, onStatus: null, onDone: null, onError: null, abort: () => controller.abort() };
@@ -859,7 +860,7 @@ export const api = {
               try {
                 const data = JSON.parse(dataStr);
                 if (data.done) {
-                  stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "");
+                  stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "", data.warning || "");
                 } else if (data.status !== undefined) {
                   stream.onStatus?.(data.status);
                 } else if (data.chunk !== undefined) {
@@ -1106,6 +1107,13 @@ export const api = {
       "PUT",
       `/api/papers/${paperId}/reading-progress`,
       { current_page: currentPage, zoom },
+    ),
+
+  saveHighlightedPdf: (paperId: string, highlights: Array<{ page: number; text: string; note?: string }>, projectId?: string) =>
+    request<{ status: string; file_path: string; highlights_saved: number; download_url: string }>(
+      "POST",
+      `/api/papers/${paperId}/save-highlighted-pdf`,
+      { highlights, project_id: projectId },
     ),
 
   // Machine specs

@@ -52,6 +52,13 @@ class HybridSearch:
         self._rerank_cache_max = 128
         self.last_used = time.time()
         self._start_unload_thread()
+        self.embedding_warning = ""
+
+    def clear_query_cache(self):
+        """Clear the LRU query embedding cache. Call when embedding mode changes."""
+        if hasattr(self._embed_query_cached, "cache_clear"):
+            self._embed_query_cached.cache_clear()
+            logger.info("Embedding query cache cleared (embedding mode changed)")
 
     def _start_unload_thread(self):
         def check_idle():
@@ -100,11 +107,16 @@ class HybridSearch:
         logger.debug(f"BM25 search: {len(bm25_results)} results in {t1-t0:.2f}s")
 
         # Step 2: Vector search (with optional MMR diversity)
-        logger.debug(f"Vector search: '{query}'")
-        query_embedding = self._embed_query_cached(query)
-        mmr_lambda = getattr(settings, "mmr_lambda", None)
-        vector_top_k = getattr(settings, "top_k_vector", 50)
-        vector_results = self.vector.search(query_embedding, paper_ids, top_k=vector_top_k, mmr_lambda=mmr_lambda)
+        vector_results = []
+        self.embedding_warning = ""
+        try:
+            query_embedding = self._embed_query_cached(query)
+            mmr_lambda = getattr(settings, "mmr_lambda", None)
+            vector_top_k = getattr(settings, "top_k_vector", 50)
+            vector_results = self.vector.search(query_embedding, paper_ids, top_k=vector_top_k, mmr_lambda=mmr_lambda)
+        except Exception as embed_err:
+            self.embedding_warning = f"⚠️ Vector search unavailable (embedding error). Results are BM25-only."
+            logger.warning(f"Vector search failed (embedding error): {embed_err}. Falling back to BM25-only.")
         t2 = time.time()
         logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
 

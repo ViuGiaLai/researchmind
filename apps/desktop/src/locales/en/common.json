@@ -634,6 +634,7 @@
     "toast_find_sources": "Auto source finding will be available in a future update.",
     "toast_keep_cited": "Filter claims to keep only cited evidence will be available in a future update.",
     "toast_export_claim": "Export verification report will be available in a future update.",
+    "toast_pdf_saved": "{count} highlights saved to PDF file",
     "toast_export_success": "{format} downloaded successfully",
     "toast_export_error": "{format} export failed",
     "toast_export_report_error": "Report export failed. Please check the backend connection.",
@@ -864,7 +865,9 @@
     "error": "Error",
     "info": "Info",
     "warning": "Warning",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "free_30_limit": "Free daily 30/30 requests used. Try again tomorrow or switch Local AI mode in Settings.",
+    "cloud_unavailable": "Cloud service temporarily unavailable."
   },
   "help": {
     "center": "Help Center",
@@ -1594,7 +1597,8 @@
     "close": "Close PDF",
     "close_aria": "Close",
     "resize": "Resize PDF panel",
-    "preview_title": "PDF preview"
+    "preview_title": "PDF preview",
+    "save_highlighted": "Save Highlighted"
   },
   "folder": {
     "empty": "No folders selected.",

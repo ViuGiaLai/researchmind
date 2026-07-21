@@ -326,32 +326,37 @@ async def translate_papers(request: Request, body: dict = Body(...)):
                 else:
                     gateway_headers = {}
                 prompt = json.dumps(chunk, ensure_ascii=False)
-                response = await client.post(
-                    f"{gateway_url}/v1/generate",
-                    headers=gateway_headers,
-                    json={
-                        "task_type": "translate",
-                        "system_prompt": system_prompt,
-                        "user_prompt": f"Translate only the title and abstract values in this JSON into {target_language_name}:\n\n{prompt}",
-                        "language": target_language,
-                        "max_tokens": 4096,
-                        "temperature": 0.1,
-                    },
-                )
-                response.raise_for_status()
-                raw = response.json().get("content", "")
                 try:
-                    parsed = json.loads(raw)
-                    translations = parsed if isinstance(parsed, list) else parsed.get("translations", [])
-                except json.JSONDecodeError as exc:
-                    raise HTTPException(status_code=502, detail="Hosted translation returned invalid JSON") from exc
-                for index, _paper in enumerate(chunk):
-                    translated = translations[index] if index < len(translations) else {}
-                    result.append({
-                        "title_vi": translated.get("title_vi") or translated.get("title") or "",
-                        "abstract_vi": translated.get("abstract_vi") or translated.get("abstract") or "",
-                    })
-                continue
+                    response = await client.post(
+                        f"{gateway_url}/v1/generate",
+                        headers=gateway_headers,
+                        json={
+                            "task_type": "translate",
+                            "system_prompt": system_prompt,
+                            "user_prompt": f"Translate only the title and abstract values in this JSON into {target_language_name}:\n\n{prompt}",
+                            "language": target_language,
+                            "max_tokens": 4096,
+                            "temperature": 0.1,
+                        },
+                    )
+                    response.raise_for_status()
+                    raw = response.json().get("content", "")
+                    try:
+                        parsed = json.loads(raw)
+                        translations = parsed if isinstance(parsed, list) else parsed.get("translations", [])
+                    except json.JSONDecodeError as exc:
+                        raise HTTPException(status_code=502, detail="Hosted translation returned invalid JSON") from exc
+                    for index, _paper in enumerate(chunk):
+                        translated = translations[index] if index < len(translations) else {}
+                        result.append({
+                            "title_vi": translated.get("title_vi") or translated.get("title") or "",
+                            "abstract_vi": translated.get("abstract_vi") or translated.get("abstract") or "",
+                        })
+                    continue
+                except httpx.HTTPStatusError as gateway_err:
+                    logger.warning(f"Gateway translation failed ({gateway_err.response.status_code}), falling back to Gemini API")
+                except Exception as gateway_err:
+                    logger.warning(f"Gateway translation error: {gateway_err}, falling back to Gemini API")
 
             data = None
             last_error: Exception | None = None

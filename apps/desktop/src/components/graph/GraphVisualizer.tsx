@@ -79,7 +79,7 @@ function getNetworkOptions(isLightMode: boolean): Options {
       borderWidth: 2,
       shadow: { enabled: true, color: "rgba(0, 0, 0, 0.3)", size: 6, x: 0, y: 3 },
       chosen: {
-        node: (values: any, id: any, selected: boolean, hovering: boolean) => {
+        node: (values: any, _id: any, selected: boolean, hovering: boolean) => {
           if (selected) {
             values.size = values.size * 1.25;
             values.borderWidth = 3;
@@ -92,7 +92,7 @@ function getNetworkOptions(isLightMode: boolean): Options {
             values.shadowSize = 10;
           }
         },
-        label: (values: any, id: any, selected: boolean, hovering: boolean) => {
+        label: (values: any, _id: any, selected: boolean, hovering: boolean) => {
           if (selected) {
             values.color = isLightMode ? "#000000" : "#ffffff";
             values.size = values.size + 1;

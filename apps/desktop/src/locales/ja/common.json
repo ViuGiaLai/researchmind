@@ -410,6 +410,7 @@
     "toast_find_sources": "自動ソース検索機能は今後のアップデートで提供予定です。",
     "toast_keep_cited": "エビデンスのみを保持する主張フィルター機能は今後のアップデートで提供予定です。",
     "toast_export_claim": "検証レポートのエクスポート機能は今後のアップデートで提供予定です。",
+    "toast_pdf_saved": "{count}件のハイライトをPDFに保存しました",
     "toast_export_success": "{format}のダウンロードが完了しました",
     "toast_export_error": "{format}のエクスポートに失敗しました",
     "toast_export_report_error": "レポートのエクスポートに失敗しました。バックエンドの接続を確認してください。",
@@ -634,7 +635,9 @@
     "error": "エラー",
     "info": "お知らせ",
     "warning": "警告",
-    "dismiss": "閉じる"
+    "dismiss": "閉じる",
+    "free_30_limit": "本日の無料枠 30/30 を使い切りました。明日もう一度お試しください。",
+    "cloud_unavailable": "クラウドサービスが一時的に利用できません。"
   },
   "help": {
     "center": "ヘルプセンター",
@@ -1305,7 +1308,8 @@
     "close": "PDFを閉じる",
     "close_aria": "閉じる",
     "resize": "PDFパネルのサイズ変更",
-    "preview_title": "PDFプレビュー"
+    "preview_title": "PDFプレビュー",
+    "save_highlighted": "ハイライトを保存"
   },
   "folder": {
     "empty": "フォルダが選択されていません。",

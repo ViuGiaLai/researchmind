@@ -6,6 +6,7 @@ import {
   IconCheck,
   IconClipboard,
   IconClose,
+  IconDownload,
   IconEdit,
   IconFileText,
   IconSpinner,
@@ -13,16 +14,24 @@ import {
   IconWithText,
 } from "../Icons";
 
+interface HighlightItem {
+  page: number;
+  text: string;
+  _paperId?: string;
+}
+
 interface PdfViewerProps {
   paperId: string;
   paperTitle: string;
   initialPage?: number;
   totalPages?: number | null;
   highlightText?: string;
+  highlights?: HighlightItem[];
   mode?: "panel" | "embedded";
   projectId?: string;
   onClose?: () => void;
   onCopyQuote?: (text: string, page: number) => void;
+  onSaveHighlighted?: (highlights: HighlightItem[]) => void;
 }
 
 const COLORS: PdfAnnotation["color"][] = ["yellow", "green", "blue", "pink"];
@@ -33,10 +42,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   initialPage = 1,
   totalPages = null,
   highlightText = "",
+  highlights = [],
   mode = "panel",
   projectId,
   onClose,
   onCopyQuote,
+  onSaveHighlighted,
 }) => {
   const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(initialPage);
@@ -56,10 +67,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<{ startX: number; startWidth: number; pointerId: number } | null>(null);
 
-  const pdfUrl = useMemo(
-    () => getAuthenticatedApiUrl(`/api/papers/${paperId}/file#page=${currentPage}`),
-    [paperId, currentPage],
-  );
+  const pdfUrl = useMemo(() => {
+    if (highlights.length > 0) {
+      const hlParam = encodeURIComponent(JSON.stringify(highlights));
+      return getAuthenticatedApiUrl(`/api/papers/${paperId}/viewer?hl=${hlParam}#page=${currentPage}`);
+    }
+    return getAuthenticatedApiUrl(`/api/papers/${paperId}/file#page=${currentPage}`);
+  }, [paperId, currentPage, highlights]);
 
   const loadReaderData = useCallback(async () => {
     setLoading(true);
@@ -199,6 +213,18 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage + 1)} disabled={Boolean(totalPages && currentPage >= totalPages)} aria-label={t("pdf.next")}>›</button>
           </div>
           <div className="pdf-reader__actions">
+            {highlights.length > 0 && (
+              <button
+                type="button"
+                className="pdf-tool-btn"
+                onClick={() => onSaveHighlighted?.(highlights)}
+                title={t("pdf.save_highlighted")}
+              >
+                <IconWithText icon={IconDownload} size={13}>
+                  {t("pdf.save_highlighted")} ({highlights.length})
+                </IconWithText>
+              </button>
+            )}
             <button
               type="button"
               className={`pdf-tool-btn${showAnnotations ? " is-active" : ""}`}
