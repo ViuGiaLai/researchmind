@@ -259,7 +259,7 @@ const ToastItem: React.FC<{
 
         {/* Text Area */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3, minWidth: 0, paddingRight: 4 }}>
-          <span style={{ fontSize: "10.5px", textTransform: "uppercase", letterSpacing: "0.06em", color: accentColor, fontWeight: 700 }}>
+          <span style={{ fontSize: "10.5px", letterSpacing: "0.06em", color: accentColor, fontWeight: 700 }}>
             {getToastTitle(type)}
           </span>
           <div style={{ color: "var(--color-text)", fontSize: "13px", fontWeight: 500, lineHeight: 1.45, wordBreak: "break-word" }}>

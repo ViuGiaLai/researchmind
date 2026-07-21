@@ -814,10 +814,10 @@
     "llama_connect": "Không thể kết nối đến llama-server"
   },
   "toast": {
-    "success": "Thành công",
-    "error": "Lỗi",
-    "info": "Thông báo",
-    "warning": "Cảnh báo",
+    "success": "THÀNH CÔNG",
+    "error": "LỖI",
+    "info": "THÔNG BÁO",
+    "warning": "CẢNH BÁO",
     "dismiss": "Đóng thông báo",
     "free_30_limit": "Bạn đã dùng hết 30/30 lượt miễn phí hôm nay. Thử lại vào ngày mai hoặc chuyển Local AI mode trong Settings.",
     "cloud_unavailable": "Dịch vụ đám mây tạm thời không khả dụng."
