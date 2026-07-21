@@ -498,9 +498,10 @@
 .graph-visualizer-canvas {
   flex: 1;
   min-height: 400px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: radial-gradient(circle at center, #0e1629 0%, #060913 100%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
   overflow: hidden;
   position: relative;
 }
@@ -510,20 +511,22 @@
   height: 100% !important;
 }
 
-/* Detail panel â€” slides in from right */
+/* Detail panel — slides in from right */
 .graph-detail-panel {
   width: 360px;
   max-height: 100%;
   overflow-y: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  background: rgba(23, 31, 51, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   flex-shrink: 0;
-  animation: slide-in-right 200ms ease;
+  box-shadow: -6px 0 28px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: slide-in-right 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(20px); }
+  from { opacity: 0; transform: translateX(30px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -620,6 +623,14 @@
   background: var(--color-surface-hover);
   border-radius: 4px;
   font-size: 0.78rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 2px solid transparent;
+}
+
+.graph-detail-rel:hover {
+  transform: translateX(4px);
+  border-left-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .rel-direction {
@@ -703,5 +714,19 @@
 
 .graph-header-actions .btn-danger:hover:not(:disabled) {
   opacity: 0.85;
+}
+
+/* Light Theme Adaptations for Knowledge Graph */
+[data-theme="light"] .graph-visualizer-canvas {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .graph-detail-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: -6px 0 28px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
