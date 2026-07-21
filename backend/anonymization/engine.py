@@ -43,9 +43,9 @@ ENTITY_TYPES = {
 # Họ tên người (Tây & Việt): "John A. Smith", "Nguyễn Văn An", "J. Smith"
 AUTHOR_PATTERNS = [
     # Standard Western name patterns in academic context
-    r"(?<![A-Za-z])([A-Z][a-z]{1,14}(?:\s[A-Z]\.)?(?:\s[A-Z][a-z]{1,20}){1,3})(?=\s*[,;⁰¹²³⁴⁵⁶⁷⁸⁹\*†‡§¶#]|\s+and\s|\s+&\s|\s*\n)",
+    r"(?<![A-Za-z])([A-Z][a-z]{1,14}(?:\s[A-Z]\.)?(?:\s[A-Z][a-z]{1,20}){1,3})(?=\s*[,;⁰¹²³⁴⁵⁶⁷⁸⁹\*†‡§¶#]|\s+and\s|\s+&\s|\s+from\s|\s+at\s|\s*\n)",
     # Vietnamese names: Họ Tên (3-4 words, first word uppercase)
-    r"(?<![A-Za-z])([A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][a-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]{1,12}(?:\s[A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][a-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]{1,12}){2,3})(?=\s*[,;⁰¹²³⁴⁵⁶⁷⁸⁹\*†‡§¶#]|\s+and\s|\s+&\s|\s*\n)",
+    r"(?<![A-Za-z])([A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][a-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]{1,12}(?:\s[A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][a-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ]{1,12}){2,3})(?=\s*[,;⁰¹²³⁴⁵⁶⁷⁸⁹\*†‡§¶#]|\s+and\s|\s+&\s|\s+from\s|\s+at\s|\s*\n)",
 ]
 
 # Tên tổ chức / trường đại học / viện nghiên cứu
@@ -67,11 +67,11 @@ EMAIL_PATTERN = r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
 # ORCID
 ORCID_PATTERN = r"(?:ORCID:?\s*)?(?:https?://orcid\.org/)?(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])"
 
-# Grant / Funding numbers
+# Grant / Funding numbers (must contain at least one digit)
 GRANT_PATTERNS = [
     r"(?:Grant|Award|Contract|Project|No\.|Number|#)\s*(?:[:.]?\s*)([A-Z]{0,5}\d[\d\-\/A-Z]{3,20})",
-    r"(?:Funded by|Supported by|under grant)\s+([A-Z0-9\-\/]{4,30})",
-    r"(?:NSF|NIH|NSFC|MOST|NAFOSTED|ANR|DFG|JSPS|EPSRC|ERC)\s*(?:grant\s*)?[#\-]?\s*([A-Z0-9\-\/]{4,30})",
+    r"(?:Funded by|Supported by|under grant)\s+((?=[A-Z\-\/]*\d)[A-Z0-9\-\/]{4,30})",
+    r"(?:NSF|NIH|NSFC|MOST|NAFOSTED|ANR|DFG|JSPS|EPSRC|ERC)\s*(?:grant\s*)?[#\-]?\s*((?=[A-Z\-\/]*\d)[A-Z0-9\-\/]{4,30})",
 ]
 
 # Project names (appears after "project", "program", etc.)
@@ -308,6 +308,8 @@ class AnonymizationEngine:
             label = register_fn(matched, entity_type)
             # Preserve surrounding text not in the group
             if group == 0:
+                if "[" in matched or "]" in matched:
+                    return matched
                 return label
             start, end = m.span(group)
             rel_start = start - m.start()
@@ -329,8 +331,8 @@ class AnonymizationEngine:
                 matched = m.group(1)
             except IndexError:
                 matched = m.group(0)
-            if not matched or matched.startswith("[") and matched.endswith("]"):
-                # Already anonymized
+            if not matched or "[" in matched or "]" in matched:
+                # Already anonymized or partial label
                 return m.group(0)
             label = register_fn(matched, entity_type)
             full = m.group(0)
