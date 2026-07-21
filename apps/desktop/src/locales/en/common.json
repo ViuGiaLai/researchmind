@@ -634,6 +634,7 @@
     "toast_find_sources": "Auto source finding will be available in a future update.",
     "toast_keep_cited": "Filter claims to keep only cited evidence will be available in a future update.",
     "toast_export_claim": "Export verification report will be available in a future update.",
+    "toast_pdf_saved": "{count} highlights saved to PDF file",
     "toast_export_success": "{format} downloaded successfully",
     "toast_export_error": "{format} export failed",
     "toast_export_report_error": "Report export failed. Please check the backend connection.",
@@ -820,6 +821,7 @@
     "analyzing": "Analyzing...",
     "create_matrix": "Create Comparison Matrix",
     "export_csv": "Export CSV",
+    "export_excel": "Export Excel",
     "criteria_header": "Criteria",
     "page_label": "Page {n}",
     "open_pdf_page": "Open PDF (p.{n})",
@@ -831,6 +833,7 @@
     "criteria_unit": "criteria",
     "rename_btn": "Rename",
     "delete_btn": "Delete",
+    "continue_btn": "Continue",
     "pdf_modal": "PDF — Page {n}",
     "rename_prompt": "Rename draft",
     "toast_rename_success": "Renamed.",
@@ -838,6 +841,7 @@
     "toast_delete_success": "Draft deleted from server.",
     "toast_delete_error": "Cannot delete draft.",
     "toast_csv_success": "CSV downloaded",
+    "toast_excel_success": "Excel workbook downloaded",
     "toast_load_error": "Cannot load draft.",
     "confidence_high": "High",
     "confidence_medium": "Medium",
@@ -861,7 +865,9 @@
     "error": "Error",
     "info": "Info",
     "warning": "Warning",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "free_30_limit": "Free daily 30/30 requests used. Try again tomorrow or switch Local AI mode in Settings.",
+    "cloud_unavailable": "Cloud service temporarily unavailable."
   },
   "help": {
     "center": "Help Center",
@@ -1164,6 +1170,9 @@
     "highlights_tab": "Highlights",
     "read_tab": "Read Document",
     "summary_label": "Auto-generated summary by ResearchMind",
+    "summary_lang_mismatch": "This summary was generated in {lang}.",
+    "summary_regenerate_btn": "Regenerate in {lang}",
+    "summary_regenerating": "Regenerating...",
     "notes_label": "Personal Notes",
     "notes_placeholder": "Add your personal notes here...",
     "save_note": "Save Note",
@@ -1591,7 +1600,8 @@
     "close": "Close PDF",
     "close_aria": "Close",
     "resize": "Resize PDF panel",
-    "preview_title": "PDF preview"
+    "preview_title": "PDF preview",
+    "save_highlighted": "Save Highlighted"
   },
   "folder": {
     "empty": "No folders selected.",

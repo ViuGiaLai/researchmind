@@ -17,7 +17,8 @@ from common.i18n import t
 from app_state import state
 from config.settings import settings
 from db.database import get_session
-from db.models import Paper, Chunk, Setting, ImportJob, CollectionPaper
+from db.models import Paper, Chunk, Setting, ImportJob, CollectionPaper, Annotation
+from utils.pdf_annotator import add_highlights_to_pdf, save_highlighted_pdf
 from ingestion.parser import (
     extract_document,
     SUPPORTED_EXTENSIONS,
@@ -1563,6 +1564,120 @@ async def get_paper_file(paper_id: str):
             raise HTTPException(status_code=404, detail="File not found on disk")
         media_type = _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
         return FileResponse(path, media_type=media_type)
+    finally:
+        session.close()
+
+
+@router.get("/{paper_id}/viewer")
+async def get_paper_viewer(paper_id: str, hl: str = Query(""), page: int = Query(1)):
+    """
+    Retrieve the PDF with optional temporary highlight annotations.
+
+    Returns the full PDF with yellow highlights applied on-the-fly.
+    Highlights are NOT saved — this is a transient view.
+
+    Query params:
+        hl: JSON array of {"page": int, "text": str}
+        page: Initial page to display (used in #page= fragment)
+    """
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+        path = Path(paper.file_path)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        highlights: list[dict] = []
+        if hl:
+            try:
+                parsed = json.loads(hl)
+                if isinstance(parsed, list):
+                    highlights = parsed
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(f"Invalid hl param for paper {paper_id}: {hl[:100]}")
+
+        pdf_bytes = add_highlights_to_pdf(str(path), highlights)
+        media_type = "application/pdf"
+        fragment = f"#page={page}" if page > 1 else ""
+
+        from fastapi.responses import Response
+        return Response(
+            content=pdf_bytes,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'inline; filename="{paper.filename}"',
+                "Content-Length": str(len(pdf_bytes)),
+            },
+        )
+    finally:
+        session.close()
+
+
+@router.post("/{paper_id}/save-highlighted-pdf")
+async def save_highlighted_pdf_endpoint(paper_id: str, body: dict = Body(...)):
+    """
+    Permanently save highlighted PDF to disk.
+
+    Generates a new PDF file with highlights applied, saves it
+    alongside the original, and creates Annotation records in the database.
+
+    Request body:
+        highlights: [{"page": int, "text": str, "note": str (optional)}]
+        project_id: str (optional)
+    """
+    highlights = body.get("highlights") or []
+    project_id = body.get("project_id")
+    if not highlights:
+        raise HTTPException(status_code=400, detail="Missing highlights")
+
+    session = get_session(state.engine)
+    try:
+        paper = session.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            raise HTTPException(status_code=404, detail="Paper not found")
+
+        src_path = Path(paper.file_path)
+        if not src_path.exists():
+            raise HTTPException(status_code=404, detail="File not found on disk")
+
+        stem = src_path.stem
+        output_path = src_path.with_name(f"{stem}_highlighted.pdf")
+
+        save_highlighted_pdf(src_path, highlights, output_path)
+
+        for hl in highlights:
+            page_num = hl.get("page", 1)
+            text = hl.get("text", "").strip()
+            note = hl.get("note", "").strip()
+            if not text:
+                continue
+            item = Annotation(
+                paper_id=paper_id,
+                project_id=project_id or None,
+                page_number=page_num,
+                kind="highlight",
+                quote_text=text,
+                note=note,
+                color="yellow",
+                tags="[]",
+                position=json.dumps({}),
+            )
+            session.add(item)
+
+        session.commit()
+
+        filename = output_path.name
+        return {
+            "status": "saved",
+            "file_path": str(output_path),
+            "highlights_saved": len(highlights),
+            "download_url": f"/api/papers/{paper_id}/file/{filename}",
+        }
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()
 

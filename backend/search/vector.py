@@ -98,9 +98,12 @@ class VectorSearch:
             err_str = str(e).lower()
             if "dimension" in err_str and ("does not match" in err_str or "mismatch" in err_str):
                 embedding_dim = len(embeddings[0]) if embeddings else 0
-                logger.warning(
-                    f"ChromaDB dimension mismatch: old collection dim != {embedding_dim}. "
-                    f"Recreating collection and retrying... Error: {e}"
+                logger.error(
+                    f"ChromaDB dimension mismatch: embedding mode changed "
+                    f"(old dim != {embedding_dim}). Recreating collection. "
+                    f"Previously indexed papers without the new dimension "
+                    f"will fall back to BM25-only. Re-index all papers "
+                    f"to restore vector search. Error: {e}"
                 )
                 self.clear_collection()
                 self.collection.add(

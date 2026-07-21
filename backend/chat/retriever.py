@@ -33,6 +33,7 @@ class RetrievalResult:
     context_text: str
     total_chunks: int
     papers_used: list[str]
+    warning: str = ""
 
 
 class Retriever:
@@ -98,6 +99,7 @@ class Retriever:
                     expanded_queries.append(expanded)
 
         # Step 2: Search with original query
+        embedding_warning = ""
         with trace("rag.retrieve", top_k=top_k, decomposed=len(expanded_queries)):
             search_results = self.hybrid.search(
                 query=query,
@@ -105,6 +107,7 @@ class Retriever:
                 top_k=top_k,
                 use_reranker=use_reranker,
             )
+            embedding_warning = getattr(self.hybrid, "embedding_warning", "")
 
         # Step 3: Try expanded queries if not enough results
         if len(search_results) < top_k and len(expanded_queries) > 1:
@@ -181,6 +184,7 @@ class Retriever:
             context_text=context_text,
             total_chunks=len(chunks),
             papers_used=papers_used,
+            warning=embedding_warning,
         )
 
     def _expand_query(self, query: str) -> list[str]:

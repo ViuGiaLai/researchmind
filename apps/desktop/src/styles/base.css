@@ -63,6 +63,14 @@ html:lang(ja) body {
   font-synthesis: none;
 }
 
+html:lang(vi) body,
+html:lang(vi) * {
+  /* Prevent Chromium from decomposing precomposed Vietnamese characters
+     (NFC) into combining marks when rendering with kerning/ligatures */
+  text-rendering: auto;
+  font-synthesis: none;
+}
+
 html:lang(ja) :where(p, li, dd, .settings-section-desc, .settings-row-desc) {
   line-break: strict;
   overflow-wrap: anywhere;

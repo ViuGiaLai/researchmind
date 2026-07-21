@@ -466,13 +466,23 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
         finally:
             db.close()
 
-    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content})}\n\n"
+    gateway_err = ""
+    if state.generator:
+        gateway_err = getattr(state.generator, "_stream_gateway_error", "")
+        state.generator._stream_gateway_error = ""
+    if gateway_err:
+        model_used = "researchmind_cloud/error"
+        full_response = ""
+        modified_content = ""
+
+    yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content, 'warning': gateway_err})}\n\n"
     if cache_key:
         _put_chat_cache(cache_key, {
             "answer": full_response,
             "modified_content": modified_content,
             "citations": processed_citations,
             "model_used": model_used,
+            "warning": gateway_err,
             "papers_used": paper_ids or [],
             "chunks_used": timing.get("chunks_used", 0) if timing else 0,
         })
@@ -773,6 +783,10 @@ async def chat(req: Request, request: dict = Body(...)):
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
     }
+    if generation.finish_reason == "error" and generation.model_used == "researchmind_cloud/error":
+        response["warning"] = generation.content
+        response["answer"] = ""
+        response["modified_content"] = ""
     _put_chat_cache(cache_key, response)
     return response
 

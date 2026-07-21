@@ -242,5 +242,10 @@
   "settings.embed_test_error": "接続エラー: {error}",
   "settings.gemini_api_error": "Gemini APIエラー: {error}",
   "zotero.detected_path": "Zoteroディレクトリを検出しました: {path}",
-  "zotero.detected_no_storage": "Zoteroディレクトリを検出しました ({path}) が、storage/ フォルダが見つかりません。"
+  "zotero.detected_no_storage": "Zoteroディレクトリを検出しました ({path}) が、storage/ フォルダが見つかりません。",
+
+  "summary.header": "ResearchMind 自動要約:",
+  "summary.core_idea": "主要アイデア",
+  "summary.contributions": "貢献",
+  "summary.weaknesses": "弱点／限界"
 }

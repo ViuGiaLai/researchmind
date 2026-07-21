@@ -51,11 +51,17 @@ class CloudGatewayProviderMixin:
                 finish_reason=str(data.get("finish_reason", "stop")),
             )
         except httpx.HTTPStatusError as exc:
-            logger.warning("ResearchMind gateway returned HTTP {}", exc.response.status_code)
+            status = exc.response.status_code
+            logger.warning("ResearchMind gateway returned HTTP {}", status)
             self._local.last_provider_failure = {
-                "kind": "rate_limit" if exc.response.status_code == 429 else "gateway_http",
-                "retryable": exc.response.status_code >= 500,
+                "kind": "rate_limit" if status == 429 else "gateway_http",
+                "retryable": status >= 500,
             }
+            if status == 429:
+                return GenerationResult(
+                    content="free_30_limit",
+                    citations=[], model_used="researchmind_cloud/error", finish_reason="error",
+                )
         except Exception as exc:
             logger.warning("ResearchMind gateway failed: {}", exc)
         return GenerationResult(
@@ -65,22 +71,27 @@ class CloudGatewayProviderMixin:
 
     def _stream_cloud_gateway(self, prompt: str, max_tokens: int = 1024):
         with httpx.Client(timeout=self.researchmind_cloud_timeout) as client:
-            with client.stream(
-                "POST",
-                f"{self.researchmind_cloud_url}/v1/generate/stream",
-                headers=self._gateway_headers(),
-                json=self._gateway_payload(prompt, max_tokens),
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if not line:
-                        continue
-                    event = json.loads(line)
-                    event_type = event.get("type")
-                    if event_type == "meta":
-                        self._set_model(f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}")
-                    elif event_type == "delta":
-                        yield str(event.get("content", ""))
-                    elif event_type == "error":
-                        raise RuntimeError(str(event.get("content", "Gateway stream failed")))
+            try:
+                with client.stream(
+                    "POST",
+                    f"{self.researchmind_cloud_url}/v1/generate/stream",
+                    headers=self._gateway_headers(),
+                    json=self._gateway_payload(prompt, max_tokens),
+                ) as response:
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if not line:
+                            continue
+                        event = json.loads(line)
+                        event_type = event.get("type")
+                        if event_type == "meta":
+                            self._set_model(f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}")
+                        elif event_type == "delta":
+                            yield str(event.get("content", ""))
+                        elif event_type == "error":
+                            raise RuntimeError(str(event.get("content", "Gateway stream failed")))
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                logger.warning("Gateway stream HTTP {}", status)
+                self._stream_gateway_error = "free_30_limit" if status == 429 else "cloud_unavailable"
 

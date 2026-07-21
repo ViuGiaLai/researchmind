@@ -22,6 +22,8 @@ import {
   IconTrash,
   IconClock,
   IconZap,
+  IconSearch,
+  IconEdit,
 } from "../Icons";
 
 function getDefaultSections(t: (key: string) => string): OutlineSection[] {
@@ -48,7 +50,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const { t } = useTranslation();
   const { confirm, confirmationDialog } = useConfirmDialog();
   const { prompt, promptDialog } = usePromptDialog();
-  const [papers, setPapers] = useState<{ id: string; title: string; authors: string }[]>([]);
+  const [papers, setPapers] = useState<{ id: string; title: string; authors: string; thumbnail_url?: string; auto_summary?: string }[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [title, setTitle] = useState(t("review_builder.default_title"));
   const [step, setStep] = useState<Step>("select");
@@ -82,6 +84,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const getDraftPayload = useCallback(() => ({
     id: currentDraftId || undefined,
@@ -274,6 +277,8 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
         id: p.id,
         title: paperDisplayTitle(p.title, (p as { filename?: string }).filename),
         authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
+        thumbnail_url: (p as any).thumbnail_url,
+        auto_summary: (p as any).auto_summary,
       }));
       setPapers(next);
       const available = new Set(next.map((paper) => paper.id));
@@ -538,6 +543,11 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
   const selectedCount = selectedIds.length;
 
+  const filteredPapers = papers.filter(p =>
+    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.authors.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const sectionStatus: Record<string, "pending" | "generating" | "done" | "empty"> = {};
   for (const s of outlineSections) {
     if (generatingSections.has(s.key)) sectionStatus[s.key] = "generating";
@@ -751,12 +761,12 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
       {/* Main Content */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <div style={{ flex: 1, overflow: "auto", padding: "16px 20px" }}>
+        <div style={{ flex: 1, overflow: "auto", }}>
           {/* ── Step 1: Select Papers ──────────────────────────── */}
           {step === "select" && (
-            <>
-              <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
+            <div className="evidence-setup-layout">
+              <div className="evidence-setup-main">
+                <div>
                   <label style={{ display: "block", fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 4 }}>
                     {t("review_builder.title_placeholder")}
                   </label>
@@ -773,169 +783,167 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                     placeholder={t("review_builder.title_placeholder")}
                   />
                 </div>
-                <div style={{ display: "flex", gap: 6, alignSelf: "flex-end" }}>
-                  <button onClick={selectAllFiltered} style={{
-                    padding: "6px 12px", borderRadius: 6,
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: "transparent", color: "var(--color-text-muted)",
-                    cursor: "pointer", fontSize: "0.78rem",
-                  }}>{t("common.select_all")}</button>
-                  <button onClick={deselectAll} style={{
-                    padding: "6px 12px", borderRadius: 6,
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: "transparent", color: "var(--color-text-muted)",
-                    cursor: "pointer", fontSize: "0.78rem",
-                  }}>{t("chat.paper_picker_deselect_all")}</button>
-                </div>
-              </div>
 
-              <div style={{
-                display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16,
-                maxHeight: 260, overflow: "auto", padding: 4,
-              }}>
-                {papers.map((p) => {
-                  const selected = selectedIds.includes(p.id);
-                  const label = paperDisplayTitle(p.title);
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => togglePaper(p.id)}
-                      className="review-paper-chip"
-                      title={label}
-                      style={{
-                        padding: "8px 14px", borderRadius: 8,
-                        border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-border, rgba(148, 163, 184, 0.15))"}`,
-                        background: selected ? "rgba(var(--color-primary-rgb), 0.08)" : "var(--color-surface, rgba(255, 255, 255, 0.02))",
-                        cursor: "pointer", fontSize: "0.82rem",
-                        color: selected ? "var(--color-primary)" : "var(--color-text, #e2e8f0)",
-                        transition: "all 0.15s", userSelect: "none",
-                        display: "flex", alignItems: "center", gap: 6,
-                        maxWidth: "100%",
-                        minWidth: 0,
-                      }}
-                    >
-                      {selected ? <IconCheck size={14} style={{ color: "var(--color-primary)", flexShrink: 0 }} /> : <IconFileText size={14} style={{ flexShrink: 0 }} />}
-                      <span className="review-paper-chip__label">{label}</span>
-                    </div>
-                  );
-                })}
-                {papers.length === 0 && (
-                  <div style={{ color: "var(--color-text-muted)", fontSize: "0.85rem", padding: 20 }}>
-                    {t("library_view.empty_library")}
+                <div className="evidence-controls-row">
+                  <div className="evidence-search-wrapper">
+                    <IconSearch size={16} className="evidence-search-icon" />
+                    <input
+                      type="text"
+                      className="evidence-search-input"
+                      placeholder="Tìm kiếm tài liệu..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
-                )}
-              </div>
-
-              {selectedCount > 0 && (
-                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginBottom: 12 }}>
-                  {t("review_builder.papers_selected_count", { count: selectedCount })}
+                  <div className="evidence-actions-group">
+                    <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={selectAllFiltered}>
+                      {t("common.select_all")}
+                    </button>
+                    <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={deselectAll}>
+                      {t("chat.paper_picker_deselect_all")}
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
-                <button
-                  onClick={handleContinueToOutline}
-                  disabled={selectedCount === 0}
-                  style={{
-                    padding: "10px 24px", borderRadius: 8, border: "none",
-                    background: "var(--color-primary)", color: "#fff",
-                    cursor: "pointer", fontSize: "0.85rem", fontWeight: 600,
-                    opacity: selectedCount === 0 ? 0.5 : 1,
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}
-                >
-                  {t("review_builder.continue_outline")}
-                </button>
-                <button
-                  onClick={handleGenerateMatrix}
-                  disabled={selectedCount < 2 || matrixLoading}
-                  style={{
-                    padding: "10px 20px", borderRadius: 8,
-                    border: "1px solid var(--color-primary)",
-                    background: "transparent", color: "var(--color-primary)",
-                    cursor: "pointer", fontSize: "0.85rem", fontWeight: 500,
-                    opacity: selectedCount < 2 || matrixLoading ? 0.5 : 1,
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}
-                >
-                  {matrixLoading ? <IconSpinner size={16} /> : <IconChart size={16} />}
-                  {matrixLoading ? t("review_builder.editor_generating") : t("review_builder.create_matrix")}
-                </button>
-              </div>
-
-              {/* Saved Drafts */}
-              {savedDrafts.length > 0 && (
-                <div>
-                  <h3 style={{
-                    fontSize: "0.85rem", fontWeight: 600, margin: "0 0 12px",
-                    display: "flex", alignItems: "center", gap: 6,
-                    color: "var(--color-text, #e2e8f0)",
-                  }}>
-                    <IconClock size={16} className="icon-gradient" />
-                    {t("evidence.drafts_label", { n: savedDrafts.length })}
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {savedDrafts.map((d) => (
-                      <div key={d.id} style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        padding: "10px 14px", borderRadius: 8,
-                        border: "1px solid var(--color-border, rgba(148, 163, 184, 0.12))",
-                        background: "var(--color-surface, rgba(255,255,255,0.02))",
-                      }}>
-                        <IconFileText size={16} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--color-text, #e2e8f0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {d.title}
+                <div className="evidence-paper-list-container">
+                  {filteredPapers.length === 0 ? (
+                    <div className="rm-section-hint" style={{ padding: "40px 0", textAlign: "center" }}>
+                      {papers.length === 0 ? t("library_view.empty_library") : "Không tìm thấy tài liệu phù hợp"}
+                    </div>
+                  ) : (
+                    filteredPapers.map(p => {
+                      const isSelected = selectedIds.includes(p.id);
+                      const label = paperDisplayTitle(p.title);
+                      return (
+                        <div
+                          key={p.id}
+                          className={`evidence-paper-row${isSelected ? " selected" : ""}`}
+                          onClick={() => togglePaper(p.id)}
+                        >
+                          <div className="evidence-row-checkbox">
+                            {isSelected && <IconCheck size={14} />}
                           </div>
-                          <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted)", display: "flex", gap: 8, marginTop: 2 }}>
-                            <span>{d.paper_count} {t("evidence.papers_unit")}</span>
-                            <span>{d.section_count} {t("review_builder.section_count")}</span>
-                            <span>{d.updated_at ? new Date(d.updated_at).toLocaleDateString("vi-VN") : ""}</span>
+                          <div className="evidence-paper-thumb">
+                            {p.thumbnail_url ? (
+                              <img src={p.thumbnail_url} alt="" loading="lazy" />
+                            ) : (
+                              <IconFileText size={28} />
+                            )}
+                          </div>
+                          <div className="evidence-paper-row-content">
+                            <div className="evidence-paper-row-title-row">
+                              <h3 className="evidence-paper-row-title" title={label}>{label}</h3>
+                              <button
+                                type="button"
+                                className="evidence-paper-pdf-btn"
+                                onClick={(e) => { e.stopPropagation(); handleCitationClick(p.id, label, 1); }}
+                                title="Open PDF"
+                              >
+                                <IconFileText size={14} />
+                              </button>
+                            </div>
+                            <div className="evidence-paper-row-meta">
+                              {p.authors || t("common.unknown_author")}
+                            </div>
+                            {p.auto_summary && (
+                              <div className="evidence-paper-row-abstract">{p.auto_summary.replace(/^#{1,6}\s+|^>\s+|[*_]{2,}|`{1,3}/gm, '').trim()}</div>
+                            )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleLoadDraft(d.id)}
-                          style={{
-                            padding: "4px 10px", borderRadius: 4,
-                            border: "1px solid var(--color-primary)",
-                            background: "rgba(var(--color-primary-rgb), 0.08)",
-                            color: "var(--color-primary)",
-                            cursor: "pointer", fontSize: "0.72rem", fontWeight: 500,
-                          }}                          >
-                            {t("common.open")}
-                          </button>
-                          <button
-                            onClick={() => handleRenameDraft(d.id, d.title)}
-                            style={{
-                              padding: "4px 8px", borderRadius: 4,
-                              border: "1px solid rgba(148, 163, 184, 0.2)",
-                              background: "transparent",
-                              color: "var(--color-text-muted)",
-                              cursor: "pointer", fontSize: "0.72rem",
-                            }}
-                            title={t("review_builder.rename_draft_title")}
-                          >
-                            {t("evidence.rename_btn")}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDraft(d.id)}
-                          style={{
-                            padding: "4px 8px", borderRadius: 4,
-                            border: "1px solid rgba(239, 68, 68, 0.3)",
-                            background: "transparent",
-                            color: "var(--color-error, #ef4444)",
-                            cursor: "pointer", fontSize: "0.72rem",
-                            display: "flex", alignItems: "center",
-                          }}
-                        >
-                          <IconTrash size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                      );
+                    })
+                  )}
                 </div>
-              )}
-            </>
+              </div>
+
+              <div className="evidence-setup-sidebar">
+                <div className="evidence-sidebar-btn-wrapper">
+                  <button
+                    type="button"
+                    className="evidence-create-matrix-btn"
+                    onClick={handleContinueToOutline}
+                    disabled={selectedCount === 0}
+                  >
+                    <IconBookOpen size={16} />
+                    <span>{t("review_builder.continue_outline")}</span>
+                  </button>
+                </div>
+                <div className="evidence-sidebar-btn-wrapper">
+                  <button
+                    type="button"
+                    className="evidence-create-matrix-btn"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--color-primary)",
+                      color: "var(--color-primary)",
+                    }}
+                    onClick={handleGenerateMatrix}
+                    disabled={selectedCount < 2 || matrixLoading}
+                  >
+                    {matrixLoading ? <IconSpinner size={16} /> : <IconChart size={16} />}
+                    <span>{matrixLoading ? t("review_builder.editor_generating") : t("review_builder.create_matrix")}</span>
+                  </button>
+                </div>
+
+                <div className="evidence-drafts-header" style={{ marginTop: 20 }}>
+                  <span className="evidence-drafts-title">
+                    {t("evidence.drafts_label", { n: savedDrafts.length })}
+                  </span>
+                </div>
+
+                <div className="evidence-sidebar-drafts-list">
+                  {savedDrafts.length === 0 ? (
+                    <div className="rm-section-hint" style={{ fontSize: "12px", textAlign: "center", padding: "20px 0" }}>
+                      Không có bản nháp nào
+                    </div>
+                  ) : (
+                    savedDrafts.map(entry => (
+                      <div key={entry.id} className="evidence-sidebar-draft-card">
+                        <div className="evidence-draft-card-header">
+                          <h4 className="evidence-draft-card-title">{entry.title}</h4>
+                        </div>
+                        <div className="evidence-draft-card-meta">
+                          <span>
+                            <IconFileText size={11} /> {entry.paper_count} papers
+                          </span>
+                          <span>
+                            <IconBookOpen size={11} /> {entry.section_count} sections
+                          </span>
+                        </div>
+                        <div className="evidence-draft-card-actions">
+                          <div className="evidence-draft-card-action-btns">
+                            <button
+                              type="button"
+                              className="evidence-draft-card-icon-btn"
+                              onClick={(e) => { e.stopPropagation(); handleRenameDraft(entry.id, entry.title); }}
+                              title={t("review_builder.rename_draft_title")}
+                            >
+                              <IconEdit size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className="evidence-draft-card-icon-btn"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteDraft(entry.id); }}
+                              title={t("evidence.delete_btn")}
+                            >
+                              <IconTrash size={12} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            className="evidence-draft-card-continue-btn"
+                            onClick={() => handleLoadDraft(entry.id)}
+                          >
+                            <span>{t("common.open")}</span>
+                            <span>&rarr;</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── Step 2: Outline ───────────────────────────────── */}

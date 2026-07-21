@@ -10,7 +10,7 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
-  --font-sans: "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Yu Gothic UI", "Meiryo UI", "Inter", sans-serif;
+  --font-sans: "Segoe UI", "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
   --ease-product: cubic-bezier(.2, .8, .2, 1);
 }
 
@@ -84,6 +84,10 @@ body:lang(en) { letter-spacing: -.006em; }
  * Vietnamese glyph shaping guard.
  * Windows WebView can visually split Vietnamese syllables when tracking or
  * optional OpenType features are applied across a variable-font fallback run.
+ * NOTE: geometricPrecision was the culprit — Chromium's shaping engine
+ * decomposes precomposed NFC Vietnamese chars (ế U+1EBF, ễ U+1EC5…) into
+ * combining marks when this value is active, producing floating diacritics.
+ * 'auto' renders Vietnamese correctly without any visual regression.
  */
 :lang(vi) {
   letter-spacing: normal !important;
@@ -91,7 +95,7 @@ body:lang(en) { letter-spacing: -.006em; }
   font-kerning: none;
   font-variant-ligatures: none;
   font-feature-settings: "kern" 0, "liga" 0;
-  text-rendering: geometricPrecision;
+  text-rendering: auto;
   font-synthesis: none;
 }
 
@@ -108,13 +112,15 @@ html:lang(vi) .summary-text,
 html:lang(vi) .library-card-title,
 html:lang(vi) .preview-title,
 html:lang(vi) .metadata-value,
-html:lang(vi) .review-paper-chip__label {
+html:lang(vi) .review-paper-chip__label,
+html:lang(vi) .toast-card,
+html:lang(vi) .toast-item-outer {
   font-family: "Segoe UI", "Arial", "Tahoma", sans-serif !important;
   letter-spacing: normal !important;
   word-spacing: normal !important;
-  font-feature-settings: "kern" 0, "liga" 0 !important;
+  font-feature-settings: normal !important;
   font-variant-ligatures: none !important;
-  text-rendering: geometricPrecision;
+  text-rendering: auto;
   font-synthesis: none;
 }
 
@@ -146,6 +152,59 @@ html:lang(vi) .review-paper-chip__label {
   font-synthesis: none;
   font-variant-ligatures: none;
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * ─── VIETNAMESE GLYPH SHIELD (COMPREHENSIVE) ────────────────────────────────
+ * text-transform: uppercase + letter-spacing on Chromium/Electron causes the
+ * shaping engine to decompose precomposed NFC Vietnamese chars (ế U+1EBF,
+ * ễ U+1EC5, ọ U+1ECD …) into base + combining marks → floating diacritics.
+ *
+ * Strategy: When lang=vi, override every class known to use uppercase + spacing
+ * with text-transform:none and letter-spacing:normal so the OS font renderer
+ * receives the glyph index directly, not via combining-mark fallback.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+html:lang(vi) .sub-tab-bar__section-label,
+html:lang(vi) .sidebar-title,
+html:lang(vi) .sidebar-group-label,
+html:lang(vi) .chat-view-footnotes-title,
+html:lang(vi) .metadata-label,
+html:lang(vi) .stat-label,
+html:lang(vi) .graph-detail-label,
+html:lang(vi) .detail-label,
+html:lang(vi) .discovery-translate-btn,
+html:lang(vi) .discovery-source-badge,
+html:lang(vi) .library-section-label,
+html:lang(vi) .library-filter-label,
+html:lang(vi) .library-tab-label,
+html:lang(vi) .preview-summary-label,
+html:lang(vi) .preview-user-notes-label,
+html:lang(vi) .related-paper-score-label,
+html:lang(vi) .search-hero-badge,
+html:lang(vi) .suggest-header,
+html:lang(vi) .embedding-badge-modern,
+html:lang(vi) .settings-diag-label,
+html:lang(vi) .settings-reliability-metrics span,
+html:lang(vi) .rm-table th,
+html:lang(vi) .app-help-dropdown-header,
+html:lang(vi) .help-center-nav-brand,
+html:lang(vi) .help-nav-group-label,
+html:lang(vi) .hl-content-header-badge,
+html:lang(vi) .trust-panel-section-title,
+html:lang(vi) .wow-dropzone-badge,
+html:lang(vi) .wow-section-title,
+html:lang(vi) .card-badge,
+html:lang(vi) :where(th),
+html:lang(vi) [class*="-label"]:not(label),
+html:lang(vi) [class*="-badge"],
+html:lang(vi) [class*="-tag"]:not(input):not(textarea),
+html:lang(vi) [class*="-title"]:not(h1):not(h2):not(h3):not([class*="page-title"]),
+html:lang(vi) [class*="section-"]:not(section),
+html:lang(vi) [class*="-header"]:not(header):not([class*="app-header"]) {
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
 }
 button, input, select, textarea { font: inherit; }
 button, [role="button"], a { -webkit-tap-highlight-color: transparent; }

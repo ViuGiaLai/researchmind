@@ -85,7 +85,7 @@ def load_persisted_settings():
     Deployment-only connection settings continue to come from environment.
     """
     env_only_keys = {
-        "researchmind_cloud_token",
+        "researchmind_cloud_token", "researchmind_cloud_url",
         "llama_server_url", "local_model", "claude_model", "deepseek_model", "gemini_model",
         "groq_model", "github_model", "freemodel_model",
         "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
@@ -265,9 +265,10 @@ async def lifespan(app: FastAPI):
 
     def _background_startup():
         try:
-            state.embedder = get_embedder(settings.embedding_model)
+            state.embedder = get_embedder(settings.embedding_model, settings.embedding_mode)
             state.embedder_ready = True
-            logger.info(f"Cloud embedding ready: {settings.embedding_model} (Gemini API)")
+            mode_label = "local" if settings.embedding_mode == "local" else "cloud"
+            logger.info(f"Embedding ready: mode={mode_label}, model={settings.embedding_model}")
 
             db_session = get_session(state.engine)
             state.bm25 = BM25Search(db_session)

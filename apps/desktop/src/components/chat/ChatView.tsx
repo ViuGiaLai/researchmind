@@ -480,12 +480,17 @@ export const ChatView: React.FC<{
           }));
         };
 
-        streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content) => {
+        streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content, warning) => {
           if (resolved) return;
           resolved = true;
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           releaseLoading();
+          if (warning && !modified_content) {
+            toast.addToast("warning", t(`toast.${warning}`, { defaultValue: warning }));
+            setMessages((prev) => prev.filter((_, i) => i !== assistantIdx));
+            return;
+          }
           setMessages((prev) => {
             const updated = prev.map((m, i) =>
               i === assistantIdx
@@ -610,13 +615,17 @@ export const ChatView: React.FC<{
         } else {
           res = await api.chat(text, effectiveIds, scope, scope === "collection" ? activeCollectionId : undefined, reasoningMode);
         }
-        const assistantMsg: Message = {
-          role: "assistant",
-          content: res.answer,
-          citations: normalizeCitations(res.citations),
-          model_used: res.model_used,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
+        if (res.warning && !res.answer) {
+          toast.addToast("warning", t(`toast.${res.warning}`, { defaultValue: res.warning }));
+        } else {
+          const assistantMsg: Message = {
+            role: "assistant",
+            content: res.answer,
+            citations: normalizeCitations(res.citations),
+            model_used: res.model_used,
+          };
+          setMessages((prev) => [...prev, assistantMsg]);
+        }
         loadUsage();
       }
     } catch (e) {

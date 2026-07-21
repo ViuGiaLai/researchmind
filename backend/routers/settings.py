@@ -16,7 +16,7 @@ from chat.generator_factory import build_generator
 router = APIRouter(prefix="/api", tags=["Settings"])
 
 ENV_ONLY_KEYS = {
-    "researchmind_cloud_token",
+    "researchmind_cloud_token", "researchmind_cloud_url",
     "llama_server_url",
     "local_model", "claude_model", "deepseek_model", "gemini_model",
     "groq_model", "github_model", "freemodel_model",
@@ -137,10 +137,11 @@ async def update_settings(new_settings: dict = Body(...)):
         if "embedding_mode" in new_settings:
             from ingestion.embedder import _embedder
             if _embedder is not None:
-                if settings.embedding_mode == "cloud":
-                    logger.info("Embedding mode set to cloud (Gemini API)")
-                else:
-                    logger.info("Embedding mode set to: {}", settings.embedding_mode)
+                _embedder.embedding_mode = settings.embedding_mode
+                logger.info(f"Embedding mode updated to: {settings.embedding_mode}")
+            from app_state import state
+            if hasattr(state, "hybrid") and state.hybrid:
+                state.hybrid.clear_query_cache()
 
         state.generator = build_generator()
 

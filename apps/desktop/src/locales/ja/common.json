@@ -410,6 +410,7 @@
     "toast_find_sources": "自動ソース検索機能は今後のアップデートで提供予定です。",
     "toast_keep_cited": "エビデンスのみを保持する主張フィルター機能は今後のアップデートで提供予定です。",
     "toast_export_claim": "検証レポートのエクスポート機能は今後のアップデートで提供予定です。",
+    "toast_pdf_saved": "{count}件のハイライトをPDFに保存しました",
     "toast_export_success": "{format}のダウンロードが完了しました",
     "toast_export_error": "{format}のエクスポートに失敗しました",
     "toast_export_report_error": "レポートのエクスポートに失敗しました。バックエンドの接続を確認してください。",
@@ -590,6 +591,7 @@
     "analyzing": "分析中...",
     "create_matrix": "比較マトリックスを作成",
     "export_csv": "CSVエクスポート",
+    "export_excel": "Excelエクスポート",
     "criteria_header": "基準",
     "page_label": "{n}ページ",
     "open_pdf_page": "PDFを開く（{n}ページ）",
@@ -601,6 +603,7 @@
     "criteria_unit": "基準",
     "rename_btn": "名称変更",
     "delete_btn": "削除",
+    "continue_btn": "続ける",
     "pdf_modal": "PDF — {n}ページ",
     "rename_prompt": "ドラフト名を変更",
     "toast_rename_success": "名称を変更しました。",
@@ -608,6 +611,7 @@
     "toast_delete_success": "サーバーからドラフトを削除しました。",
     "toast_delete_error": "ドラフトを削除できません。",
     "toast_csv_success": "CSVをダウンロードしました",
+    "toast_excel_success": "Excelファイルをダウンロードしました",
     "toast_load_error": "ドラフトを読み込めません。",
     "confidence_high": "高",
     "confidence_medium": "中",
@@ -631,7 +635,9 @@
     "error": "エラー",
     "info": "お知らせ",
     "warning": "警告",
-    "dismiss": "閉じる"
+    "dismiss": "閉じる",
+    "free_30_limit": "本日の無料枠 30/30 を使い切りました。明日もう一度お試しください。",
+    "cloud_unavailable": "クラウドサービスが一時的に利用できません。"
   },
   "help": {
     "center": "ヘルプセンター",
@@ -1302,7 +1308,8 @@
     "close": "PDFを閉じる",
     "close_aria": "閉じる",
     "resize": "PDFパネルのサイズ変更",
-    "preview_title": "PDFプレビュー"
+    "preview_title": "PDFプレビュー",
+    "save_highlighted": "ハイライトを保存"
   },
   "folder": {
     "empty": "フォルダが選択されていません。",
