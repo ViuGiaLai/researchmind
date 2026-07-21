@@ -7,9 +7,18 @@
 .library-header-new {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: var(--space-md);
+  gap: 16px;
+  margin-bottom: var(--space-xl);
   width: 100%;
+  padding: 16px 20px;
+  background: linear-gradient(to bottom, var(--bg-surface-alpha-80, rgba(20,20,20,0.8)), transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px 12px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .library-title-row {
@@ -209,20 +218,22 @@
 
 .library-search-input {
   width: 100%;
-  height: 28px;
-  padding: 0 24px 0 26px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  height: 36px;
+  padding: 0 32px 0 32px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-surface);
   color: var(--color-text);
-  border-radius: 6px;
-  font-size: 0.76rem;
-  transition: all var(--transition-fast);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) inset;
 }
 
 .library-search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: var(--color-bg);
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 3px var(--accent-primary-alpha-10), 0 1px 2px rgba(0,0,0,0.02) inset;
 }
 
 .search-clear-btn {
@@ -246,21 +257,24 @@
 }
 
 .library-toolbar-select {
-  height: 28px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  height: 36px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-surface);
   color: var(--color-text-secondary);
-  border-radius: 6px;
-  font-size: 0.74rem;
-  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  padding: 0 10px;
   outline: none;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) inset;
 }
 
-.library-toolbar-select:hover {
+.library-toolbar-select:hover,
+.library-toolbar-select:focus {
   color: var(--color-text);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: var(--color-primary);
+  background: var(--bg-surface);
 }
 
 .library-toolbar-select.project-select {
@@ -317,37 +331,59 @@
 .library-card {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: 8px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  gap: var(--space-md);
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 8px;
   cursor: pointer;
   position: relative;
-  box-shadow: var(--shadow-sm);
-  height: 80px;
+  min-height: 96px;
+  height: auto;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.library-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--color-primary);
+  opacity: 0;
+  transform: scaleY(0);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 4px;
 }
 
 .library-card:hover {
-  border-color: rgba(20, 184, 166, 0.4);
-  background: var(--color-surface-hover);
-  transform: translateY(-0.5px);
-  box-shadow: var(--shadow-md);
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  z-index: 2;
 }
 
 .library-card:active {
-  transform: scale(0.995);
+  transform: scale(0.998);
 }
 
 .library-card.selected {
   border-color: var(--color-primary);
-  background: var(--color-highlight);
+  background: var(--accent-primary-alpha-10);
 }
 
 .library-card.active-row {
-  border-color: var(--color-primary);
-  background: var(--color-surface-hover);
-  box-shadow: inset 3px 0 0 0 var(--color-primary), var(--shadow-md);
+  border-color: transparent;
+  background: var(--bg-hover);
+}
+
+.library-card.active-row::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .library-card-check {
