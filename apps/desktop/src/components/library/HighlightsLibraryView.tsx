@@ -147,14 +147,9 @@ export const HighlightsLibraryView: React.FC<{
     }
   }, [selectedPaper?.id]);
 
-  // Auto-regenerate summary when language changes and summary language mismatches
-  useEffect(() => {
-    if (!paperDetail?.auto_summary) return;
-    if (regeneratingSummary) return;
-    if (!selectedPaper) return;
-    const currentLang = (i18n.language || "vi").split("-")[0];
-    const summaryLang = paperDetail.auto_summary_lang || "vi";
-    if (currentLang === summaryLang) return;
+  // Manual regenerate handler — called only when user clicks the button
+  const handleRegenerateSummary = useCallback(() => {
+    if (!paperDetail?.auto_summary || regeneratingSummary || !selectedPaper) return;
     setRegeneratingSummary(true);
     api.regenerateSummary(selectedPaper.id).then((res) => {
       setPaperDetail((prev) => prev ? { ...prev, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : prev);
@@ -163,7 +158,7 @@ export const HighlightsLibraryView: React.FC<{
     }).finally(() => {
       setRegeneratingSummary(false);
     });
-  }, [selectedPaper?.id, paperDetail?.auto_summary_lang, i18n.language]);
+  }, [paperDetail, regeneratingSummary, selectedPaper]);
 
   const loadPapers = async () => {
     setLoadingPapers(true);
@@ -520,11 +515,35 @@ export const HighlightsLibraryView: React.FC<{
                       <IconSpinner size={14} />
                       <span>{t("common.loading")}</span>
                     </div>
-                  ) : paperDetail?.auto_summary ? (
-                    <div className="hl-insight-summary">
-                      {renderSummary(paperDetail.auto_summary)}
-                    </div>
-                  ) : (
+                  ) : paperDetail?.auto_summary ? (() => {
+                    const currentLang = (i18n.language || "vi").split("-")[0];
+                    const summaryLang = paperDetail.auto_summary_lang || "vi";
+                    const langMismatch = summaryLang !== currentLang;
+                    const langNames: Record<string, string> = { vi: "Tiếng Việt", en: "English", ja: "日本語" };
+                    const summaryLangName = langNames[summaryLang] || summaryLang;
+                    const targetLangName = langNames[currentLang] || currentLang;
+                    return (
+                      <div className="hl-insight-summary">
+                        {langMismatch && (
+                          <div className="summary-lang-banner">
+                            <span className="summary-lang-banner-text">
+                              {t("library_view.summary_lang_mismatch", { lang: summaryLangName })}
+                            </span>
+                            <button
+                              className="summary-lang-regen-btn"
+                              onClick={handleRegenerateSummary}
+                              disabled={regeneratingSummary}
+                            >
+                              {regeneratingSummary
+                                ? t("library_view.summary_regenerating")
+                                : t("library_view.summary_regenerate_btn", { lang: targetLangName })}
+                            </button>
+                          </div>
+                        )}
+                        {renderSummary(paperDetail.auto_summary)}
+                      </div>
+                    );
+                  })() : (
                     <p className="hl-insight-empty">{t("highlights.no_summary")}</p>
                   )}
                 </div>

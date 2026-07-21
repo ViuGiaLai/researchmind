@@ -249,14 +249,9 @@ export const LibraryView: React.FC<{
     }
   }, [activePaper?.id]);
 
-  // Auto-regenerate summary when language changes and summary language mismatches
-  useEffect(() => {
-    if (!activePaper) return;
-    if (!activePaper.auto_summary) return;
-    if (regeneratingSummary) return;
-    const currentLang = i18n.language?.split("-")[0] || "vi";
-    const summaryLang = activePaper.auto_summary_lang || "vi";
-    if (currentLang === summaryLang) return;
+  // Manual regenerate handler — called only when user clicks the button
+  const handleRegenerateSummary = useCallback(() => {
+    if (!activePaper || regeneratingSummary) return;
     setRegeneratingSummary(true);
     api.regenerateSummary(activePaper.id).then((res) => {
       setActivePaper((prev) => prev ? { ...prev, auto_summary: res.auto_summary, auto_summary_lang: res.auto_summary_lang } : prev);
@@ -266,7 +261,7 @@ export const LibraryView: React.FC<{
     }).finally(() => {
       setRegeneratingSummary(false);
     });
-  }, [activePaper?.id, activePaper?.auto_summary_lang, i18n.language]);
+  }, [activePaper, regeneratingSummary]);
 
   const loadPapers = async (forcedPage?: number) => {
     const effectivePage = forcedPage ?? page;
@@ -1119,34 +1114,58 @@ export const LibraryView: React.FC<{
             {previewTab === "info" ? (
               <div className="preview-body">
                 {/* Auto Summary Section - Highlighted */}
-                {activePaper.auto_summary && (
-                  <div className="preview-summary-section">
-                    <div className="preview-summary-header">
-                      <span className="preview-summary-icon">
-                        <IconSparkle size={15} style={{ color: "var(--color-primary)" }} />
-                      </span>
-                      <span className="preview-summary-label">{t("library_view.summary_label")}</span>
+                {activePaper.auto_summary && (() => {
+                  const currentLang = i18n.language?.split("-")[0] || "vi";
+                  const summaryLang = activePaper.auto_summary_lang || "vi";
+                  const langMismatch = summaryLang !== currentLang;
+                  const langNames: Record<string, string> = { vi: "Tiếng Việt", en: "English", ja: "日本語" };
+                  const summaryLangName = langNames[summaryLang] || summaryLang;
+                  const targetLangName = langNames[currentLang] || currentLang;
+                  return (
+                    <div className="preview-summary-section">
+                      <div className="preview-summary-header">
+                        <span className="preview-summary-icon">
+                          <IconSparkle size={15} style={{ color: "var(--color-primary)" }} />
+                        </span>
+                        <span className="preview-summary-label">{t("library_view.summary_label")}</span>
+                      </div>
+                      {langMismatch && (
+                        <div className="summary-lang-banner">
+                          <span className="summary-lang-banner-text">
+                            {t("library_view.summary_lang_mismatch", { lang: summaryLangName })}
+                          </span>
+                          <button
+                            className="summary-lang-regen-btn"
+                            onClick={handleRegenerateSummary}
+                            disabled={regeneratingSummary}
+                          >
+                            {regeneratingSummary
+                              ? t("library_view.summary_regenerating")
+                              : t("library_view.summary_regenerate_btn", { lang: targetLangName })}
+                          </button>
+                        </div>
+                      )}
+                      <div className="preview-summary-content vi-text-safe">
+                        {repairVietnameseDisplayText(activePaper.auto_summary).split('\n').map((line, i) => {
+                          if (line.startsWith('###')) return <h4 key={i} className="summary-heading">{line.replace(/^#+\s*/, '')}</h4>;
+                          if (line.startsWith('* **')) {
+                            const parts = line.replace(/^\*\s*/, '').split(':');
+                            const label = parts[0]?.replace(/\*\*/g, '') || '';
+                            const value = parts.slice(1).join(':').trim();
+                            return (
+                              <div key={i} className="summary-item">
+                                <span className="summary-item-label">{label}</span>
+                                <span className="summary-item-value">{value}</span>
+                              </div>
+                            );
+                          }
+                          if (line.trim()) return <p key={i} className="summary-text">{line}</p>;
+                          return null;
+                        })}
+                      </div>
                     </div>
-                    <div className="preview-summary-content vi-text-safe">
-                      {repairVietnameseDisplayText(activePaper.auto_summary).split('\n').map((line, i) => {
-                        if (line.startsWith('###')) return <h4 key={i} className="summary-heading">{line.replace(/^#+\s*/, '')}</h4>;
-                        if (line.startsWith('* **')) {
-                          const parts = line.replace(/^\*\s*/, '').split(':');
-                          const label = parts[0]?.replace(/\*\*/g, '') || '';
-                          const value = parts.slice(1).join(':').trim();
-                          return (
-                            <div key={i} className="summary-item">
-                              <span className="summary-item-label">{label}</span>
-                              <span className="summary-item-value">{value}</span>
-                            </div>
-                          );
-                        }
-                        if (line.trim()) return <p key={i} className="summary-text">{line}</p>;
-                        return null;
-                      })}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* User Notes Section - Editable */}
                 <div className="preview-user-notes-section">
