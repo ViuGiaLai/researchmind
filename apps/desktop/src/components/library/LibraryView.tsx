@@ -12,6 +12,7 @@ import { useToast } from "../shared/Toast";
 import { ListSkeleton } from "../shared/Skeleton";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
 import { useConfirmDialog } from "../shared/ConfirmDialog";
+import { AnonymizationPanel } from "../shared/AnonymizationPanel";
 import { PdfViewer } from "../pdf/PdfViewer";
 import {
   IconBrain,
@@ -1113,6 +1114,11 @@ export const LibraryView: React.FC<{
 
             {previewTab === "info" ? (
               <div className="preview-body">
+                {/* Anonymization Panel */}
+                <div style={{ marginBottom: 16 }}>
+                  <AnonymizationPanel paperId={activePaper.id} />
+                </div>
+
                 {/* Auto Summary Section - Highlighted */}
                 {activePaper.auto_summary && (() => {
                   const currentLang = i18n.language?.split("-")[0] || "vi";

@@ -71,6 +71,7 @@ from routers.auth import router as auth_router
 from routers.license import router as license_router
 from routers.license import get_license_status
 from routers.workspace import router as workspace_router
+from routers.anonymize import router as anonymize_router
 from db.migrations import run_migrations
 from graph.router import router as graph_router
 
@@ -443,6 +444,7 @@ app.include_router(auth_router)
 app.include_router(license_router)
 app.include_router(graph_router)
 app.include_router(workspace_router)
+app.include_router(anonymize_router)
 
 # Serve React frontend (SPA) — hỗ trợ share qua ngrok
 frontend_dist = Path(__file__).resolve().parent.parent / "apps" / "desktop" / "dist"

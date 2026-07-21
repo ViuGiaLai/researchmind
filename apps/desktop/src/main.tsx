@@ -23,6 +23,7 @@ import "./styles/ai-workspace-primitives.css";
 import "./styles/theme-fixes.css";
 import "./styles/help.css";
 import "./styles/product-redesign.css";
+import "./styles/anonymization.css";
 
 initTheme();
 installGlobalDiagnosticHandlers();

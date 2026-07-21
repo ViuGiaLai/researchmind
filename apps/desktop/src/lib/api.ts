@@ -525,6 +525,59 @@ export interface DeepResearchResponse {
   finish_reason: string;
 }
 
+// ─── Anonymization ──────────────────────────────────────────────
+
+export interface AnonymizationStatus {
+  paper_id: string;
+  is_active: boolean;
+  entities_found: number;
+  has_map: boolean;
+  stats: Record<string, number>;
+}
+
+export interface EntityMapEntry {
+  label: string;
+  entity_type: string;
+  count: number;
+}
+
+export interface EntityMapResponse {
+  paper_id: string;
+  entities: Record<string, EntityMapEntry>;
+}
+
+export const anonymization = {
+  /** Chạy anonymization cho một paper (hoặc kích hoạt lại nếu đã có map) */
+  run: (paperId: string, forceRefresh = false) =>
+    request<AnonymizationStatus>("POST", `/api/anonymize/${paperId}`, {
+      force_refresh: forceRefresh,
+    }),
+
+  /** Lấy trạng thái anonymization hiện tại */
+  getStatus: (paperId: string) =>
+    request<AnonymizationStatus>("GET", `/api/anonymize/${paperId}`),
+
+  /** Bật/Tắt chế độ ẩn danh */
+  toggle: (paperId: string) =>
+    request<AnonymizationStatus>("POST", `/api/anonymize/${paperId}/toggle`),
+
+  /** Xóa toàn bộ map (không thể hoàn tác) */
+  remove: (paperId: string) =>
+    request<{ detail: string }>("DELETE", `/api/anonymize/${paperId}`),
+
+  /** Lấy entity map để hiển thị cho người dùng */
+  getMap: (paperId: string) =>
+    request<EntityMapResponse>("GET", `/api/anonymize/${paperId}/map`),
+
+  /** Anonymize một đoạn text theo context map của paper */
+  anonymizeText: (paperId: string, rawText: string) =>
+    request<{ text: string; anonymized: boolean }>(
+      "POST",
+      `/api/anonymize/${paperId}/anonymize-text`,
+      { raw_text: rawText },
+    ),
+};
+
 // ─── API functions ─────────────────────────────────────────────
 
 export const api = {
@@ -1535,6 +1588,9 @@ export const api = {
 
   clearGraph: () =>
     request<{ status: string; message: string }>("POST", "/api/graph/clear"),
+
+  // Anonymization API
+  anonymization,
 };
 
 // ─── Review Builder Types ────────────────────────────────

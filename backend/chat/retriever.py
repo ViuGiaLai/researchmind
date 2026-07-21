@@ -174,6 +174,43 @@ class Retriever:
                 chunks = expand_parent_context(session, chunks, radius)
             finally:
                 session.close()
+        # Step 7: Apply Anonymization if active
+        if chunks:
+            from app_state import state
+            from db.database import get_session
+            from db.models import AnonymizationMap
+            from anonymization.engine import engine, EntityEntry
+            import json
+
+            paper_ids_in_chunks = list(set(c["paper_id"] for c in chunks))
+            session = get_session(state.engine)
+            try:
+                anon_maps = session.query(AnonymizationMap).filter(
+                    AnonymizationMap.paper_id.in_(paper_ids_in_chunks),
+                    AnonymizationMap.is_active == 1
+                ).all()
+
+                if anon_maps:
+                    parsed_maps = {}
+                    for m in anon_maps:
+                        try:
+                            data = json.loads(m.entity_map_json)
+                            parsed_maps[m.paper_id] = {
+                                orig: EntityEntry(
+                                    original=orig, label=info["label"],
+                                    entity_type=info["entity_type"], count=info.get("count", 0)
+                                ) for orig, info in data.items()
+                            }
+                        except Exception as e:
+                            logger.warning(f"Failed to parse anon map for {m.paper_id}: {e}")
+
+                    for c in chunks:
+                        pid = c["paper_id"]
+                        if pid in parsed_maps:
+                            res = engine.anonymize(c["content"], existing_map=parsed_maps[pid])
+                            c["content"] = res.anonymized_text
+            finally:
+                session.close()
 
         context_text = self._build_context(chunks, query)
 

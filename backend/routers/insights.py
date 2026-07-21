@@ -81,15 +81,16 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    gap_prompt = """Analyze research gaps using only the supplied paper evidence.
+    gap_prompt = """## 🔍 Rigorous Research Gap Analysis
+You are an expert academic reviewer. Analyze research gaps strictly based on the provided evidence. 
 
-## 🔍 Research Gap Analysis
-1. **Primary research gaps** — distinguish gaps explicitly stated by papers from gaps inferred across papers
-2. **Shared weaknesses** — limitations supported by more than one paper
-3. **New research directions** — 2-3 directions logically derived from the identified evidence gaps
-4. **Contribution opportunities** — concrete, feasible next work
+Methodology Requirements:
+1. **Differentiate Gaps**: Distinguish between "Explicit Gaps" (stated by the authors as limitations or future work) and "Inferred Gaps" (gaps you derive by synthesizing multiple papers).
+2. **Triangulate Weaknesses**: Identify methodological flaws, limited datasets, or narrow scopes that are common across multiple papers.
+3. **Actionable Directions**: Formulate 2-3 highly specific research questions that directly address the identified gaps.
+4. **Feasibility**: Briefly assess the feasibility of addressing these gaps based on current methods.
 
-Cite every evidence-based claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]. Label cross-paper inferences as synthesis. Do not present absent evidence as proof that a topic has never been studied."""
+Citation Rule: Cite every claim precisely as [Document title, page X]. Do not present the absence of evidence in this limited context as proof that a topic has never been studied globally."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -135,16 +136,16 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    conflict_prompt = """Analyze contradictions and conflicts using only the supplied paper evidence.
+    conflict_prompt = """## ⚠️ Rigorous Conflict & Contradiction Analysis
+You are a critical literature reviewer. Identify and analyze contradictions among the provided papers.
 
-## ⚠️ Conflict Analysis
-1. **Direct contradictions** — which papers oppose one another? Paper A claims X while Paper B claims Y
-2. **Methodological differences** — different methods for the same problem
-3. **Conflicting results** — different outcomes for the same problem
-4. **Multiple perspectives** — approaches from different angles
-5. **Opportunities from conflict** — which contradiction should be resolved first
+Methodology Requirements:
+1. **Direct Contradictions**: Detail specific instances where papers present opposing claims or results.
+2. **Methodological Discrepancies**: Analyze if contradictions stem from differences in study design, sample size, metrics, or populations.
+3. **Contextual Nuances**: Determine if conflicting findings are actually context-dependent rather than truly contradictory.
+4. **Resolution Path**: Propose an experimental design or systematic review approach that could resolve the identified conflicts.
 
-Compare claims only when the papers address sufficiently similar questions, populations, metrics, or conditions. Distinguish true contradictions from differences in scope or method. Cite both relevant papers for every comparison."""
+Citation Rule: Cite both relevant papers for every comparison using the format [Document title, page X]. Distinguish true contradictions from mere differences in scope."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -190,19 +191,19 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    topic_prompt = """Propose research topics grounded in the supplied paper library.
+    topic_prompt = """## 💡 Evidence-Driven Topic Ideation
+Propose novel research topics strictly grounded in the limitations and findings of the provided papers.
 
-Do not use bold text or Markdown. Use plain text only.
-Use the following structure, separated by line breaks:
+Do not use Markdown formatting (e.g., **, #). Use plain text structure:
 
-Research Topic Suggestions
+1. Field Overview: Synthesize the current state-of-the-art based on the text.
+2. Proposed Topics (3-5 items):
+   - Title: Precise academic title.
+   - Rationale: The specific gap or limitation from the provided papers motivating this.
+   - Proposed Methodology: How to tackle this problem based on existing techniques.
+3. Top Recommendation: Select the most promising topic based on impact and feasibility, and elaborate.
 
-1. Field overview — major trends and subfields
-2. Propose 3-5 topics — for each: title, description, importance, and method
-3. Top Pick — select the best topic and explain it in detail
-4. Next steps — papers or methods to study next
-
-For each proposal, explain which documented gap or limitation motivates it and cite [Paper title]. Separate evidence from your recommendation. Do not claim novelty beyond the supplied library."""
+Citation Rule: Explicitly link every proposed topic to the foundational evidence citing [Document title]. Do not hallucinate capabilities or claim absolute novelty outside the scope of the provided text."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -248,16 +249,16 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    evolution_prompt = """Map the evolution of the research using only dated evidence in the supplied papers. Order it from oldest to newest.
+    evolution_prompt = """## 🧬 Rigorous Evolution & Trend Analysis
+Map the chronological evolution of ideas, methods, and results based solely on the provided papers.
 
-## 🧬 Evolution Map
-1. **Trend overview** — development of the field
-2. **Idea progression** — for each stage: representative papers, main ideas, and innovations
-3. **Major turning points** — discoveries or methods that changed the research direction
-4. **Relationship map** — which papers extend or relate to one another
-5. **Future outlook** — likely next trends and skills to prepare
+Methodology Requirements:
+1. **Chronological Progression**: Track how the core problem or methodology has evolved over time.
+2. **Paradigm Shifts**: Identify papers that introduced significant methodological innovations or changed the consensus.
+3. **Lineage of Ideas**: Trace how newer papers build upon, modify, or reject the findings of older papers in the context.
+4. **Extrapolation**: Based strictly on this historical trajectory, project the immediate next step for the field.
 
-Cite every stage as [Paper title, page X] when a page is supplied, otherwise [Paper title]. Do not infer chronology when publication dates or dependencies are unavailable. Label future outlooks as projections rather than established findings."""
+Citation Rule: Cite every stage using [Document title, page X]. If publication dates are missing or ambiguous, group by logical dependency rather than chronological time. Explicitly label projections as inferred trajectories."""
 
     generation = await asyncio.to_thread(
         state.generator.generate,
