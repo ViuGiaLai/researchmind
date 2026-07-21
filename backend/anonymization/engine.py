@@ -58,7 +58,7 @@ INSTITUTION_PATTERNS = [
     r"(?:Trường\s+Đại\s+học\s+[A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐ][A-Za-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ\s]+?)(?=[,;\n])",
     r"(?:Viện\s+[A-ZÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬĐ][A-Za-záàảãạăắằẳẵặâấầẩẫậđéèẻẽẹêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵ\s]+?)(?=[,;\n])",
     # Abbreviations in context like "MIT", "UCLA", "VNU" near affiliation markers
-    r"(?<=(?:at|from|with|of|,)\s)([A-Z]{2,8})(?=\s*[,;\n])",
+    r"(?:at|from|with|of|,)\s+([A-Z]{2,8})(?=\s*[,;\n])",
 ]
 
 # Email addresses
