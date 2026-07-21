@@ -286,5 +286,10 @@
   "review.outline_desc_findings": "Kết quả nghiên cứu chính",
   "review.outline_desc_limitations": "Hạn chế của các nghiên cứu",
   "review.outline_desc_gaps": "Khoảng trống nghiên cứu",
-  "review.outline_desc_future": "Hướng phát triển tương lai"
+  "review.outline_desc_future": "Hướng phát triển tương lai",
+
+  "summary.header": "Tóm tắt tự động bởi ResearchMind:",
+  "summary.core_idea": "Ý tưởng cốt lõi",
+  "summary.contributions": "Đóng góp",
+  "summary.weaknesses": "Hạn chế / Điểm yếu"
 }

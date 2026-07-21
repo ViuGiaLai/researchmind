@@ -13,7 +13,7 @@ from loguru import logger
 
 from sqlalchemy import or_
 
-from common.i18n import t
+from common.i18n import t, normalize_language
 from app_state import state
 from config.settings import settings
 from db.database import get_session
@@ -959,13 +959,18 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
             if conclusion_chunk and conclusion_chunk.chunk_index > 2:
                 summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
 
-            summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
+            _summary_lang = normalize_language(settings.output_language or "auto", "vi") if (settings.output_language or "auto").lower() != "auto" else "vi"
+            _lbl_header = t("summary.header", _summary_lang)
+            _lbl_core = t("summary.core_idea", _summary_lang)
+            _lbl_contrib = t("summary.contributions", _summary_lang)
+            _lbl_weak = t("summary.weaknesses", _summary_lang)
+            summary_prompt = f"""Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
 Use this Markdown format:
 
-### ResearchMind Auto Summary:
-* **Core Idea**: [One sentence describing the main idea or objective]
-* **Contributions**: [One or two lines describing the main scientific contributions]
-* **Weaknesses / Limitations**: [One line describing the discussed limitations]
+### {_lbl_header}
+* **{_lbl_core}**: [One sentence describing the main idea or objective]
+* **{_lbl_contrib}**: [One or two lines describing the main scientific contributions]
+* **{_lbl_weak}**: [One line describing the discussed limitations]
 
 Do not infer contributions or limitations that are absent from the context. Preserve technical terms and numerical results. Write concisely in the output language specified by the system."""
 
@@ -977,7 +982,8 @@ Do not infer contributions or limitations that are absent from the context. Pres
 
             if result and result.content:
                 session.query(Paper).filter(Paper.id == file_id).update({
-                    "auto_summary": result.content
+                    "auto_summary": result.content,
+                    "auto_summary_lang": _summary_lang,
                 })
                 session.commit()
                 logger.info(f"Generated auto-summary for {doc.filename}")
@@ -1495,13 +1501,18 @@ async def regenerate_summary(paper_id: str):
         if conclusion_chunk and conclusion_chunk.chunk_index > 2:
             summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
 
-        summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
+        _regen_lang = normalize_language(settings.output_language or "auto", "vi") if (settings.output_language or "auto").lower() != "auto" else "vi"
+        _lbl_header = t("summary.header", _regen_lang)
+        _lbl_core = t("summary.core_idea", _regen_lang)
+        _lbl_contrib = t("summary.contributions", _regen_lang)
+        _lbl_weak = t("summary.weaknesses", _regen_lang)
+        summary_prompt = f"""Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
 Use this Markdown format:
 
-### ResearchMind Auto Summary:
-* **Core Idea**: [One sentence describing the main idea or objective]
-* **Contributions**: [One or two lines describing the main scientific contributions]
-* **Weaknesses / Limitations**: [One line describing the discussed limitations]
+### {_lbl_header}
+* **{_lbl_core}**: [One sentence describing the main idea or objective]
+* **{_lbl_contrib}**: [One or two lines describing the main scientific contributions]
+* **{_lbl_weak}**: [One line describing the discussed limitations]
 
 Do not infer contributions or limitations that are absent from the context. Preserve technical terms and numerical results. Write concisely in the output language specified by the system."""
 
@@ -1517,7 +1528,7 @@ Do not infer contributions or limitations that are absent from the context. Pres
         if result and result.content:
             new_summary = result.content
             paper.auto_summary = new_summary
-            paper.auto_summary_lang = settings.output_language or "auto"
+            paper.auto_summary_lang = _regen_lang
             session.commit()
             logger.info(f"Regenerated auto-summary for {paper.filename}")
         else:

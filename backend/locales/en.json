@@ -285,5 +285,10 @@
   "review.outline_desc_findings": "Key research findings",
   "review.outline_desc_limitations": "Limitations of current studies",
   "review.outline_desc_gaps": "Research gaps",
-  "review.outline_desc_future": "Future research directions"
+  "review.outline_desc_future": "Future research directions",
+
+  "summary.header": "ResearchMind Auto Summary:",
+  "summary.core_idea": "Core Idea",
+  "summary.contributions": "Contributions",
+  "summary.weaknesses": "Weaknesses / Limitations"
 }
