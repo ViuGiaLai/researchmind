@@ -1189,26 +1189,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
                 {t("settings.gateway_active") || "ResearchMind Cloud Gateway — No API key required"}
               </IconWithText>
             </p>
-            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ fontSize: "0.82rem", color: "var(--color-text-secondary)" }}>
-                Daily limit:
-              </label>
-              <input type="number" min={0} max={9999}
-                defaultValue={usage?.limit ?? 30}
-                onBlur={async (e) => {
-                  const val = parseInt(e.target.value, 10);
-                  if (!isNaN(val) && val >= 0) {
-                    await api.updateSettings({ free_cloud_daily_limit: val });
-                    loadUsage();
-                  }
-                }}
-                style={{
-                  width: 70, padding: "2px 6px", fontSize: "0.82rem",
-                  background: "var(--color-surface)", border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-sm)", color: "var(--color-text)",
-                }}
-              />
-            </div>
           </>
         )}
 

@@ -77,7 +77,6 @@ async def get_settings():
         "passage_instruction": settings.passage_instruction or getattr(settings, "embedding_passage_instruction", ""),
         "embedding_query_instruction": settings.embedding_query_instruction or settings.query_instruction,
         "embedding_passage_instruction": getattr(settings, "embedding_passage_instruction", "") or settings.passage_instruction,
-        "free_cloud_daily_limit": settings.free_cloud_daily_limit,
         "large_context_threshold": settings.large_context_threshold,
         "large_context_model": settings.large_context_model,
         "large_context_provider": settings.large_context_provider,
