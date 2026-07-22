@@ -1,0 +1,544 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-07-22",
+  "provenance": "Official venue author guidelines — see individual venue entries",
+  "venues": {
+    "cvpr": {
+      "id": "cvpr",
+      "name": "IEEE/CVF CVPR 2025 (Computer Vision & Pattern Recognition)",
+      "venue_code": "CVPR",
+      "publisher": "IEEE / CVF",
+      "version": "2025.1",
+      "last_updated": "2025-01-15",
+      "provenance": "IEEE/CVF CVPR 2025 Author Guidelines & Formatting Manual",
+      "submission_layout": "Double-column",
+      "camera_ready_layout": "Double-column",
+      "constraints": {
+        "page_limit": 8,
+        "word_limit": 6000,
+        "max_abstract_words": 250
+      },
+      "review_policy": "double_blind",
+      "supported_citation_styles": ["IEEE (numeric [1])"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Methodology", "Method", "Methods", "Proposed Method", "Approach"],
+          ["Experiments", "Experimental Setup", "Results", "Evaluation"],
+          ["Conclusion", "Concluding Remarks"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": false,
+        "requires_ccs": false,
+        "requires_orcid": false,
+        "requires_data_availability": false,
+        "requires_funding_statement": false,
+        "requires_conflict_of_interest": false
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "cvpr"
+    },
+    "neurips": {
+      "id": "neurips",
+      "name": "NeurIPS 2025 (Neural Information Processing Systems)",
+      "venue_code": "NeurIPS",
+      "publisher": "NeurIPS Foundation",
+      "version": "2025.1",
+      "last_updated": "2025-02-01",
+      "provenance": "NeurIPS 2025 Call for Papers & Formatting Instructions",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Single-column",
+      "constraints": {
+        "page_limit": 9,
+        "word_limit": 7000,
+        "max_abstract_words": 250
+      },
+      "review_policy": "double_blind",
+      "supported_citation_styles": ["NeurIPS Author-Year / Numeric"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Method", "Methods", "Methodology", "Approach"],
+          ["Experiments", "Results", "Evaluation"],
+          ["Conclusion", "Limitations", "Broader Impact"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": false,
+        "requires_orcid": false,
+        "requires_data_availability": true,
+        "requires_ethics_statement": true,
+        "requires_funding_statement": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "neurips_2025"
+    },
+    "acm_chi": {
+      "id": "acm_chi",
+      "name": "ACM CHI 2025 (Human Factors in Computing Systems)",
+      "venue_code": "CHI",
+      "publisher": "ACM",
+      "version": "2025.2",
+      "last_updated": "2025-01-10",
+      "provenance": "ACM CHI 2025 Publication Guidelines & acmart",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Double-column",
+      "constraints": {
+        "page_limit": "venue_defined",
+        "word_limit": 10000,
+        "max_abstract_words": 150
+      },
+      "review_policy": "double_blind",
+      "supported_citation_styles": ["ACM Reference Format"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Related Work", "Background"],
+          ["Method", "System Architecture", "Study Design"],
+          ["Findings", "Results", "Evaluation"],
+          ["Discussion", "Conclusion"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": []
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": true,
+        "requires_orcid": true,
+        "requires_data_availability": false,
+        "requires_conflict_of_interest": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "acmart"
+    },
+    "nature_mi": {
+      "id": "nature_mi",
+      "name": "Nature Machine Intelligence",
+      "venue_code": "NatMachIntell",
+      "publisher": "Nature Portfolio / NPG",
+      "version": "2025.1",
+      "last_updated": "2025-01-05",
+      "provenance": "Nature Machine Intelligence Guide to Authors",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Single-column",
+      "constraints": {
+        "page_limit": "venue_defined",
+        "word_limit": 4500,
+        "max_abstract_words": 150
+      },
+      "review_policy": "single_blind",
+      "supported_citation_styles": ["Nature (superscript numbers)"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Results", "Main Text"],
+          ["Discussion", "Conclusion"],
+          ["Methods", "Methodology"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": false,
+        "requires_ccs": false,
+        "requires_orcid": true,
+        "requires_data_availability": true,
+        "requires_ethics_statement": true,
+        "requires_funding_statement": true,
+        "requires_author_contributions": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "sn-jnl"
+    },
+    "ieee_tnnls": {
+      "id": "ieee_tnnls",
+      "name": "IEEE Transactions on Neural Networks and Learning Systems (TNNLS)",
+      "venue_code": "TNNLS",
+      "publisher": "IEEE",
+      "version": "2025.1",
+      "last_updated": "2025-01-01",
+      "provenance": "IEEE CIS TNNLS Information for Authors 2025",
+      "submission_layout": "Double-column",
+      "camera_ready_layout": "Double-column",
+      "constraints": {
+        "page_limit": 12,
+        "word_limit": 8000,
+        "max_abstract_words": 200
+      },
+      "review_policy": "single_blind",
+      "supported_citation_styles": ["IEEE (numeric [1])"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["System Model", "Methodology", "Method", "Proposed Approach"],
+          ["Experimental Results", "Experiments", "Performance Analysis"],
+          ["Conclusion", "Concluding Remarks"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": false,
+        "requires_orcid": true,
+        "requires_data_availability": false,
+        "requires_funding_statement": true,
+        "requires_conflict_of_interest": false
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "IEEEtran"
+    },
+    "ieee_trans": {
+      "id": "ieee_trans",
+      "name": "IEEE Journal / Transactions (General Template)",
+      "venue_code": "IEEE-GENERIC",
+      "publisher": "IEEE",
+      "version": "2025.1",
+      "last_updated": "2025-01-01",
+      "provenance": "IEEE Author Center Formatting Guidelines 2025",
+      "submission_layout": "Double-column",
+      "camera_ready_layout": "Double-column",
+      "constraints": {
+        "page_limit": "venue_defined",
+        "word_limit": 8000,
+        "max_abstract_words": 250
+      },
+      "review_policy": "single_blind",
+      "supported_citation_styles": ["IEEE (numeric [1])"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Methodology", "Method", "Methods", "Approach", "Proposed Approach"],
+          ["Experiments", "Experimental Setup", "Results", "Evaluation"],
+          ["Conclusion", "Concluding Remarks"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": false,
+        "requires_orcid": true,
+        "requires_data_availability": false,
+        "requires_funding_statement": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "IEEEtran"
+    },
+    "acm": {
+      "id": "acm",
+      "name": "ACM Conference (General acmart)",
+      "venue_code": "ACM-GENERIC",
+      "publisher": "ACM",
+      "version": "2025.1",
+      "last_updated": "2025-01-01",
+      "provenance": "ACM Primary Article Template Guidelines (acmart 2025)",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Double-column",
+      "constraints": {
+        "page_limit": "venue_defined",
+        "word_limit": "venue_defined",
+        "max_abstract_words": 200
+      },
+      "review_policy": "double_blind",
+      "supported_citation_styles": ["ACM Reference Format"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Methodology", "Method", "System Architecture", "Approach"],
+          ["Evaluation", "Results", "Experiments", "Performance Analysis"],
+          ["Conclusion", "Concluding Remarks"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": true,
+        "requires_orcid": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "acmart"
+    },
+    "elsevier": {
+      "id": "elsevier",
+      "name": "Elsevier Journal (General elsarticle)",
+      "venue_code": "ELSEVIER-GENERIC",
+      "publisher": "Elsevier",
+      "version": "2025.1",
+      "last_updated": "2025-01-01",
+      "provenance": "Elsevier Guide for Authors & elsarticle Package",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Double-column",
+      "constraints": {
+        "page_limit": "venue_defined",
+        "word_limit": 7500,
+        "max_abstract_words": 250
+      },
+      "review_policy": "single_blind",
+      "supported_citation_styles": ["Elsevier Numbered", "Elsevier Harvard"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Material and methods", "Methodology", "Method"],
+          ["Results", "Experiments", "Evaluation"],
+          ["Discussion", "Conclusion"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": false,
+        "requires_data_availability": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "elsarticle"
+    },
+    "apa7": {
+      "id": "apa7",
+      "name": "APA 7th Edition Manuscript",
+      "venue_code": "APA-7TH",
+      "publisher": "APA",
+      "version": "7.0",
+      "last_updated": "2024-12-01",
+      "provenance": "Publication Manual of the American Psychological Association 7th Ed.",
+      "submission_layout": "Single-column double spaced",
+      "camera_ready_layout": "Single-column double spaced",
+      "constraints": {
+        "page_limit": "venue_defined",
+        "word_limit": 10000,
+        "max_abstract_words": 250
+      },
+      "review_policy": "single_blind",
+      "supported_citation_styles": ["APA 7th (Author, Year)"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Method", "Methods", "Methodology"],
+          ["Results", "Findings"],
+          ["Discussion", "Conclusion"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": false
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": true,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "article"
+    },
+    "springer_lncs": {
+      "id": "springer_lncs",
+      "name": "Springer LNCS (Lecture Notes in Computer Science)",
+      "venue_code": "LNCS",
+      "publisher": "Springer",
+      "version": "2025.1",
+      "last_updated": "2025-01-01",
+      "provenance": "Springer Lecture Notes in Computer Science Author Instructions 2025",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Single-column",
+      "constraints": {
+        "page_limit": 15,
+        "word_limit": 8000,
+        "max_abstract_words": 150
+      },
+      "review_policy": "single_blind",
+      "supported_citation_styles": ["Springer Numeric [1]"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Method", "Methodology", "Approach"],
+          ["Experiments", "Evaluation", "Results"],
+          ["Conclusion"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work", "Acknowledgements"]
+      },
+      "metadata_rules": {
+        "requires_keywords": true,
+        "requires_ccs": false,
+        "requires_orcid": false,
+        "requires_data_availability": false
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": false,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "llncs"
+    },
+    "icml": {
+      "id": "icml",
+      "name": "ICML 2025 (International Conference on Machine Learning)",
+      "venue_code": "ICML",
+      "publisher": "PMLR",
+      "version": "2025.1",
+      "last_updated": "2025-02-01",
+      "provenance": "ICML 2025 Call for Papers and Formatting Instructions",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Single-column",
+      "constraints": {
+        "page_limit": 9,
+        "word_limit": 7000,
+        "max_abstract_words": 150
+      },
+      "review_policy": "double_blind",
+      "supported_citation_styles": ["ICML Author-Year"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Method", "Methods", "Methodology", "Approach"],
+          ["Experiments", "Results", "Evaluation"],
+          ["Conclusion", "Discussion"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work", "Broader Impact", "Acknowledgements"]
+      },
+      "metadata_rules": {
+        "requires_keywords": false,
+        "requires_ccs": false,
+        "requires_orcid": false,
+        "requires_data_availability": true,
+        "requires_ethics_statement": false,
+        "requires_funding_statement": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": false,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "icml2025"
+    },
+    "iclr": {
+      "id": "iclr",
+      "name": "ICLR 2025 (International Conference on Learning Representations)",
+      "venue_code": "ICLR",
+      "publisher": "OpenReview",
+      "version": "2025.1",
+      "last_updated": "2025-01-15",
+      "provenance": "ICLR 2025 Author Guide and Paper Formatting Instructions",
+      "submission_layout": "Single-column",
+      "camera_ready_layout": "Single-column",
+      "constraints": {
+        "page_limit": 9,
+        "word_limit": 7000,
+        "max_abstract_words": 200
+      },
+      "review_policy": "double_blind",
+      "supported_citation_styles": ["ICLR Author-Year (iclr2025)"],
+      "structure_rules": {
+        "required_sections": [
+          "Abstract",
+          "Introduction",
+          ["Method", "Methods", "Methodology", "Approach"],
+          ["Experiments", "Results", "Evaluation"],
+          ["Conclusion", "Discussion"],
+          ["References", "Bibliography"]
+        ],
+        "optional_sections": ["Related Work", "Reproducibility Statement", "Ethics Statement", "Acknowledgements"]
+      },
+      "metadata_rules": {
+        "requires_keywords": false,
+        "requires_ccs": false,
+        "requires_orcid": false,
+        "requires_data_availability": false,
+        "requires_ethics_statement": true
+      },
+      "export_rules": {
+        "supports_pdf": true,
+        "supports_latex": true,
+        "supports_docx": false,
+        "supports_bibtex": true,
+        "supports_overleaf": true
+      },
+      "latex_class": "iclr2025_conference"
+    }
+  },
+  "official_guideline_sources": {
+    "cvpr": "https://cvpr.thecvf.com/Conferences/2025/AuthorGuidelines",
+    "neurips": "https://neurips.cc/Conferences/2025/CallForPapers",
+    "acm_chi": "https://chi2025.acm.org/for-authors/paper-submission/",
+    "nature_mi": "https://www.nature.com/natmachintell/for-authors",
+    "ieee_tnnls": "https://cis.ieee.org/publications/t-neural-networks-and-learning-systems/tnnls-information-for-authors",
+    "icml": "https://icml.cc/Conferences/2025/AuthorInstructions",
+    "iclr": "https://iclr.cc/Conferences/2025/AuthorGuide",
+    "springer_lncs": "https://www.springer.com/gp/computer-science/lncs/conference-proceedings-guidelines"
+  }
+}

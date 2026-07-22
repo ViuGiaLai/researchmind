@@ -61,6 +61,7 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     try {
       setError(null);
+      if (!clerkSignIn) throw new Error("Clerk not initialized");
       const redirectUrl = window.location.origin + "/sign-up";
       await clerkSignIn.authenticateWithRedirect({ strategy: "oauth_google", redirectUrl, redirectUrlComplete: redirectUrl });
     } catch (err: unknown) { const msg = clerkError(err); setError(msg); throw new Error(msg); }
@@ -68,24 +69,27 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
+      if (!clerkSignIn) throw new Error("Clerk not initialized");
       const result = await clerkSignIn.create({ identifier: email.trim(), password });
       if (result.status === "complete") await setActive({ session: result.createdSessionId });
       else if (result.status === "needs_second_factor") { setError("2FA required"); throw new Error("2FA required"); }
-      else { setError("Sign in failed"); throw new Error(result.status); }
+      else { setError("Sign in failed"); throw new Error(result.status || "Incomplete"); }
     } catch (err: unknown) { const msg = clerkError(err); if (!msg.includes("2FA")) setError(msg); throw new Error(msg); }
   }, [clerkSignIn, setActive]);
   const registerWithEmail = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
+      if (!clerkSignUp) throw new Error("Clerk not initialized");
       const result = await clerkSignUp.create({ emailAddress: email.trim(), password });
       if (result.status === "complete") await setSignUpActive({ session: result.createdSessionId });
       else if (result.status === "missing_requirements") window.location.href = "/sign-up?email=" + encodeURIComponent(email.trim());
-      else { setError("Registration failed"); throw new Error(result.status); }
+      else { setError("Registration failed"); throw new Error(result.status || "Incomplete"); }
     } catch (err: unknown) { const msg = clerkError(err); setError(msg); throw new Error(msg); }
   }, [clerkSignUp, setSignUpActive]);
   const resetPassword = useCallback(async (email: string) => {
     try {
       setError(null);
+      if (!clerkSignIn) throw new Error("Clerk not initialized");
       const result = await clerkSignIn.create({ strategy: "reset_password_email_code", identifier: email.trim() });
       if (result.status === "needs_first_factor") setError("Password reset email sent.");
     } catch (err: unknown) { const msg = clerkError(err); setError(msg); throw new Error(msg); }

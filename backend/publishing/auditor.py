@@ -9,11 +9,11 @@ Audits manuscripts against venue-specific rule definitions with full provenance 
 
 import re
 from typing import Any
-from publishing.templates import PUBLISHING_TEMPLATES
+from publishing.templates import get_venue_template
 
 class AuditReport:
     def __init__(self, template_id: str):
-        self.template = PUBLISHING_TEMPLATES.get(template_id, PUBLISHING_TEMPLATES["ieee_trans"])
+        self.template = get_venue_template(template_id)
         self.checks: list[dict[str, Any]] = []
         self.critical_count: int = 0
         self.warning_count: int = 0

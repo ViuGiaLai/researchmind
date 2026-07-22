@@ -136,6 +136,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       console.log("[Auth] signInWithEmail - creating sign-in...");
+      if (!clerkSignIn || !clerkSetActive) throw new Error("Clerk is not initialized");
       const result = await clerkSignIn.create({ identifier: email.trim(), password });
       console.log("[Auth] signInWithEmail - result:", result.status, "sessionId:", result.createdSessionId);
       if (result.status === "complete") {
@@ -171,6 +172,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setError(null);
       const callbackUrl = window.location.origin + OAUTH_CALLBACK_PATH;
+      if (!clerkSignIn) throw new Error("Clerk is not initialized");
       await clerkSignIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: callbackUrl,
@@ -186,6 +188,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const registerWithEmail = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
+      if (!clerkSignUp || !setSignUpActive) throw new Error("Clerk is not initialized");
       const result = await clerkSignUp.create({ emailAddress: email.trim(), password });
       if (result.status === "complete") {
         if (!result.createdSessionId) {
@@ -209,6 +212,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = useCallback(async (email: string) => {
     try {
       setError(null);
+      if (!clerkSignIn) throw new Error("Clerk is not initialized");
       const result = await clerkSignIn.create({
         strategy: "reset_password_email_code",
         identifier: email.trim(),

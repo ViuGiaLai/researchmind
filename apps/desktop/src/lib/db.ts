@@ -71,8 +71,10 @@ function getStore(db: IDBDatabase, name: string, mode: IDBTransactionMode = "rea
 class StoreProxy<T extends Record<string, unknown>> {
   constructor(
     private storeName: string,
-    private keyField: string = "id",
-  ) {}
+    keyField: string = "id",
+  ) {
+    void keyField;
+  }
 
   /** Put (upsert) a single record. */
   async put(item: T): Promise<void> {

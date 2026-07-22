@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ResearchMind Encryption Engine (E2EE)
  * Uses Web Crypto API for secure in-browser encryption.
  * - Key derivation: PBKDF2 (SHA-256)
@@ -42,7 +42,7 @@ export async function deriveKey(password: string, saltString?: string): Promise<
   const key = await window.crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: saltBuf,
+      salt: saltBuf.buffer as ArrayBuffer,
       iterations: 250000,
       hash: "SHA-256",
     },

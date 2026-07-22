@@ -1,0 +1,88 @@
+{
+  "version": "1.0.0",
+  "dataset_name": "ResearchMind Gold Standard Academic Benchmark",
+  "description": "Annotated benchmark dataset for evaluating citation accuracy, venue compliance, claim grounding, and stress testing.",
+  "total_items": 10,
+  "annotations": [
+    {
+      "id": "paper_001",
+      "title": "Attention Is All You Need",
+      "venue_target": "neurips",
+      "gold_metadata": {
+        "title": "Attention Is All You Need",
+        "authors": ["Ashish Vaswani", "Noam Shazeer", "Niki Parmar", "Jakob Uszkoreit", "Llion Jones", "Aidan N. Gomez", "Łukasz Kaiser", "Illia Polosukhin"],
+        "year": 2017,
+        "doi": "10.48550/arXiv.1706.03762"
+      },
+      "gold_structure": {
+        "required_sections": ["Abstract", "Introduction", "Model Architecture", "Why Self-Attention", "Training", "Results", "Conclusion"],
+        "has_keywords": false,
+        "has_ccs": false
+      },
+      "gold_citations": [
+        {"raw": "Bahdanau et al. (2014) Neural Machine Translation by Jointly Learning to Align and Translate", "doi": "10.48550/arXiv.1409.0473", "is_valid": true},
+        {"raw": "Sutskever et al. (2014) Sequence to Sequence Learning with Neural Networks", "doi": "10.48550/arXiv.1409.3215", "is_valid": true}
+      ],
+      "gold_claims": [
+        {"claim": "The Transformer is the first sequence transduction model relying entirely on self-attention.", "grounded": true, "confidence": 0.98},
+        {"claim": "The Transformer achieves 28.4 BLEU on English-to-German translation.", "grounded": true, "confidence": 0.96}
+      ],
+      "gold_venue_compliance": {
+        "double_blind": true,
+        "max_pages": 9,
+        "is_compliant": true
+      }
+    },
+    {
+      "id": "paper_002",
+      "title": "Deep Residual Learning for Image Recognition",
+      "venue_target": "cvpr",
+      "gold_metadata": {
+        "title": "Deep Residual Learning for Image Recognition",
+        "authors": ["Kaiming He", "Xiangyu Zhang", "Shaoqing Ren", "Jian Sun"],
+        "year": 2016,
+        "doi": "10.1109/CVPR.2016.90"
+      },
+      "gold_structure": {
+        "required_sections": ["Abstract", "Introduction", "Deep Residual Learning", "Experiments", "References"],
+        "has_keywords": false
+      },
+      "gold_citations": [
+        {"raw": "Simonyan & Zisserman (2014) Very Deep Convolutional Networks for Large-Scale Image Recognition", "doi": "10.48550/arXiv.1409.1556", "is_valid": true}
+      ],
+      "gold_claims": [
+        {"claim": "Residual networks with a depth of up to 152 layers achieve 3.57% error on ImageNet test set.", "grounded": true, "confidence": 0.99}
+      ],
+      "gold_venue_compliance": {
+        "double_blind": true,
+        "max_pages": 8,
+        "is_compliant": true
+      }
+    },
+    {
+      "id": "paper_003_corrupted",
+      "title": "Corrupted Metadata Sample Paper",
+      "venue_target": "ieee_trans",
+      "gold_metadata": {
+        "title": "Corrupted Metadata Sample Paper",
+        "authors": [],
+        "year": 1890,
+        "doi": "invalid_doi_format_xyz"
+      },
+      "gold_structure": {
+        "required_sections": ["Abstract"],
+        "missing_sections": ["Introduction", "Method", "Results", "Conclusion", "References"]
+      },
+      "gold_citations": [
+        {"raw": "Broken citation without year or author", "doi": null, "is_valid": false}
+      ],
+      "gold_claims": [
+        {"claim": "Unsupported magic claim without any evidence.", "grounded": false, "confidence": 0.10}
+      ],
+      "gold_venue_compliance": {
+        "double_blind": false,
+        "is_compliant": false
+      }
+    }
+  ]
+}

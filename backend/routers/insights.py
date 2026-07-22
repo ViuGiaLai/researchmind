@@ -10,10 +10,12 @@ from config.settings import settings
 from db.database import get_session
 from db.models import CollectionPaper
 from academic.paper_check import check_papers_ready
+from academic.governance import get_academic_governance
 from common.rag_ready import rag_unavailable_message
 from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
+ACADEMIC_GOVERNANCE = get_academic_governance()
 
 
 def _empty_insight_answer(answer: str) -> dict:
@@ -67,7 +69,7 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="research methodology findings results limitations future work gaps unexplored areas weaknesses",
+        query=ACADEMIC_GOVERNANCE.insight_task("gap")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=15,
     )
@@ -81,16 +83,7 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    gap_prompt = """## 🔍 Rigorous Research Gap Analysis
-You are an expert academic reviewer. Analyze research gaps strictly based on the provided evidence. 
-
-Methodology Requirements:
-1. **Differentiate Gaps**: Distinguish between "Explicit Gaps" (stated by the authors as limitations or future work) and "Inferred Gaps" (gaps you derive by synthesizing multiple papers).
-2. **Triangulate Weaknesses**: Identify methodological flaws, limited datasets, or narrow scopes that are common across multiple papers.
-3. **Actionable Directions**: Formulate 2-3 highly specific research questions that directly address the identified gaps.
-4. **Feasibility**: Briefly assess the feasibility of addressing these gaps based on current methods.
-
-Citation Rule: Cite every claim precisely as [Document title, page X]. Do not present the absence of evidence in this limited context as proof that a topic has never been studied globally."""
+    gap_prompt = ACADEMIC_GOVERNANCE.insight_request("gap")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -122,7 +115,7 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="findings conclusions results claims arguments methodology approach results show demonstrate suggest",
+        query=ACADEMIC_GOVERNANCE.insight_task("conflict")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=15,
     )
@@ -136,16 +129,7 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    conflict_prompt = """## ⚠️ Rigorous Conflict & Contradiction Analysis
-You are a critical literature reviewer. Identify and analyze contradictions among the provided papers.
-
-Methodology Requirements:
-1. **Direct Contradictions**: Detail specific instances where papers present opposing claims or results.
-2. **Methodological Discrepancies**: Analyze if contradictions stem from differences in study design, sample size, metrics, or populations.
-3. **Contextual Nuances**: Determine if conflicting findings are actually context-dependent rather than truly contradictory.
-4. **Resolution Path**: Propose an experimental design or systematic review approach that could resolve the identified conflicts.
-
-Citation Rule: Cite both relevant papers for every comparison using the format [Document title, page X]. Distinguish true contradictions from mere differences in scope."""
+    conflict_prompt = ACADEMIC_GOVERNANCE.insight_request("conflict")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -177,7 +161,7 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="research topic methodology findings results future work direction novel approach innovative",
+        query=ACADEMIC_GOVERNANCE.insight_task("topic")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=15,
     )
@@ -191,19 +175,7 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    topic_prompt = """## 💡 Evidence-Driven Topic Ideation
-Propose novel research topics strictly grounded in the limitations and findings of the provided papers.
-
-Do not use Markdown formatting (e.g., **, #). Use plain text structure:
-
-1. Field Overview: Synthesize the current state-of-the-art based on the text.
-2. Proposed Topics (3-5 items):
-   - Title: Precise academic title.
-   - Rationale: The specific gap or limitation from the provided papers motivating this.
-   - Proposed Methodology: How to tackle this problem based on existing techniques.
-3. Top Recommendation: Select the most promising topic based on impact and feasibility, and elaborate.
-
-Citation Rule: Explicitly link every proposed topic to the foundational evidence citing [Document title]. Do not hallucinate capabilities or claim absolute novelty outside the scope of the provided text."""
+    topic_prompt = ACADEMIC_GOVERNANCE.insight_request("topic")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -235,7 +207,7 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="research evolution development history background methodology findings results improvement advancement novel approach future direction",
+        query=ACADEMIC_GOVERNANCE.insight_task("evolution")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=20,
     )
@@ -249,16 +221,7 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    evolution_prompt = """## 🧬 Rigorous Evolution & Trend Analysis
-Map the chronological evolution of ideas, methods, and results based solely on the provided papers.
-
-Methodology Requirements:
-1. **Chronological Progression**: Track how the core problem or methodology has evolved over time.
-2. **Paradigm Shifts**: Identify papers that introduced significant methodological innovations or changed the consensus.
-3. **Lineage of Ideas**: Trace how newer papers build upon, modify, or reject the findings of older papers in the context.
-4. **Extrapolation**: Based strictly on this historical trajectory, project the immediate next step for the field.
-
-Citation Rule: Cite every stage using [Document title, page X]. If publication dates are missing or ambiguous, group by logical dependency rather than chronological time. Explicitly label projections as inferred trajectories."""
+    evolution_prompt = ACADEMIC_GOVERNANCE.insight_request("evolution")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
