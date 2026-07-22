@@ -96,6 +96,7 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
         query=query,
         paper_ids=paper_ids,
         top_k=5,
+        task_type="verify",
     )
     t_retrieve = time_mod.time() - t_retrieve
 

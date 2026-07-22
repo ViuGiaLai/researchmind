@@ -47,15 +47,27 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
       }
     : null;
 
+  const [isGuest, setIsGuest] = useState(() => {
+    try { return localStorage.getItem("researchmind:guest-mode") === "true"; } catch { return false; }
+  });
+  const enableGuestMode = useCallback(() => {
+    try { localStorage.setItem("researchmind:guest-mode", "true"); } catch {}
+    setIsGuest(true);
+  }, []);
+
   useEffect(() => {
     if (!isSignedIn) { setCurrentToken(null); return; }
+    if (isGuest) {
+      try { localStorage.removeItem("researchmind:guest-mode"); } catch {}
+      setIsGuest(false);
+    }
     const syncToken = async () => {
       try { setCurrentToken(await clerkGetToken() || null); } catch { /* ignore */ }
     };
     syncToken();
     const interval = setInterval(syncToken, 30 * 60 * 1000);
     return () => { clearInterval(interval); setCurrentToken(null); };
-  }, [isSignedIn, clerkGetToken]);
+  }, [isSignedIn, isGuest, clerkGetToken]);
 
   const signIn = useCallback(() => { window.location.href = "/sign-in"; }, []);
   const signInWithGoogle = useCallback(async () => {
@@ -101,14 +113,19 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
       await clerkUser.update({ firstName: parts[0] || "", lastName: parts.slice(1).join(" ") || undefined });
     } catch (err: unknown) { throw new Error(clerkError(err)); }
   }, [clerkUser]);
-  const signOut = useCallback(() => { clerkSignOut(); setCurrentToken(null); }, [clerkSignOut]);
+  const signOut = useCallback(() => {
+    try { localStorage.removeItem("researchmind:guest-mode"); } catch {}
+    setIsGuest(false);
+    clerkSignOut();
+    setCurrentToken(null);
+  }, [clerkSignOut]);
   const getToken = useCallback(async (): Promise<string | null> => {
     try { return await clerkGetToken(); } catch { return null; }
   }, [clerkGetToken]);
 
   return (
     <AuthContext.Provider
-      value={{ user, loading: !isLoaded, enabled: true, error, getToken, signIn, signInWithGoogle, signInWithEmail, registerWithEmail, resetPassword, updateDisplayName, signOut }}
+      value={{ user, loading: !isLoaded, enabled: true, error, isGuest, enableGuestMode, getToken, signIn, signInWithGoogle, signInWithEmail, registerWithEmail, resetPassword, updateDisplayName, signOut }}
     >
       {children}
     </AuthContext.Provider>

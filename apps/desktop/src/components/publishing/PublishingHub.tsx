@@ -106,6 +106,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
   const [content, setContent] = useState(initialContent);
   const [auditing, setAuditing] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
@@ -133,18 +134,23 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
   const handleSyncGuidelines = async () => {
     setSyncing(true);
     setSyncStatus(null);
+    setSyncError(false);
     try {
       const res = await fetch(`http://127.0.0.1:8765/api/publishing/sync-guideline?venue_id=${selectedTemplate}`, {
         method: "POST",
       });
       if (res.ok) {
         const data = await res.json();
-        setSyncStatus(data.message || `Successfully synced guidelines for ${selectedTemplate}`);
+        setSyncStatus(data.message || t("publishing.sync_status_ok", { venue: selectedTemplate }));
         fetchTemplates();
+      } else {
+        setSyncError(true);
+        setSyncStatus(t("publishing.sync_status_fail", { status: `${res.status} ${res.statusText}` }));
       }
     } catch (e) {
       console.error("Sync error", e);
-      setSyncStatus("Failed to sync live guidelines");
+      setSyncError(true);
+      setSyncStatus(t("publishing.sync_status_error", "Failed to sync live guidelines"));
     } finally {
       setSyncing(false);
     }
@@ -159,8 +165,8 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
         body: JSON.stringify({
           paper_id: paperId,
           template_id: selectedTemplate,
-          title: title || "Manuscript Title",
-          content: content || "## Abstract\nSample abstract text...\n\n## Introduction\nIntroduction text...\n\n## Method\nMethodology...\n\n## Results\nResults...\n\n## Conclusion\nConclusion...\n\n## References\n[1] Reference 1.",
+          title: title || t("publishing.default_title"),
+          content: content || t("publishing.placeholder_sample"),
         }),
       });
       if (res.ok) {
@@ -277,14 +283,14 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
             disabled={syncing}
           >
             <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
-            {syncing ? "Syncing..." : "Sync Live Guidelines"}
+            {syncing ? t("publishing.syncing_btn") : t("publishing.sync_btn")}
           </button>
         </div>
       </div>
 
       {syncStatus && (
-        <div className="sync-status-banner">
-          <Info size={14} />
+        <div className={`sync-status-banner${syncError ? " sync-status-banner--error" : ""}`}>
+          {syncError ? <AlertTriangle size={14} /> : <Info size={14} />}
           {syncStatus}
         </div>
       )}
@@ -315,7 +321,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
               {currentTemplateObj?.provenance && (
                 <div className="provenance-badge">
                   <Info size={10} />
-                  Provenance: {currentTemplateObj.provenance}
+                  {t("publishing.provenance_label", { provenance: currentTemplateObj.provenance })}
                 </div>
               )}
             </div>
@@ -329,7 +335,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                 className="publishing-input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="VD: Transformer Architectures for Multimodal Reasoning"
+                placeholder={t("publishing.placeholder_title")}
               />
             </div>
 
@@ -342,7 +348,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                 rows={12}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Nhập hoặc dán nội dung bài báo vào đây..."
+                placeholder={t("publishing.placeholder_content")}
               />
             </div>
 
@@ -355,12 +361,12 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                 {auditing ? (
                   <>
                     <IconSpinner className="animate-spin" />
-                    <span>Đang Kiểm Định & Phản Biện...</span>
+                    <span>{t("publishing.audit_btn_loading")}</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck size={16} />
-                    <span>Kiểm Định Bản Thảo & Peer Review</span>
+                    <span>{t("publishing.audit_btn")}</span>
                   </>
                 )}
               </button>
@@ -378,7 +384,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
             {!auditResult ? (
               <div className="publishing-empty-state">
                 <ShieldCheck size={44} className="empty-icon" />
-                <p>Chọn Tạp chí mục tiêu và bấm <strong>"Kiểm Định Bản Thảo"</strong> để xem kết quả đánh giá thể thức, trích dẫn & phản biện khoa học.</p>
+                <p dangerouslySetInnerHTML={{ __html: t("publishing.empty_state", "Select a target venue and click <strong>\"Audit Manuscript\"</strong> to see format checks, citation analysis & scientific peer review.") }} />
               </div>
             ) : (
               <div className="audit-results-wrapper">
@@ -389,11 +395,11 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                     <span className="score-max">/100</span>
                   </div>
                   <div className="score-details">
-                    <h4>Điểm Tuân Thủ Quy Chuẩn ({auditResult.template.publisher})</h4>
+                    <h4>{t("publishing.score_title", { publisher: auditResult.template.publisher })}</h4>
                     <div className="count-badges">
-                      <span className="badge pass"><CheckCircle2 size={12} /> {auditResult.counts.pass} Trùng khớp</span>
-                      <span className="badge critical"><XCircle size={12} /> {auditResult.counts.critical} Lỗi nghiêm trọng</span>
-                      <span className="badge warning"><AlertTriangle size={12} /> {auditResult.counts.warning} Cảnh báo</span>
+                      <span className="badge pass"><CheckCircle2 size={12} /> {t("publishing.badge_pass", { count: auditResult.counts.pass })}</span>
+                      <span className="badge critical"><XCircle size={12} /> {t("publishing.badge_critical", { count: auditResult.counts.critical })}</span>
+                      <span className="badge warning"><AlertTriangle size={12} /> {t("publishing.badge_warning", { count: auditResult.counts.warning })}</span>
                     </div>
                   </div>
                 </div>
@@ -401,29 +407,29 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                 {/* Evaluation Metrics Card */}
                 <div className="metrics-card">
                   <h5>
-                    <Award size={14} /> Academic Quality Benchmark Metrics
+                    <Award size={14} /> {t("publishing.metrics_title")}
                   </h5>
                   <div className="metrics-grid">
-                    <div className="metric-item">Citation Accuracy <strong>{((auditResult.evaluation_metrics?.citation_accuracy ?? 0.95) * 100).toFixed(0)}%</strong></div>
-                    <div className="metric-item">Factual Accuracy <strong>{((auditResult.evaluation_metrics?.factual_accuracy ?? 0.98) * 100).toFixed(0)}%</strong></div>
-                    <div className="metric-item">Hallucination Rate <strong>{((auditResult.evaluation_metrics?.hallucination_rate ?? 0.02) * 100).toFixed(0)}%</strong></div>
-                    <div className="metric-item">Compliance Score <strong>{((auditResult.evaluation_metrics?.compliance_score ?? (auditResult.overall_score / 100)) * 100).toFixed(0)}%</strong></div>
-                    <div className="metric-item">Writing Quality <strong>{((auditResult.evaluation_metrics?.writing_quality ?? 0.90) * 100).toFixed(0)}%</strong></div>
-                    <div className="metric-item">Overall Quality <strong className="high">{((auditResult.evaluation_metrics?.overall_quality ?? 0.94) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">{t("publishing.metric_citation_accuracy")} <strong>{((auditResult.evaluation_metrics?.citation_accuracy ?? 0.95) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">{t("publishing.metric_factual_accuracy")} <strong>{((auditResult.evaluation_metrics?.factual_accuracy ?? 0.98) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">{t("publishing.metric_hallucination_rate")} <strong>{((auditResult.evaluation_metrics?.hallucination_rate ?? 0.02) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">{t("publishing.metric_compliance_score")} <strong>{((auditResult.evaluation_metrics?.compliance_score ?? (auditResult.overall_score / 100)) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">{t("publishing.metric_writing_quality")} <strong>{((auditResult.evaluation_metrics?.writing_quality ?? 0.90) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">{t("publishing.metric_overall_quality")} <strong className="high">{((auditResult.evaluation_metrics?.overall_quality ?? 0.94) * 100).toFixed(0)}%</strong></div>
                   </div>
                 </div>
 
                 {/* Peer Review Simulation */}
                 <div className="peer-review-card">
                   <h5>
-                    <Sparkles size={14} /> Peer Review Simulation Report
+                    <Sparkles size={14} /> {t("publishing.peer_review_title")}
                   </h5>
                   <div className="peer-review-body">
-                    Recommendation: <span className="peer-review-rec">{auditResult.peer_review?.overall_recommendation || (auditResult.counts.critical === 0 ? "Accept with minor revisions" : "Revisions required")}</span>
+                    {t("publishing.recommendation_label")} <span className="peer-review-rec">{auditResult.peer_review?.overall_recommendation || (auditResult.counts.critical === 0 ? t("publishing.recommendation_accept") : t("publishing.recommendation_revisions"))}</span>
                     <div className="peer-review-scores">
-                      <span>Novelty: <strong>{((auditResult.peer_review?.novelty_score ?? 0.85) * 100).toFixed(0)}%</strong></span>
-                      <span>Methodology: <strong>{((auditResult.peer_review?.methodology_score ?? 0.90) * 100).toFixed(0)}%</strong></span>
-                      <span>Clarity: <strong>{((auditResult.peer_review?.clarity_score ?? 0.88) * 100).toFixed(0)}%</strong></span>
+                      <span>{t("publishing.score_novelty")} <strong>{((auditResult.peer_review?.novelty_score ?? 0.85) * 100).toFixed(0)}%</strong></span>
+                      <span>{t("publishing.score_methodology")} <strong>{((auditResult.peer_review?.methodology_score ?? 0.90) * 100).toFixed(0)}%</strong></span>
+                      <span>{t("publishing.score_clarity")} <strong>{((auditResult.peer_review?.clarity_score ?? 0.88) * 100).toFixed(0)}%</strong></span>
                     </div>
                   </div>
                 </div>
@@ -436,7 +442,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                       className={`tab-btn ${activeCategoryFilter === cat ? "active" : ""}`}
                       onClick={() => setActiveCategoryFilter(cat)}
                     >
-                      {cat === "all" ? "Tất cả kiểm tra" : cat}
+                      {cat === "all" ? t("publishing.filter_all") : cat === "Structure" ? t("publishing.filter_structure") : cat === "References" ? t("publishing.filter_references") : t("publishing.filter_formatting")}
                     </button>
                   ))}
                 </div>
@@ -479,7 +485,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                     disabled={exporting === "latex"}
                   >
                     <FileCode size={14} />
-                    {exporting === "latex" ? "Đang đóng gói ZIP..." : "Xuất bản LaTeX (.zip)"}
+                    {exporting === "latex" ? t("publishing.export_latex_loading") : t("publishing.export_latex")}
                   </button>
                   <button
                     className="btn"
@@ -487,7 +493,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                     disabled={exporting === "report"}
                   >
                     <ExternalLink size={14} />
-                    {exporting === "report" ? "Đang tạo báo cáo..." : "In Báo Cáo Audit PDF/HTML"}
+                    {exporting === "report" ? t("publishing.export_report_loading") : t("publishing.export_report")}
                   </button>
                 </div>
               </div>

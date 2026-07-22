@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { anonymization, type AnonymizationStatus, type EntityMapResponse } from "../../lib/api";
 
 // ─── Icons ────────────────────────────────────────────────────────
@@ -53,14 +54,14 @@ const IconChevron = ({ open }: { open: boolean }) => (
 
 // ─── Entity type colors ───────────────────────────────────────────
 
-const ENTITY_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  AUTHOR:      { bg: "rgba(99,102,241,0.12)",  text: "#818cf8", label: "Tác giả" },
-  INSTITUTION: { bg: "rgba(16,185,129,0.12)",  text: "#34d399", label: "Tổ chức" },
-  EMAIL:       { bg: "rgba(245,158,11,0.12)",  text: "#fbbf24", label: "Email" },
-  GRANT:       { bg: "rgba(239,68,68,0.12)",   text: "#f87171", label: "Grant" },
-  PROJECT:     { bg: "rgba(59,130,246,0.12)",  text: "#60a5fa", label: "Dự án" },
-  ORCID:       { bg: "rgba(168,85,247,0.12)",  text: "#c084fc", label: "ORCID" },
-  DOI_AUTHOR:  { bg: "rgba(20,184,166,0.12)",  text: "#2dd4bf", label: "DOI Author" },
+const ENTITY_COLORS: Record<string, { bg: string; text: string }> = {
+  AUTHOR:      { bg: "rgba(99,102,241,0.12)",  text: "#818cf8" },
+  INSTITUTION: { bg: "rgba(16,185,129,0.12)",  text: "#34d399" },
+  EMAIL:       { bg: "rgba(245,158,11,0.12)",  text: "#fbbf24" },
+  GRANT:       { bg: "rgba(239,68,68,0.12)",   text: "#f87171" },
+  PROJECT:     { bg: "rgba(59,130,246,0.12)",  text: "#60a5fa" },
+  ORCID:       { bg: "rgba(168,85,247,0.12)",  text: "#c084fc" },
+  DOI_AUTHOR:  { bg: "rgba(20,184,166,0.12)",  text: "#2dd4bf" },
 };
 
 // ─── Component ───────────────────────────────────────────────────
@@ -72,12 +73,26 @@ interface Props {
 }
 
 export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<AnonymizationStatus | null>(null);
   const [entityMap, setEntityMap] = useState<EntityMapResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showEntities, setShowEntities] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+  const getEntityLabel = useCallback((type: string) => {
+    switch (type) {
+      case "AUTHOR":      return t("anonymization.type_author", "Tác giả");
+      case "INSTITUTION": return t("anonymization.type_institution", "Tổ chức");
+      case "EMAIL":       return t("anonymization.type_email", "Email");
+      case "GRANT":       return t("anonymization.type_grant", "Grant");
+      case "PROJECT":     return t("anonymization.type_project", "Dự án");
+      case "ORCID":       return t("anonymization.type_orcid", "ORCID");
+      case "DOI_AUTHOR":  return t("anonymization.type_doi_author", "DOI Author");
+      default:            return type;
+    }
+  }, [t]);
 
   // Load status on mount
   useEffect(() => {
@@ -100,11 +115,11 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
         setEntityMap(map);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Đã xảy ra lỗi");
+      setError(e instanceof Error ? e.message : t("anonymization.error_default", "Đã xảy ra lỗi"));
     } finally {
       setLoading(false);
     }
-  }, [paperId, onStatusChange]);
+  }, [paperId, onStatusChange, t]);
 
   const handleRefresh = useCallback(async () => {
     setLoading(true);
@@ -116,11 +131,11 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
       const map = await anonymization.getMap(paperId);
       setEntityMap(map);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Chạy lại thất bại");
+      setError(e instanceof Error ? e.message : t("anonymization.error_refresh", "Chạy lại thất bại"));
     } finally {
       setLoading(false);
     }
-  }, [paperId, onStatusChange]);
+  }, [paperId, onStatusChange, t]);
 
   const handleDelete = useCallback(async () => {
     setLoading(true);
@@ -132,11 +147,11 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
       setShowConfirmDelete(false);
       onStatusChange?.(false);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Xóa thất bại");
+      setError(e instanceof Error ? e.message : t("anonymization.error_delete", "Xóa thất bại"));
     } finally {
       setLoading(false);
     }
-  }, [paperId, onStatusChange]);
+  }, [paperId, onStatusChange, t]);
 
   const handleShowEntities = useCallback(async () => {
     if (!showEntities && !entityMap && status?.has_map) {
@@ -157,9 +172,9 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
   const entitiesByType = entityMap
     ? Object.entries(entityMap.entities).reduce<Record<string, Array<{ original: string; label: string; count: number }>>>(
         (acc, [original, info]) => {
-          const t = info.entity_type;
-          if (!acc[t]) acc[t] = [];
-          acc[t].push({ original, label: info.label, count: info.count });
+          const tType = info.entity_type;
+          if (!acc[tType]) acc[tType] = [];
+          acc[tType].push({ original, label: info.label, count: info.count });
           return acc;
         },
         {}
@@ -174,10 +189,10 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
           <span className={`anon-panel__icon ${isActive ? "anon-panel__icon--active" : ""}`}>
             {isActive ? <IconShield /> : <IconShieldOff />}
           </span>
-          <span className="anon-panel__label">Chế độ Ẩn danh</span>
+          <span className="anon-panel__label">{t("anonymization.title", "Chế độ Ẩn danh")}</span>
           {isActive && (
             <span className="anon-panel__badge">
-              🔒 Đang bật · {status?.entities_found ?? 0} entities
+              {t("anonymization.badge_active", { count: status?.entities_found ?? 0, defaultValue: `🔒 Đang bật · ${status?.entities_found ?? 0} entities` })}
             </span>
           )}
         </div>
@@ -189,7 +204,7 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
                 className="anon-panel__btn anon-panel__btn--icon"
                 onClick={handleRefresh}
                 disabled={loading}
-                title="Chạy lại phân tích"
+                title={t("anonymization.btn_refresh", "Chạy lại phân tích")}
               >
                 <IconRefresh />
               </button>
@@ -197,7 +212,7 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
                 className="anon-panel__btn anon-panel__btn--icon anon-panel__btn--danger"
                 onClick={() => setShowConfirmDelete(true)}
                 disabled={loading}
-                title="Xóa map ẩn danh"
+                title={t("anonymization.btn_delete", "Xóa map ẩn danh")}
               >
                 <IconTrash />
               </button>
@@ -211,11 +226,11 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
             {loading ? (
               <span className="anon-panel__spinner" />
             ) : isActive ? (
-              "Tắt"
+              t("anonymization.btn_toggle_off", "Tắt")
             ) : hasMap ? (
-              "Bật lại"
+              t("anonymization.btn_toggle_re-enable", "Bật lại")
             ) : (
-              "Bật & Quét"
+              t("anonymization.btn_toggle_enable_scan", "Bật & Quét")
             )}
           </button>
         </div>
@@ -231,10 +246,10 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
         <div className="anon-panel__stats">
           {Object.entries(status.stats).map(([type, count]) => {
             if (!count) return null;
-            const color = ENTITY_COLORS[type] || { bg: "rgba(120,120,120,0.1)", text: "#9ca3af", label: type };
+            const color = ENTITY_COLORS[type] || { bg: "rgba(120,120,120,0.1)", text: "#9ca3af" };
             return (
               <span key={type} className="anon-panel__stat-badge" style={{ background: color.bg, color: color.text }}>
-                {color.label}: {count}
+                {getEntityLabel(type)}: {count}
               </span>
             );
           })}
@@ -245,7 +260,11 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
       {hasMap && (
         <button className="anon-panel__entities-toggle" onClick={handleShowEntities}>
           <IconChevron open={showEntities} />
-          <span>{showEntities ? "Ẩn" : "Xem"} danh sách entity đã ẩn danh</span>
+          <span>
+            {showEntities
+              ? t("anonymization.toggle_hide_entities", "Ẩn danh sách entity đã ẩn danh")
+              : t("anonymization.toggle_show_entities", "Xem danh sách entity đã ẩn danh")}
+          </span>
         </button>
       )}
 
@@ -253,11 +272,11 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
       {showEntities && entityMap && (
         <div className="anon-panel__entity-list">
           {Object.entries(entitiesByType).map(([type, items]) => {
-            const color = ENTITY_COLORS[type] || { bg: "rgba(120,120,120,0.1)", text: "#9ca3af", label: type };
+            const color = ENTITY_COLORS[type] || { bg: "rgba(120,120,120,0.1)", text: "#9ca3af" };
             return (
               <div key={type} className="anon-panel__entity-group">
                 <div className="anon-panel__entity-group-title" style={{ color: color.text }}>
-                  {color.label}
+                  {getEntityLabel(type)}
                 </div>
                 {items.map((item) => (
                   <div key={item.original} className="anon-panel__entity-row">
@@ -272,7 +291,7 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
             );
           })}
           {Object.keys(entitiesByType).length === 0 && (
-            <p className="anon-panel__empty">Chưa phát hiện entity nào.</p>
+            <p className="anon-panel__empty">{t("anonymization.empty_entities", "Chưa phát hiện entity nào.")}</p>
           )}
         </div>
       )}
@@ -280,20 +299,20 @@ export function AnonymizationPanel({ paperId, onStatusChange }: Props) {
       {/* ─── Confirm delete ──────────────────────────────── */}
       {showConfirmDelete && (
         <div className="anon-panel__confirm">
-          <p>Xóa map ẩn danh? Hành động này không thể hoàn tác.</p>
+          <p>{t("anonymization.confirm_delete_title", "Xóa map ẩn danh? Hành động này không thể hoàn tác.")}</p>
           <div className="anon-panel__confirm-actions">
             <button
               className="anon-panel__btn anon-panel__btn--danger"
               onClick={handleDelete}
               disabled={loading}
             >
-              Xác nhận xóa
+              {t("anonymization.confirm_delete_btn", "Xác nhận xóa")}
             </button>
             <button
               className="anon-panel__btn"
               onClick={() => setShowConfirmDelete(false)}
             >
-              Hủy
+              {t("anonymization.cancel_btn", "Hủy")}
             </button>
           </div>
         </div>

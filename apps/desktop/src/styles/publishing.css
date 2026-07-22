@@ -20,6 +20,48 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Base button classes (used by PublishingHub.tsx header actions) ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-workspace);
+  font-family: inherit;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 /* ── Header ── */
 .publishing-header {
   display: flex;
@@ -58,20 +100,6 @@
   flex-shrink: 0;
 }
 
-.publishing-header-copy p {
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.5;
-  max-width: 640px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 /* ── Sync Banner ── */
 .sync-status-banner {
   display: flex;
@@ -93,6 +121,26 @@
 }
 
 .sync-status-banner svg {
+  flex-shrink: 0;
+}
+
+.sync-status-banner--error {
+  background: rgba(var(--color-error), 0.1);
+  border-color: rgba(var(--color-error), 0.2);
+  color: var(--color-error);
+}
+
+.publishing-header-copy p {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 640px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
   flex-shrink: 0;
 }
 

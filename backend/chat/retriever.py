@@ -65,6 +65,7 @@ class Retriever:
         top_k: int = 5,
         use_reranker: bool = True,
         metadata_filters: dict | None = None,
+        task_type: str = "",
     ) -> RetrievalResult:
         """
         Retrieve relevant chunks for a query.
@@ -74,11 +75,15 @@ class Retriever:
             paper_ids: Optional filter to specific papers.
             top_k: Number of chunks to retrieve.
             use_reranker: Whether to apply cross-encoder re-ranking.
+            task_type: Task type ("debate", "verify", etc.) for adaptive top_k.
 
         Returns:
             RetrievalResult with chunks, context text, and metadata.
         """
-        top_k = adaptive_top_k(query, top_k)
+        import time as _time
+        _t_start = _time.time()
+
+        top_k = adaptive_top_k(query, top_k, task_type)
         if metadata_filters:
             from app_state import state
             from db.database import get_session
@@ -100,6 +105,7 @@ class Retriever:
 
         # Step 2: Search with original query
         embedding_warning = ""
+        _t_search = _time.time()
         with trace("rag.retrieve", top_k=top_k, decomposed=len(expanded_queries)):
             search_results = self.hybrid.search(
                 query=query,
@@ -108,6 +114,9 @@ class Retriever:
                 use_reranker=use_reranker,
             )
             embedding_warning = getattr(self.hybrid, "embedding_warning", "")
+        _t_search = (_time.time() - _t_search) * 1000
+
+        _t_step3 = _time.time()
 
         # Step 3: Try expanded queries if not enough results
         if len(search_results) < top_k and len(expanded_queries) > 1:
@@ -174,14 +183,18 @@ class Retriever:
                 chunks = expand_parent_context(session, chunks, radius)
             finally:
                 session.close()
-        # Step 7: Apply Anonymization if active
-        if chunks:
+        # Step 7: Build context text first, then anonymize once
+        context_text = self._build_context(chunks, query, task_type)
+
+        # Step 8: Apply Anonymization ONCE on the final context (not per chunk)
+        if context_text and chunks:
             from app_state import state
             from db.database import get_session
             from db.models import AnonymizationMap
             from anonymization.engine import AnonymizationEngine, EntityEntry
             anon_engine = AnonymizationEngine()
             import json
+            t_anon = _time.time()
 
             paper_ids_in_chunks = list(set(c["paper_id"] for c in chunks))
             session = get_session(state.engine)
@@ -192,7 +205,8 @@ class Retriever:
                 ).all()
 
                 if anon_maps:
-                    parsed_maps = {}
+                    # Parse all maps
+                    parsed_maps: dict[str, dict[str, EntityEntry]] = {}
                     for m in anon_maps:
                         try:
                             data = json.loads(m.entity_map_json)
@@ -205,17 +219,32 @@ class Retriever:
                         except Exception as e:
                             logger.warning(f"Failed to parse anon map for {m.paper_id}: {e}")
 
-                    for c in chunks:
-                        pid = c["paper_id"]
-                        if pid in parsed_maps:
-                            res = anon_engine.anonymize(c["content"], existing_map=parsed_maps[pid])
-                            c["content"] = res.anonymized_text
+                    if parsed_maps:
+                        # Anonymize the full context text once (not per chunk)
+                        # Merge all entity maps for batch anonymization
+                        merged_map: dict[str, EntityEntry] = {}
+                        for pm in parsed_maps.values():
+                            merged_map.update(pm)
+                        result = anon_engine.anonymize(context_text, existing_map=merged_map)
+                        context_text = result.anonymized_text
             finally:
                 session.close()
 
-        context_text = self._build_context(chunks, query)
+            t_anon = (_time.time() - t_anon) * 1000
+            if t_anon > 5:
+                logger.debug(f"Anonymize full context: {t_anon:.0f}ms (was per-chunk before)")
 
         papers_used = list(set(c["paper_id"] for c in chunks))
+
+        _t_total = (_time.time() - _t_start) * 1000
+        _t_rest = (_time.time() - _t_step3) * 1000  # expanded queries + postprocess + anon + context
+        logger.debug(
+            f"RETRIEVE_TIMING "
+            f"search={_t_search:.0f}ms "
+            f"postproc_plus={_t_rest:.0f}ms "
+            f"total={_t_total:.0f}ms "
+            f"chunks={len(chunks)} papers={len(papers_used)}"
+        )
 
         return RetrievalResult(
             chunks=chunks,
@@ -344,9 +373,18 @@ class Retriever:
     def _cluster_by_paper(self, chunks: list[dict]) -> list[dict]:
         return self._interleave_by_paper(chunks)
 
-    def _build_context(self, chunks: list[dict], query: Optional[str] = None) -> str:
+    def _build_context(self, chunks: list[dict], query: Optional[str] = None, task_type: str = "") -> str:
         if not chunks:
             return ""
+
+        # More aggressive compression for tasks that don't need full detail
+        compress_threshold = 200  # was 350 — compress more chunks
+        task_max_sentences = {
+            "debate": 4,
+            "verify": 5,
+            "review": 6,
+            "critique": 5,
+        }.get(task_type.strip().lower(), 6)
 
         parts = ["The following passages are relevant excerpts from the documents:\n"]
 
@@ -363,54 +401,103 @@ class Retriever:
             source += "]"
 
             content = chunk['content'].strip()
-            if query and len(content) > 350:
-                content = self._compress_chunk_text(content, query)
+            if query and len(content) > compress_threshold:
+                content = self._compress_chunk_text(content, query, max_sentences=task_max_sentences)
 
             parts.append(f"\n{source}\n{content}\n")
 
         return "\n".join(parts)
 
-    def _compress_chunk_text(self, content: str, query: str) -> str:
+    def _compress_chunk_text(self, content: str, query: str, max_sentences: int = 5) -> str:
         """
-        Compress text chunk by keeping only query-relevant sentences (sentence-level lexical compression).
-        Saves tokens and accelerates local LLM prefill and inference speeds.
+        Aggressively compress text chunk by keeping only query-relevant sentences.
+
+        Strategy:
+        1. Split content into sentences
+        2. Score each sentence by keyword density (query keyword matches)
+        3. Keep only the top-N highest-scoring sentences
+        4. Always keep the first sentence if it's short (abstract/intro context)
+
+        This is much more aggressive than the previous version:
+        - No longer keeps adjacent sentences
+        - Caps at max_sentences (default 5)
+        - Uses keyword frequency scoring instead of binary keep/discard
+        - Removes the always-keep-last-sentence heuristic
+
+        Saves tokens and accelerates LLM prefill/inference.
         """
         import re
         stop_words = {
             "và", "hoặc", "của", "cho", "trong", "ngoài", "là", "bởi", "tại", "với",
-            "the", "and", "of", "to", "in", "for", "with", "on", "at", "by", "an", "is", "this", "that"
+            "the", "and", "of", "to", "in", "for", "with", "on", "at", "by", "an", "is",
+            "this", "that", "these", "those", "it", "its", "we", "our", "they", "their",
+            "các", "có", "được", "một", "như", "khi", "sẽ", "đã", "đang", "về",
         }
         keywords = {w.lower() for w in re.findall(r"\w+", query) if len(w) > 1 and w.lower() not in stop_words}
         if not keywords:
             return content
 
-        sentences = re.split(r'(?<=[.!?])\s+', content)
+        # Score-based sentence selection
+        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', content) if len(s.strip()) > 10]
         if len(sentences) <= 3:
             return content
 
-        keep = [False] * len(sentences)
-        keep[0] = True
-        keep[-1] = True
-
-        for idx, sent in enumerate(sentences):
+        scored = []
+        for sent in sentences:
             sent_lower = sent.lower()
-            if any(kw in sent_lower for kw in keywords):
-                keep[idx] = True
-                if idx > 0:
-                    keep[idx - 1] = True
-                if idx < len(sentences) - 1:
-                    keep[idx + 1] = True
+            # Count how many distinct query keywords appear in this sentence
+            match_count = sum(1 for kw in keywords if kw in sent_lower)
+            # Normalize by sentence length to avoid favoring long sentences
+            words_in_sent = len(sent_lower.split())
+            density = match_count / max(words_in_sent, 1)
+            scored.append((sent, density, match_count))
+
+        # Sort by match_count desc, then density desc
+        scored.sort(key=lambda x: (x[2], x[1]), reverse=True)
+
+        # Keep top-N highest-scoring sentences
+        selected = scored[:max_sentences]
+
+        # Always keep first sentence if it's short (< 30 words) — likely abstract/intro
+        first_words = len(sentences[0].split())
+        if first_words < 30 and sentences[0] not in [s for s, _, _ in selected]:
+            selected = [(sentences[0], 0.0, 0)] + selected[:max_sentences - 1]
+
+        # Re-sort selected sentences back to original order for readability
+        original_indices = {s: i for i, s in enumerate(sentences)}
+        selected.sort(key=lambda x: original_indices.get(x[0], 9999))
 
         compressed_parts = []
-        skipped_last = False
+        prev_idx = -2
+        for sent, _, _ in selected:
+            idx = original_indices.get(sent, -1)
+            if idx > prev_idx + 1:
+                compressed_parts.append("[...]")
+            compressed_parts.append(sent)
+            prev_idx = idx
 
-        for idx, k in enumerate(keep):
-            if k:
-                compressed_parts.append(sentences[idx])
-                skipped_last = False
-            else:
-                if not skipped_last:
-                    compressed_parts.append("[...]")
-                    skipped_last = True
+        result = " ".join(compressed_parts)
 
-        return " ".join(compressed_parts)
+        # Final safety: if compression barely helped, just truncate
+        if len(result) > len(content) * 0.8:
+            truncate_at = min(len(content), 1200)
+            result_trunc = content[:truncate_at] + " [...]"
+            logger.debug(
+                f"COMPRESS_RATIO poor_compression "
+                f"len_before={len(content)} len_after={len(result_trunc)} "
+                f"saved={100 - len(result_trunc)*100//max(len(content),1)}% "
+                f"keywords={len(keywords)}"
+            )
+            return result_trunc
+
+        saved_pct = 100 - len(result) * 100 // max(len(content), 1)
+        if saved_pct >= 10:
+            logger.debug(
+                f"COMPRESS_RATIO "
+                f"len_before={len(content)} len_after={len(result)} "
+                f"saved={saved_pct}% "
+                f"sentences={len(sentences)}→{len(selected)} "
+                f"keywords={len(keywords)}"
+            )
+
+        return result
