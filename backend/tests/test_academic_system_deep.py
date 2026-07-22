@@ -8,6 +8,8 @@
 7. Continuous Academic Knowledge Sync (academic/knowledge_sync.py)
 """
 import pytest
+
+pytestmark = pytest.mark.integration
 from academic.ontology import (
     AcademicOntologyGraph, PaperEntity, ExperimentEntity, ClaimEntity, EvidenceEntity, LimitationEntity
 )

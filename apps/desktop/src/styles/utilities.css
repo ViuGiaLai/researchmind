@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════════════════════════
+   ResearchMind — Shared Utility Classes
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Layout: Flex Row ── */
+.u-row {
+  display: flex;
+  align-items: center;
+}
+
+.u-row-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.u-row-gap2 { display: flex; align-items: center; gap: 2px; }
+.u-row-gap4 { display: flex; align-items: center; gap: 4px; }
+.u-row-gap6 { display: flex; align-items: center; gap: 6px; }
+.u-row-gap8 { display: flex; align-items: center; gap: 8px; }
+.u-row-gap12 { display: flex; align-items: center; gap: 12px; }
+
+/* ── Layout: Flex Column ── */
+.u-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Layout: Flex helpers ── */
+.u-flex-1 { flex: 1; }
+.u-flex-shrink-0 { flex-shrink: 0; }
+.u-spacer { flex: 1; }
+
+/* ── Layout: Positioning ── */
+.u-relative { position: relative; }
+.u-absolute { position: absolute; }
+
+/* ── Text sizes ── */
+.u-text-xs   { font-size: 0.72rem; }
+.u-text-sm   { font-size: 0.78rem; }
+.u-text-base { font-size: 0.85rem; }
+.u-text-lg   { font-size: 1rem; }
+
+/* ── Text weights ── */
+.u-font-medium  { font-weight: 500; }
+.u-font-semibold { font-weight: 600; }
+.u-font-bold    { font-weight: 700; }
+
+/* ── Text colors ── */
+.u-text-muted     { color: var(--color-text-muted); }
+.u-text-secondary { color: var(--color-text-secondary); }
+.u-text-primary   { color: var(--color-primary); }
+.u-text-error     { color: var(--color-error); }
+.u-text-success   { color: var(--color-success); }
+.u-text-warning   { color: var(--color-warning); }
+.u-text-white     { color: #fff; }
+
+/* ── Text alignment ── */
+.u-text-center { text-align: center; }
+
+/* ── Spacing ── */
+.u-mb-8  { margin-bottom: 8px; }
+.u-mb-12 { margin-bottom: 12px; }
+.u-mb-16 { margin-bottom: 16px; }
+.u-mb-20 { margin-bottom: 20px; }
+.u-mt-4  { margin-top: 4px; }
+.u-mt-8  { margin-top: 8px; }
+.u-mt-12 { margin-top: 12px; }
+.u-mt-16 { margin-top: 16px; }
+.u-mr-8  { margin-right: 8px; }
+.u-ml-auto { margin-left: auto; }
+
+/* ── Padding ── */
+.u-px-8  { padding-left: 8px; padding-right: 8px; }
+.u-px-20 { padding-left: 20px; padding-right: 20px; }
+.u-py-8  { padding-top: 8px; padding-bottom: 8px; }
+.u-py-12 { padding-top: 12px; padding-bottom: 12px; }
+.u-p-8   { padding: 8px; }
+.u-p-12  { padding: 12px; }
+.u-p-40  { padding: 40px; }
+
+/* ── Borders ── */
+.u-border-b {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Buttons (small, for inline use) ── */
+
+/* Small primary button */
+.u-btn-primary-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.08);
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.15s var(--ease-workspace);
+}
+
+.u-btn-primary-sm:hover:not(:disabled) {
+  background: rgba(var(--color-primary-rgb), 0.15);
+}
+
+.u-btn-primary-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Small ghost button (subtle border) */
+.u-btn-ghost-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  transition: all 0.15s var(--ease-workspace);
+}
+
+.u-btn-ghost-sm:hover:not(:disabled) {
+  background: rgba(var(--color-primary-rgb), 0.08);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.u-btn-ghost-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Small outline button (primary border) */
+.u-btn-outline-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.15s var(--ease-workspace);
+}
+
+.u-btn-outline-sm:hover:not(:disabled) {
+  background: rgba(var(--color-primary-rgb), 0.08);
+}
+
+.u-btn-outline-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary filled button */
+.u-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.15s var(--ease-workspace);
+}
+
+.u-btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.u-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Overflows ── */
+.u-overflow-hidden { overflow: hidden; }
+.u-overflow-auto { overflow: auto; }
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

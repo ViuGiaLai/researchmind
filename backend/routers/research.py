@@ -97,3 +97,68 @@ async def api_decompose_query(body: dict = Body(...)):
         "sub_questions": plan.sub_questions,
         "brief": plan.brief,
     }
+
+
+@router.post("/pipeline")
+async def api_run_pipeline(body: dict = Body(...)):
+    """
+    Execute the full academic governance pipeline.
+
+    Orchestrates: parse → retrieve → analyze → audit → verify →
+    auto_fix → synthesize → review → export.
+
+    All step logic is data-driven from academic_governance.json.
+    Each step runs a dedicated agent — NOT an LLM prompt.
+
+    Request:
+        query (str): The research query / topic.
+        paper_ids (list[str], optional): Papers to analyze.
+        venue_id (str, optional): Target venue (default "ieee_trans").
+        language (str, optional): Output language (default "vi").
+
+    Response:
+        Pipeline execution result with step-by-step details.
+    """
+    query = body.get("query", "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Missing query")
+
+    paper_ids = body.get("paper_ids")
+    venue_id = body.get("venue_id", "ieee_trans")
+    language = body.get("language", "vi")
+
+    try:
+        from agents.orchestrator import run_pipeline
+
+        result = await run_pipeline(
+            query=query,
+            paper_ids=paper_ids,
+            venue_id=venue_id,
+            language=language,
+        )
+
+        return {
+            "trace_id": result.trace_id,
+            "success": result.success,
+            "venue_id": result.venue_id,
+            "governance_version": result.governance_version,
+            "steps": [
+                {
+                    "step": s.step,
+                    "agent": s.agent_name,
+                    "success": s.success,
+                    "output_preview": str(s.output)[:200] if s.output else None,
+                    "errors": s.errors[:3],
+                }
+                for s in result.steps
+            ],
+            "final_output_preview": str(result.final_output)[:500] if result.final_output else None,
+            "evaluation": {
+                "overall_quality": result.evaluation.overall_quality if result.evaluation else None,
+                "citation_accuracy": result.evaluation.citation_accuracy if result.evaluation else None,
+                "factual_consistency": result.evaluation.factual_consistency if result.evaluation else None,
+            } if result.evaluation else None,
+        }
+    except Exception as e:
+        logger.error(f"Pipeline execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

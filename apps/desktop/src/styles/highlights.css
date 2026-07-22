@@ -525,7 +525,7 @@
 }
 
 .hl-evidence-importance.high {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .hl-evidence-importance.medium {
@@ -783,9 +783,9 @@
 }
 
 .hl-pdf-overlay-close-btn:hover {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #dc2626;
+  background: rgba(var(--color-error), 0.08);
+  border-color: rgba(var(--color-error), 0.3);
+  color: var(--color-error);
 }
 
 .hl-pdf-overlay-iframe {
@@ -994,7 +994,7 @@
 }
 
 .hl-insight-stat-value.high {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .hl-insight-stat-dot {
@@ -1225,9 +1225,9 @@
 
 .hl-generate-error {
   padding: 10px 14px;
-  background: rgba(239, 68, 68, 0.06);
-  border: 1px solid rgba(239, 68, 68, 0.15);
+  background: rgba(var(--color-error), 0.06);
+  border: 1px solid rgba(var(--color-error), 0.15);
   border-radius: var(--radius-md);
   font-size: 0.82rem;
-  color: #ef4444;
+  color: var(--color-error);
 }

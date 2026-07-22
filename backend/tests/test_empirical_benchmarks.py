@@ -5,11 +5,14 @@
 4. Stress Testing Suite (backend/evaluation/stress_tester.py)
 """
 import pytest
+
+pytestmark = pytest.mark.benchmark
 from evaluation.benchmark_suite import BenchmarkSuite
 from evaluation.ablation_study import AblationStudyEngine
 from evaluation.stress_tester import StressTestingSuite
 
 
+@pytest.mark.integration
 def test_gold_standard_dataset_loading():
     suite = BenchmarkSuite()
     assert len(suite.data.get("annotations", [])) >= 3
@@ -17,6 +20,7 @@ def test_gold_standard_dataset_loading():
     assert first_item["venue_target"] == "neurips"
 
 
+@pytest.mark.integration
 def test_benchmark_suite_head_to_head():
     suite = BenchmarkSuite()
     results = suite.run_full_comparative_benchmark()
@@ -28,6 +32,7 @@ def test_benchmark_suite_head_to_head():
     assert platform_res["hallucination_rate"] < raw_res["hallucination_rate"]
 
 
+@pytest.mark.integration
 def test_ablation_study_engine():
     engine = AblationStudyEngine()
     res = engine.run_ablation_study()
@@ -38,6 +43,7 @@ def test_ablation_study_engine():
     assert full_trial["f1_score"] > no_rule_trial["f1_score"]
 
 
+@pytest.mark.integration
 def test_stress_testing_suite():
     tester = StressTestingSuite()
     res = tester.run_all_stress_tests()

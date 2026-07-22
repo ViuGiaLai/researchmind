@@ -971,11 +971,12 @@ export const api = {
     const controller = new AbortController();
     const stream: {
       onAcademic: ((data: any[], status: string) => void) | null;
+      onVenueAudit: ((data: any) => void) | null;
       onChunk: ((text: string) => void) | null;
-      onDone: ((model: string, citations: any[], externalSources: any[], status: string) => void) | null;
+      onDone: ((model: string, citations: any[], externalSources: any[], status: string, venueAudit?: any) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
-    } = { onAcademic: null, onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
+    } = { onAcademic: null, onVenueAudit: null, onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
 
     (async () => {
       try {
@@ -1010,10 +1011,12 @@ export const api = {
                 const data = JSON.parse(dataStr);
                 if (data.type === "academic") {
                   stream.onAcademic?.(data.data || [], data.verify_status || "local_only");
+                } else if (data.type === "venue_audit") {
+                  stream.onVenueAudit?.(data.data || null);
                 } else if (data.type === "chunk") {
                   stream.onChunk?.(data.chunk || "");
                 } else if (data.type === "done") {
-                  stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only");
+                  stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only", data.venue_audit || null);
                 }
               } catch {
                 // skip
@@ -1820,13 +1823,81 @@ export interface ExternalSource {
   }>;
 }
 
+export interface VenueCheck {
+  name: string;
+  category: string;
+  severity: "pass" | "critical" | "warning" | "suggestion";
+  priority: string;
+  message: string;
+  why: string;
+  provenance: string;
+  location: string;
+  auto_fix?: Record<string, unknown>;
+}
+
+export interface VenueAudit {
+  venue_info: {
+    id: string;
+    name: string;
+    venue_code: string;
+    publisher: string;
+    version: string;
+    last_updated: string;
+    provenance: string;
+  };
+  overall_score: number;
+  category_scores: Record<string, number>;
+  counts: {
+    pass: number;
+    critical: number;
+    warning: number;
+    suggestion: number;
+  };
+  checks: VenueCheck[];
+}
+
+export interface VerifyReportEvidence {
+  check_name: string;
+  finding: string;
+  source: string;
+  confidence: string;
+  status: string;
+}
+
+export interface VerifyReport {
+  academic_verdict: {
+    verdict: string;
+    reason: string;
+    determined_by: string;
+  };
+  academic_basis: {
+    rules_applied: string[];
+    verification_methods: string[];
+    standards_used: string[];
+  };
+  evidence: VerifyReportEvidence[];
+  limitations: {
+    unverifiable_items: { item: string; detail: string; impact: string }[];
+    missing_data: string[];
+    assumptions: string[];
+  };
+  confidence: {
+    level: string;
+    reasoning: string;
+    score: number;
+  };
+  next_steps: string[];
+}
+
 export interface VerifyResponse {
   answer: string;
   citations: { source: string; page: number | null; text: string }[];
   model_used: string;
   papers_used: string[];
   external_sources: ExternalSource[];
+  verify_report?: VerifyReport;
   verify_status: "full" | "partial" | "local_only";
+  venue_audit?: VenueAudit | null;
 }
 
 // ─── Daily Reader Types ─────────────────────────────────────

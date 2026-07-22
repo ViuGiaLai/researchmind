@@ -25,6 +25,8 @@ class S2Paper:
     citation_stats: Optional[dict] = None
     is_open_access: bool = False
     open_access_pdf_url: Optional[str] = None
+    url: Optional[str] = None
+    fields_of_study: Optional[list[str]] = None
 
 
 async def search_papers(
@@ -164,8 +166,9 @@ def _parse_paper(data: dict) -> S2Paper:
         if name:
             authors.append(name)
     oa_pdf = data.get("openAccessPdf") or {}
+    paper_id = data.get("paperId", "")
     return S2Paper(
-        paper_id=data.get("paperId", ""),
+        paper_id=paper_id,
         title=data.get("title", ""),
         year=data.get("year"),
         citation_count=data.get("citationCount", 0),
@@ -176,6 +179,8 @@ def _parse_paper(data: dict) -> S2Paper:
         venue=data.get("venue"),
         is_open_access=data.get("isOpenAccess", False),
         open_access_pdf_url=oa_pdf.get("url"),
+        url=f"https://www.semanticscholar.org/paper/{paper_id}" if paper_id else None,
+        fields_of_study=data.get("fieldsOfStudy", []),
     )
 
 

@@ -78,6 +78,9 @@
     "error_storage": "The browser blocked storage needed for Google sign-in. Use email/password or allow storage for this app.",
     "error_environment": "Google sign-in is not supported in this environment. Use email and password.",
     "error_account_provider": "This email already uses a different sign-in method. Use the original method.",
+    "guest": "Using ResearchMind",
+    "guest_badge": "Guest",
+    "guest_hint": "Work locally. Sign in to sync.",
     "error_generic": "Unable to authenticate{{code}}. Please try again."
   },
   "nav": {

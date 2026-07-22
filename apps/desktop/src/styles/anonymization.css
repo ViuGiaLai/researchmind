@@ -127,7 +127,7 @@
 
 .anon-panel__btn--danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  color: var(--color-error);
   border-color: rgba(239, 68, 68, 0.2);
 }
 
@@ -181,7 +181,7 @@
   margin-top: 16px;
   padding: 12px 16px;
   background: rgba(239, 68, 68, 0.05);
-  color: #ef4444;
+  color: var(--color-error);
   border-radius: 8px;
   border: 1px solid rgba(239, 68, 68, 0.15);
   font-size: 0.85rem;

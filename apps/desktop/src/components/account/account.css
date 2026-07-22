@@ -342,6 +342,22 @@
   font-size: 0.85rem;
 }
 
+/* ── Guest Badge ── */
+.guest-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--color-primary-subtle, rgba(45, 212, 191, 0.12));
+  color: var(--color-primary, #2dd4bf);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+  line-height: 1.6;
+}
+
 /* Responsive */
 @media (max-width: 720px) {
   .account-profile-card {

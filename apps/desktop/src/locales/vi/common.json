@@ -78,6 +78,9 @@
     "error_storage": "Trình duyệt đang chặn bộ nhớ cần thiết cho Google đăng nhập. Hãy dùng email/mật khẩu hoặc cho phép storage cho ứng dụng.",
     "error_environment": "Google đăng nhập không được môi trường hiện tại hỗ trợ. Hãy dùng email/mật khẩu.",
     "error_account_provider": "Email này đã dùng một phương thức đăng nhập khác. Hãy đăng nhập bằng phương thức ban đầu.",
+    "guest": "Đang dùng ResearchMind",
+    "guest_badge": "Khách",
+    "guest_hint": "Làm việc local. Đăng nhập để đồng bộ.",
     "error_generic": "Không thể xác thực{{code}}. Vui lòng thử lại."
   },
   "nav": {

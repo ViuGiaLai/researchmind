@@ -428,7 +428,7 @@ async def invalidate_cache(doi: str):
 async def get_academic_knowledge(title: str = Query(...), doi: str | None = Query(None)):
     """Fetch Knowledge Engine SOTA benchmark and citation metrics footprint."""
     from academic.knowledge_engine import knowledge_engine
-    return knowledge_engine.get_paper_knowledge(title=title, doi=doi)
+    return await knowledge_engine.get_paper_knowledge(title=title, doi=doi)
 
 
 @router.get("/sota")

@@ -280,5 +280,5 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
 async def search_literature_endpoint(q: str = Query(...), limit: int = Query(10)):
     """Search across public academic literature (arXiv, OpenAlex, Semantic Scholar, CrossRef)."""
     from search.literature_engine import search_public_literature
-    results = search_public_literature(q, limit=limit)
+    results = await search_public_literature(q, limit=limit)
     return {"query": q, "count": len(results), "results": results}

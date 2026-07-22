@@ -179,7 +179,8 @@ class Retriever:
             from app_state import state
             from db.database import get_session
             from db.models import AnonymizationMap
-            from anonymization.engine import engine, EntityEntry
+            from anonymization.engine import AnonymizationEngine, EntityEntry
+            anon_engine = AnonymizationEngine()
             import json
 
             paper_ids_in_chunks = list(set(c["paper_id"] for c in chunks))
@@ -207,7 +208,7 @@ class Retriever:
                     for c in chunks:
                         pid = c["paper_id"]
                         if pid in parsed_maps:
-                            res = engine.anonymize(c["content"], existing_map=parsed_maps[pid])
+                            res = anon_engine.anonymize(c["content"], existing_map=parsed_maps[pid])
                             c["content"] = res.anonymized_text
             finally:
                 session.close()

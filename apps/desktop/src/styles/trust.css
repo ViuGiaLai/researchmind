@@ -108,11 +108,11 @@
 }
 
 .trust-panel-section-title.warning {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .trust-panel-section-title.danger {
-  color: #ef4444;
+  color: var(--color-error);
 }
 
 .trust-panel-claim-item {

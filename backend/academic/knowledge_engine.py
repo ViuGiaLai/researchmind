@@ -5,6 +5,7 @@ Combines Semantic Scholar, PapersWithCode, and OpenAlex to provide
 deep SOTA benchmark context, citation influence metrics, and domain knowledge.
 """
 
+import asyncio
 from typing import Any
 try:
     from loguru import logger
@@ -13,7 +14,8 @@ except ImportError:
     logger = logging.getLogger("knowledge_engine")
 from academic.semantic_scholar import get_paper_by_doi, search_papers as s2_search
 from academic.openalex import search_openalex
-from academic.paperswithcode import search_paper_results, search_tasks, get_task_benchmarks
+from academic.paperswithcode import search_paper_results
+
 
 class KnowledgeEngine:
     """Orchestrator for academic knowledge synthesis."""
@@ -21,8 +23,12 @@ class KnowledgeEngine:
     def __init__(self):
         pass
 
-    def get_paper_knowledge(self, title: str, doi: str | None = None) -> dict[str, Any]:
-        """Fetch comprehensive knowledge footprint for a paper."""
+    async def get_paper_knowledge(self, title: str, doi: str | None = None) -> dict[str, Any]:
+        """Fetch comprehensive knowledge footprint for a paper.
+        
+        Calls async APIs (Semantic Scholar) natively with await,
+        and wraps sync HTTP calls (OpenAlex, PapersWithCode) in to_thread.
+        """
         res: dict[str, Any] = {
             "title": title,
             "doi": doi,
@@ -32,13 +38,13 @@ class KnowledgeEngine:
             "sota_benchmarks": [],
         }
 
-        # 1. Semantic Scholar Lookup
+        # 1. Semantic Scholar Lookup (native async)
         try:
             s2_paper = None
             if doi:
-                s2_paper = get_paper_by_doi(doi)
+                s2_paper = await get_paper_by_doi(doi)
             if not s2_paper and title:
-                s2_matches = s2_search(title, limit=1)
+                s2_matches = await s2_search(title, limit=1)
                 if s2_matches:
                     s2_paper = s2_matches[0]
 
@@ -55,9 +61,9 @@ class KnowledgeEngine:
         except Exception as e:
             logger.warning(f"KnowledgeEngine S2 error: {e}")
 
-        # 2. OpenAlex Lookup
+        # 2. OpenAlex Lookup (sync HTTP wrapped in to_thread)
         try:
-            oa_results = search_openalex(title, limit=1)
+            oa_results = await asyncio.to_thread(search_openalex, title, 1)
             if oa_results:
                 oa = oa_results[0]
                 res["openalex"] = {
@@ -69,9 +75,9 @@ class KnowledgeEngine:
         except Exception as e:
             logger.warning(f"KnowledgeEngine OpenAlex error: {e}")
 
-        # 3. PapersWithCode SOTA Benchmarks
+        # 3. PapersWithCode SOTA Benchmarks (sync HTTP wrapped in to_thread)
         try:
-            pwc_results = search_paper_results(title)
+            pwc_results = await asyncio.to_thread(search_paper_results, title)
             res["paperswithcode"] = pwc_results
         except Exception as e:
             logger.warning(f"KnowledgeEngine PapersWithCode error: {e}")
@@ -87,7 +93,7 @@ class KnowledgeEngine:
         for p in paper_summaries:
             title = p.get("title", "Untitled")
             lines.append(f"\nPaper: {title}")
-            
+
             s2 = p.get("semantic_scholar")
             if s2:
                 lines.append(f"  - Citations: {s2.get('citation_count', 0)} (Influential: {s2.get('influential_citation_count', 0)})")

@@ -418,7 +418,7 @@ function App() {
 
   // Check if E2EE master password needs to be set (when user logs in without salt)
   useEffect(() => {
-    if (!auth.user) {
+    if (!auth.user || auth.isGuest) {
       setE2eeLocked(false);
       return;
     }
@@ -431,8 +431,9 @@ function App() {
   // Start/stop background sync daemon when auth state changes
   // Note: auth.getToken intentionally omitted from deps — its reference
   // changes every render but its behavior is stable (reads localStorage).
+  // Guest mode: skip sync daemon.
   useEffect(() => {
-    if (!auth.user) return;
+    if (!auth.user || auth.isGuest) return;
     const daemon = new SyncDaemon(auth.getToken);
     daemon.start();
     return () => daemon.stop();

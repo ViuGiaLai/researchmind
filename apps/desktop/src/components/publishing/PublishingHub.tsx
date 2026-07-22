@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Award,
   Sparkles,
+  BadgeCheck,
 } from "lucide-react";
 import "../../styles/publishing.css";
 
@@ -246,6 +247,13 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
       )
     : [];
 
+  const scoreTier =
+    auditResult && auditResult.overall_score >= 80
+      ? "high"
+      : auditResult && auditResult.overall_score >= 50
+        ? "mid"
+        : "low";
+
   return (
     <div className="publishing-hub">
       {/* Header */}
@@ -262,12 +270,11 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
             )}
           </p>
         </div>
-        <div className="header-actions" style={{ display: "flex", gap: "8px" }}>
+        <div className="header-actions">
           <button
             className="btn btn-secondary"
             onClick={handleSyncGuidelines}
             disabled={syncing}
-            style={{ display: "flex", alignItems: "center", gap: "6px" }}
           >
             <RefreshCw size={14} className={syncing ? "animate-spin" : ""} />
             {syncing ? "Syncing..." : "Sync Live Guidelines"}
@@ -276,213 +283,216 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
       </div>
 
       {syncStatus && (
-        <div className="sync-status-banner" style={{ background: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.3)", color: "#60a5fa", padding: "8px 12px", borderRadius: "6px", fontSize: "13px", marginBottom: "16px" }}>
-          <Info size={14} style={{ display: "inline", marginRight: "6px" }} />
+        <div className="sync-status-banner">
+          <Info size={14} />
           {syncStatus}
         </div>
       )}
 
       <div className="publishing-grid">
         {/* Left Column: Input Editor & Template Selection */}
-        <div className="publishing-card publishing-controls-card">
+        <div className="publishing-card">
           <div className="card-section-title">
+            <BadgeCheck size={16} className="publishing-header-icon" />
             <span>{t("publishing.venue_config", "1. Cấu hình Tạp chí & Biên tập Bản thảo")}</span>
           </div>
-
-          <div className="template-select-group">
-            <label className="publishing-label">
-              {t("publishing.target_venue", "Tạp chí / Hội thảo Mục tiêu (Target Venue)")}
-            </label>
-            <select
-              className="publishing-select"
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-            >
-              {templates.map((tmpl) => (
-                <option key={tmpl.id} value={tmpl.id}>
-                  {tmpl.name} — {tmpl.publisher} ({tmpl.format})
-                </option>
-              ))}
-            </select>
-            {currentTemplateObj?.provenance && (
-              <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginTop: "4px" }}>
-                Provenance: {currentTemplateObj.provenance}
-              </div>
-            )}
-          </div>
-
-          <div className="publishing-input-group">
-            <label className="publishing-label">
-              {t("publishing.manuscript_title", "Tiêu đề bài báo / Bản thảo")}
-            </label>
-            <input
-              type="text"
-              className="publishing-input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="VD: Transformer Architectures for Multimodal Reasoning"
-            />
-          </div>
-
-          <div className="publishing-input-group">
-            <label className="publishing-label">
-              {t("publishing.manuscript_content", "Nội dung bài báo (Markdown / TeX)")}
-            </label>
-            <textarea
-              className="publishing-textarea"
-              rows={12}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Nhập hoặc dán nội dung bài báo vào đây..."
-            />
-          </div>
-
-          <div className="publishing-action-bar">
-            <button
-              className="btn btn-primary btn-audit"
-              onClick={handleAudit}
-              disabled={auditing}
-            >
-              {auditing ? (
-                <>
-                  <IconSpinner className="animate-spin" />
-                  <span>Đang Kiểm Định & Phản Biện...</span>
-                </>
-              ) : (
-                <>
-                  <ShieldCheck size={16} />
-                  <span>Kiểm Định Bản Thảo & Peer Review</span>
-                </>
+          <div className="card-body">
+            <div className="template-select-group">
+              <label className="publishing-label">
+                {t("publishing.target_venue", "Tạp chí / Hội thảo Mục tiêu (Target Venue)")}
+              </label>
+              <select
+                className="publishing-select"
+                value={selectedTemplate}
+                onChange={(e) => setSelectedTemplate(e.target.value)}
+              >
+                {templates.map((tmpl) => (
+                  <option key={tmpl.id} value={tmpl.id}>
+                    {tmpl.name} — {tmpl.publisher} ({tmpl.format})
+                  </option>
+                ))}
+              </select>
+              {currentTemplateObj?.provenance && (
+                <div className="provenance-badge">
+                  <Info size={10} />
+                  Provenance: {currentTemplateObj.provenance}
+                </div>
               )}
-            </button>
+            </div>
+
+            <div className="publishing-input-group">
+              <label className="publishing-label">
+                {t("publishing.manuscript_title", "Tiêu đề bài báo / Bản thảo")}
+              </label>
+              <input
+                type="text"
+                className="publishing-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="VD: Transformer Architectures for Multimodal Reasoning"
+              />
+            </div>
+
+            <div className="publishing-input-group">
+              <label className="publishing-label">
+                {t("publishing.manuscript_content", "Nội dung bài báo (Markdown / TeX)")}
+              </label>
+              <textarea
+                className="publishing-textarea"
+                rows={12}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Nhập hoặc dán nội dung bài báo vào đây..."
+              />
+            </div>
+
+            <div className="publishing-action-bar">
+              <button
+                className="btn-audit"
+                onClick={handleAudit}
+                disabled={auditing}
+              >
+                {auditing ? (
+                  <>
+                    <IconSpinner className="animate-spin" />
+                    <span>Đang Kiểm Định & Phản Biện...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    <span>Kiểm Định Bản Thảo & Peer Review</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Right Column: Audit Results & Academic Evaluation */}
-        <div className="publishing-card publishing-results-card">
+        <div className="publishing-card">
           <div className="card-section-title">
+            <Award size={16} className="publishing-header-icon" />
             <span>{t("publishing.audit_results", "2. Kết Quả Kiểm Định & Đánh Giá Học Thuật")}</span>
           </div>
-
-          {!auditResult ? (
-            <div className="publishing-empty-state">
-              <ShieldCheck size={40} className="empty-icon" />
-              <p>Chọn Tạp chí mục tiêu và bấm <strong>"Kiểm Định Bản Thảo"</strong> để xem kết quả đánh giá thể thức, trích dẫn & phản biện khoa học.</p>
-            </div>
-          ) : (
-            <div className="audit-results-wrapper">
-              {/* Top Summary Banner */}
-              <div className="score-banner">
-                <div className="score-circle">
-                  <span className="score-num">{auditResult.overall_score}</span>
-                  <span className="score-max">/100</span>
-                </div>
-                <div className="score-details">
-                  <h4>Điểm Tuân Thủ Quy Chuẩn ({auditResult.template.publisher})</h4>
-                  <div className="count-badges">
-                    <span className="badge pass"><CheckCircle2 size={12} /> {auditResult.counts.pass} Trùng khớp</span>
-                    <span className="badge critical"><XCircle size={12} /> {auditResult.counts.critical} Lỗi nghiêm trọng</span>
-                    <span className="badge warning"><AlertTriangle size={12} /> {auditResult.counts.warning} Cảnh báo</span>
+          <div className="card-body">
+            {!auditResult ? (
+              <div className="publishing-empty-state">
+                <ShieldCheck size={44} className="empty-icon" />
+                <p>Chọn Tạp chí mục tiêu và bấm <strong>"Kiểm Định Bản Thảo"</strong> để xem kết quả đánh giá thể thức, trích dẫn & phản biện khoa học.</p>
+              </div>
+            ) : (
+              <div className="audit-results-wrapper">
+                {/* Top Summary Banner */}
+                <div className="score-banner">
+                  <div className="score-circle" data-score-tier={scoreTier}>
+                    <span className="score-num">{auditResult.overall_score}</span>
+                    <span className="score-max">/100</span>
                   </div>
-                </div>
-              </div>
-
-              {/* Evaluation Metrics Card */}
-              <div style={{ background: "rgba(255, 255, 255, 0.03)", borderRadius: "8px", padding: "12px", marginTop: "12px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
-                <h5 style={{ display: "flex", alignItems: "center", gap: "6px", margin: "0 0 8px 0", fontSize: "13px" }}>
-                  <Award size={14} color="#f59e0b" /> Academic Quality Benchmark Metrics
-                </h5>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", fontSize: "12px" }}>
-                  <div>Citation Accuracy: <strong>{((auditResult.evaluation_metrics?.citation_accuracy ?? 0.95) * 100).toFixed(0)}%</strong></div>
-                  <div>Factual Accuracy: <strong>{((auditResult.evaluation_metrics?.factual_accuracy ?? 0.98) * 100).toFixed(0)}%</strong></div>
-                  <div>Hallucination Rate: <strong>{((auditResult.evaluation_metrics?.hallucination_rate ?? 0.02) * 100).toFixed(0)}%</strong></div>
-                  <div>Compliance Score: <strong>{((auditResult.evaluation_metrics?.compliance_score ?? (auditResult.overall_score / 100)) * 100).toFixed(0)}%</strong></div>
-                  <div>Writing Quality: <strong>{((auditResult.evaluation_metrics?.writing_quality ?? 0.90) * 100).toFixed(0)}%</strong></div>
-                  <div>Overall Quality: <strong style={{ color: "#34d399" }}>{((auditResult.evaluation_metrics?.overall_quality ?? 0.94) * 100).toFixed(0)}%</strong></div>
-                </div>
-              </div>
-
-              {/* Peer Review Simulation */}
-              <div style={{ background: "rgba(139, 92, 246, 0.08)", borderRadius: "8px", padding: "12px", marginTop: "10px", border: "1px solid rgba(139, 92, 246, 0.2)" }}>
-                <h5 style={{ display: "flex", alignItems: "center", gap: "6px", margin: "0 0 8px 0", fontSize: "13px", color: "#c084fc" }}>
-                  <Sparkles size={14} /> Peer Review Simulation Report
-                </h5>
-                <div style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.9)" }}>
-                  Recommendation: <strong style={{ color: "#a78bfa" }}>{auditResult.peer_review?.overall_recommendation || (auditResult.counts.critical === 0 ? "Accept with minor revisions" : "Revisions required")}</strong>
-                  <div style={{ display: "flex", gap: "16px", marginTop: "4px" }}>
-                    <span>Novelty: <strong>{((auditResult.peer_review?.novelty_score ?? 0.85) * 100).toFixed(0)}%</strong></span>
-                    <span>Methodology: <strong>{((auditResult.peer_review?.methodology_score ?? 0.90) * 100).toFixed(0)}%</strong></span>
-                    <span>Clarity: <strong>{((auditResult.peer_review?.clarity_score ?? 0.88) * 100).toFixed(0)}%</strong></span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Category Filter Tabs */}
-              <div className="category-tabs" style={{ marginTop: "12px" }}>
-                {["all", "Structure", "References", "Formatting"].map((cat) => (
-                  <button
-                    key={cat}
-                    className={`tab-btn ${activeCategoryFilter === cat ? "active" : ""}`}
-                    onClick={() => setActiveCategoryFilter(cat)}
-                  >
-                    {cat === "all" ? "Tất cả kiểm tra" : cat}
-                  </button>
-                ))}
-              </div>
-
-              {/* Checks Detail List */}
-              <div className="checks-list">
-                {filteredChecks.map((check, idx) => (
-                  <div key={idx} className={`check-item ${check.severity}`}>
-                    <div className="check-icon-col">
-                      {check.severity === "pass" && <CheckCircle2 size={16} className="icon-pass" />}
-                      {check.severity === "critical" && <XCircle size={16} className="icon-critical" />}
-                      {check.severity === "warning" && <AlertTriangle size={16} className="icon-warning" />}
-                      {check.severity === "suggestion" && <Info size={16} className="icon-suggestion" />}
+                  <div className="score-details">
+                    <h4>Điểm Tuân Thủ Quy Chuẩn ({auditResult.template.publisher})</h4>
+                    <div className="count-badges">
+                      <span className="badge pass"><CheckCircle2 size={12} /> {auditResult.counts.pass} Trùng khớp</span>
+                      <span className="badge critical"><XCircle size={12} /> {auditResult.counts.critical} Lỗi nghiêm trọng</span>
+                      <span className="badge warning"><AlertTriangle size={12} /> {auditResult.counts.warning} Cảnh báo</span>
                     </div>
-                    <div className="check-body-col">
-                      <div className="check-header-row">
-                        <span className="check-name">{check.name}</span>
-                        <span className="check-category">{check.category}</span>
+                  </div>
+                </div>
+
+                {/* Evaluation Metrics Card */}
+                <div className="metrics-card">
+                  <h5>
+                    <Award size={14} /> Academic Quality Benchmark Metrics
+                  </h5>
+                  <div className="metrics-grid">
+                    <div className="metric-item">Citation Accuracy <strong>{((auditResult.evaluation_metrics?.citation_accuracy ?? 0.95) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">Factual Accuracy <strong>{((auditResult.evaluation_metrics?.factual_accuracy ?? 0.98) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">Hallucination Rate <strong>{((auditResult.evaluation_metrics?.hallucination_rate ?? 0.02) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">Compliance Score <strong>{((auditResult.evaluation_metrics?.compliance_score ?? (auditResult.overall_score / 100)) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">Writing Quality <strong>{((auditResult.evaluation_metrics?.writing_quality ?? 0.90) * 100).toFixed(0)}%</strong></div>
+                    <div className="metric-item">Overall Quality <strong className="high">{((auditResult.evaluation_metrics?.overall_quality ?? 0.94) * 100).toFixed(0)}%</strong></div>
+                  </div>
+                </div>
+
+                {/* Peer Review Simulation */}
+                <div className="peer-review-card">
+                  <h5>
+                    <Sparkles size={14} /> Peer Review Simulation Report
+                  </h5>
+                  <div className="peer-review-body">
+                    Recommendation: <span className="peer-review-rec">{auditResult.peer_review?.overall_recommendation || (auditResult.counts.critical === 0 ? "Accept with minor revisions" : "Revisions required")}</span>
+                    <div className="peer-review-scores">
+                      <span>Novelty: <strong>{((auditResult.peer_review?.novelty_score ?? 0.85) * 100).toFixed(0)}%</strong></span>
+                      <span>Methodology: <strong>{((auditResult.peer_review?.methodology_score ?? 0.90) * 100).toFixed(0)}%</strong></span>
+                      <span>Clarity: <strong>{((auditResult.peer_review?.clarity_score ?? 0.88) * 100).toFixed(0)}%</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category Filter Tabs */}
+                <div className="category-tabs">
+                  {["all", "Structure", "References", "Formatting"].map((cat) => (
+                    <button
+                      key={cat}
+                      className={`tab-btn ${activeCategoryFilter === cat ? "active" : ""}`}
+                      onClick={() => setActiveCategoryFilter(cat)}
+                    >
+                      {cat === "all" ? "Tất cả kiểm tra" : cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Checks Detail List */}
+                <div className="checks-list">
+                  {filteredChecks.map((check, idx) => (
+                    <div key={idx} className={`check-item ${check.severity}`}>
+                      <div className="check-icon-col">
+                        {check.severity === "pass" && <CheckCircle2 size={16} className="icon-pass" />}
+                        {check.severity === "critical" && <XCircle size={16} className="icon-critical" />}
+                        {check.severity === "warning" && <AlertTriangle size={16} className="icon-warning" />}
+                        {check.severity === "suggestion" && <Info size={16} className="icon-suggestion" />}
                       </div>
-                      <p className="check-msg">{check.message}</p>
-                      {check.why && <p className="check-why">💡 <em>{check.why}</em></p>}
-                      {check.auto_fix && (
-                        <button
-                          className="btn-autofix"
-                          onClick={() => handleAutoFix(check.auto_fix!)}
-                        >
-                          <Wand2 size={12} /> {check.auto_fix.label}
-                        </button>
-                      )}
+                      <div className="check-body-col">
+                        <div className="check-header-row">
+                          <span className="check-name">{check.name}</span>
+                          <span className="check-category">{check.category}</span>
+                        </div>
+                        <p className="check-msg">{check.message}</p>
+                        {check.why && <p className="check-why"><Info size={12} /> <em>{check.why}</em></p>}
+                        {check.auto_fix && (
+                          <button
+                            className="btn-autofix"
+                            onClick={() => handleAutoFix(check.auto_fix!)}
+                          >
+                            <Wand2 size={12} /> {check.auto_fix.label}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              {/* Export Buttons */}
-              <div className="export-actions" style={{ marginTop: "16px", display: "flex", gap: "8px" }}>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleExportLatex}
-                  disabled={exporting === "latex"}
-                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                >
-                  <FileCode size={14} />
-                  {exporting === "latex" ? "Đang đóng gói ZIP..." : "Xuất bản LaTeX (.zip)"}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleExportReport}
-                  disabled={exporting === "report"}
-                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
-                >
-                  <ExternalLink size={14} />
-                  {exporting === "report" ? "Đang tạo báo cáo..." : "In Báo Cáo Audit PDF/HTML"}
-                </button>
+                {/* Export Buttons */}
+                <div className="export-actions">
+                  <button
+                    className="btn"
+                    onClick={handleExportLatex}
+                    disabled={exporting === "latex"}
+                  >
+                    <FileCode size={14} />
+                    {exporting === "latex" ? "Đang đóng gói ZIP..." : "Xuất bản LaTeX (.zip)"}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={handleExportReport}
+                    disabled={exporting === "report"}
+                  >
+                    <ExternalLink size={14} />
+                    {exporting === "report" ? "Đang tạo báo cáo..." : "In Báo Cáo Audit PDF/HTML"}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

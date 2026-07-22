@@ -28,7 +28,24 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
     t("account.email_password");
   const displayName = user?.name || user?.email?.split("@")[0] || t("account.researcher");
 
-  if (!user) return null;
+  if (!user) return (
+    <section className="account-view">
+      <header className="account-header">
+        <p className="account-eyebrow">{t("account.eyebrow")}</p>
+        <h1>{t("auth.optional_sign_in")}</h1>
+        <p>{t("auth.optional_sign_in_hint")}</p>
+      </header>
+      <section className="account-profile-card" style={{ justifyContent: "center", padding: "40px 24px", textAlign: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <div className="account-avatar-large" style={{ width: 64, height: 64, fontSize: "1.6rem" }}>
+            <IconUser size={28} />
+          </div>
+          <h2>{t("auth.guest")}</h2>
+          <p style={{ color: "var(--color-text-secondary)", fontSize: "0.85rem", maxWidth: 360, margin: 0 }}>{t("auth.guest_hint")}</p>
+        </div>
+      </section>
+    </section>
+  );
 
   const userId = user.uid || user.id;
 

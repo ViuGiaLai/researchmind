@@ -565,7 +565,11 @@ export const ChatView: React.FC<{
               }));
             };
 
-            streamCtrl.onDone = (model, citations, externalSources, status) => {
+            streamCtrl.onVenueAudit = (auditData) => {
+              setVerifyResult((prev) => prev ? { ...prev, venue_audit: auditData } : null);
+            };
+
+            streamCtrl.onDone = (model, citations, externalSources, status, venueAudit) => {
               if (resolved) return;
               resolved = true;
               activeChatStreamRef.current = null;
@@ -580,6 +584,7 @@ export const ChatView: React.FC<{
                   papers_used: [],
                   external_sources: externalSources,
                   verify_status: status as "full" | "partial" | "local_only",
+                  venue_audit: venueAudit || undefined,
                 });
                 return prev.map((m, i) =>
                   i === assistantIdx ? { ...m, model_used: model, citations: normalizeCitations(citations) } : m
@@ -1096,7 +1101,7 @@ export const ChatView: React.FC<{
           }}
         />
       )}
-      <div className="chat-view chat-view--compact" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <div className="chat-view chat-view--compact u-col u-flex-1" style={{ minWidth: 0 }}>
       <div className="chat-view-controls-bar">
         <div className="chat-view-controls-top">
           <div className="chat-view-scope-tabs">
@@ -1312,7 +1317,7 @@ export const ChatView: React.FC<{
                       setInput(q);
                     }}
                   >
-                    <IconBulb size={14} style={{ marginRight: 4 }} />
+                    <IconBulb size={14} className="u-mr-8" />
                     {q}
                   </button>
                 ))}
@@ -1459,8 +1464,8 @@ export const ChatView: React.FC<{
                               <span className="chat-view-footnote-ref">
                                 {c.ref_id || j + 1}
                               </span>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 600, color: "var(--color-text, #e4e4e7)", marginBottom: "1px" }}>
+                              <div className="u-flex-1" style={{ minWidth: 0 }}>
+                                <div className="u-font-semibold">
                                   {c.paper_title || c.source}
                                 </div>
                                 {c.verification_status && (
@@ -1504,6 +1509,7 @@ export const ChatView: React.FC<{
                 <VerifyPanel
                   sources={verifyResult.external_sources}
                   status={verifyResult.verify_status}
+                  venueAudit={verifyResult.venue_audit}
                   onRefresh={(doi) => {
                     toast.addToast("success", t("chat.toast_verify_refresh", { doi }));
                   }}
@@ -1533,7 +1539,7 @@ export const ChatView: React.FC<{
 
               {msg.role === "assistant" && (
                 <div className="chat-view-model-footer">
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div className="u-row-gap6">
                     {msg.model_used ? (() => {
                       const slashIdx = msg.model_used.indexOf("/");
                       const provider = slashIdx > 0 ? msg.model_used.slice(0, slashIdx) : "";
@@ -1575,7 +1581,7 @@ export const ChatView: React.FC<{
                       <IconWithText icon={IconBot} size={14}>{t("chat.model_assistant")}</IconWithText>
                     )}
                   </div>
-                  <div style={{ display: "flex", gap: "10px" }}>
+                  <div className="u-row-gap8">
                     <button
                       type="button"
                       className="chat-view-copy-btn"
@@ -1640,7 +1646,7 @@ export const ChatView: React.FC<{
           </button>
 
           {/* Overflow menu */}
-          <div style={{ position: "relative" }}>
+          <div className="u-relative">
             <button
               className="chat-view-action-btn"
               onClick={() => setShowOverflowActions(!showOverflowActions)}

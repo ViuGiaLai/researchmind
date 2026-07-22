@@ -162,7 +162,15 @@ class AcademicGovernance:
             rules = list(self.rules(rule_ids)) + ["If the evidence is insufficient, say so; do not use outside knowledge."]
         else:
             rules = list(self.rules(rule_ids))
-        presentation = "Answer directly and concisely." if reasoning_mode == "fast" else "Explain conclusions clearly; distinguish evidence from inference."
+        presentation = (
+            "Structure your response like an audit report:\n"
+            "1. **CONCLUSION** first (1 line)\n"
+            "2. **EVIDENCE** with source citations\n"
+            "3. **CONFIDENCE** level\n"
+            "4. **NEXT STEPS** if applicable"
+        ) if strict_evidence else (
+            "Answer directly and concisely. Structure: conclusion first, then evidence, then confidence."
+        )
         return "\n".join(["You are ResearchMind, an academic research assistant.", presentation, *[f"- {rule}" for rule in rules], language_instruction]).strip()
 
     def rag_request(self, *, context: str, query: str) -> str:

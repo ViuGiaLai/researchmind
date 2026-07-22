@@ -26,6 +26,8 @@ export interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
+  isGuest: boolean;
+  enableGuestMode: () => void;
   getToken: () => Promise<string | null>;
   signIn: () => void;
   signInWithGoogle: () => Promise<void>;
@@ -37,6 +39,8 @@ export interface AuthContextType {
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
+const GUEST_STORAGE_KEY = "researchmind:guest-mode";
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
@@ -103,12 +107,28 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { signUp: clerkSignUp, setActive: setSignUpActive } = useClerkSignUp();
   const clerk = useClerk();
   const [error, setError] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return localStorage.getItem(GUEST_STORAGE_KEY) === "true";
+  });
 
   const activeUser: AuthUser | null =
     isSignedIn && clerkUser ? mapClerkUser(clerkUser) : null;
 
   const loading = !isLoaded;
   const enabled = true;
+
+  const enableGuestMode = useCallback(() => {
+    localStorage.setItem(GUEST_STORAGE_KEY, "true");
+    setIsGuest(true);
+  }, []);
+
+  // Clear guest flag when user signs in
+  useEffect(() => {
+    if (isSignedIn && isGuest) {
+      localStorage.removeItem(GUEST_STORAGE_KEY);
+      setIsGuest(false);
+    }
+  }, [isSignedIn, isGuest]);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -121,9 +141,9 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     console.log("[Auth] ClerkAuthProvider state:", {
       isLoaded, isSignedIn, clerkUser: clerkUser?.id || null,
-      activeUser: activeUser?.id || null, loading, error,
+      activeUser: activeUser?.id || null, loading, error, isGuest,
     });
-  }, [isLoaded, isSignedIn, clerkUser, activeUser, loading, error]);
+  }, [isLoaded, isSignedIn, clerkUser, activeUser, loading, error, isGuest]);
 
   const signIn = useCallback(() => {
     const signInUrl = getClerkSignInUrl();
@@ -239,16 +259,21 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     clerkSignOut();
     setCurrentToken(null);
+    localStorage.removeItem(GUEST_STORAGE_KEY);
+    setIsGuest(false);
   }, [clerkSignOut]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
     try { return await clerkGetToken(); } catch { return null; }
   }, [clerkGetToken]);
 
+  const effectiveUser = isGuest ? null : activeUser;
+
   return (
     <AuthContext.Provider
       value={{
-        user: activeUser, loading, enabled, error,
+        user: effectiveUser, loading, enabled, error,
+        isGuest, enableGuestMode,
         getToken, signIn, signInWithGoogle, signInWithEmail,
         registerWithEmail, resetPassword, updateDisplayName, signOut,
       }}
@@ -260,6 +285,14 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
 
 function FallbackAuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return localStorage.getItem(GUEST_STORAGE_KEY) === "true";
+  });
+
+  const enableGuestMode = useCallback(() => {
+    localStorage.setItem(GUEST_STORAGE_KEY, "true");
+    setIsGuest(true);
+  }, []);
 
   const signIn = useCallback(() => {}, []);
   const signInWithGoogle = useCallback(async () => {}, []);
@@ -279,6 +312,8 @@ function FallbackAuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const signOut = useCallback(() => {
     setCurrentToken(null);
+    localStorage.removeItem(GUEST_STORAGE_KEY);
+    setIsGuest(false);
   }, []);
   const getToken = useCallback(async (): Promise<string | null> => null, []);
 
@@ -286,6 +321,7 @@ function FallbackAuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user: null, loading: false, enabled: false, error,
+        isGuest, enableGuestMode,
         getToken, signIn, signInWithGoogle, signInWithEmail,
         registerWithEmail, resetPassword, updateDisplayName, signOut,
       }}

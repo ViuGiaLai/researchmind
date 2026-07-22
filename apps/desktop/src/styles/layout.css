@@ -113,7 +113,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #fca5a5;
+  color: var(--color-error);
   font-weight: 700;
   font-size: 0.9rem;
 }

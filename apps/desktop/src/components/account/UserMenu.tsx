@@ -77,8 +77,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({
             )}
           </span>
           <span className="sidebar-account-copy">
-            <strong>{user?.name || (user ? t("account.default_name") : t("auth.optional_sign_in"))}</strong>
-            <small>{user?.email || t("auth.optional_sign_in_hint")}</small>
+            <strong>{user?.name || (auth.isGuest ? t("auth.guest") : t("auth.optional_sign_in"))}</strong>
+            <small>{user?.email || (auth.isGuest ? t("auth.guest_hint") : t("auth.optional_sign_in_hint"))}</small>
           </span>
           <IconChevronDown size={14} style={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", marginLeft: "auto" }} />
         </button>
@@ -109,15 +109,18 @@ export const UserMenu: React.FC<UserMenuProps> = ({
             <div className="account-dropdown-avatar">
               {user?.imageUrl ? (
                 <img src={user.imageUrl} alt="" referrerPolicy="no-referrer" />
+              ) : user ? (
+                (user.name || user.email || "R").slice(0, 1).toUpperCase()
               ) : (
-                (user?.name || user?.email || "R").slice(0, 1).toUpperCase()
+                <IconUser size={18} />
               )}
             </div>
             <div className="account-dropdown-info">
               <div className="account-dropdown-name-row">
-                <strong>{user?.name || (user ? t("account.default_name") : t("auth.optional_sign_in"))}</strong>
+                <strong>{user?.name || (auth.isGuest ? t("auth.guest") : t("auth.optional_sign_in"))}</strong>
+                {auth.isGuest && <span className="guest-badge">{t("auth.guest_badge")}</span>}
               </div>
-              <small>{user?.email || t("auth.optional_sign_in_hint")}</small>
+              <small>{user?.email || (auth.isGuest ? t("auth.guest_hint") : t("auth.optional_sign_in_hint"))}</small>
             </div>
           </div>
 

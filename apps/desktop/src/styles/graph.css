@@ -83,14 +83,14 @@
 }
 
 .graph-header-actions .btn-danger {
-  background: rgba(248,113,113,0.1);
-  color: #f87171;
-  border-color: rgba(248,113,113,0.2);
+  background: rgba(var(--color-error), 0.1);
+  color: var(--color-error);
+  border-color: rgba(var(--color-error), 0.2);
 }
 
 .graph-header-actions .btn-danger:hover:not(:disabled) {
-  background: rgba(248,113,113,0.2);
-  border-color: rgba(248,113,113,0.3);
+  background: rgba(var(--color-error), 0.2);
+  border-color: rgba(var(--color-error), 0.3);
 }
 
 .graph-header-actions .btn:disabled {

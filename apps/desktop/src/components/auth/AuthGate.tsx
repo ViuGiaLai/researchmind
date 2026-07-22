@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IconBrain, IconSpinner } from "../Icons";
+import { IconBrain, IconSpinner, IconUser } from "../Icons";
 import { useAuth } from "../../lib/auth-provider";
 import researchStudyImage from "../../assets/auth-research-study.jpg";
 import "../../styles/auth.css";
@@ -15,7 +15,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState("");
 
   if (auth.loading) return <div className="auth-shell"><IconSpinner size={30} className="auth-spin" /></div>;
-  if (auth.user) return <>{children}</>;
+  if (auth.user || auth.isGuest) return <>{children}</>;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -56,6 +56,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <div className="auth-heading">
             <h1 id="auth-title">{mode === "login" ? t("auth.welcome_back") : t("auth.create_account")}</h1>
             <p className="auth-copy">{mode === "login" ? t("auth.welcome_copy") : t("auth.register_copy")}</p>
+          </div>
+
+          {/* ── Local Guest Mode ── */}
+          <div className="auth-guest-section">
+            <button className="auth-guest-btn" type="button" onClick={() => auth.enableGuestMode()}>
+              <IconUser size={18} />
+              <span>{t("auth.continue_local")}</span>
+            </button>
+            <p className="auth-guest-hint">{t("auth.continue_local_hint")}</p>
           </div>
 
           <button className="auth-google" type="button" disabled={submitting} onClick={async () => {

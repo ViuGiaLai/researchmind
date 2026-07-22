@@ -305,7 +305,7 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
                 {t("evidence.description")}
               </p>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="u-row-gap8">
               <button
                 type="button"
                 className="rm-btn rm-btn--sm rm-btn--outline"
@@ -325,8 +325,8 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
             </div>
           </div>
 
-          <div className="rm-table-wrap" style={{ marginTop: 16 }}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <div className="rm-table-wrap u-mt-16">
+            <div className="u-row u-mb-12" style={{ justifyContent: "flex-end" }}>
               <button type="button" className="rm-btn rm-btn--xs rm-btn--outline" onClick={exportExcel}>
                 <IconDownload size={12} /> {t("evidence.export_excel") || "Xuất Excel"}
               </button>
@@ -363,7 +363,7 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
                               {cell.page && <span style={{ display: "block", marginTop: 2, fontSize: "0.7rem" }}>{t("evidence.page_label", { n: cell.page })}</span>}
                             </div>
                           )}
-                          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
+                          <div className="u-row-gap6 u-row-wrap u-mt-4">
                             {cell.page && (
                               <button
                                 type="button"
@@ -433,7 +433,7 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
 
             <div className="evidence-paper-list-container">
               {filteredPapers.length === 0 ? (
-                <div className="rm-section-hint" style={{ padding: "40px 0", textAlign: "center" }}>
+                <div className="rm-section-hint u-text-center" style={{ padding: "40px 0" }}>
                   {t("evidence.empty_library") || "Thư viện trống hoặc không tìm thấy tài liệu phù hợp"}
                 </div>
               ) : (
@@ -502,7 +502,7 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
 
             <div className="evidence-sidebar-drafts-list">
               {history.length === 0 ? (
-                <div className="rm-section-hint" style={{ fontSize: "12px", textAlign: "center", padding: "20px 0" }}>
+                <div className="rm-section-hint u-text-xs u-text-center" style={{ padding: "20px 0" }}>
                   {t("evidence.no_drafts") || "Không có bản nháp nào"}
                 </div>
               ) : (
@@ -567,7 +567,7 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
               <span id="evidence-pdf-title" className="rm-modal-title">
                 {t("evidence.pdf_modal", { n: activePdf.page })}
                 {activePdf.quote && (
-                  <span style={{ fontWeight: 400, color: "var(--color-text-secondary)", marginLeft: 8, fontSize: "0.78rem" }}>
+                  <span className="u-text-secondary u-text-sm u-ml-8">
                     &ldquo;{activePdf.quote.slice(0, 60)}...&rdquo;
                   </span>
                 )}

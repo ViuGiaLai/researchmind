@@ -14,7 +14,7 @@ try:
 except ImportError:
     import logging
     logger = logging.getLogger("literature_engine")
-from academic.openalex import search_works as oa_search
+from academic.openalex import search_openalex
 from academic.semantic_scholar import search_papers as s2_search
 
 def search_arxiv(query: str, max_results: int = 5) -> list[dict[str, Any]]:
@@ -58,10 +58,11 @@ def search_arxiv(query: str, max_results: int = 5) -> list[dict[str, Any]]:
     return results
 
 
-def search_public_literature(query: str, limit: int = 10) -> list[dict[str, Any]]:
-    """Hybrid Public Literature Discovery (arXiv + Semantic Scholar)."""
+async def search_public_literature(query: str, limit: int = 10) -> list[dict[str, Any]]:
+    """Hybrid Public Literature Discovery (arXiv + OpenAlex + Semantic Scholar async)."""
     items: list[dict[str, Any]] = []
     seen_titles: set[str] = set()
+    seen_dois: set[str] = set()
 
     def _normalize(t: str) -> str:
         return "".join(c.lower() for c in t if c.isalnum())
@@ -101,7 +102,7 @@ def search_public_literature(query: str, limit: int = 10) -> list[dict[str, Any]
 
     # 3. Semantic Scholar
     try:
-        s2_items = s2_search(query, limit=limit // 2)
+        s2_items = await s2_search(query, limit=limit // 2)
         for s2 in s2_items:
             norm = _normalize(s2.title)
             if norm and norm not in seen_titles:

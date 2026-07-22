@@ -288,3 +288,45 @@
   .auth-card, .auth-spin { animation: none; }
   .auth-google, .auth-primary, .auth-form input { transition: none; }
 }
+
+/* ── Guest Mode ── */
+.auth-guest-section {
+  margin: 0 0 20px;
+}
+
+.auth-guest-btn {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px dashed var(--auth-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--auth-ink);
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.auth-guest-btn:hover {
+  border-color: var(--auth-forest);
+  border-style: solid;
+  background: var(--auth-control-hover);
+  box-shadow: 0 5px 14px rgba(24, 51, 42, .12);
+}
+
+.auth-guest-btn:active {
+  transform: translateY(1px) scale(.995);
+}
+
+.auth-guest-hint {
+  margin: 8px 0 0;
+  color: var(--auth-muted);
+  font-size: .74rem;
+  line-height: 1.4;
+  text-align: center;
+}

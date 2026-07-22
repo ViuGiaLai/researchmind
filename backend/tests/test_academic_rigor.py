@@ -6,6 +6,8 @@
 5. Adversarial Refutation Engine (academic/refutation_engine.py)
 """
 import pytest
+
+pytestmark = pytest.mark.integration
 from academic.methodology import AcademicMethodologyEngine
 from academic.hypothesis_engine import AcademicHypothesisEngine
 from academic.validity_auditor import ValidityAuditor

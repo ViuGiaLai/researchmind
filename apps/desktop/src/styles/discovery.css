@@ -286,9 +286,9 @@
 }
 
 .source-openalex {
-  color: #6366f1;
-  border-color: rgba(99, 102, 241, 0.3);
-  background: rgba(99, 102, 241, 0.08);
+  color: var(--color-primary);
+  border-color: rgba(var(--color-primary-rgb), 0.3);
+  background: rgba(var(--color-primary-rgb), 0.08);
 }
 
 .source-semantic_scholar {
@@ -337,8 +337,8 @@
 }
 
 .discovery-pdf-btn:hover:not(:disabled) {
-  border-color: #6366f1;
-  color: #6366f1;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .discovery-source-btn {
