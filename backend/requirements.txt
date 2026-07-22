@@ -51,5 +51,5 @@ python-dotenv==1.*
 loguru==0.7.*
 keyring==25.*
 cryptography==49.*
-firebase-admin==6.*
+firebase-admin==7.*
 google-cloud-firestore==2.*
