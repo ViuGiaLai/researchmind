@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { AuthGate } from "./components/auth/AuthGate";
-import { PluggableAuthProvider } from "./lib/auth-provider";
+import { ClerkOAuthCallback, PluggableAuthProvider } from "./lib/auth-provider";
 import { initTheme } from "./lib/theme";
 import { ToastProvider } from "./components/shared/Toast";
 import { installGlobalDiagnosticHandlers } from "./lib/diagnosticLog";
@@ -33,7 +33,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <ErrorBoundary>
       <PluggableAuthProvider>
         <ToastProvider>
-          <AuthGate><App /></AuthGate>
+          {window.location.pathname === "/sso-callback" ? (
+            <ClerkOAuthCallback />
+          ) : (
+            <AuthGate><App /></AuthGate>
+          )}
         </ToastProvider>
       </PluggableAuthProvider>
     </ErrorBoundary>

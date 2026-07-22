@@ -1,10 +1,3 @@
-/**
- * ResearchMind Pluggable Auth — Unified Provider
- *
- * - Quick Login (Dev) → Mock user (localStorage, bypasses Clerk)
- * - Email/Password / Google → Clerk (real auth)
- * - Không có Clerk key → MockOnly (toàn bộ đều là Mock)
- */
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import {
   ClerkProvider,
@@ -12,10 +5,10 @@ import {
   useAuth as useClerkAuth,
   useSignIn as useClerkSignIn,
   useSignUp as useClerkSignUp,
+  useClerk,
+  AuthenticateWithRedirectCallback,
 } from "@clerk/clerk-react";
 import { setCurrentToken } from "./auth-token";
-
-// ─── Types ─────────────────────────────────────────────────────
 
 export interface AuthUser {
   id: string;
@@ -51,39 +44,6 @@ export function useAuth() {
   return ctx;
 }
 
-// ─── Helpers ───────────────────────────────────────────────────
-
-const MOCK_STORAGE_KEYS = {
-  id: "rm_auth_id",
-  name: "rm_auth_name",
-  email: "rm_auth_email",
-} as const;
-
-function mockStorageUser(): AuthUser | null {
-  const id = localStorage.getItem(MOCK_STORAGE_KEYS.id);
-  if (!id) return null;
-  return {
-    id,
-    uid: id,
-    name: localStorage.getItem(MOCK_STORAGE_KEYS.name) || "Researcher",
-    displayName: localStorage.getItem(MOCK_STORAGE_KEYS.name) || "Researcher",
-    email: localStorage.getItem(MOCK_STORAGE_KEYS.email) || "",
-    providerData: [{ providerId: "mock" }],
-  };
-}
-
-function saveMockUser(name: string, email = "") {
-  const id = "user_" + Math.random().toString(36).substring(7);
-  localStorage.setItem(MOCK_STORAGE_KEYS.id, id);
-  localStorage.setItem(MOCK_STORAGE_KEYS.name, name);
-  localStorage.setItem(MOCK_STORAGE_KEYS.email, email);
-  return id;
-}
-
-function clearMockUser() {
-  Object.values(MOCK_STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
-}
-
 function mapClerkUser(cu: any): AuthUser {
   return {
     id: cu.id,
@@ -107,86 +67,114 @@ function clerkError(err: unknown): string {
   return "An unknown error occurred";
 }
 
-// ─── Configuration ─────────────────────────────────────────────
-
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
 const clerkConfigured = Boolean(clerkPublishableKey);
+const OAUTH_CALLBACK_PATH = "/sso-callback";
 
-// ====================================================================
-//  COMBINED PROVIDER (Clerk + Mock) — dùng khi có Clerk key
-//  Quick Login → Mock (localStorage), Email/Password → Clerk (API)
-// ====================================================================
+/** Completes Clerk's OAuth exchange at the redirect URL configured below. */
+export function ClerkOAuthCallback() {
+  if (!clerkConfigured) return null;
 
-function CombinedAuthProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthenticateWithRedirectCallback
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
+    />
+  );
+}
+
+function getClerkSignInUrl(): string {
+  try {
+    const parts = clerkPublishableKey.split("_");
+    const b64 = parts[parts.length - 1];
+    const decoded = atob(b64);
+    const apiDomain = decoded.replace(/\$.*$/, "");
+    const signInDomain = apiDomain.replace(/\.clerk\.accounts\.dev$/, ".accounts.dev");
+    return `https://${signInDomain}/sign-in`;
+  } catch (e) {
+    return "";
+  }
+}
+
+function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { user: clerkUser, isLoaded, isSignedIn } = useClerkUser();
   const { getToken: clerkGetToken, signOut: clerkSignOut } = useClerkAuth();
-  const { signIn: clerkSignIn, setActive } = useClerkSignIn();
+  const { signIn: clerkSignIn, setActive: clerkSetActive } = useClerkSignIn();
   const { signUp: clerkSignUp, setActive: setSignUpActive } = useClerkSignUp();
+  const clerk = useClerk();
   const [error, setError] = useState<string | null>(null);
 
-  // Mock user state (từ localStorage, dùng cho Quick Login)
-  const [mockUser, setMockUser] = useState<AuthUser | null>(() => mockStorageUser());
+  const activeUser: AuthUser | null =
+    isSignedIn && clerkUser ? mapClerkUser(clerkUser) : null;
 
-  // Sync token
+  const loading = !isLoaded;
+  const enabled = true;
+
   useEffect(() => {
-    if (mockUser) {
-      setCurrentToken(mockUser.id);
-    } else if (isSignedIn) {
+    if (isSignedIn) {
       clerkGetToken().then((t) => setCurrentToken(t || null));
     } else {
       setCurrentToken(null);
     }
-  }, [mockUser, isSignedIn, clerkGetToken]);
+  }, [isSignedIn, clerkGetToken]);
 
-  // Active user: Mock ưu tiên (Quick Login override Clerk)
-  const activeUser: AuthUser | null =
-    mockUser ?? (isSignedIn && clerkUser ? mapClerkUser(clerkUser) : null);
+  useEffect(() => {
+    console.log("[Auth] ClerkAuthProvider state:", {
+      isLoaded, isSignedIn, clerkUser: clerkUser?.id || null,
+      activeUser: activeUser?.id || null, loading, error,
+    });
+  }, [isLoaded, isSignedIn, clerkUser, activeUser, loading, error]);
 
-  const loading = mockUser ? false : !isLoaded;
-  const enabled = true;
-
-  // ── Quick Login: tạo mock user, bypass Clerk ──
   const signIn = useCallback(() => {
-    clearMockUser(); // Xóa cũ nếu có
-    saveMockUser("Quick User");
-    setMockUser(mockStorageUser());
-    setError(null);
+    const signInUrl = getClerkSignInUrl();
+    if (!signInUrl) return;
+    const returnUrl = encodeURIComponent(window.location.origin);
+    window.location.href = signInUrl + "?redirect_url=" + returnUrl;
   }, []);
 
-  // ── signInWithEmail: dùng Clerk (xóa mock user trước) ──
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
-      clearMockUser();
-      setMockUser(null);
+      console.log("[Auth] signInWithEmail - creating sign-in...");
       const result = await clerkSignIn.create({ identifier: email.trim(), password });
+      console.log("[Auth] signInWithEmail - result:", result.status, "sessionId:", result.createdSessionId);
       if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
+        if (!result.createdSessionId) {
+          const msg = "Sign-in returned 'complete' but no session ID was provided";
+          setError(msg);
+          throw new Error(msg);
+        }
+        console.log("[Auth] signInWithEmail - activating session...");
+        await clerkSetActive({ session: result.createdSessionId });
+        console.log("[Auth] signInWithEmail - after setActive:", {
+          clerkUser: clerk.user?.id || null,
+          clerkSession: clerk.session?.id || null,
+        });
       } else if (result.status === "needs_second_factor") {
-        setError("Two-factor authentication is required.");
-        throw new Error("2FA required");
+        const msg = "Two-factor authentication is required. Please check your email for a verification code.";
+        setError(msg);
+        throw new Error(msg);
       } else {
-        setError("Sign in failed");
-        throw new Error("Incomplete sign-in: " + result.status);
+        const msg = "Incomplete sign-in: " + result.status;
+        setError(msg);
+        throw new Error(msg);
       }
     } catch (err: unknown) {
       const msg = clerkError(err);
-      if (!msg.includes("2FA")) setError(msg);
+      console.error("[Auth] signInWithEmail error:", msg);
+      setError(msg);
       throw new Error(msg);
     }
-  }, [clerkSignIn, setActive]);
+  }, [clerkSignIn, clerkSetActive]);
 
-  // ── signInWithGoogle: Clerk OAuth ──
   const signInWithGoogle = useCallback(async () => {
     try {
       setError(null);
-      clearMockUser();
-      setMockUser(null);
-      const redirectUrl = window.location.origin + "/sign-up";
+      const callbackUrl = window.location.origin + OAUTH_CALLBACK_PATH;
       await clerkSignIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl,
-        redirectUrlComplete: redirectUrl,
+        redirectUrl: callbackUrl,
+        redirectUrlComplete: window.location.origin + "/",
       });
     } catch (err: unknown) {
       const msg = clerkError(err);
@@ -195,14 +183,15 @@ function CombinedAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clerkSignIn]);
 
-  // ── registerWithEmail: Clerk sign-up ──
   const registerWithEmail = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
-      clearMockUser();
-      setMockUser(null);
       const result = await clerkSignUp.create({ emailAddress: email.trim(), password });
       if (result.status === "complete") {
+        if (!result.createdSessionId) {
+          setError("Registration completed but no session ID was provided");
+          throw new Error("No session ID");
+        }
         await setSignUpActive({ session: result.createdSessionId });
       } else if (result.status === "missing_requirements") {
         window.location.href = "/sign-up?email=" + encodeURIComponent(email.trim());
@@ -217,7 +206,6 @@ function CombinedAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clerkSignUp, setSignUpActive]);
 
-  // ── resetPassword: Clerk gửi email ──
   const resetPassword = useCallback(async (email: string) => {
     try {
       setError(null);
@@ -235,34 +223,23 @@ function CombinedAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [clerkSignIn]);
 
-  // ── updateDisplayName: Clerk ──
   const updateDisplayName = useCallback(async (displayName: string) => {
-    if (mockUser) {
-      localStorage.setItem(MOCK_STORAGE_KEYS.name, displayName);
-      setMockUser((prev) => prev ? { ...prev, name: displayName, displayName } : prev);
-      return;
-    }
     if (!clerkUser) throw new Error("No authenticated user");
     try {
       const parts = displayName.trim().split(/\s+/);
       await clerkUser.update({ firstName: parts[0] || "", lastName: parts.slice(1).join(" ") || undefined });
     } catch (err: unknown) { throw new Error(clerkError(err)); }
-  }, [mockUser, clerkUser]);
+  }, [clerkUser]);
 
-  // ── signOut: clear cả Mock + Clerk ──
   const signOut = useCallback(() => {
-    clearMockUser();
-    setMockUser(null);
     setError(null);
     clerkSignOut();
     setCurrentToken(null);
   }, [clerkSignOut]);
 
-  // ── getToken ──
   const getToken = useCallback(async (): Promise<string | null> => {
-    if (mockUser) return mockUser.id;
     try { return await clerkGetToken(); } catch { return null; }
-  }, [mockUser, clerkGetToken]);
+  }, [clerkGetToken]);
 
   return (
     <AuthContext.Provider
@@ -277,62 +254,34 @@ function CombinedAuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ====================================================================
-//  MOCK-ONLY PROVIDER (khi không có Clerk key)
-// ====================================================================
-
-function MockOnlyAuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => mockStorageUser());
-  const [loading, setLoading] = useState(true);
+function FallbackAuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { setLoading(false); }, [user]);
-
-  useEffect(() => {
-    setCurrentToken(user?.id || null);
-  }, [user]);
-
-  const signIn = useCallback(() => {
-    saveMockUser("Quick User");
-    setUser(mockStorageUser());
-    setError(null);
+  const signIn = useCallback(() => {}, []);
+  const signInWithGoogle = useCallback(async () => {}, []);
+  const signInWithEmail = useCallback(async (_email: string, _password: string) => {
+    setError("Authentication is not configured. Please set up Clerk.");
+    throw new Error("No auth provider configured");
   }, []);
-
-  const signInWithGoogle = useCallback(async () => { signIn(); }, [signIn]);
-
-  const signInWithEmail = useCallback(async (email: string, _password: string) => {
-    saveMockUser(email.split("@")[0], email);
-    setUser(mockStorageUser());
-    setError(null);
+  const registerWithEmail = useCallback(async (_email: string, _password: string) => {
+    setError("Authentication is not configured. Please set up Clerk.");
+    throw new Error("No auth provider configured");
   }, []);
-
-  const registerWithEmail = useCallback(async (email: string, password: string) => {
-    await signInWithEmail(email, password);
-  }, [signInWithEmail]);
-
   const resetPassword = useCallback(async (_email: string) => {
-    setError("Password reset not available in mock mode.");
+    setError("Authentication is not configured.");
   }, []);
-
-  const updateDisplayName = useCallback(async (displayName: string) => {
-    if (!user) throw new Error("No authenticated user");
-    localStorage.setItem(MOCK_STORAGE_KEYS.name, displayName);
-    setUser((prev) => prev ? { ...prev, name: displayName, displayName } : prev);
-  }, [user]);
-
+  const updateDisplayName = useCallback(async (_displayName: string) => {
+    throw new Error("No authenticated user");
+  }, []);
   const signOut = useCallback(() => {
-    clearMockUser();
-    setUser(null);
-    setError(null);
     setCurrentToken(null);
   }, []);
-
-  const getToken = useCallback(async () => localStorage.getItem(MOCK_STORAGE_KEYS.id), []);
+  const getToken = useCallback(async (): Promise<string | null> => null, []);
 
   return (
     <AuthContext.Provider
       value={{
-        user, loading, enabled: true, error,
+        user: null, loading: false, enabled: false, error,
         getToken, signIn, signInWithGoogle, signInWithEmail,
         registerWithEmail, resetPassword, updateDisplayName, signOut,
       }}
@@ -342,20 +291,23 @@ function MockOnlyAuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ====================================================================
-//  PLUGGABLE AUTH PROVIDER
-// ====================================================================
-
 export function PluggableAuthProvider({ children }: { children: React.ReactNode }) {
   if (clerkConfigured) {
+    const appUrl = window.location.origin;
+    const clerkSignInPageUrl = getClerkSignInUrl();
     return (
-      <ClerkProvider publishableKey={clerkPublishableKey}>
-        <CombinedAuthProvider>
+      <ClerkProvider
+        publishableKey={clerkPublishableKey}
+        signInUrl={clerkSignInPageUrl}
+        signInFallbackRedirectUrl={appUrl}
+        signUpFallbackRedirectUrl={appUrl}
+      >
+        <ClerkAuthProvider>
           {children}
-        </CombinedAuthProvider>
+        </ClerkAuthProvider>
       </ClerkProvider>
     );
   }
 
-  return <MockOnlyAuthProvider>{children}</MockOnlyAuthProvider>;
+  return <FallbackAuthProvider>{children}</FallbackAuthProvider>;
 }

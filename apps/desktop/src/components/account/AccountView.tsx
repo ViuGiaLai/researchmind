@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCheck, IconCopy, IconEdit, IconKey, IconLock, IconSpinner, IconUser } from "../Icons";
 import { useAuth } from "../../lib/auth-provider";
@@ -6,11 +6,6 @@ import "./account.css";
 
 interface AccountViewProps {
   onOpenSettings: () => void;
-}
-
-function initials(value: string): string {
-  const words = value.trim().split(/\s+/).filter(Boolean);
-  return words.slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "RM";
 }
 
 export function AccountView({ onOpenSettings }: AccountViewProps) {
@@ -23,7 +18,10 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const provider = useMemo(() => user?.providerData.find((item) => item.providerId !== "firebase")?.providerId || "password", [user]);
+  const provider = useMemo(
+    () => user?.providerData?.find((item) => item.providerId !== "firebase")?.providerId || "password",
+    [user]
+  );
   const providerLabel =
     provider === "google.com" ? "Google" :
     provider === "clerk" ? "Clerk" :
@@ -31,6 +29,8 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
   const displayName = user?.name || user?.email?.split("@")[0] || t("account.researcher");
 
   if (!user) return null;
+
+  const userId = user.uid || user.id;
 
   const saveName = async () => {
     if (!name.trim()) return;
@@ -60,7 +60,7 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
 
   const copyUid = async () => {
     try {
-      await navigator.clipboard.writeText(user.uid);
+      await navigator.clipboard.writeText(userId);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -76,61 +76,111 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
         <p>{t("account.description")}</p>
       </header>
 
-      <div className="account-grid">
-        <section className="account-profile-card">
-          <div className="account-profile-top">
-            <div className="account-avatar-large">
-              {auth.user.imageUrl ? (
-                <img src={auth.user.imageUrl} alt="" referrerPolicy="no-referrer" />
-              ) : (
-                (auth.user.name || auth.user.email || "R").slice(0, 1).toUpperCase()
-              )}
-            </div>
-            <div className="account-hero-info">
-              <h2>{auth.user.name || t("account.default_name")}</h2>
-              <div className="account-hero-email">
-                {auth.user.email}
-              </div>
+      <section className="account-profile-card">
+        <div className="account-profile-top">
+          <div className="account-avatar-large">
+            {user.imageUrl ? (
+              <img src={user.imageUrl} alt="" referrerPolicy="no-referrer" />
+            ) : (
+              (user.name || user.email || "R").slice(0, 1).toUpperCase()
+            )}
+          </div>
+          <div className="account-hero-info">
+            <h2>{user.name || t("account.default_name")}</h2>
+            <div className="account-hero-email">
+              {user.email}
             </div>
           </div>
-          <div className="account-profile-actions">
-            <button className="account-secondary-btn" type="button" onClick={() => { setName(displayName); setEditing(true); }}>
-              <IconEdit size={15} /> {t("account.edit_profile")}
-            </button>
-            <button className="account-signout-btn" type="button" onClick={() => auth.signOut()}>{t("auth.sign_out")}</button>
-          </div>
-        </section>
-
-        <section className="account-local-card">
-          <IconLock size={20} />
-          <div>
-            <h2>{t("account.local_data_title")}</h2>
-            <p>{t("account.local_data_copy")}</p>
-            <button className="account-text-btn" type="button" onClick={onOpenSettings}>{t("account.open_data_controls")}</button>
-          </div>
-        </section>
-      </div>
+        </div>
+        <div className="account-profile-actions">
+          <button className="account-secondary-btn" type="button" onClick={() => { setName(displayName); setEditing(true); }}>
+            <IconEdit size={14} /> {t("account.edit_profile")}
+          </button>
+          <button className="account-signout-btn" type="button" onClick={() => auth.signOut()}>{t("auth.sign_out")}</button>
+        </div>
+      </section>
 
       <div className="account-details-grid">
         <section className="account-section">
-          <div className="account-section-heading"><IconUser size={18} /><div><h2>{t("account.profile")}</h2><p>{t("account.profile_copy")}</p></div></div>
+          <div className="account-section-heading">
+            <IconUser size={18} />
+            <div>
+              <h2>{t("account.profile")}</h2>
+              <p>{t("account.profile_copy")}</p>
+            </div>
+          </div>
           {editing ? (
             <div className="account-edit-row">
-              <label>{t("account.display_name")}<input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} autoFocus /></label>
-              <button className="account-primary-btn" type="button" disabled={saving || !name.trim()} onClick={saveName}>{saving ? <IconSpinner size={15} /> : <IconCheck size={15} />} {t("common.save")}</button>
-              <button className="account-cancel-btn" type="button" onClick={() => setEditing(false)}>{t("common.cancel")}</button>
+              <label>
+                {t("account.display_name")}
+                <input value={name} maxLength={80} onChange={(event) => setName(event.target.value)} autoFocus />
+              </label>
+              <div className="account-edit-actions">
+                <button className="account-primary-btn" type="button" disabled={saving || !name.trim()} onClick={saveName}>
+                  {saving ? <IconSpinner size={14} /> : <IconCheck size={14} />} {t("common.save")}
+                </button>
+                <button className="account-cancel-btn" type="button" onClick={() => setEditing(false)}>
+                  {t("common.cancel")}
+                </button>
+              </div>
             </div>
           ) : (
-            <dl className="account-facts"><div><dt>{t("account.display_name")}</dt><dd>{displayName}</dd></div><div><dt>{t("auth.email")}</dt><dd>{user.email || t("account.no_email")}</dd></div></dl>
+            <dl className="account-facts">
+              <div>
+                <dt>{t("account.display_name")}</dt>
+                <dd>{displayName}</dd>
+              </div>
+              <div>
+                <dt>{t("auth.email")}</dt>
+                <dd>{user.email || t("account.no_email")}</dd>
+              </div>
+            </dl>
           )}
         </section>
 
         <section className="account-section">
-          <div className="account-section-heading"><IconKey size={18} /><div><h2>{t("account.security")}</h2><p>{t("account.security_copy")}</p></div></div>
-          <dl className="account-facts"><div><dt>{t("account.sign_in_method")}</dt><dd>{providerLabel}</dd></div><div><dt>{t("account.account_id")}</dt><dd className="account-uid">{user.uid}<button type="button" onClick={copyUid} title={t("account.copy_account_id")}>{copied ? <IconCheck size={14} /> : <IconCopy size={14} />}</button></dd></div></dl>
+          <div className="account-section-heading">
+            <IconKey size={18} />
+            <div>
+              <h2>{t("account.security")}</h2>
+              <p>{t("account.security_copy")}</p>
+            </div>
+          </div>
+          <dl className="account-facts">
+            <div>
+              <dt>{t("account.sign_in_method")}</dt>
+              <dd>{providerLabel}</dd>
+            </div>
+            <div>
+              <dt>{t("account.account_id")}</dt>
+              <dd className="account-uid">
+                {userId}
+                <button type="button" onClick={copyUid} title={t("account.copy_account_id")}>
+                  {copied ? <IconCheck size={13} /> : <IconCopy size={13} />}
+                </button>
+              </dd>
+            </div>
+          </dl>
           <div className="account-security-actions">
-            {provider !== "google.com" && <button className="account-secondary-btn" type="button" onClick={resetPassword}>{t("account.reset_password")}</button>}
-            <button className="account-signout-btn" type="button" onClick={() => auth.signOut()}>{t("account.sign_out_device")}</button>
+            {provider !== "google.com" && (
+              <button className="account-secondary-btn" type="button" onClick={resetPassword}>
+                {t("account.reset_password")}
+              </button>
+            )}
+            <button className="account-signout-btn" type="button" onClick={() => auth.signOut()}>
+              {t("account.sign_out_device")}
+            </button>
+          </div>
+
+          <div className="account-local-card">
+            <IconLock size={16} />
+            <div>
+              <h2>{t("account.local_data_title")}</h2>
+              <p>{t("account.local_data_copy")}</p>
+              <button className="account-text-btn" type="button" onClick={onOpenSettings}>
+                {t("account.open_data_controls")}
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -138,3 +188,4 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
     </section>
   );
 }
+

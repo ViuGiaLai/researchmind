@@ -50,12 +50,14 @@ import { SubTabBar } from "../shared/SubTabBar";
 import type { HelpSectionId } from "../help/helpContent";
 import { useConfirmDialog } from "../shared/ConfirmDialog";
 
+export type SettingsSection = "general" | "privacy" | "diagnostics" | "ai" | "data" | "advanced";
+
 interface SettingsViewProps {
+  initialSection?: SettingsSection;
   onOpenHelp?: (section: HelpSectionId) => void;
   onStartTour?: () => void;
   onReplaySetup?: () => void;
 }
-
 
 type LlmMode = "cloud_free" | "cloud_custom" | "local";
 
@@ -66,7 +68,7 @@ interface SpecsResult {
   suggested_model: string;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartTour, onReplaySetup }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOpenHelp, onStartTour, onReplaySetup }) => {
   const { t } = useTranslation();
   const { confirm, confirmationDialog } = useConfirmDialog();
   // ── LLM Mode ────────────────────────────────────────────────
@@ -666,8 +668,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenHelp, onStartT
       ]
     : [];
 
-  type SettingsSection = "general" | "privacy" | "diagnostics" | "ai" | "data" | "advanced";
-  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection || "general");
+
+  useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
 
   const settingsTabs = [
     { key: "general" as const, label: t("settings.section_general"), icon: IconMonitor },

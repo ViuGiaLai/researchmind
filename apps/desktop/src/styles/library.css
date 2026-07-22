@@ -11,11 +11,12 @@
   margin-bottom: var(--space-xl);
   width: 100%;
   padding: 16px 20px;
-  background: linear-gradient(to bottom, var(--bg-surface-alpha-80, rgba(20,20,20,0.8)), transparent);
+  background: var(--color-surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 12px 12px 0 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -220,8 +221,8 @@
   width: 100%;
   height: 36px;
   padding: 0 32px 0 32px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-text);
   border-radius: 8px;
   font-size: 0.85rem;
@@ -232,8 +233,8 @@
 .library-search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  background: var(--bg-surface);
-  box-shadow: 0 0 0 3px var(--accent-primary-alpha-10), 0 1px 2px rgba(0,0,0,0.02) inset;
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px var(--color-focus-ring), 0 1px 2px rgba(0,0,0,0.02) inset;
 }
 
 .search-clear-btn {
@@ -258,8 +259,8 @@
 
 .library-toolbar-select {
   height: 36px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-text-secondary);
   border-radius: 8px;
   font-size: 0.85rem;
@@ -274,7 +275,7 @@
 .library-toolbar-select:focus {
   color: var(--color-text);
   border-color: var(--color-primary);
-  background: var(--bg-surface);
+  background: var(--color-surface);
 }
 
 .library-toolbar-select.project-select {

@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-shell";
-import { IconBrain, IconLibrary, IconChat, IconSettings, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter, IconUser, IconFolder } from "./components/Icons";
+import { IconBrain, IconLibrary, IconChat, IconLock, IconSparkle, IconCalendar, IconBookOpen, IconGraph, IconChart, IconSpinner, IconBookmark, IconSearch, IconBulb, IconFilter, IconFolder } from "./components/Icons";
+import { HelpMenu } from "./components/help/HelpMenu";
+import { UserMenu } from "./components/account/UserMenu";
+import { HelpCenterView } from "./components/help/HelpCenterView";
+import { WelcomeTour, hasSeenWelcomeTour, resetWelcomeTourSeen } from "./components/help/WelcomeTour";
+import type { HelpSectionId } from "./components/help/helpContent";
+import { useToast } from "./components/shared/Toast";
+import { SubTabBar } from "./components/shared/SubTabBar";
+import { CommandPalette, type CommandTarget } from "./components/shared/CommandPalette";
+import { api, BASE_URL } from "./lib/api";
+import { useAuth } from "./lib/auth-provider";
+import { SyncStatus } from "./components/auth/SyncStatus";
+import { MasterPasswordModal } from "./components/auth/MasterPasswordModal";
+import { SyncDaemon } from "./lib/sync";
+
 const LibraryView = React.lazy(() => import("./components/library/LibraryView").then(({ LibraryView }) => ({ default: LibraryView })));
 const HighlightsLibraryView = React.lazy(() => import("./components/library/HighlightsLibraryView").then(({ HighlightsLibraryView }) => ({ default: HighlightsLibraryView })));
 const SearchView = React.lazy(() => import("./components/search/SearchView").then(({ SearchView }) => ({ default: SearchView })));
@@ -19,18 +33,6 @@ const GraphView = React.lazy(() => import("./components/graph/GraphView").then((
 const EvidenceMatrixView = React.lazy(() => import("./components/evidence/EvidenceMatrixView").then(({ EvidenceMatrixView }) => ({ default: EvidenceMatrixView })));
 const ProjectWorkspaceView = React.lazy(() => import("./components/projects/ProjectWorkspaceView").then(({ ProjectWorkspaceView }) => ({ default: ProjectWorkspaceView })));
 const AISetupWizard = React.lazy(() => import("./components/setup/AISetupWizard").then(({ AISetupWizard }) => ({ default: AISetupWizard })));
-import { HelpMenu } from "./components/help/HelpMenu";
-import { HelpCenterView } from "./components/help/HelpCenterView";
-import { WelcomeTour, hasSeenWelcomeTour, resetWelcomeTourSeen } from "./components/help/WelcomeTour";
-import type { HelpSectionId } from "./components/help/helpContent";
-import { useToast } from "./components/shared/Toast";
-import { SubTabBar } from "./components/shared/SubTabBar";
-import { CommandPalette, type CommandTarget } from "./components/shared/CommandPalette";
-import { api, BASE_URL } from "./lib/api";
-import { useAuth } from "./lib/auth-provider";
-import { SyncStatus } from "./components/auth/SyncStatus";
-import { MasterPasswordModal } from "./components/auth/MasterPasswordModal";
-import { SyncDaemon } from "./lib/sync";
 
 type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account";
 
@@ -149,6 +151,7 @@ function App() {
     }
   });
   const [helpSection, setHelpSection] = useState<HelpSectionId | null>(null);
+  const [settingsSection, setSettingsSection] = useState<string>("general");
   const [showWelcomeTour, setShowWelcomeTour] = useState(false);
   const [welcomeTourKey, setWelcomeTourKey] = useState(0);
   const setupJustCompletedRef = React.useRef(false);
@@ -200,12 +203,6 @@ function App() {
       // ignore storage errors
     }
   }, [activeTab]);
-
-  useEffect(() => {
-    const openLibraryForGuest = () => setActiveTab("library");
-    window.addEventListener("researchmind:guest-enter", openLibraryForGuest);
-    return () => window.removeEventListener("researchmind:guest-enter", openLibraryForGuest);
-  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -608,17 +605,6 @@ function App() {
             <span className="sidebar-label">{t("nav.labs")}</span>
           </button>
 
-          <button
-            type="button"
-            className={`sidebar-menu-btn ${activeTab === "settings" ? "active" : ""}`}
-            aria-current={activeTab === "settings" ? "page" : undefined}
-            onClick={() => setActiveTab("settings")}
-            title={sidebarCollapsed ? t("nav.settings") : undefined}
-          >
-            <IconSettings size={20} />
-            <span className="sidebar-label">{t("nav.settings")}</span>
-          </button>
-
         </nav>
 
         <HelpMenu
@@ -641,39 +627,27 @@ function App() {
               </div>
             </div>
             <SyncStatus />
-            {auth.user && (
-              <button className={`sidebar-account-entry ${activeTab === "account" ? "active" : ""}`} type="button" onClick={() => setActiveTab("account")}>
-                <span className="sidebar-account-avatar" aria-hidden="true">
-                  {auth.user.imageUrl ? <img src={auth.user.imageUrl} alt="" referrerPolicy="no-referrer" /> : (auth.user.name || auth.user.email || "R").slice(0, 1).toUpperCase()}
-                </span>
-                <span className="sidebar-account-copy"><strong>{auth.user.name || t("account.default_name")}</strong><small>{auth.user.email || t("account.manage_account")}</small></span>
-                <IconUser size={16} />
-              </button>
-            )}
-            {!auth.user && (
-              <button className="sidebar-account-entry" type="button" onClick={requestSignIn}>
-                <span className="sidebar-account-avatar" aria-hidden="true"><IconUser size={16} /></span>
-                <span className="sidebar-account-copy"><strong>{t("auth.optional_sign_in")}</strong><small>{t("auth.optional_sign_in_hint")}</small></span>
-                <IconUser size={16} />
-              </button>
-            )}
+            <UserMenu
+              sidebarCollapsed={false}
+              activeTab={activeTab}
+              onNavigate={(tab, section) => {
+                if (section) setSettingsSection(section);
+                setActiveTab(tab as Tab);
+              }}
+              onRequestSignIn={requestSignIn}
+            />
           </div>
         )}
-        {sidebarCollapsed && auth.user && (
-          <button
-            className={`sidebar-account-collapsed ${activeTab === "account" ? "active" : ""}`}
-            type="button"
-            onClick={() => setActiveTab("account")}
-            title={t("account.eyebrow")}
-            aria-label={t("account.eyebrow")}
-          >
-            <span className="sidebar-account-avatar" aria-hidden="true">
-              {auth.user.imageUrl ? <img src={auth.user.imageUrl} alt="" referrerPolicy="no-referrer" /> : (auth.user.name || auth.user.email || "R").slice(0, 1).toUpperCase()}
-            </span>
-          </button>
-        )}
-        {sidebarCollapsed && !auth.user && (
-          <button className="sidebar-account-collapsed" type="button" onClick={requestSignIn} title={t("auth.sign_in")} aria-label={t("auth.sign_in")}><IconUser size={18} /></button>
+        {sidebarCollapsed && (
+          <UserMenu
+            sidebarCollapsed={true}
+            activeTab={activeTab}
+            onNavigate={(tab, section) => {
+              if (section) setSettingsSection(section);
+              setActiveTab(tab as Tab);
+            }}
+            onRequestSignIn={requestSignIn}
+          />
         )}
       </aside>
 
@@ -711,9 +685,10 @@ function App() {
             </div>
           </div>
         ) : activeTab === "account" ? (
-          <AccountView onOpenSettings={() => setActiveTab("settings")} />
+          <AccountView onOpenSettings={() => { setSettingsSection("data"); setActiveTab("settings"); }} />
         ) : activeTab === "settings" ? (
           <SettingsView
+            initialSection={settingsSection as any}
             onOpenHelp={(id) => setHelpSection(id)}
             onStartTour={openWelcomeTour}
             onReplaySetup={handleReplaySetup}
