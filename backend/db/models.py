@@ -409,3 +409,29 @@ class SyncChange(Base):
         CheckConstraint("operation IN ('upsert', 'delete')", name="ck_sync_operation"),
         Index("ix_sync_workspace_revision", "workspace_id", "revision"),
     )
+
+
+class AnonymizationMap(Base):
+    """Lưu entity map của từng paper để có thể reverse anonymization.
+
+    entity_map_json: JSON object { original_text: { label, entity_type, count } }
+    anonymized_text: Full text đã được ẩn danh (Markdown)
+    is_active: 1 nếu đang bật chế độ ẩn danh cho paper này
+    """
+    __tablename__ = "anonymization_maps"
+
+    paper_id = Column(
+        String,
+        ForeignKey("papers.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    entity_map_json = Column(Text, nullable=False, default="{}")
+    anonymized_text = Column(Text, nullable=False, default="")
+    is_active = Column(Integer, nullable=False, default=0)  # 0=off, 1=on
+    entities_found = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_anonymization_active", "is_active"),
+    )

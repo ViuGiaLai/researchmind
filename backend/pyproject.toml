@@ -1,0 +1,53 @@
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+timeout = 120
+markers = [
+    "integration: tests that require external API access (network)",
+    "benchmark: tests that measure system performance or run benchmark suites",
+    "slow: tests that take >30s to complete",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "__init__",
+    "**/__init__",
+    "**/__main__",
+]
+relative_files = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "except Exception",
+    "except:",
+]
+fail_under = 60
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "E731",  # lambda assignment
+]
+
+[tool.ruff.format]
+quote-style = "double"

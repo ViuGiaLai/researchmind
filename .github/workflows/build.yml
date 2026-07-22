@@ -2,7 +2,7 @@ name: Lint & Test
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/*", "develop" ]
     paths:
       - "apps/desktop/**"
       - "backend/**"
@@ -12,11 +12,14 @@ on:
       - "Cargo.lock"
       - "backend.spec"
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
 
 jobs:
   changes:
@@ -45,13 +48,138 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
 
+  # ──────────────────────────────────────────────
+  # Backend Jobs
+  # ──────────────────────────────────────────────
+  lint-python:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+
+      - run: pip install ruff
+
+      - name: Ruff check
+        run: ruff check backend/
+        working-directory: backend
+
+      - name: Ruff format check
+        run: ruff format --check backend/
+        working-directory: backend
+
+  test-backend-unit:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-unit-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-unit-
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest-timeout pytest-cov
+
+      - name: Run unit tests (exclude integration & benchmark)
+        run: python -m pytest tests -q --timeout=120 -m "not integration and not benchmark" --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
+        working-directory: backend
+
+      - name: Upload coverage to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/coverage.xml
+          retention-days: 7
+
+  test-backend-integration:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-int-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-int-
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest-timeout
+
+      - name: Run integration tests
+        run: python -m pytest tests -q --timeout=180 -m "integration"
+        working-directory: backend
+        continue-on-error: true
+
+  test-backend-benchmark:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-bench-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-bench-
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest-timeout
+
+      - name: Run benchmark tests
+        run: python -m pytest tests -q --timeout=300 -m "benchmark"
+        working-directory: backend
+
+      - name: RAG recall quality gate
+        run: python -m evaluation.benchmark evaluation/fixtures/rag_smoke.json --min-recall 0.7 --min-mrr 0.6
+        working-directory: backend
+
+  # ──────────────────────────────────────────────
+  # Frontend Jobs
+  # ──────────────────────────────────────────────
   lint-frontend:
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -80,33 +208,16 @@ jobs:
       - run: pnpm build
         working-directory: apps/desktop
 
-  test-backend:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - run: pip install -r backend/requirements.txt pytest pytest-timeout
-
-      - run: python -m pytest tests -q --timeout=120
-        working-directory: backend
-
-      - name: RAG quality gate
-        run: python -m evaluation.benchmark evaluation/fixtures/rag_smoke.json --min-recall 0.7 --min-mrr 0.6
-        working-directory: backend
-
+  # ──────────────────────────────────────────────
+  # Rust Jobs
+  # ──────────────────────────────────────────────
   lint-rust:
     needs: changes
     if: needs.changes.outputs.rust == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update

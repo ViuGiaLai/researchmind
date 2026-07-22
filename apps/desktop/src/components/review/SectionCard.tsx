@@ -24,6 +24,7 @@ interface SectionCardProps {
   description?: string;
   content?: string;
   loading?: boolean;
+  isStreaming?: boolean;
   evidenceCount?: number;
   paperCount?: number;
   status: "pending" | "generating" | "done" | "empty";
@@ -117,6 +118,7 @@ export function SectionCard({
   description,
   content,
   loading,
+  isStreaming,
   evidenceCount,
   paperCount,
   status,
@@ -250,12 +252,26 @@ export function SectionCard({
           </button>
         </div>
       </div>
-      {status === "done" && content ? (
+      {/* Content area: streaming cursor, skeleton, or full content */}
+      {isStreaming && content ? (
         <div style={{ padding: "12px 16px" }}>
-          <div style={{
-            fontSize: "0.82rem", lineHeight: 1.7,
-            color: "var(--color-text, #e2e8f0)",
-          }}>
+          <div style={{ fontSize: "0.82rem", lineHeight: 1.7, color: "var(--color-text-secondary)" }}>
+            {content}
+            <span className="rv-stream-cursor" />
+          </div>
+        </div>
+      ) : loading && !content ? (
+        <div style={{ padding: "12px 16px" }}>
+          <div className="rv-skeleton-lines">
+            <div className="rv-skeleton-line" style={{ width: "92%" }} />
+            <div className="rv-skeleton-line" style={{ width: "78%" }} />
+            <div className="rv-skeleton-line" style={{ width: "85%" }} />
+            <div className="rv-skeleton-line" style={{ width: "65%" }} />
+          </div>
+        </div>
+      ) : status === "done" && content ? (
+        <div style={{ padding: "12px 16px" }}>
+          <div style={{ fontSize: "0.82rem", lineHeight: 1.7, color: "var(--color-text, #e2e8f0)" }}>
             {renderContentWithCitations(content, citations, onCitationClick)}
           </div>
           {issues && issues.length > 0 && (

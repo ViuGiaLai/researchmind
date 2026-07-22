@@ -13,26 +13,8 @@ from loguru import logger
 from .models import GraphEntity
 from .storage import KnowledgeGraph
 from .local_search import build_local_context, local_search
+from academic.governance import get_academic_governance
 
-DRIFT_EXTRACT_ENTITIES_PROMPT = """Select entities that merit further knowledge-graph exploration.
-
-Question: {question}
-Current Answer: {answer}
-
-List only entity names explicitly mentioned in the current answer. Include an entity only when exploring it could materially improve the answer to the question.
-Return one entity per line with no bullets, numbering, or explanation.
-
-Entities to explore:"""
-
-DRIFT_REDUCE_PROMPT = """Synthesize results from iterative academic knowledge-graph exploration.
-
-{partial_answers}
-
-Use only the exploration results below. Preserve source markers, remove duplication, report conflicts, and state any remaining evidence gaps.
-
-Original Question: {question}
-
-Final Answer:"""
 
 
 async def drift_search(
@@ -87,13 +69,14 @@ async def drift_search(
 
         # Extract entities from current answer
         try:
-            extract_prompt = DRIFT_EXTRACT_ENTITIES_PROMPT.format(
+            extract_prompt = get_academic_governance().graph_prompt(
+                "drift_extract",
                 question=query,
                 answer=current_answer[:2000],
             )
             entity_list_resp = await generator.generate_direct_async(
                 user_prompt=extract_prompt,
-                system_prompt="Extract entity names only, one per line.",
+                system_prompt=get_academic_governance().task_contract("entity_listing"),
                 task_type="entity",
             )
         except Exception as e:
@@ -162,7 +145,7 @@ async def drift_search(
         try:
             drift_response = await generator.generate_direct_async(
                 user_prompt=drift_prompt,
-                system_prompt="You are exploring a knowledge graph. Build on previous findings.",
+                system_prompt=get_academic_governance().graph_contract("global"),
                 task_type="research",
             )
             if drift_response and drift_response.strip():
@@ -176,7 +159,8 @@ async def drift_search(
         return partial_answers[0] if partial_answers else "No answer generated."
 
     # REDUCE: Synthesize all exploration results
-    reduce_prompt = DRIFT_REDUCE_PROMPT.format(
+    reduce_prompt = get_academic_governance().graph_prompt(
+        "drift_reduce",
         partial_answers="\n\n".join(partial_answers),
         question=query,
     )
@@ -184,7 +168,7 @@ async def drift_search(
     try:
         final_answer = await generator.generate_direct_async(
             user_prompt=reduce_prompt,
-            system_prompt="You are a senior research synthesizer.",
+            system_prompt=get_academic_governance().graph_contract("global"),
             task_type="synthesis",
         )
         return final_answer or partial_answers[-1]

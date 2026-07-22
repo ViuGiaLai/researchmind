@@ -38,6 +38,7 @@ Thumbs.db
 
 # Logs
 *.log
+backend/logs/
 
 # Temporary
 tmp/

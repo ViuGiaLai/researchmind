@@ -53,6 +53,7 @@ import {
   Brain,
   Bot,
   Cloud,
+  CloudOff,
   Laptop,
   Clipboard,
   ClipboardCheck,
@@ -185,6 +186,7 @@ export const IconPlus = wrapIcon(Plus, "icon-plus");
 export const IconBrainAi = wrapIcon(Brain, "icon-brain-ai", true);
 export const IconBot = wrapIcon(Bot, "icon-bot");
 export const IconCloud = wrapIcon(Cloud, "icon-cloud");
+export const IconCloudOff = wrapIcon(CloudOff, "icon-cloud-off");
 export const IconLaptop = wrapIcon(Laptop, "icon-laptop");
 export const IconClipboard = wrapIcon(Clipboard, "icon-clipboard");
 export const IconClipboardCheck = wrapIcon(ClipboardCheck, "icon-clipboard-check");

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ReviewSection, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
+import { api, ReviewSection, ReviewSectionResponse, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
 import { paperDisplayTitle } from "../../lib/paperDisplay";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
@@ -61,6 +61,8 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [generatingSections, setGeneratingSections] = useState<Set<string>>(new Set());
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generatingOutline, setGeneratingOutline] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<Record<string, string>>({});
+  const sectionStreamRef = useRef<{ abort: () => void } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [evidence, setEvidence] = useState<Record<string, EvidenceItem[]>>({});
   const [, setEvidenceLoading] = useState<Set<string>>(new Set());
@@ -389,26 +391,40 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
     }
   };
 
-  const handleGenerateSection = async (sectionKey: string) => {
+  const handleGenerateSection = (sectionKey: string) => {
+    // Abort any existing stream for this section
+    sectionStreamRef.current?.abort();
+
     setGeneratingSections((prev) => new Set(prev).add(sectionKey));
-    try {
-      const res = await api.generateReviewSection(selectedIds, sectionKey, false);
-      if (res.error) {
-        toast.addToast("error", res.error);
-        return;
-      }
-      setSections((prev) => ({ ...prev, [sectionKey]: res }));
-      setFullText(rebuildFullText(title, { ...sections, [sectionKey]: res }, outlineSections));
-      loadEvidence(sectionKey);
-    } catch (e) {
-      toast.addToast("error", t("review_builder.error_create_section", { msg: e instanceof Error ? e.message : String(e) }));
-    } finally {
-      setGeneratingSections((prev) => {
-        const next = new Set(prev);
-        next.delete(sectionKey);
-        return next;
-      });
-    }
+    setStreamingContent((prev) => ({ ...prev, [sectionKey]: "" }));
+
+    sectionStreamRef.current = api.generateReviewSectionStream(selectedIds, sectionKey, {
+      onStart: () => {
+        setStreamingContent((prev) => ({ ...prev, [sectionKey]: "" }));
+      },
+      onChunk: (_sec, delta) => {
+        setStreamingContent((prev) => ({ ...prev, [sectionKey]: (prev[sectionKey] || "") + delta }));
+      },
+      onProgress: () => { /* keep-alive */ },
+      onDone: (data) => {
+        const res = data as ReviewSectionResponse & { section: string };
+        setSections((prev) => {
+          const updated = { ...prev, [sectionKey]: res };
+          setFullText(rebuildFullText(title, updated, outlineSections));
+          return updated;
+        });
+        setStreamingContent((prev) => { const next = { ...prev }; delete next[sectionKey]; return next; });
+        setGeneratingSections((prev) => { const next = new Set(prev); next.delete(sectionKey); return next; });
+        loadEvidence(sectionKey);
+        sectionStreamRef.current = null;
+      },
+      onError: (err) => {
+        toast.addToast("error", err);
+        setStreamingContent((prev) => { const next = { ...prev }; delete next[sectionKey]; return next; });
+        setGeneratingSections((prev) => { const next = new Set(prev); next.delete(sectionKey); return next; });
+        sectionStreamRef.current = null;
+      },
+    });
   };
 
   const rebuildFullText = (reviewTitle: string, sectionMap: Record<string, ReviewSection>, outline: OutlineSection[]) => {
@@ -559,36 +575,26 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const activeEvidence = activeSection ? evidence[activeSection] || [] : [];
 
   return (
-    <div className="review-builder" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {/* Header with Save indicator */}
-      <div
-        style={{
-          padding: "12px 20px",
-          borderBottom: "1px solid var(--color-border, rgba(148, 163, 184, 0.15))",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
+    <div className="u-col" style={{ height: "100%", overflow: "hidden" }}>
+      {/* Header with Save indicator */}      <div className="u-row-gap12 u-px-20 u-py-12 u-border-b u-flex-shrink-0">
         <IconBookOpen size={22} className="icon-gradient" />
-        <span style={{ fontSize: "1.1rem", fontWeight: 700 }}>{t("review_builder.header_title")}</span>
-        <div style={{ flex: 1 }} />
+        <span className="u-text-lg u-font-bold">{t("review_builder.header_title")}</span>
+        <div className="u-spacer" />
 
         {step === "review" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 8 }}>
+          <div className="u-row-gap8" style={{ marginRight: 8 }}>
             {saveError ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "#ef4444" }}>
+              <div className="u-row-gap4" style={{ fontSize: "0.7rem", color: "var(--color-error)" }}>
                 <IconError size={11} />
                 {t("review_builder.error_save_draft")}
               </div>
             ) : saving ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "var(--color-text-muted)" }}>
+              <div className="u-row-gap4" style={{ fontSize: "0.7rem" }}>
                 <IconSpinner size={11} />
                 {t("review_builder.saving")}
               </div>
             ) : lastSaved ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.7rem", color: "#22c55e" }}>
+              <div className="u-row-gap4" style={{ fontSize: "0.7rem", color: "var(--color-success)" }}>
                 <IconCheck size={11} />
                 {t("review_builder.saved")}
               </div>
@@ -596,14 +602,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
             <button
               onClick={handleManualSave}
               disabled={saving}
-              style={{
-                padding: "4px 10px", borderRadius: 4,
-                border: "1px solid var(--color-primary)",
-                background: "rgba(var(--color-primary-rgb), 0.08)",
-                color: "var(--color-primary)",
-                cursor: "pointer", fontSize: "0.75rem", fontWeight: 500,
-                display: "flex", alignItems: "center", gap: 4,
-              }}
+              className="u-btn-primary-sm"
             >
               <IconDownload size={12} />
               {t("review_builder.save")}
@@ -615,14 +614,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                     if (!showVersions) loadVersions(currentDraftId);
                     setShowVersions(!showVersions);
                   }}
-                  style={{
-                    padding: "4px 8px", borderRadius: 4,
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: showVersions ? "rgba(var(--color-primary-rgb), 0.08)" : "transparent",
-                    color: "var(--color-text-muted)",
-                    cursor: "pointer", fontSize: "0.72rem",
-                    display: "flex", alignItems: "center", gap: 4,
-                  }}
+                  className="u-btn-ghost-sm"
                 >
                   <IconClock size={11} />
                   {t("review_builder.versions")}
@@ -688,20 +680,13 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
         )}
 
         {step !== "select" && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--color-text-muted)" }}>
+          <div className="u-row-gap6">
+            <span className="u-text-xs u-text-muted">
               {t("review_builder.papers_count", { count: selectedCount })}
             </span>
             <button
               onClick={() => setStep("select")}
-              style={{
-                padding: "4px 10px", borderRadius: 6,
-                border: "1px solid rgba(148, 163, 184, 0.2)",
-                background: "transparent",
-                color: "var(--color-text-muted)",
-                cursor: "pointer", fontSize: "0.72rem",
-                display: "flex", alignItems: "center", gap: 4,
-              }}
+              className="u-btn-ghost-sm"
             >
               <IconClose size={12} />
               {t("review_builder.change")}
@@ -712,12 +697,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
       {/* Step Indicator */}
       {step !== "select" && (
-        <div style={{
-          display: "flex", gap: 8, padding: "8px 20px",
-          borderBottom: "1px solid var(--color-border, rgba(148, 163, 184, 0.08))",
-          background: "var(--color-surface, rgba(255,255,255,0.01))",
-          flexShrink: 0,
-        }}>
+        <div className="u-row-gap8 u-px-20 u-py-8 u-flex-shrink-0" style={{ borderBottom: "1px solid var(--color-border, rgba(148,163,184,0.08))", background: "var(--color-surface, rgba(255,255,255,0.01))" }}>
           {[
             { step: "select", label: t("review_builder.step_select") },
             { step: "outline", label: t("review_builder.step_outline") },
@@ -726,7 +706,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
             const isActive = s.step === step;
             const isDone = s.step === "select" || (s.step === "outline" && step === "review");
             return (
-              <div key={s.step} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div key={s.step} className="u-row-gap6">
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -761,7 +741,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
       {/* Main Content */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        <div style={{ flex: 1, overflow: "auto", }}>
+        <div className="u-flex-1" style={{ overflow: "auto" }}>
           {/* ── Step 1: Select Papers ──────────────────────────── */}
           {step === "select" && (
             <div className="evidence-setup-layout">
@@ -949,22 +929,18 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
           {/* ── Step 2: Outline ───────────────────────────────── */}
           {step === "outline" && (
             <>
-              <div style={{ marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="u-mb-16">
+                <h2 className="u-row-gap8" style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
                   <IconBookOpen size={18} className="icon-gradient" />
                   {t("review_builder.outline_header")}
                 </h2>
-                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4 }}>
+                <div className="u-text-sm u-text-muted u-mt-4">
                   {t("review_builder.outline_selected_info", { count: paperTitles.length })}
                 </div>
               </div>
 
               {generatingOutline ? (
-                <div style={{
-                  padding: "40px", textAlign: "center",
-                  color: "var(--color-text-muted)", fontSize: "0.85rem",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                }}>
+                <div className="u-row-gap8 u-text-center u-text-muted u-text-base u-p-40" style={{ justifyContent: "center" }}>
                   <IconSpinner size={18} />
                   <span>{t("review_builder.generating_outline")}</span>
                 </div>
@@ -990,13 +966,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                 <button
                   onClick={handleGenerateDraft}
                   disabled={generatingAll}
-                  style={{
-                    padding: "10px 24px", borderRadius: 8, border: "none",
-                    background: "var(--color-primary)", color: "#fff",
-                    cursor: "pointer", fontSize: "0.85rem", fontWeight: 600,
-                    opacity: generatingAll ? 0.5 : 1,
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}
+                  className="u-btn-primary"
                 >
                   {generatingAll ? <IconSpinner size={16} /> : <IconBookOpen size={16} />}
                   {generatingAll ? t("review_builder.generating_draft_all") : t("review_builder.generate_full_review")}
@@ -1004,13 +974,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                 <button
                   onClick={handleContinueToOutline}
                   disabled={generatingOutline}
-                  style={{
-                    padding: "10px 20px", borderRadius: 8,
-                    border: "1px solid rgba(148, 163, 184, 0.2)",
-                    background: "transparent", color: "var(--color-text-muted)",
-                    cursor: "pointer", fontSize: "0.85rem",
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}
+                  className="u-btn-ghost-sm" style={{ padding: "10px 20px", fontSize: "0.85rem" }}
                 >
                   <IconRefresh size={16} />
                   {t("review_builder.regenerate_outline")}
@@ -1022,11 +986,11 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
           {/* ── Step 3: Review ────────────────────────────────── */}
           {step === "review" && (
             <>
-              <div style={{ marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>{title}</h2>
-                <div style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginTop: 4, display: "flex", gap: 4, flexWrap: "wrap" }}>
+              <div className="u-mb-16">
+                <h2 className="u-text-base u-font-semibold" style={{ margin: 0 }}>{title}</h2>
+                <div className="u-row-wrap u-text-sm u-text-muted u-mt-4" style={{ gap: 4 }}>
                   {paperTitles.map((t, i) => (
-                    <span key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <span key={i} className="u-row-gap2">
                       <IconFileText size={12} />
                       {t}
                     </span>
@@ -1044,13 +1008,14 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                       section={sec.key}
                       title={sec.title}
                       description={sec.description}
-                      content={secData?.content}
+                      content={streamingContent[sec.key] ?? secData?.content}
                       loading={generatingSections.has(sec.key)}
                       evidenceCount={secData?.chunks_used || evidence[sec.key]?.length}
                       paperCount={secData?.papers_used?.length}
                       status={sectionStatus[sec.key]}
                       issues={secIssues.length > 0 ? secIssues : undefined}
                       citations={secData?.citations}
+                      isStreaming={sec.key in streamingContent}
                       onGenerate={handleGenerateSection}
                       onEdit={(key) => {
                         setActiveSection(key);
@@ -1080,39 +1045,24 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
               })}
 
               {/* Quality Check */}
-              <div style={{
-                display: "flex", gap: 8, padding: "8px 0",
-                flexWrap: "wrap", alignItems: "center",
-              }}>
+              <div className="u-row-wrap u-p-0" style={{ gap: 8, paddingTop: "8px", paddingBottom: 0 }}>
                 <button
                   onClick={handleCheckQuality}
                   disabled={qualityLoading}
-                  style={{
-                    padding: "8px 16px", borderRadius: 6,
-                    border: "1px solid var(--color-primary)",
-                    background: qualityLoading ? "rgba(var(--color-primary-rgb), 0.08)" : "rgba(var(--color-primary-rgb), 0.08)",
-                    color: "var(--color-primary)",
-                    cursor: qualityLoading ? "not-allowed" : "pointer",
-                    fontSize: "0.82rem", fontWeight: 500,
-                    opacity: qualityLoading ? 0.5 : 1,
-                    display: "flex", alignItems: "center", gap: 6,
-                  }}
+                  className="u-btn-outline-sm"
                 >
                   {qualityLoading ? <IconSpinner size={14} /> : <IconZap size={14} />}
                   {qualityLoading ? t("review_builder.checking_quality") : t("review_builder.check_quality")}
                 </button>
                 {qualityIssues.length > 0 && (
-                  <span style={{
-                    fontSize: "0.75rem", color: "var(--color-text-muted)",
-                    display: "flex", alignItems: "center", gap: 4,
-                  }}>
+                  <span className="u-row-gap4" style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
                     {qualityIssues.filter((i) => i.severity === "high").length > 0 && (
-                      <span style={{ color: "#ef4444", fontWeight: 600 }}>
+                      <span style={{ color: "var(--color-error)", fontWeight: 600 }}>
                         {qualityIssues.filter((i) => i.severity === "high").length} {t("review_builder.severity_high")}
                       </span>
                     )}
                     {qualityIssues.filter((i) => i.severity === "medium").length > 0 && (
-                      <span style={{ color: "#f59e0b", fontWeight: 600 }}>
+                      <span style={{ color: "var(--color-warning)", fontWeight: 600 }}>
                         {qualityIssues.filter((i) => i.severity === "medium").length} {t("review_builder.severity_medium")}
                       </span>
                     )}
@@ -1125,16 +1075,8 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                 )}
               </div>
 
-              <div style={{
-                display: "flex", gap: 8, padding: "12px 0",
-                borderTop: "1px solid var(--color-border, rgba(148, 163, 184, 0.1))",
-                flexWrap: "wrap",
-              }}>
-                <span style={{
-                  fontSize: "0.82rem", fontWeight: 600,
-                  color: "var(--color-text-muted)",
-                  display: "flex", alignItems: "center", gap: 6, marginRight: 8,
-                }}>
+              <div className="u-row-wrap" style={{ gap: 8, padding: "12px 0", borderTop: "1px solid var(--color-border, rgba(148,163,184,0.1))" }}>
+                <span className="u-row-gap6 u-text-base u-font-semibold u-text-muted" style={{ marginRight: 8 }}>
                   <IconDownload size={16} />
                   {t("review_builder.export_label")}
                 </span>
@@ -1143,15 +1085,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                     key={fmt}
                     onClick={() => handleExport(fmt)}
                     disabled={exporting}
-                    style={{
-                      padding: "8px 16px", borderRadius: 6,
-                      border: "1px solid var(--color-primary)",
-                      background: "transparent", color: "var(--color-primary)",
-                      cursor: exporting ? "not-allowed" : "pointer",
-                      fontSize: "0.82rem", fontWeight: 500,
-                      opacity: exporting ? 0.5 : 1,
-                      display: "flex", alignItems: "center", gap: 6,
-                    }}
+                    className="u-btn-outline-sm"
                   >
                     {exporting ? <IconSpinner size={14} /> : <IconDownload size={14} />}
                     {fmt === "markdown" ? "Markdown" : fmt === "html" ? "HTML" : "Word"}

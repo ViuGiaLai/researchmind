@@ -114,7 +114,7 @@
 
 .cite-close-btn:hover {
   color: var(--color-error);
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(var(--color-error), 0.1);
 }
 
 .cite-panel-list {
@@ -269,5 +269,5 @@
 }
 
 .chat-view-export-btn-pdf:hover:not(:disabled) {
-  color: #ef4444 !important; /* Red accent for PDF */
+  color: var(--color-error) !important; /* Red accent for PDF */
 }

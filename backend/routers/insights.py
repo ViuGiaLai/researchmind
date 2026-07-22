@@ -10,10 +10,12 @@ from config.settings import settings
 from db.database import get_session
 from db.models import CollectionPaper
 from academic.paper_check import check_papers_ready
+from academic.governance import get_academic_governance
 from common.rag_ready import rag_unavailable_message
 from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
+ACADEMIC_GOVERNANCE = get_academic_governance()
 
 
 def _empty_insight_answer(answer: str) -> dict:
@@ -67,7 +69,7 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="research methodology findings results limitations future work gaps unexplored areas weaknesses",
+        query=ACADEMIC_GOVERNANCE.insight_task("gap")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=15,
     )
@@ -81,15 +83,7 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    gap_prompt = """Analyze research gaps using only the supplied paper evidence.
-
-## 🔍 Research Gap Analysis
-1. **Primary research gaps** — distinguish gaps explicitly stated by papers from gaps inferred across papers
-2. **Shared weaknesses** — limitations supported by more than one paper
-3. **New research directions** — 2-3 directions logically derived from the identified evidence gaps
-4. **Contribution opportunities** — concrete, feasible next work
-
-Cite every evidence-based claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]. Label cross-paper inferences as synthesis. Do not present absent evidence as proof that a topic has never been studied."""
+    gap_prompt = ACADEMIC_GOVERNANCE.insight_request("gap")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -121,7 +115,7 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="findings conclusions results claims arguments methodology approach results show demonstrate suggest",
+        query=ACADEMIC_GOVERNANCE.insight_task("conflict")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=15,
     )
@@ -135,16 +129,7 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    conflict_prompt = """Analyze contradictions and conflicts using only the supplied paper evidence.
-
-## ⚠️ Conflict Analysis
-1. **Direct contradictions** — which papers oppose one another? Paper A claims X while Paper B claims Y
-2. **Methodological differences** — different methods for the same problem
-3. **Conflicting results** — different outcomes for the same problem
-4. **Multiple perspectives** — approaches from different angles
-5. **Opportunities from conflict** — which contradiction should be resolved first
-
-Compare claims only when the papers address sufficiently similar questions, populations, metrics, or conditions. Distinguish true contradictions from differences in scope or method. Cite both relevant papers for every comparison."""
+    conflict_prompt = ACADEMIC_GOVERNANCE.insight_request("conflict")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -176,7 +161,7 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="research topic methodology findings results future work direction novel approach innovative",
+        query=ACADEMIC_GOVERNANCE.insight_task("topic")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=15,
     )
@@ -190,19 +175,7 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    topic_prompt = """Propose research topics grounded in the supplied paper library.
-
-Do not use bold text or Markdown. Use plain text only.
-Use the following structure, separated by line breaks:
-
-Research Topic Suggestions
-
-1. Field overview — major trends and subfields
-2. Propose 3-5 topics — for each: title, description, importance, and method
-3. Top Pick — select the best topic and explain it in detail
-4. Next steps — papers or methods to study next
-
-For each proposal, explain which documented gap or limitation motivates it and cite [Paper title]. Separate evidence from your recommendation. Do not claim novelty beyond the supplied library."""
+    topic_prompt = ACADEMIC_GOVERNANCE.insight_request("topic")
 
     generation = await asyncio.to_thread(
         state.generator.generate,
@@ -234,7 +207,7 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
 
     retrieval = await asyncio.to_thread(
         state.retriever.retrieve,
-        query="research evolution development history background methodology findings results improvement advancement novel approach future direction",
+        query=ACADEMIC_GOVERNANCE.insight_task("evolution")["retrieval_query"],
         paper_ids=paper_ids,
         top_k=20,
     )
@@ -248,16 +221,7 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    evolution_prompt = """Map the evolution of the research using only dated evidence in the supplied papers. Order it from oldest to newest.
-
-## 🧬 Evolution Map
-1. **Trend overview** — development of the field
-2. **Idea progression** — for each stage: representative papers, main ideas, and innovations
-3. **Major turning points** — discoveries or methods that changed the research direction
-4. **Relationship map** — which papers extend or relate to one another
-5. **Future outlook** — likely next trends and skills to prepare
-
-Cite every stage as [Paper title, page X] when a page is supplied, otherwise [Paper title]. Do not infer chronology when publication dates or dependencies are unavailable. Label future outlooks as projections rather than established findings."""
+    evolution_prompt = ACADEMIC_GOVERNANCE.insight_request("evolution")
 
     generation = await asyncio.to_thread(
         state.generator.generate,

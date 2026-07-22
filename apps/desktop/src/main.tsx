@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { AuthGate } from "./components/auth/AuthGate";
-import { FirebaseAuthProvider } from "./lib/firebase";
+import { ClerkOAuthCallback, PluggableAuthProvider } from "./lib/auth-provider";
 import { initTheme } from "./lib/theme";
 import { ToastProvider } from "./components/shared/Toast";
 import { installGlobalDiagnosticHandlers } from "./lib/diagnosticLog";
@@ -23,6 +23,7 @@ import "./styles/ai-workspace-primitives.css";
 import "./styles/theme-fixes.css";
 import "./styles/help.css";
 import "./styles/product-redesign.css";
+import "./styles/anonymization.css";
 
 initTheme();
 installGlobalDiagnosticHandlers();
@@ -30,11 +31,15 @@ installGlobalDiagnosticHandlers();
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <FirebaseAuthProvider>
+      <PluggableAuthProvider>
         <ToastProvider>
-          <AuthGate><App /></AuthGate>
+          {window.location.pathname === "/sso-callback" ? (
+            <ClerkOAuthCallback />
+          ) : (
+            <AuthGate><App /></AuthGate>
+          )}
         </ToastProvider>
-      </FirebaseAuthProvider>
+      </PluggableAuthProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );

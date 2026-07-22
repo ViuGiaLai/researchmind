@@ -6,6 +6,7 @@
  */
 
 import i18n from "../i18n";
+import { getCurrentToken } from "./auth-token";
 import { getFirebaseIdToken } from "./firebase";
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
@@ -13,7 +14,7 @@ export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:87
 /** URL for iframe downloads. Firebase tokens are short-lived and only used
  * where browsers cannot attach the Authorization header themselves. */
 export function getAuthenticatedApiUrl(path: string): string {
-  const token = getFirebaseIdToken();
+  const token = getBestToken();
   if (!token) return `${BASE_URL}${path}`;
   const [pathAndQuery, fragment] = path.split("#", 2);
   const separator = pathAndQuery.includes("?") ? "&" : "?";
@@ -41,8 +42,16 @@ export function createApiHeaders(
   };
 }
 
+function getBestToken(): string {
+  // 1. Try the PluggableAuth token bridge first (Phase 2+)
+  const pluggableToken = getCurrentToken();
+  if (pluggableToken) return pluggableToken;
+  // 2. Fall back to Firebase (legacy)
+  return getFirebaseIdToken();
+}
+
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
-  return createApiHeaders(getFirebaseIdToken(), getLangHeader(), extra);
+  return createApiHeaders(getBestToken(), getLangHeader(), extra);
 }
 
 function parseApiError(status: number, text: string): string {
@@ -525,6 +534,59 @@ export interface DeepResearchResponse {
   finish_reason: string;
 }
 
+// ─── Anonymization ──────────────────────────────────────────────
+
+export interface AnonymizationStatus {
+  paper_id: string;
+  is_active: boolean;
+  entities_found: number;
+  has_map: boolean;
+  stats: Record<string, number>;
+}
+
+export interface EntityMapEntry {
+  label: string;
+  entity_type: string;
+  count: number;
+}
+
+export interface EntityMapResponse {
+  paper_id: string;
+  entities: Record<string, EntityMapEntry>;
+}
+
+export const anonymization = {
+  /** Chạy anonymization cho một paper (hoặc kích hoạt lại nếu đã có map) */
+  run: (paperId: string, forceRefresh = false) =>
+    request<AnonymizationStatus>("POST", `/api/anonymize/${paperId}`, {
+      force_refresh: forceRefresh,
+    }),
+
+  /** Lấy trạng thái anonymization hiện tại */
+  getStatus: (paperId: string) =>
+    request<AnonymizationStatus>("GET", `/api/anonymize/${paperId}`),
+
+  /** Bật/Tắt chế độ ẩn danh */
+  toggle: (paperId: string) =>
+    request<AnonymizationStatus>("POST", `/api/anonymize/${paperId}/toggle`),
+
+  /** Xóa toàn bộ map (không thể hoàn tác) */
+  remove: (paperId: string) =>
+    request<{ detail: string }>("DELETE", `/api/anonymize/${paperId}`),
+
+  /** Lấy entity map để hiển thị cho người dùng */
+  getMap: (paperId: string) =>
+    request<EntityMapResponse>("GET", `/api/anonymize/${paperId}/map`),
+
+  /** Anonymize một đoạn text theo context map của paper */
+  anonymizeText: (paperId: string, rawText: string) =>
+    request<{ text: string; anonymized: boolean }>(
+      "POST",
+      `/api/anonymize/${paperId}/anonymize-text`,
+      { raw_text: rawText },
+    ),
+};
+
 // ─── API functions ─────────────────────────────────────────────
 
 export const api = {
@@ -909,11 +971,12 @@ export const api = {
     const controller = new AbortController();
     const stream: {
       onAcademic: ((data: any[], status: string) => void) | null;
+      onVenueAudit: ((data: any) => void) | null;
       onChunk: ((text: string) => void) | null;
-      onDone: ((model: string, citations: any[], externalSources: any[], status: string) => void) | null;
+      onDone: ((model: string, citations: any[], externalSources: any[], status: string, venueAudit?: any) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
-    } = { onAcademic: null, onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
+    } = { onAcademic: null, onVenueAudit: null, onChunk: null, onDone: null, onError: null, abort: () => controller.abort() };
 
     (async () => {
       try {
@@ -948,10 +1011,12 @@ export const api = {
                 const data = JSON.parse(dataStr);
                 if (data.type === "academic") {
                   stream.onAcademic?.(data.data || [], data.verify_status || "local_only");
+                } else if (data.type === "venue_audit") {
+                  stream.onVenueAudit?.(data.data || null);
                 } else if (data.type === "chunk") {
                   stream.onChunk?.(data.chunk || "");
                 } else if (data.type === "done") {
-                  stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only");
+                  stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only", data.venue_audit || null);
                 }
               } catch {
                 // skip
@@ -1383,6 +1448,60 @@ export const api = {
       use_cache: useCache,
     }),
 
+  generateReviewSectionStream: (
+    paperIds: string[],
+    section: string,
+    handlers: {
+      onStart?: (section: string, title: string) => void;
+      onChunk?: (section: string, delta: string) => void;
+      onProgress?: (section: string, message: string) => void;
+      onDone?: (data: ReviewSectionResponse & { section: string }) => void;
+      onError?: (error: string) => void;
+    }
+  ) => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/review/builder/section/stream`, {
+          method: "POST",
+          headers: mergeHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ paper_ids: paperIds, section, use_cache: false }),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          handlers.onError?.(parseApiError(res.status, text));
+          return;
+        }
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            const dataPart = line.replace(/^data: /, "").trim();
+            if (!dataPart) continue;
+            try {
+              const evt = JSON.parse(dataPart);
+              if (evt.type === "start") handlers.onStart?.(evt.section, evt.title);
+              else if (evt.type === "chunk") handlers.onChunk?.(evt.section, evt.delta);
+              else if (evt.type === "progress") handlers.onProgress?.(evt.section, evt.message);
+              else if (evt.type === "done") handlers.onDone?.(evt);
+              else if (evt.type === "error") handlers.onError?.(evt.error);
+            } catch { /* ignore malformed SSE */ }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") handlers.onError?.(err instanceof Error ? err.message : String(err));
+      }
+    })();
+    return { abort: () => controller.abort() };
+  },
+
   generateReviewMatrix: (paperIds: string[], useCache: boolean = false) =>
     request<ReviewMatrixResponse>("POST", "/api/review/builder/matrix", {
       paper_ids: paperIds,
@@ -1535,6 +1654,9 @@ export const api = {
 
   clearGraph: () =>
     request<{ status: string; message: string }>("POST", "/api/graph/clear"),
+
+  // Anonymization API
+  anonymization,
 };
 
 // ─── Review Builder Types ────────────────────────────────
@@ -1701,13 +1823,81 @@ export interface ExternalSource {
   }>;
 }
 
+export interface VenueCheck {
+  name: string;
+  category: string;
+  severity: "pass" | "critical" | "warning" | "suggestion";
+  priority: string;
+  message: string;
+  why: string;
+  provenance: string;
+  location: string;
+  auto_fix?: Record<string, unknown>;
+}
+
+export interface VenueAudit {
+  venue_info: {
+    id: string;
+    name: string;
+    venue_code: string;
+    publisher: string;
+    version: string;
+    last_updated: string;
+    provenance: string;
+  };
+  overall_score: number;
+  category_scores: Record<string, number>;
+  counts: {
+    pass: number;
+    critical: number;
+    warning: number;
+    suggestion: number;
+  };
+  checks: VenueCheck[];
+}
+
+export interface VerifyReportEvidence {
+  check_name: string;
+  finding: string;
+  source: string;
+  confidence: string;
+  status: string;
+}
+
+export interface VerifyReport {
+  academic_verdict: {
+    verdict: string;
+    reason: string;
+    determined_by: string;
+  };
+  academic_basis: {
+    rules_applied: string[];
+    verification_methods: string[];
+    standards_used: string[];
+  };
+  evidence: VerifyReportEvidence[];
+  limitations: {
+    unverifiable_items: { item: string; detail: string; impact: string }[];
+    missing_data: string[];
+    assumptions: string[];
+  };
+  confidence: {
+    level: string;
+    reasoning: string;
+    score: number;
+  };
+  next_steps: string[];
+}
+
 export interface VerifyResponse {
   answer: string;
   citations: { source: string; page: number | null; text: string }[];
   model_used: string;
   papers_used: string[];
   external_sources: ExternalSource[];
+  verify_report?: VerifyReport;
   verify_status: "full" | "partial" | "local_only";
+  venue_audit?: VenueAudit | null;
 }
 
 // ─── Daily Reader Types ─────────────────────────────────────

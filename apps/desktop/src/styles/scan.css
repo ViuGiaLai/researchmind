@@ -36,7 +36,7 @@
 }
 
 .scan-btn-stop:hover {
-  background: #dc2626;
+  background: color-mix(in srgb, var(--color-error), #000 15%);
 }
 
 @keyframes pulse-danger {
