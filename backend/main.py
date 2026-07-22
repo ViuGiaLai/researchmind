@@ -423,8 +423,7 @@ thumbs_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/thumbs", StaticFiles(directory=thumbs_dir, check_dir=False), name="thumbs")
 
 
-# ─── Register Routers ────────────────────────────────────────────
-
+from routers.publishing import router as publishing_router
 app.include_router(export_router)
 app.include_router(zotero_import_router)
 app.include_router(papers_router)
@@ -445,6 +444,7 @@ app.include_router(license_router)
 app.include_router(graph_router)
 app.include_router(workspace_router)
 app.include_router(anonymize_router)
+app.include_router(publishing_router)
 
 # Serve React frontend (SPA) — hỗ trợ share qua ngrok
 frontend_dist = Path(__file__).resolve().parent.parent / "apps" / "desktop" / "dist"

@@ -33,10 +33,11 @@ const GraphView = React.lazy(() => import("./components/graph/GraphView").then((
 const EvidenceMatrixView = React.lazy(() => import("./components/evidence/EvidenceMatrixView").then(({ EvidenceMatrixView }) => ({ default: EvidenceMatrixView })));
 const ProjectWorkspaceView = React.lazy(() => import("./components/projects/ProjectWorkspaceView").then(({ ProjectWorkspaceView }) => ({ default: ProjectWorkspaceView })));
 const AISetupWizard = React.lazy(() => import("./components/setup/AISetupWizard").then(({ AISetupWizard }) => ({ default: AISetupWizard })));
+const PublishingHub = React.lazy(() => import("./components/publishing/PublishingHub").then(({ PublishingHub }) => ({ default: PublishingHub })));
 
-type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account";
+type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account" | "publishing";
 
-const VALID_TABS = new Set<Tab>(["wow", "projects", "library", "chat", "review", "brain", "daily", "graph", "evidence", "settings", "account"]);
+const VALID_TABS = new Set<Tab>(["wow", "projects", "library", "chat", "review", "brain", "daily", "graph", "evidence", "settings", "account", "publishing"]);
 
 function isValidTab(value: string | null): value is Tab {
   return value !== null && VALID_TABS.has(value as Tab);
@@ -558,6 +559,7 @@ function App() {
             { tab: "chat" as Tab, icon: IconChat, label: t("nav.chat") },
             { tab: "review" as Tab, icon: IconBookOpen, label: t("nav.review") },
             { tab: "evidence" as Tab, icon: IconChart, label: t("nav.evidence") },
+            { tab: "publishing" as Tab, icon: IconBookOpen, label: t("nav.publishing", { defaultValue: "Xuất bản & Quy chuẩn" }) },
           ].map(({ tab, icon: Icon, label }) => (
             <button
               type="button"
@@ -731,6 +733,7 @@ function App() {
               <ReviewHub onStartChat={handleStartChat} projectId={activeProjectId} initialPaperIds={workflowPaperIds} />
             )}
             {activeTab === "evidence" && <EvidenceMatrixView projectId={activeProjectId} initialPaperIds={workflowPaperIds} />}
+            {activeTab === "publishing" && <PublishingHub />}
           </>
         )}
         </React.Suspense>

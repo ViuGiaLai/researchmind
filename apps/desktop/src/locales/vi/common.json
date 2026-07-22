@@ -94,7 +94,8 @@
     "sidebar_expand": "Mở rộng menu",
     "sidebar_library": "Thư viện",
     "sidebar_chat": "Chat AI",
-    "sidebar_review": "Trình tạo review"
+    "sidebar_review": "Trình tạo review",
+    "publishing": "Xuất bản & Quy chuẩn"
   },
   "projects": {
     "title": "Dự án nghiên cứu",
@@ -1673,5 +1674,32 @@
     "activated": "Đã kích hoạt bản quyền trên thiết bị này.",
     "invalid": "Mã bản quyền không hợp lệ.",
     "status_error": "Không thể đọc trạng thái bản quyền."
+  },
+  "publishing": {
+    "title": "Publishing Engine & Format Auditor Pro",
+    "subtitle": "Đối chiếu bản thảo với quy chuẩn tạp chí (IEEE, Springer, Nature, ACM, Elsevier, APA) & Tự động Sửa lỗi + Xuất bản.",
+    "venue_config": "1. Cấu hình Tạp chí & Biên tập Bản thảo",
+    "target_venue": "Tạp chí / Hội thảo Mục tiêu (Target Venue)",
+    "manuscript_title": "Tiêu đề bài báo / Bản thảo",
+    "title_placeholder": "Nhập tiêu đề nghiên cứu...",
+    "content_label": "Nội dung bản thảo (Markdown / Text)",
+    "content_placeholder": "Dán toàn bộ bản thảo hoặc tổng quan tài liệu để kiểm tra quy chuẩn...",
+    "word_count": "{{count}} từ",
+    "audit_btn": "Quét Quy chuẩn Tạp chí Pro",
+    "auditing": "Đang phân tích...",
+    "audit_dashboard": "2. Bảng chẩn đoán & Tự động Sửa lỗi (Audit Dashboard)",
+    "score_label": "Điểm Quy chuẩn",
+    "critical_errors": "{{count}} Lỗi nghiêm trọng",
+    "warnings": "{{count}} Cảnh báo",
+    "suggestions": "{{count}} Gợi ý",
+    "passed": "{{count}} Đạt",
+    "checklist_title": "Hạng mục đối chiếu ({{count}}):",
+    "show_all": "Hiện tất cả",
+    "why_label": "Tại sao cần quy chuẩn này?",
+    "autofix_label": "Tự động chèn: {{label}}",
+    "placeholder_text": "Bấm \"Quét Quy chuẩn Tạp chí Pro\" để nhận điểm số theo từng Hạng mục, vị trí dòng lỗi, lý do tạp chí quy định và nút Auto Fix.",
+    "exporter_title": "Xuất bản & Đóng gói Báo cáo (Exporter):",
+    "export_latex": "Gói LaTeX ZIP (.tex + .bib)",
+    "export_report": "Báo cáo Audit Report (PDF/HTML)"
   }
 }

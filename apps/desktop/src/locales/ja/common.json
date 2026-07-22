@@ -17,7 +17,8 @@
     "sidebar_expand": "メニューを展開",
     "sidebar_library": "ライブラリ",
     "sidebar_chat": "AIチャット",
-    "sidebar_review": "レビュー作成"
+    "sidebar_review": "レビュー作成",
+    "publishing": "出版・フォーマット監査"
   },
   "labs": {
     "title": "ラボ",
@@ -1370,5 +1371,32 @@
     "cannot_connect_llama": "{url}のllama-serverに接続できません。",
     "select_storage_error": "ストレージディレクトリを選択してください。",
     "saving_storage": "ストレージディレクトリを設定中..."
+  },
+  "publishing": {
+    "title": "出版エンジン・フォーマット監査 Pro",
+    "subtitle": "学術誌規定（IEEE、Springer、Nature、ACM、Elsevier、APA）との照合・自動修復・LaTeX出力",
+    "venue_config": "1. 学術誌設定と原稿編集",
+    "target_venue": "対象学術誌・国際会議（Target Venue）",
+    "manuscript_title": "論文タイトル・題目",
+    "title_placeholder": "研究タイトルを入力...",
+    "content_label": "原稿本文（Markdown / Text）",
+    "content_placeholder": "規定監査のために論文本文または文献レビューを貼り付けてください...",
+    "word_count": "{{count}} 単語",
+    "audit_btn": "フォーマット規定を監査",
+    "auditing": "解析中...",
+    "audit_dashboard": "2. 監査ダッシュボードと自動修復（Auto Fix）",
+    "score_label": "適合スコア",
+    "critical_errors": "{{count}} 件の致命的エラー",
+    "warnings": "{{count}} 件の警告",
+    "suggestions": "{{count}} 件の提案",
+    "passed": "{{count}} 件適合",
+    "checklist_title": "監査項目 ({{count}}):",
+    "show_all": "すべて表示",
+    "why_label": "なぜこの規定が必要なのか？",
+    "autofix_label": "自動挿入: {{label}}",
+    "placeholder_text": "「フォーマット規定を監査」をクリックすると、カテゴリ別スコア、行番号、出版社の規定理由、Auto Fixボタンが表示されます。",
+    "exporter_title": "出版・レポートパッケージ出力 (Exporter):",
+    "export_latex": "LaTeX ZIP パッケージ (.tex + .bib)",
+    "export_report": "監査レポート (PDF/HTML)"
   }
 }

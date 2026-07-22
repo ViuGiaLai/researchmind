@@ -422,3 +422,27 @@ async def invalidate_cache(doi: str):
     cache_invalidate_doi(doi)
     logger.info(f"VERIFY_CACHE invalidated doi={doi}")
     return {"status": "ok", "doi": doi, "message": t("academic.cache_cleared", doi=doi)}
+
+
+@router.get("/knowledge")
+async def get_academic_knowledge(title: str = Query(...), doi: str | None = Query(None)):
+    """Fetch Knowledge Engine SOTA benchmark and citation metrics footprint."""
+    from academic.knowledge_engine import knowledge_engine
+    return knowledge_engine.get_paper_knowledge(title=title, doi=doi)
+
+
+@router.get("/sota")
+async def get_sota_benchmarks(query: str = Query(...)):
+    """Search SOTA benchmarks and task leaderboards from PapersWithCode."""
+    from academic.paperswithcode import search_tasks, get_task_benchmarks
+    tasks = search_tasks(query, page=1, items_per_page=5)
+    out = []
+    for t_item in tasks:
+        tid = t_item.get("id")
+        if tid:
+            benchmarks = get_task_benchmarks(tid)
+            out.append({
+                "task": t_item,
+                "benchmarks": benchmarks,
+            })
+    return {"query": query, "results": out}

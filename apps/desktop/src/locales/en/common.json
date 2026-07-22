@@ -94,7 +94,8 @@
     "sidebar_expand": "Expand menu",
     "sidebar_library": "Library",
     "sidebar_chat": "AI Chat",
-    "sidebar_review": "Review Builder"
+    "sidebar_review": "Review Builder",
+    "publishing": "Publishing & Auditor"
   },
   "projects": {
     "title": "Research projects",
@@ -1673,5 +1674,32 @@
     "activated": "The license has been activated on this device.",
     "invalid": "The license token is invalid.",
     "status_error": "Could not read the license status."
+  },
+  "publishing": {
+    "title": "Publishing Engine & Format Auditor Pro",
+    "subtitle": "Check manuscript against venue guidelines (IEEE, Springer, Nature, ACM, Elsevier, APA) & Auto Fix + Export.",
+    "venue_config": "1. Venue Configuration & Manuscript Editor",
+    "target_venue": "Target Venue (Journal / Conference)",
+    "manuscript_title": "Paper / Manuscript Title",
+    "title_placeholder": "Enter research title...",
+    "content_label": "Manuscript Content (Markdown / Text)",
+    "content_placeholder": "Paste manuscript or literature review text here to audit format compliance...",
+    "word_count": "{{count}} words",
+    "audit_btn": "Audit Venue Rules Pro",
+    "auditing": "Analyzing...",
+    "audit_dashboard": "2. Audit Dashboard & Auto Fix",
+    "score_label": "Compliance Score",
+    "critical_errors": "{{count}} Critical Errors",
+    "warnings": "{{count}} Warnings",
+    "suggestions": "{{count}} Suggestions",
+    "passed": "{{count}} Passed",
+    "checklist_title": "Audit Items ({{count}}):",
+    "show_all": "Show All",
+    "why_label": "Why is this required?",
+    "autofix_label": "Auto Insert: {{label}}",
+    "placeholder_text": "Click \"Audit Venue Rules Pro\" to get Category scores, error line locations, publisher guideline reasons, and Auto Fix buttons.",
+    "exporter_title": "Publishing & Package Exporter:",
+    "export_latex": "LaTeX ZIP Bundle (.tex + .bib)",
+    "export_report": "Audit Report (PDF/HTML)"
   }
 }
