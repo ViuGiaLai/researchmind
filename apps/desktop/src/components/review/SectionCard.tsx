@@ -22,6 +22,7 @@ interface SectionCardProps {
   section: string;
   title: string;
   description?: string;
+  subheadings?: string[];
   content?: string;
   loading?: boolean;
   isStreaming?: boolean;
@@ -32,6 +33,7 @@ interface SectionCardProps {
   citations?: Citation[];
   onGenerate: (section: string) => void;
   onEdit?: (section: string) => void;
+  allowPendingEdit?: boolean;
   onIssueAction?: (section: string, action: string, type: string) => void;
   onCitationClick?: (paperId: string, paperTitle: string, page?: number) => void;
 }
@@ -116,6 +118,7 @@ export function SectionCard({
   section,
   title,
   description,
+  subheadings,
   content,
   loading,
   isStreaming,
@@ -126,6 +129,7 @@ export function SectionCard({
   citations,
   onGenerate,
   onEdit,
+  allowPendingEdit = false,
   onIssueAction,
   onCitationClick,
 }: SectionCardProps) {
@@ -215,7 +219,7 @@ export function SectionCard({
               )}
             </div>
           )}
-          {status === "done" ? (
+          {(status === "done" || allowPendingEdit) && onEdit ? (
             <button
               onClick={() => onEdit?.(section)}
               style={{
@@ -335,14 +339,25 @@ export function SectionCard({
           <IconSpinner size={14} />
           <span>{t("review_builder.editor_generating")}</span>
         </div>
-      ) : description ? (
-        <div style={{
-          padding: "12px 16px",
-          fontSize: "0.78rem",
-          color: "var(--color-text-muted)",
-          fontStyle: "italic",
-        }}>
-          {description}
+      ) : description || (subheadings && subheadings.length > 0) ? (
+        <div style={{ padding: "12px 16px" }}>
+          {description && (
+            <div style={{
+              fontSize: "0.78rem",
+              color: "var(--color-text-muted)",
+              lineHeight: 1.55,
+            }}>
+              {description}
+            </div>
+          )}
+          {subheadings && subheadings.length > 0 && (
+            <ul style={{
+              margin: "10px 0 0", paddingLeft: 20,
+              color: "var(--color-text)", fontSize: "0.78rem", lineHeight: 1.65,
+            }}>
+              {subheadings.map((item, index) => <li key={`${section}-detail-${index}`}>{item}</li>)}
+            </ul>
+          )}
         </div>
       ) : null}
     </div>

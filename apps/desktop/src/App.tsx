@@ -15,25 +15,40 @@ import { useAuth } from "./lib/auth-provider";
 import { SyncStatus } from "./components/auth/SyncStatus";
 import { MasterPasswordModal } from "./components/auth/MasterPasswordModal";
 import { SyncDaemon } from "./lib/sync";
+import { SettingsView } from "./components/settings/SettingsView";
 
-const LibraryView = React.lazy(() => import("./components/library/LibraryView").then(({ LibraryView }) => ({ default: LibraryView })));
-const HighlightsLibraryView = React.lazy(() => import("./components/library/HighlightsLibraryView").then(({ HighlightsLibraryView }) => ({ default: HighlightsLibraryView })));
-const SearchView = React.lazy(() => import("./components/search/SearchView").then(({ SearchView }) => ({ default: SearchView })));
-const DiscoveryView = React.lazy(() => import("./components/discovery/DiscoveryView").then(({ DiscoveryView }) => ({ default: DiscoveryView })));
-const ReviewBuilderView = React.lazy(() => import("./components/review/ReviewBuilderView").then(({ ReviewBuilderView }) => ({ default: ReviewBuilderView })));
-const InsightsView = React.lazy(() => import("./components/insights/InsightsView").then(({ InsightsView }) => ({ default: InsightsView })));
-const ScreeningBoard = React.lazy(() => import("./components/screening/ScreeningBoard").then(({ ScreeningBoard }) => ({ default: ScreeningBoard })));
-const ChatView = React.lazy(() => import("./components/chat/ChatView").then(({ ChatView }) => ({ default: ChatView })));
-const SettingsView = React.lazy(() => import("./components/settings/SettingsView").then(({ SettingsView }) => ({ default: SettingsView })));
-const AccountView = React.lazy(() => import("./components/account/AccountView").then(({ AccountView }) => ({ default: AccountView })));
-const PersonalBrainView = React.lazy(() => import("./components/personal/PersonalBrainView").then(({ PersonalBrainView }) => ({ default: PersonalBrainView })));
-const DailyReaderView = React.lazy(() => import("./components/personal/DailyReaderView").then(({ DailyReaderView }) => ({ default: DailyReaderView })));
-const WowAnalysisView = React.lazy(() => import("./components/insights/WowAnalysisView").then(({ WowAnalysisView }) => ({ default: WowAnalysisView })));
-const GraphView = React.lazy(() => import("./components/graph/GraphView").then(({ GraphView }) => ({ default: GraphView })));
-const EvidenceMatrixView = React.lazy(() => import("./components/evidence/EvidenceMatrixView").then(({ EvidenceMatrixView }) => ({ default: EvidenceMatrixView })));
-const ProjectWorkspaceView = React.lazy(() => import("./components/projects/ProjectWorkspaceView").then(({ ProjectWorkspaceView }) => ({ default: ProjectWorkspaceView })));
-const AISetupWizard = React.lazy(() => import("./components/setup/AISetupWizard").then(({ AISetupWizard }) => ({ default: AISetupWizard })));
-const PublishingHub = React.lazy(() => import("./components/publishing/PublishingHub").then(({ PublishingHub }) => ({ default: PublishingHub })));
+function lazyImport<T extends React.ComponentType<any>>(importFn: () => Promise<Record<string, T>>, name: string) {
+  return React.lazy(async () => {
+    const mod = await importFn();
+    const keys = Object.keys(mod);
+    const Component = mod[name] || (mod as any).default;
+    if (!Component) {
+      throw new Error(
+        `Lazy import "${name}" failed — export not found. ` +
+        `Available: [${keys.join(", ")}], has default: ${Boolean((mod as any).default)}, type: ${typeof mod}`
+      );
+    }
+    return { default: Component };
+  });
+}
+
+const LibraryView = lazyImport(() => import("./components/library/LibraryView"), "LibraryView");
+const HighlightsLibraryView = lazyImport(() => import("./components/library/HighlightsLibraryView"), "HighlightsLibraryView");
+const SearchView = lazyImport(() => import("./components/search/SearchView"), "SearchView");
+const DiscoveryView = lazyImport(() => import("./components/discovery/DiscoveryView"), "DiscoveryView");
+const ReviewBuilderView = lazyImport(() => import("./components/review/ReviewBuilderView"), "ReviewBuilderView");
+const InsightsView = lazyImport(() => import("./components/insights/InsightsView"), "InsightsView");
+const ScreeningBoard = lazyImport(() => import("./components/screening/ScreeningBoard"), "ScreeningBoard");
+const ChatView = lazyImport(() => import("./components/chat/ChatView"), "ChatView");
+const AccountView = lazyImport(() => import("./components/account/AccountView"), "AccountView");
+const PersonalBrainView = lazyImport(() => import("./components/personal/PersonalBrainView"), "PersonalBrainView");
+const DailyReaderView = lazyImport(() => import("./components/personal/DailyReaderView"), "DailyReaderView");
+const WowAnalysisView = lazyImport(() => import("./components/insights/WowAnalysisView"), "WowAnalysisView");
+const GraphView = lazyImport(() => import("./components/graph/GraphView"), "GraphView");
+const EvidenceMatrixView = lazyImport(() => import("./components/evidence/EvidenceMatrixView"), "EvidenceMatrixView");
+const ProjectWorkspaceView = lazyImport(() => import("./components/projects/ProjectWorkspaceView"), "ProjectWorkspaceView");
+const AISetupWizard = lazyImport(() => import("./components/setup/AISetupWizard"), "AISetupWizard");
+const PublishingHub = lazyImport(() => import("./components/publishing/PublishingHub"), "PublishingHub");
 
 type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account" | "publishing";
 

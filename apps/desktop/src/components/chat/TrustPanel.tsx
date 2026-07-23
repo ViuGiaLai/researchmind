@@ -9,7 +9,12 @@ interface ClaimAnalysis {
   direct_sources: number;
   indirect_sources: number;
   suspicious_citations: number;
-  confidence_score: number;
+  confidence_score: number; // backward-compatible citation coverage
+  citation_coverage_score: number;
+  evidence_support_score: number;
+  supported_claims: number;
+  partial_claims: number;
+  unsupported_claims: number;
   uncited_claim_texts: string[];
   suspicious_citation_texts: string[];
 }
@@ -37,7 +42,8 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
     return { bg: "rgba(239, 68, 68, 0.1)", color: "#ef4444", label: t("trust.severity_low") };
   };
 
-  const severity = severityColor(analysis.confidence_score);
+  const supportScore = analysis.evidence_support_score ?? analysis.confidence_score;
+  const severity = severityColor(supportScore);
 
   if (!analysis || analysis.total_claims === 0) return null;
 
@@ -81,7 +87,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
             fontWeight: 600,
           }}
         >
-          <span>{analysis.confidence_score}%</span>
+          <span>{supportScore}%</span>
           <span style={{ fontWeight: 400, opacity: 0.8 }}>{severity.label}</span>
         </div>
       </div>
@@ -97,11 +103,11 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
         }}
       >
         {[
-          { label: t("trust.total_claims"), value: analysis.total_claims, icon: IconChart },
+          { label: t("trust.citation_coverage"), value: `${analysis.citation_coverage_score ?? analysis.confidence_score}%`, icon: IconChart },
           { label: t("trust.cited_claims"), value: `${analysis.cited_claims}/${analysis.total_claims}`, icon: IconCheck, color: "#10b981" },
           { label: t("trust.uncited_claims"), value: analysis.uncited_claims, icon: IconWarning, color: analysis.uncited_claims > 0 ? "#f59e0b" : undefined },
           { label: t("trust.direct_sources"), value: analysis.direct_sources, icon: IconFileText },
-          { label: t("trust.indirect_sources"), value: analysis.indirect_sources, icon: IconLink, color: "#94a3b8" },
+          { label: t("trust.partial_claims"), value: analysis.partial_claims ?? 0, icon: IconLink, color: "#f59e0b" },
           { label: t("trust.suspicious_citations"), value: analysis.suspicious_citations, icon: IconSearch, color: analysis.suspicious_citations > 0 ? "#ef4444" : undefined },
         ].map((stat, i) => (
           <div

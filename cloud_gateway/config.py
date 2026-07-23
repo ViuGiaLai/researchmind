@@ -75,6 +75,7 @@ class GatewaySettings(BaseSettings):
     task_provider_map: str = (
         '{"chat":"gemini","rag":"gemini","summary":"groq",'
         '"daily_reader":"github","review":"nvidia_deepseek",'
+        '"review_outline":"groq","review_section":"groq",'
         '"verify":"gemini","critique":"gemini","debate":"nvidia_deepseek",'
         '"gap":"nvidia_deepseek","insight":"github",'
         '"quality_check":"github","research":"groq",'

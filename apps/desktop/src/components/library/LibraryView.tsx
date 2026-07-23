@@ -233,6 +233,18 @@ export const LibraryView: React.FC<{
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const [showNarrowMenu, setShowNarrowMenu] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"split" | "table" | "focus">(() => {
+    try { return (localStorage.getItem("researchmind:library-layout-mode") as any) || "split"; } catch { return "split"; }
+  });
+  const [showAiMenu, setShowAiMenu] = useState(false);
+
+  const handleLayoutChange = (mode: "split" | "table" | "focus") => {
+    setLayoutMode(mode);
+    if (mode === "focus") {
+      setPreviewTab("pdf");
+    }
+    try { localStorage.setItem("researchmind:library-layout-mode", mode); } catch {}
+  };
   useEffect(() => {
     if (!showNarrowMenu) return;
     const close = () => setShowNarrowMenu(false);
@@ -341,6 +353,14 @@ export const LibraryView: React.FC<{
       else next.add(id);
       return next;
     });
+  };
+
+  const handleSelectAll = () => {
+    if (selected.size === papers.length && papers.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(papers.map((p) => p.id)));
+    }
   };
 
   const deletePaper = async (p: Paper) => {
@@ -638,7 +658,7 @@ export const LibraryView: React.FC<{
   return (
     <div className={`library-split-view${splitting ? ' splitting' : ''}`} ref={splitViewRef}>
       {/* Left panel: Paper list */}
-      <div className="library-main-panel">
+      <div className="library-main-panel" style={layoutMode === "focus" ? { display: "none" } : undefined}>
         {/* Import section */}
         {showImport ? (
           <div className="library-import-section">
@@ -655,7 +675,7 @@ export const LibraryView: React.FC<{
           </div>
         ) : (
           <div className="library-header-new">
-            {/* Row 1: Title and sync/upload buttons */}
+            {/* Row 1: Title, Icon Layout Switcher and sync/upload buttons */}
             <div className="library-title-row">
               <div className="library-title-left">
                 <h2 className="library-title">
@@ -665,6 +685,29 @@ export const LibraryView: React.FC<{
                 <span className="library-badge">{total} paper{total !== 1 ? 's' : ''}</span>
               </div>
               <div className="library-header-actions-group">
+                <div className="library-layout-switcher" title={t("library_view.layout_split")}>
+                  <button 
+                    className={`layout-switcher-btn ${layoutMode === "split" ? "active" : ""}`}
+                    onClick={() => handleLayoutChange("split")}
+                    title={t("library_view.layout_split")}
+                  >
+                    <IconGraph size={14} />
+                  </button>
+                  <button 
+                    className={`layout-switcher-btn ${layoutMode === "table" ? "active" : ""}`}
+                    onClick={() => handleLayoutChange("table")}
+                    title={t("library_view.layout_table")}
+                  >
+                    <IconFileText size={14} />
+                  </button>
+                  <button 
+                    className={`layout-switcher-btn ${layoutMode === "focus" ? "active" : ""}`}
+                    onClick={() => handleLayoutChange("focus")}
+                    title={t("library_view.layout_focus")}
+                  >
+                    <IconBookOpen size={14} />
+                  </button>
+                </div>
                 <button 
                   className={`library-icon-btn zotero-sync-btn ${syncingZotero ? "syncing" : ""}`}
                   onClick={handleZoteroSync} 
@@ -735,6 +778,7 @@ export const LibraryView: React.FC<{
                   <button className="search-clear-btn" onClick={() => setSearchQuery("")}>✕</button>
                 )}
               </div>
+
               <div className="library-filters-dropdowns">
                 <select
                   className="library-toolbar-select"
@@ -794,6 +838,67 @@ export const LibraryView: React.FC<{
                 <span>{syncingZotero ? t("library_view.zotero_syncing") : t("library_view.zotero_sync")}</span>
               </button>
             </div>
+          </div>
+        ) : layoutMode === "table" ? (
+          <div className="library-table-container">
+            <table className="library-data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36, textAlign: "center" }}>
+                    <div
+                      className={`checkbox ${selected.size > 0 && selected.size === papers.length ? "checked" : ""}`}
+                      onClick={handleSelectAll}
+                    />
+                  </th>
+                  <th>Bài viết / Tác giả</th>
+                  <th style={{ width: 70 }}>Năm</th>
+                  <th style={{ width: 80 }}>Trang</th>
+                  <th style={{ width: 110 }}>Trạng thái</th>
+                  <th style={{ width: 80, textAlign: "center" }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {papers.map((p) => (
+                  <tr
+                    key={p.id}
+                    className={`table-row ${activePaper?.id === p.id ? "active-row" : ""} ${selected.has(p.id) ? "selected" : ""}`}
+                    onClick={() => setActivePaper(p)}
+                  >
+                    <td onClick={(e) => { e.stopPropagation(); toggleSelect(p.id); }} style={{ textAlign: "center" }}>
+                      <div className={`checkbox ${selected.has(p.id) ? "checked" : ""}`} />
+                    </td>
+                    <td>
+                      <div className="table-paper-title" title={paperDisplayTitle(p.title, p.filename)}>
+                        {paperDisplayTitle(p.title, p.filename)}
+                      </div>
+                      <div className="table-paper-authors">
+                        {paperDisplayAuthors(p.authors).slice(0, 3).join(", ") || "—"}
+                      </div>
+                    </td>
+                    <td>{p.year || "—"}</td>
+                    <td>{p.page_count || "?"}</td>
+                    <td>
+                      <span className={`status-badge-pill ${p.read_status}`}>
+                        {renderStatusIcon(p.read_status, 12)}
+                        <span style={{ fontSize: "0.75rem", marginLeft: 4 }}>
+                          {p.read_status === "read" ? t("library_view.filter_read") : p.read_status === "reading" ? t("library_view.filter_reading") : t("library_view.filter_unread")}
+                        </span>
+                      </span>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div className="table-row-actions">
+                        <button className={`action-icon-btn ${p.starred ? "starred" : ""}`} onClick={() => toggleStar(p.id, p.starred)} title={t("library_view.favorite")}>
+                          <IconStar size={13} className={p.starred ? "starred" : ""} />
+                        </button>
+                        <button className="action-icon-btn danger" onClick={() => deletePaper(p)} title={t("library_view.delete")}>
+                          <IconTrash size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div
@@ -878,238 +983,396 @@ export const LibraryView: React.FC<{
       </div>
 
       {/* Splitter */}
-      <div
-        className="library-splitter"
-        onMouseDown={handleSplitterDown}
-      />
+      {layoutMode !== "focus" && (
+        <div
+          className="library-splitter"
+          onMouseDown={handleSplitterDown}
+        />
+      )}
       {/* Right panel: Zotero-style preview panel */}
-      <div className="library-preview-panel" ref={previewPanelRef}>
+      <div className={`library-preview-panel ${layoutMode === "focus" ? "focus-full-width" : ""}`} ref={previewPanelRef}>
         {activePaper ? (
           <>
-            <div className="preview-header">
-              <h3 className="preview-title" title={paperDisplayTitle(activePaper.title, activePaper.filename)}>
-                {paperDisplayTitle(activePaper.title, activePaper.filename)}
-              </h3>
-               {panelNarrow ? (
-                <div className="preview-actions-narrow">
-                  {onStartWow && (
-                    <button className="preview-btn wow-glow-btn" onClick={() => onStartWow(activePaper.id)}
-                      style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                      <IconSparkle size={14} />
-                      <span>{t("library_view.ai_analyze")}</span>
-                    </button>
-                  )}
-                  <button className="preview-btn" onClick={() => onStartChat([activePaper.id])}
-                    style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                    <IconChat size={14} />
-                    <span>{t("library_view.ai_chat")}</span>
+            {layoutMode === "focus" ? (
+              <div className="focus-top-bar">
+                <div className="focus-top-left">
+                  <button className="focus-exit-btn" onClick={() => handleLayoutChange("split")}>
+                    ← {t("library_view.layout_split")}
                   </button>
-                  <div style={{ position: "relative" }}>
-                    <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title={t("library_view.actions")}
-                      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>⋮</span>
-                    </button>
-                    {showNarrowMenu && (
-                      <div className="narrow-actions-menu" onMouseDown={(e) => e.stopPropagation()}>
-                        {onStartDebate && (
-                          <button className="narrow-action-btn" onClick={() => { onStartDebate([activePaper.id]); setShowNarrowMenu(false); }}
-                            style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                            <IconBulb size={13} />
-                            <span>{t("library_view.debate")}</span>
-                          </button>
-                        )}
-                        <button className="narrow-action-btn" onClick={() => { toggleReadStatus(activePaper.id, activePaper.read_status); setShowNarrowMenu(false); }}
-                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                          {renderStatusIcon(activePaper.read_status, 13)}
-                          <span>{activePaper.read_status === "read" ? t("library_view.filter_read") : activePaper.read_status === "reading" ? t("library_view.filter_reading") : t("library_view.filter_unread")}</span>
-                        </button>
-                        <button className="narrow-action-btn" onClick={() => { toggleStar(activePaper.id, activePaper.starred); setShowNarrowMenu(false); }}
-                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                          <IconStar size={13} className={activePaper.starred ? "starred" : ""} />
-                          <span>{activePaper.starred ? t("library_view.favorite") : t("library_view.favorite")}</span>
-                        </button>
-                        <div className="narrow-menu-divider" />
-                        <button className="narrow-action-btn" onClick={() => { handleExportHtml(activePaper.id); setShowNarrowMenu(false); }}
-                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                          <IconLink size={13} />
-                          <span>{t("library_view.export_html")}</span>
-                        </button>
-                        <button className="narrow-action-btn" onClick={() => { handleExportDocx(activePaper.id); setShowNarrowMenu(false); }}
-                          style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                          <IconFileText size={13} />
-                          <span>{t("library_view.export_docx")}</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <h3 className="focus-paper-title" title={paperDisplayTitle(activePaper.title, activePaper.filename)}>
+                    {paperDisplayTitle(activePaper.title, activePaper.filename)}
+                  </h3>
                 </div>
-              ) : (
-                <div className="preview-actions">
-                  {onStartWow && (
-                    <button
-                      className="preview-btn wow-glow-btn"
-                      onClick={() => onStartWow(activePaper.id)}
-                    >
-                      <IconSparkle size={14} />
-                      <span>{t("library_view.ai_analyze")}</span>
-                    </button>
-                  )}
-                  <button
-                    className="preview-btn"
-                    onClick={() => onStartChat([activePaper.id])}
-                  >
-                    <IconChat size={14} />
-                    <span>{t("library_view.ai_chat")}</span>
-                  </button>
-                  {onStartDebate && (
-                    <button
-                      className="preview-btn"
-                      onClick={() => onStartDebate([activePaper.id])}
-                    >
-                      <IconBulb size={14} />
-                      <span>{t("library_view.debate")}</span>
-                    </button>
-                  )}
-                  <button
-                    className="preview-btn"
-                    onClick={() => toggleReadStatus(activePaper.id, activePaper.read_status)}
-                  >
-                    {renderStatusIcon(activePaper.read_status, 14)}
-                    <span>
-                      {activePaper.read_status === "read"
-                        ? t("library_view.filter_read")
-                        : activePaper.read_status === "reading"
-                        ? t("library_view.filter_reading")
-                        : t("library_view.filter_unread")}
-                    </span>
-                  </button>
-                  <button
-                    className="preview-btn"
-                    onClick={() => toggleStar(activePaper.id, activePaper.starred)}
-                  >
-                    <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
-                    <span>{t("library_view.favorite")}</span>
-                  </button>
-
-                  {/* Export dropdown */}
+                <div className="focus-top-right">
+                  {/* AI Assistant Group */}
                   <div style={{ position: "relative", display: "inline-block" }}>
                     <button
-                      className="preview-btn"
-                      onClick={() => setShowExportMenu(!showExportMenu)}
-                      onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
-                      disabled={exportingId === activePaper.id}
-                      title={t("library_view.export_paper")}
+                      className="preview-btn wow-glow-btn"
+                      onClick={() => setShowAiMenu(!showAiMenu)}
+                      onBlur={() => setTimeout(() => setShowAiMenu(false), 200)}
+                      title={t("library_view.ai_assistant")}
                     >
-                      {exportingId === activePaper.id ? (
-                        <IconSpinner size={14} />
-                      ) : (
-                        <IconDownload size={14} />
-                      )}
-                      <span>{t("common.export")}</span>
+                      <IconSparkle size={14} />
+                      <span>{t("library_view.ai_assistant")}</span>
+                      <span style={{ fontSize: "10px", marginLeft: "2px", opacity: 0.8 }}>▼</span>
                     </button>
-                    {showExportMenu && (
+                    {showAiMenu && (
                       <div
+                        className="ai-menu-dropdown-box"
                         style={{
                           position: "absolute",
                           top: "100%",
                           right: 0,
                           marginTop: 4,
-                          background: "var(--color-bg, #fff)",
-                          border: "1px solid var(--color-border, #e5e7eb)",
+                          background: "var(--color-surface, #1e293b)",
+                          border: "1px solid var(--color-border, #334155)",
                           borderRadius: 8,
-                          boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
                           zIndex: 1000,
-                          minWidth: 170,
+                          minWidth: 180,
                           overflow: "hidden",
+                          padding: "4px 0",
                         }}
                       >
                         <button
-                          onClick={() => { handleExportHtml(activePaper.id); setShowExportMenu(false); }}
+                          onClick={() => { onStartChat([activePaper.id]); setShowAiMenu(false); }}
                           style={menuItemStyle}
                           onMouseEnter={highlightOn}
                           onMouseLeave={highlightOff}
                         >
-                          <IconLink size={13} style={{ marginRight: 6 }} /> {t("library_view.export_html")}
+                          <IconChat size={13} style={{ marginRight: 8, color: "var(--color-primary, #10b981)" }} />
+                          {t("library_view.ai_menu_chat")}
                         </button>
-                        <button
-                          onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
-                          style={menuItemStyle}
-                          onMouseEnter={highlightOn}
-                          onMouseLeave={highlightOff}
-                        >
-                          <IconFileText size={13} style={{ marginRight: 6 }} /> {t("library_view.export_docx")}
-                        </button>
+                        {onStartDebate && (
+                          <button
+                            onClick={() => { onStartDebate([activePaper.id]); setShowAiMenu(false); }}
+                            style={menuItemStyle}
+                            onMouseEnter={highlightOn}
+                            onMouseLeave={highlightOff}
+                          >
+                            <IconBulb size={13} style={{ marginRight: 8, color: "#f59e0b" }} />
+                            {t("library_view.ai_menu_debate")}
+                          </button>
+                        )}
+                        {onStartWow && (
+                          <button
+                            onClick={() => { onStartWow(activePaper.id); setShowAiMenu(false); }}
+                            style={menuItemStyle}
+                            onMouseEnter={highlightOn}
+                            onMouseLeave={highlightOff}
+                          >
+                            <IconSparkle size={13} style={{ marginRight: 8, color: "#ec4899" }} />
+                            {t("library_view.ai_menu_analyze")}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
 
-            {panelNarrow ? (
-              <div className="preview-tabs-compact">
-                <select
-                  className="preview-tabs-select"
-                  value={previewTab}
-                  onChange={(e) => setPreviewTab(e.target.value as typeof previewTab)}
-                >
-                  <option value="info">{t("library_view.summary_tab_info")}</option>
-                  <option value="ai">{t("library_view.analysis_tab")}</option>
-                  <option value="related">{t("library_view.related_tab")}</option>
-                  <option value="highlights">{t("library_view.highlights_tab")}</option>
-                  <option value="pdf">{t("library_view.read_tab")}</option>
-                </select>
+                  {/* Mode Pills */}
+                  <div className="focus-mode-pills">
+                    <button
+                      className={`focus-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
+                      onClick={() => setPreviewTab("pdf")}
+                    >
+                      <IconBookOpen size={13} style={{ marginRight: 4 }} />
+                      {t("library_view.read_tab")}
+                    </button>
+                    <button
+                      className={`focus-tab-btn ${previewTab === "info" ? "active" : ""}`}
+                      onClick={() => setPreviewTab("info")}
+                    >
+                      <IconFileText size={13} style={{ marginRight: 4 }} />
+                      {t("library_view.summary_tab")}
+                    </button>
+                    <button
+                      className={`focus-tab-btn ${previewTab === "ai" ? "active" : ""}`}
+                      onClick={() => setPreviewTab("ai")}
+                    >
+                      <IconSparkle size={13} style={{ marginRight: 4 }} />
+                      {t("library_view.analysis_tab")}
+                    </button>
+                  </div>
+
+                  <button
+                    className={`preview-icon-btn ${activePaper.starred ? "starred" : ""}`}
+                    onClick={() => toggleStar(activePaper.id, activePaper.starred)}
+                    title={t("library_view.favorite")}
+                  >
+                    <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
+                  </button>
+                </div>
               </div>
             ) : (
-              <div
-                className="preview-tabs"
-                ref={tabsRef}
-                onMouseDown={handleTabDragStart}
-                onMouseMove={handleTabDragMove}
-                onMouseUp={handleTabDragEnd}
-                onMouseLeave={handleTabDragEnd}
-              >
-                <button
-                  className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
-                  onClick={() => setPreviewTab("info")}
-                >
-                  <IconFileText size={14} style={{ marginRight: 6 }} /> {t("library_view.summary_tab")}
-                </button>
-                <button
-                  className={`preview-tab-btn ${previewTab === "ai" ? "active" : ""}`}
-                  onClick={() => setPreviewTab("ai")}
-                >
-                  <IconSparkle size={14} style={{ marginRight: 6 }} /> {t("library_view.analysis_tab")}
-                </button>
-                <button
-                  className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
-                  onClick={() => {
-                    setPreviewTab("related");
-                    if (relatedPapers.length === 0 && activePaper) {
-                      loadRelatedPapers(activePaper.id);
-                    }
-                  }}
-                >
-                  <IconGraph size={14} style={{ marginRight: 6 }} /> {t("library_view.related_tab")}
-                </button>
-                <button
-                  className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
-                  onClick={() => {
-                    setPreviewTab("highlights");
-                    if (highlights.length === 0 && activePaper) {
-                      loadHighlights(activePaper.id);
-                    }
-                  }}
-                >
-                  <IconStar size={14} style={{ marginRight: 6 }} /> {t("library_view.highlights_tab")}
-                </button>
-                <button
-                  className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
-                  onClick={() => setPreviewTab("pdf")}
-                >
-                  <IconBookOpen size={14} style={{ marginRight: 6 }} /> {t("library_view.read_tab")}
-                </button>
-              </div>
+              <>
+                <div className="preview-header">
+                  <h3 className="preview-title" title={paperDisplayTitle(activePaper.title, activePaper.filename)}>
+                    {paperDisplayTitle(activePaper.title, activePaper.filename)}
+                  </h3>
+                   {panelNarrow ? (
+                    <div className="preview-actions-narrow">
+                      {onStartWow && (
+                        <button className="preview-btn wow-glow-btn" onClick={() => onStartWow(activePaper.id)}
+                          style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                          <IconSparkle size={14} />
+                          <span>{t("library_view.ai_analyze")}</span>
+                        </button>
+                      )}
+                      <button className="preview-btn" onClick={() => onStartChat([activePaper.id])}
+                        style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                        <IconChat size={14} />
+                        <span>{t("library_view.ai_chat")}</span>
+                      </button>
+                      <div style={{ position: "relative" }}>
+                        <button className="preview-btn" onClick={(e) => { e.stopPropagation(); setShowNarrowMenu(!showNarrowMenu); }} title={t("library_view.actions")}
+                          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>⋮</span>
+                        </button>
+                        {showNarrowMenu && (
+                          <div className="narrow-actions-menu" onMouseDown={(e) => e.stopPropagation()}>
+                            {onStartDebate && (
+                              <button className="narrow-action-btn" onClick={() => { onStartDebate([activePaper.id]); setShowNarrowMenu(false); }}
+                                style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                                <IconBulb size={13} />
+                                <span>{t("library_view.debate")}</span>
+                              </button>
+                            )}
+                            <button className="narrow-action-btn" onClick={() => { toggleReadStatus(activePaper.id, activePaper.read_status); setShowNarrowMenu(false); }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                              {renderStatusIcon(activePaper.read_status, 13)}
+                              <span>{activePaper.read_status === "read" ? t("library_view.filter_read") : activePaper.read_status === "reading" ? t("library_view.filter_reading") : t("library_view.filter_unread")}</span>
+                            </button>
+                            <button className="narrow-action-btn" onClick={() => { toggleStar(activePaper.id, activePaper.starred); setShowNarrowMenu(false); }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                              <IconStar size={13} className={activePaper.starred ? "starred" : ""} />
+                              <span>{activePaper.starred ? t("library_view.favorite") : t("library_view.favorite")}</span>
+                            </button>
+                            <div className="narrow-menu-divider" />
+                            <button className="narrow-action-btn" onClick={() => { handleExportHtml(activePaper.id); setShowNarrowMenu(false); }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                              <IconLink size={13} />
+                              <span>{t("library_view.export_html")}</span>
+                            </button>
+                            <button className="narrow-action-btn" onClick={() => { handleExportDocx(activePaper.id); setShowNarrowMenu(false); }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                              <IconFileText size={13} />
+                              <span>{t("library_view.export_docx")}</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="preview-actions">
+                      {/* AI Assistant Group */}
+                      <div style={{ position: "relative", display: "inline-block" }}>
+                        <button
+                          className="preview-btn wow-glow-btn"
+                          onClick={() => setShowAiMenu(!showAiMenu)}
+                          onBlur={() => setTimeout(() => setShowAiMenu(false), 200)}
+                          title={t("library_view.ai_assistant")}
+                        >
+                          <IconSparkle size={14} />
+                          <span>{t("library_view.ai_assistant")}</span>
+                          <span style={{ fontSize: "10px", marginLeft: "2px", opacity: 0.8 }}>▼</span>
+                        </button>
+                        {showAiMenu && (
+                          <div
+                            className="ai-menu-dropdown-box"
+                            style={{
+                              position: "absolute",
+                              top: "100%",
+                              left: 0,
+                              marginTop: 4,
+                              background: "var(--color-surface, #1e293b)",
+                              border: "1px solid var(--color-border, #334155)",
+                              borderRadius: 8,
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                              zIndex: 1000,
+                              minWidth: 180,
+                              overflow: "hidden",
+                              padding: "4px 0",
+                            }}
+                          >
+                            <button
+                              onClick={() => { onStartChat([activePaper.id]); setShowAiMenu(false); }}
+                              style={menuItemStyle}
+                              onMouseEnter={highlightOn}
+                              onMouseLeave={highlightOff}
+                            >
+                              <IconChat size={13} style={{ marginRight: 8, color: "var(--color-primary, #10b981)" }} />
+                              {t("library_view.ai_menu_chat")}
+                            </button>
+                            {onStartDebate && (
+                              <button
+                                onClick={() => { onStartDebate([activePaper.id]); setShowAiMenu(false); }}
+                                style={menuItemStyle}
+                                onMouseEnter={highlightOn}
+                                onMouseLeave={highlightOff}
+                              >
+                                <IconBulb size={13} style={{ marginRight: 8, color: "#f59e0b" }} />
+                                {t("library_view.ai_menu_debate")}
+                              </button>
+                            )}
+                            {onStartWow && (
+                              <button
+                                onClick={() => { onStartWow(activePaper.id); setShowAiMenu(false); }}
+                                style={menuItemStyle}
+                                onMouseEnter={highlightOn}
+                                onMouseLeave={highlightOff}
+                              >
+                                <IconSparkle size={13} style={{ marginRight: 8, color: "#ec4899" }} />
+                                {t("library_view.ai_menu_analyze")}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Quick Icon Toggles */}
+                      <button
+                        className={`preview-icon-btn ${activePaper.starred ? "starred" : ""}`}
+                        onClick={() => toggleStar(activePaper.id, activePaper.starred)}
+                        title={t("library_view.favorite")}
+                      >
+                        <IconStar size={14} className={activePaper.starred ? "starred" : ""} />
+                      </button>
+
+                      <button
+                        className="preview-icon-btn"
+                        onClick={() => toggleReadStatus(activePaper.id, activePaper.read_status)}
+                        title={
+                          activePaper.read_status === "read"
+                            ? t("library_view.filter_read")
+                            : activePaper.read_status === "reading"
+                            ? t("library_view.filter_reading")
+                            : t("library_view.filter_unread")
+                        }
+                      >
+                        {renderStatusIcon(activePaper.read_status, 14)}
+                      </button>
+
+                      {/* Export dropdown */}
+                      <div style={{ position: "relative", display: "inline-block" }}>
+                        <button
+                          className="preview-icon-btn"
+                          onClick={() => setShowExportMenu(!showExportMenu)}
+                          onBlur={() => setTimeout(() => setShowExportMenu(false), 200)}
+                          disabled={exportingId === activePaper.id}
+                          title={t("library_view.export_paper")}
+                        >
+                          {exportingId === activePaper.id ? (
+                            <IconSpinner size={14} />
+                          ) : (
+                            <IconDownload size={14} />
+                          )}
+                        </button>
+                        {showExportMenu && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "100%",
+                              right: 0,
+                              marginTop: 4,
+                              background: "var(--color-surface, #1e293b)",
+                              border: "1px solid var(--color-border, #334155)",
+                              borderRadius: 8,
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                              zIndex: 1000,
+                              minWidth: 160,
+                              overflow: "hidden",
+                              padding: "4px 0",
+                            }}
+                          >
+                            <button
+                              onClick={() => { handleExportHtml(activePaper.id); setShowExportMenu(false); }}
+                              style={menuItemStyle}
+                              onMouseEnter={highlightOn}
+                              onMouseLeave={highlightOff}
+                            >
+                              <IconLink size={13} style={{ marginRight: 8 }} /> {t("library_view.export_html")}
+                            </button>
+                            <button
+                              onClick={() => { handleExportDocx(activePaper.id); setShowExportMenu(false); }}
+                              style={menuItemStyle}
+                              onMouseEnter={highlightOn}
+                              onMouseLeave={highlightOff}
+                            >
+                              <IconFileText size={13} style={{ marginRight: 8 }} /> {t("library_view.export_docx")}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {panelNarrow ? (
+                  <div className="preview-tabs-compact">
+                    <select
+                      className="preview-tabs-select"
+                      value={previewTab}
+                      onChange={(e) => setPreviewTab(e.target.value as typeof previewTab)}
+                    >
+                      <option value="info">{t("library_view.summary_tab_info")}</option>
+                      <option value="ai">{t("library_view.analysis_tab")}</option>
+                      <option value="related">{t("library_view.related_tab")}</option>
+                      <option value="highlights">{t("library_view.highlights_tab")}</option>
+                      <option value="pdf">{t("library_view.read_tab")}</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div
+                    className="preview-tabs"
+                    ref={tabsRef}
+                    onMouseDown={handleTabDragStart}
+                    onMouseMove={handleTabDragMove}
+                    onMouseUp={handleTabDragEnd}
+                    onMouseLeave={handleTabDragEnd}
+                  >
+                    <button
+                      className={`preview-tab-btn ${previewTab === "info" ? "active" : ""}`}
+                      onClick={() => setPreviewTab("info")}
+                    >
+                      <IconFileText size={14} style={{ marginRight: 6 }} /> {t("library_view.summary_tab")}
+                    </button>
+                    <button
+                      className={`preview-tab-btn ${previewTab === "ai" ? "active" : ""}`}
+                      onClick={() => setPreviewTab("ai")}
+                    >
+                      <IconSparkle size={14} style={{ marginRight: 6 }} /> {t("library_view.analysis_tab")}
+                    </button>
+                    <button
+                      className={`preview-tab-btn ${previewTab === "related" ? "active" : ""}`}
+                      onClick={() => {
+                        setPreviewTab("related");
+                        if (relatedPapers.length === 0 && activePaper) {
+                          loadRelatedPapers(activePaper.id);
+                        }
+                      }}
+                    >
+                      <IconGraph size={14} style={{ marginRight: 6 }} /> {t("library_view.related_tab")}
+                    </button>
+                    <button
+                      className={`preview-tab-btn ${previewTab === "highlights" ? "active" : ""}`}
+                      onClick={() => {
+                        setPreviewTab("highlights");
+                        if (highlights.length === 0 && activePaper) {
+                          loadHighlights(activePaper.id);
+                        }
+                      }}
+                    >
+                      <IconStar size={14} style={{ marginRight: 6 }} /> {t("library_view.highlights_tab")}
+                    </button>
+                    <button
+                      className={`preview-tab-btn ${previewTab === "pdf" ? "active" : ""}`}
+                      onClick={() => setPreviewTab("pdf")}
+                    >
+                      <IconBookOpen size={14} style={{ marginRight: 6 }} /> {t("library_view.read_tab")}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
 
             {previewTab === "info" ? (

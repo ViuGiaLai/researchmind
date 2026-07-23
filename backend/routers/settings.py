@@ -139,7 +139,9 @@ async def update_settings(new_settings: dict = Body(...)):
             if _embedder is not None:
                 _embedder.embedding_mode = settings.embedding_mode
                 logger.info(f"Embedding mode updated to: {settings.embedding_mode}")
-            from app_state import state
+            # `state` is imported at module level. Importing it here made Python
+            # treat it as a local variable for the entire handler, so every
+            # settings save failed before reaching this block.
             if hasattr(state, "hybrid") and state.hybrid:
                 state.hybrid.clear_query_cache()
 

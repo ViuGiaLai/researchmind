@@ -1377,17 +1377,19 @@ export const api = {
     request<DailyReaderResponse>("GET", "/api/personal/daily-reader"),
 
   // Literature Review Builder
-  generateReviewDraft: (paperIds: string[], title?: string, sections?: string[]) =>
+  generateReviewDraft: (paperIds: string[], title?: string, sections?: string[], outlineSections?: OutlineSection[]) =>
     request<ReviewDraftResponse>("POST", "/api/review/builder/draft", {
       paper_ids: paperIds,
       title,
       sections,
+      outline_sections: outlineSections,
     }),
 
   generateReviewDraftStream: (
     paperIds: string[],
     title: string | undefined,
     sections: string[] | undefined,
+    outlineSections: OutlineSection[] | undefined,
     handlers: {
       onStart?: (payload: { title: string; paper_titles: string[]; sections: string[] }) => void;
       onSection?: (section: ReviewSection) => void;
@@ -1401,7 +1403,7 @@ export const api = {
         const res = await fetch(`${BASE_URL}/api/review/builder/draft/stream`, {
           method: "POST",
           headers: mergeHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ paper_ids: paperIds, title, sections }),
+          body: JSON.stringify({ paper_ids: paperIds, title, sections, outline_sections: outlineSections }),
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -1451,6 +1453,7 @@ export const api = {
   generateReviewSectionStream: (
     paperIds: string[],
     section: string,
+    sectionMeta: OutlineSection | undefined,
     handlers: {
       onStart?: (section: string, title: string) => void;
       onChunk?: (section: string, delta: string) => void;
@@ -1465,7 +1468,7 @@ export const api = {
         const res = await fetch(`${BASE_URL}/api/review/builder/section/stream`, {
           method: "POST",
           headers: mergeHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ paper_ids: paperIds, section, use_cache: false }),
+          body: JSON.stringify({ paper_ids: paperIds, section, section_meta: sectionMeta, use_cache: false }),
           signal: controller.signal,
         });
         if (!res.ok) {
@@ -1518,16 +1521,22 @@ export const api = {
       return res.blob();
     }),
 
-  generateOutline: (paperIds: string[], existingSections?: OutlineSection[]) =>
+  reviewEvidencePreflight: (paperIds: string[]) =>
+    request<EvidencePreflightResponse>("POST", "/api/review/builder/preflight", { paper_ids: paperIds }),
+
+  generateOutline: (paperIds: string[], existingSections?: OutlineSection[], options?: { useCache?: boolean; variation?: number }) =>
     request<OutlineResponse>("POST", "/api/review/builder/outline", {
       paper_ids: paperIds,
       existing_sections: existingSections,
+      use_cache: options?.useCache ?? true,
+      variation: options?.variation ?? 0,
     }),
 
-  getEvidence: (paperIds: string[], section: string, topK?: number) =>
+  getEvidence: (paperIds: string[], section: string, topK?: number, sectionMeta?: OutlineSection) =>
     request<EvidenceResponse>("POST", "/api/review/builder/evidence", {
       paper_ids: paperIds,
       section,
+      section_meta: sectionMeta,
       top_k: topK || 10,
     }),
 
@@ -1566,10 +1575,12 @@ export const api = {
   restoreDraftVersion: (draftId: string, versionIdx: number) =>
     request<{ status: string; error?: string }>("POST", `/api/review/builder/draft/${draftId}/versions/${versionIdx}/restore`),
 
-  checkQuality: (title: string, sections: Record<string, ReviewSection>) =>
+  checkQuality: (title: string, sections: Record<string, ReviewSection>, outlineSections?: OutlineSection[], paperIds?: string[]) =>
     request<QualityCheckResponse>("POST", "/api/review/builder/check-quality", {
       title,
       sections,
+      outline_sections: outlineSections,
+      paper_ids: paperIds,
     }),
 
   generateEvidenceMatrix: (paperIds: string[], useCache: boolean = false) =>
@@ -1697,15 +1708,53 @@ export interface ReviewMatrixResponse {
   error?: string;
 }
 
+export interface EvidencePreflightIssue {
+  code: string;
+  paper_id?: string;
+  message: string;
+}
+
+export interface EvidencePreflightPaper {
+  paper_id: string;
+  title: string;
+  status: string;
+  chunks: number;
+  characters: number;
+  doi: string;
+  doi_status: "missing" | "checking" | "invalid_format" | "format_valid" | "resolved" | "not_found" | "unavailable";
+  doi_source?: string;
+  ready: boolean;
+}
+
+export interface EvidencePreflightResponse {
+  passed: boolean;
+  blocking_issues: EvidencePreflightIssue[];
+  warnings: EvidencePreflightIssue[];
+  papers: EvidencePreflightPaper[];
+  metrics: {
+    selected_papers?: number;
+    ready_papers?: number;
+    total_chunks?: number;
+    readiness_score?: number;
+  };
+  governance_version: string;
+  determined_by: string;
+}
+
 export interface OutlineSection {
   key: string;
   title: string;
   description: string;
+  subheadings?: string[];
 }
 
 export interface OutlineResponse {
   sections: OutlineSection[];
   paper_titles: string[];
+  fallback?: boolean;
+  details_fallback?: boolean;
+  framework?: string;
+  model_used?: string;
   error?: string;
 }
 
@@ -1776,8 +1825,20 @@ export interface QualityIssue {
   action_label: string;
 }
 
+export interface QualityMetrics {
+  required_sections: number;
+  completed_sections: number;
+  claim_citation_coverage: number;
+  cited_papers: number;
+  selected_papers: number;
+  academic_score: number;
+  passed: boolean;
+  deterministic: boolean;
+}
+
 export interface QualityCheckResponse {
   issues: QualityIssue[];
+  metrics?: QualityMetrics;
   error?: string;
 }
 
@@ -2083,7 +2144,12 @@ export interface ClaimAnalysis {
   direct_sources: number;
   indirect_sources: number;
   suspicious_citations: number;
-  confidence_score: number;
+  confidence_score: number; // backward-compatible citation coverage
+  citation_coverage_score: number;
+  evidence_support_score: number;
+  supported_claims: number;
+  partial_claims: number;
+  unsupported_claims: number;
   uncited_claim_texts: string[];
   suspicious_citation_texts: string[];
 }

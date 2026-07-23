@@ -171,6 +171,9 @@ class Generator(
         "summary": 512,
         "verify": 1536,
         "review": 2048,
+        # Fast paths used by Review Builder.
+        "review_outline": 640,
+        "review_section": 1100,
         "critique": 1536,
         "debate": 2048,
         "gap": 1536,

@@ -1146,25 +1146,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
         <div className="settings-mode-cards">
           {modeSuggestions.map((m) => (
             <button
+              type="button"
               key={m.mode}
               className={`settings-mode-card ${llmMode === m.mode ? "active" : ""}`}
               onClick={() => { setLlmMode(m.mode); setSaveMsg(null); }}
+              aria-pressed={llmMode === m.mode}
             >
-              <div className="settings-mode-card-radio">
-                {llmMode === m.mode && <div className="settings-mode-card-dot" />}
-              </div>
-              <div className="settings-mode-card-content" style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                <span className="settings-mode-card-icon" style={{ marginTop: "2px" }}>
+              <span className="settings-mode-card-topline">
+                <span className="settings-mode-card-icon" aria-hidden="true">
                   {m.mode === "cloud_free" ? <IconZap size={18} /> : m.mode === "cloud_custom" ? <IconKey size={18} /> : <IconLock size={18} />}
                 </span>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                  <span className="settings-mode-card-label">{m.label}</span>
-                  <span className="settings-mode-card-desc">{m.desc}</span>
-                </div>
-              </div>
-              {m.highlight && llmMode === m.mode && (
-                <span className="settings-mode-badge">{t("settings.ai_recommended")}</span>
-              )}
+                <span className="settings-mode-card-radio" aria-hidden="true">
+                  {llmMode === m.mode && <span className="settings-mode-card-dot" />}
+                </span>
+              </span>
+              <span className="settings-mode-card-content">
+                <span className="settings-mode-card-label">{m.label}</span>
+                <span className="settings-mode-card-desc">{m.desc}</span>
+              </span>
+              {m.highlight && <span className="settings-mode-badge">{t("settings.ai_recommended")}</span>}
             </button>
           ))}
         </div>
@@ -1495,37 +1495,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
 
         {/* Local settings */}
         {llmMode === "local" && (
-          <div className="settings-mode-detail">
-            <div className="settings-field" style={{ marginTop: 16 }}>
-              <label className="settings-label">{t("settings.llama_server_url")}</label>
-              <input
-                type="text"
-                className="settings-input"
-                value={llamaServerUrl}
-                onChange={(e) => setLlamaServerUrl(e.target.value)}
-                placeholder="http://127.0.0.1:8080"
-              />
+          <section className="settings-local-panel" aria-labelledby="local-ai-title">
+            <header className="settings-local-panel__header">
+              <span className="settings-local-panel__icon" aria-hidden="true"><IconLaptop size={20} /></span>
+              <div>
+                <span className="settings-local-panel__eyebrow">LOCAL RUNTIME</span>
+                <h4 id="local-ai-title">{t("settings.ai_local")}</h4>
+                <p>{t("settings.ai_local_desc", { gb: specs?.suggested_tier === "weak" || specs?.suggested_tier === "medium" ? "2" : "8" })}</p>
+              </div>
+            </header>
+            <div className="settings-local-panel__body">
+              <div className="settings-local-panel__fields">
+                <div className="settings-field">
+                  <label className="settings-label">{t("settings.llama_server_url")}</label>
+                  <input type="text" className="settings-input" value={llamaServerUrl} onChange={(e) => setLlamaServerUrl(e.target.value)} placeholder="http://127.0.0.1:8080" />
+                </div>
+                <div className="settings-field">
+                  <label className="settings-label">{t("settings.label_gguf_model")}</label>
+                  <input type="text" className="settings-input" value={localModel} onChange={(e) => setLocalModel(e.target.value)} placeholder="Qwen3-4B-Q4_K_M.gguf" />
+                </div>
+              </div>
+              <aside className="settings-local-panel__guide">
+                <div className="settings-local-panel__guide-title"><IconMonitor size={16} /><span>llama-server</span></div>
+                <p>{t("settings.local_cpu_startup")}</p>
+                <code>llama-server.exe -m path/to/{localModel} --port 8080 -c 4096 -np 1 -t 6</code>
+                <a href="#" onClick={(e) => { e.preventDefault(); open("https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main"); }}>
+                  {t("settings.download_at")} <span aria-hidden="true">&#8599;</span>
+                </a>
+              </aside>
             </div>
-            <div className="settings-field">
-              <label className="settings-label">{t("settings.label_gguf_model")}</label>
-              <input
-                type="text"
-                className="settings-input"
-                value={localModel}
-                onChange={(e) => setLocalModel(e.target.value)}
-                placeholder="Qwen3-4B-Q4_K_M.gguf"
-              />
-            </div>
-            <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
-              {t("settings.local_cpu_startup")} <code>llama-server.exe -m path/to/{localModel} --port 8080 -c 4096 -np 1 -t 6 --cache-ram 1024</code>
-            </p>
-            <p style={{ fontSize: "0.82rem", color: "var(--color-text-muted)", marginTop: 8 }}>
-              {t("settings.download_at")} 
-              <a href="#" onClick={(e) => { e.preventDefault(); open("https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main"); }} style={{ marginLeft: 4 }}>
-                https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main
-              </a>
-            </p>
-          </div>
+          </section>
         )}
 
         <div className="settings-actions settings-actions--sticky">
@@ -2149,3 +2148,5 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
     </div>
   );
 };
+
+export default SettingsView;
