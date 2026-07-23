@@ -110,8 +110,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt pytest-timeout pytest-cov
 
-      - name: Run unit tests (exclude integration & benchmark)
-        run: python -m pytest tests -q --timeout=120 -m "not integration and not benchmark" --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
+      - name: Run unit tests (exclude integration)
+        run: python -m pytest tests -q --timeout=120 -m "not integration" --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
         working-directory: backend
 
       - name: Upload coverage to artifacts

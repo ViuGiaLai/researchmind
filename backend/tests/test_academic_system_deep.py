@@ -5,7 +5,6 @@
 4. Scientific Writing Engine (academic/writing_engine.py)
 5. Evidence Engine (academic/evidence_engine.py)
 6. Academic Evaluation Suite (evaluation/academic_evaluator.py)
-7. Continuous Academic Knowledge Sync (academic/knowledge_sync.py)
 """
 
 import pytest
