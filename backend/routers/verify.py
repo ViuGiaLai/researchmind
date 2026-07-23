@@ -349,7 +349,7 @@ def _build_verify_report(
         }
 
 
-async def _build_academic_context(
+def _build_academic_context(
     local_context: str,
     external_data: list[ExternalPaperData],
     papers_meta: list[dict],
@@ -357,7 +357,16 @@ async def _build_academic_context(
     verification_result: dict | None = None,
     query: str = "",
 ) -> str:
-    return await _build_clean_academic_context(local_context, external_data, papers_meta, venue_audit, verification_result, query)
+    if venue_audit is None and verification_result is None and not query:
+        sections = ["=== USER DOCUMENTS (LOCAL) ===\n" + local_context]
+        if papers_meta:
+            meta_lines = [
+                f"- {paper.get('title', 'Unknown')} (authors: {', '.join(paper.get('authors', [])[:3]) or 'N/A'})"
+                for paper in papers_meta
+            ]
+            sections.append("=== PAPERS UNDER ANALYSIS ===\n" + "\n".join(meta_lines))
+        return "\n\n".join(sections)
+    return _build_clean_academic_context(local_context, external_data, papers_meta, venue_audit, verification_result, query)
 
 
 async def _build_clean_academic_context(

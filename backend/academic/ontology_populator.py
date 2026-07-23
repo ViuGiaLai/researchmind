@@ -59,8 +59,15 @@ _CLAIM_PATTERNS = {
 def _extract_methods(line: str) -> list[str]:
     """Detect method names by known suffixes in a line of text."""
     import re as _re
-    pattern = r"\b([a-z][a-z0-9_-]*(" + "|".join(_METHOD_SUFFIXES) + r"))\b"
-    return list(set(_re.findall(pattern, line.lower())))
+    suffixes = "|".join(_METHOD_SUFFIXES)
+    pattern = rf"\b([a-z0-9_-]*(?:{suffixes})[a-z0-9_-]*s?)\b"
+    methods = set()
+    for match in _re.findall(pattern, line.lower()):
+        # Dataset and metric names may share a suffix (for example ImageNet).
+        if match in _KNOWN_DATASETS or match in _KNOWN_METRICS:
+            continue
+        methods.add(match[:-1] if match.endswith("s") and match[:-1] in _METHOD_SUFFIXES else match)
+    return sorted(methods)
 
 
 def _extract_datasets(line: str) -> list[str]:
@@ -93,20 +100,23 @@ def _extract_experiments(line: str, index: int) -> list[ExperimentEntity]:
     # Skip known non-experiment keys
     _SKIP_KEYS = {"page", "size", "n", "num", "count", "id", "index", "max", "min"}
 
-    exp_matches = _re.findall(r"([a-z_]+)\s*(?:=|:)\s*(\d+\.?\d*)\s*%?", line.lower())
-    for method, val_str in exp_matches:
-        if method in _SKIP_KEYS:
+    line_lower = line.lower()
+    methods = _extract_methods(line_lower)
+    datasets = _extract_datasets(line_lower)
+    exp_matches = _re.findall(r"([a-z_]+)\s*(?:=|:)\s*(\d+\.?\d*)\s*%?", line_lower)
+    for metric, val_str in exp_matches:
+        if metric in _SKIP_KEYS:
             continue
         try:
             val = float(val_str)
-            eid = f"exp_{index}_{method}"
+            eid = f"exp_{index}_{metric}"
             experiments.append(
                 ExperimentEntity(
                     id=eid,
                     paper_id="local",
-                    method_name=method,
-                    dataset_name="unknown",
-                    metric_name="unknown",
+                    method_name=methods[0] if methods else "unknown",
+                    dataset_name=datasets[0] if datasets else "unknown",
+                    metric_name=metric,
                     value=val,
                 )
             )
