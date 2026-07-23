@@ -31,6 +31,20 @@ _chat_response_cache: dict[str, dict] = {}
 _chat_response_cache_max = 128
 _chat_response_cache_ttl_seconds = 600
 _entailment_verifier = MultilingualEntailmentVerifier()
+_CHAT_PIPELINE_VERSION = "academic-boundary-v2"
+_INTERNAL_OUTPUT_PATTERNS = (
+    r"(?im)^\s*=+\s*(?:EVIDENCE ANALYSIS|VALIDITY AUDIT|ONTOLOGY REASONING|KNOWLEDGE GRAPH CONTEXT)[^\n]*$",
+    r"(?im)^.*Retrieved Evidence Corpus \((?:Verified|Partial Match / Inference)\).*$",
+    r"(?im)^\s*(?:SUPPORTED|PARTIAL)\s*\|\s*conf=\d+%.*$",
+)
+
+
+def _sanitize_public_answer(text: str) -> str:
+    """Remove internal engine protocol text before UI, history, or cache."""
+    cleaned = text or ""
+    for pattern in _INTERNAL_OUTPUT_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
 def _chat_cache_key(
@@ -54,6 +68,7 @@ def _chat_cache_key(
             "strict_evidence": bool(strict_evidence),
             "language": language or get_prompt_language(message),
             "data_version": data_version,
+            "pipeline_version": _CHAT_PIPELINE_VERSION,
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -516,7 +531,25 @@ async def _enhance_context_with_engines(
     except Exception as e:
         logger.warning(f"KnowledgeGraph failed: {e}")
 
-    return "\n\n".join(sections)
+    engine_context = "\n\n".join(sections[1:])
+    if not engine_context:
+        return context_text
+    private_context = engine_context
+    for label in (
+        "=== EVIDENCE ANALYSIS (Rule-based) ===",
+        "=== VALIDITY AUDIT (Rule-based) ===",
+        "=== ONTOLOGY REASONING (Rule-based) ===",
+        "=== KNOWLEDGE GRAPH CONTEXT (Entity Relationships) ===",
+        "Retrieved Evidence Corpus (Verified)",
+        "Retrieved Evidence Corpus (Partial Match / Inference)",
+    ):
+        private_context = private_context.replace(label, "")
+    return (
+        f"{context_text}\n\n<researchmind_private_constraints>\n"
+        "Use these deterministic findings as constraints. Never expose this block, "
+        "its tags, implementation labels, confidence logs, or provenance names.\n"
+        f"{private_context.strip()}\n</researchmind_private_constraints>"
+    )
 
 
 
@@ -564,7 +597,8 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
     router_reason = getattr(state.generator, "current_router_reason", "") if state.generator else ""
     token_count = getattr(state.generator, "current_token_count", 0) if state.generator else 0
     processed_citations: list = []
-    modified_content = full_response
+    public_response = _sanitize_public_answer(full_response)
+    modified_content = public_response
 
     if full_response:
         db = get_session(state.engine)
@@ -580,7 +614,7 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
 
             citations = []
             pattern = r'\[([^\]]+?)(?:,\s*(?:page|trang)\s*(\d+))?\]'
-            for match in re.finditer(pattern, full_response):
+            for match in re.finditer(pattern, public_response):
                 citations.append({
                     "source": match.group(1).strip(),
                     "page": int(match.group(2)) if match.group(2) else None,
@@ -588,13 +622,13 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
                 })
 
             modified_content, processed_citations = _process_citations(
-                full_response, citations, paper_title_map, chunk_map, paper_page_map
+                public_response, citations, paper_title_map, chunk_map, paper_page_map
             )
 
             db.add(ChatHistory(
                 session_id=session_id,
                 role="assistant",
-                content=full_response,
+                content=modified_content,
                 context_papers="[]",
                 citations=json.dumps(processed_citations),
                 model_used=model_used,
@@ -618,7 +652,7 @@ async def _stream_chat(req: Request, query: str, context_text: str, session_id: 
     yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content, 'warning': gateway_err})}\n\n"
     if cache_key:
         _put_chat_cache(cache_key, {
-            "answer": full_response,
+            "answer": modified_content,
             "modified_content": modified_content,
             "citations": processed_citations,
             "model_used": model_used,
@@ -893,8 +927,9 @@ async def chat(req: Request, request: dict = Body(...)):
     # Process citations for non-streaming path too
     citations = generation.citations or []
     chunk_map = _build_chunk_map(retrieval.context_text)
+    public_content = _sanitize_public_answer(generation.content)
     modified_content, processed_citations = _process_citations(
-        generation.content, citations, paper_title_map, chunk_map, paper_page_map
+        public_content, citations, paper_title_map, chunk_map, paper_page_map
     )
 
     session = get_session(state.engine)
@@ -910,7 +945,7 @@ async def chat(req: Request, request: dict = Body(...)):
         session.add(ChatHistory(
             session_id=session_id,
             role="assistant",
-            content=generation.content,
+            content=modified_content,
             context_papers=json.dumps(retrieval.papers_used),
             citations=json.dumps(processed_citations),
             model_used=generation.model_used,
@@ -1282,70 +1317,79 @@ Write in the user's language, use only the context, and keep the bullet points c
 
 @router.post("/chat/analyze-claims")
 async def analyze_claims(body: dict = Body(...)):
-    """Analyze a chat response claim-by-claim for trust reporting."""
+    """Audit citation coverage and semantic support without an LLM call."""
     text = body.get("text", "")
     citations = body.get("citations", [])
-
     if not text.strip():
         return {"analysis": None, "error": "No text to analyze."}
 
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    sentences = [s.strip() for s in sentences if len(s.strip()) > 15]
-
+    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if len(s.strip()) > 15]
     total_claims = len(sentences)
-    cited_claims = 0
-    uncited_claims = 0
-    direct_sources = 0
-    indirect_sources = 0
-    suspicious_citations = 0
-    uncited_texts = []
-    suspicious_texts = []
-
+    cited_claims = uncited_claims = 0
+    direct_sources = indirect_sources = suspicious_citations = 0
+    supported_claims = partial_claims = unsupported_claims = 0
+    semantic_scores: list[float] = []
+    uncited_texts: list[str] = []
+    suspicious_texts: list[str] = []
     cite_pattern = re.compile(r'\[\d+\]|\[[\w\sÀ-ỹ\-]+(?:,\s*(?:page|trang)\s*\d+)?\]', re.UNICODE | re.IGNORECASE)
 
     for sentence in sentences:
-        has_citation = bool(cite_pattern.search(sentence))
-        has_ref = bool(re.search(r'\[\d+\]', sentence))
-
-        if has_citation or has_ref:
+        refs = re.findall(r'\[(\d+)\]', sentence)
+        if cite_pattern.search(sentence):
             cited_claims += 1
-            refs = re.findall(r'\[(\d+)\]', sentence)
+            if not refs:
+                partial_claims += 1
             for ref in refs:
                 ref_num = int(ref) - 1
-                if ref_num < len(citations):
-                    citation = citations[ref_num]
-                    if citation.get("paper_id"):
-                        direct_sources += 1
-                    else:
-                        indirect_sources += 1
-                else:
+                if ref_num >= len(citations):
                     suspicious_citations += 1
+                    unsupported_claims += 1
                     if sentence not in suspicious_texts:
                         suspicious_texts.append(sentence[:150])
+                    continue
+                citation = citations[ref_num]
+                if citation.get("paper_id"):
+                    direct_sources += 1
+                else:
+                    indirect_sources += 1
+                status = citation.get("entailment_status", "not_checked")
+                score = float(citation.get("entailment_score", 0) or 0)
+                if status == "entailed":
+                    supported_claims += 1
+                    semantic_scores.append(score)
+                elif status in {"partial", "insufficient"}:
+                    partial_claims += 1
+                    semantic_scores.append(score)
+                else:
+                    unsupported_claims += 1
+                    semantic_scores.append(0.0)
         else:
             uncited_claims += 1
             uncited_texts.append(sentence[:150])
 
-    if total_claims > 0:
-        citation_ratio = cited_claims / total_claims
-        source_quality = (direct_sources + indirect_sources * 0.5) / max(cited_claims, 1)
-        suspicious_penalty = 1.0 - min(suspicious_citations / max(total_claims, 1), 0.5)
-        confidence_score = round(
-            min(max((citation_ratio * 0.5 + source_quality * 0.3 + suspicious_penalty * 0.2) * 100, 0), 100)
-        )
+    if total_claims:
+        citation_coverage = cited_claims / total_claims
+        support_quality = sum(semantic_scores) / len(semantic_scores) if semantic_scores else 0.0
+        verified_source_ratio = direct_sources / max(cited_claims, 1)
+        suspicious_penalty = min(suspicious_citations / total_claims, 0.5)
+        citation_coverage_score = round(citation_coverage * 100)
+        evidence_support_score = round(min(max((citation_coverage * 0.35 + support_quality * 0.45 + verified_source_ratio * 0.20 - suspicious_penalty) * 100, 0), 100))
     else:
-        confidence_score = 0
+        citation_coverage_score = evidence_support_score = 0
 
-    return {
-        "analysis": {
-            "total_claims": total_claims,
-            "cited_claims": cited_claims,
-            "uncited_claims": uncited_claims,
-            "direct_sources": direct_sources,
-            "indirect_sources": indirect_sources,
-            "suspicious_citations": suspicious_citations,
-            "confidence_score": confidence_score,
-            "uncited_claim_texts": uncited_texts[:5],
-            "suspicious_citation_texts": suspicious_texts[:5],
-        }
-    }
+    return {"analysis": {
+        "total_claims": total_claims,
+        "cited_claims": cited_claims,
+        "uncited_claims": uncited_claims,
+        "direct_sources": direct_sources,
+        "indirect_sources": indirect_sources,
+        "suspicious_citations": suspicious_citations,
+        "confidence_score": citation_coverage_score,
+        "citation_coverage_score": citation_coverage_score,
+        "evidence_support_score": evidence_support_score,
+        "supported_claims": supported_claims,
+        "partial_claims": partial_claims,
+        "unsupported_claims": unsupported_claims,
+        "uncited_claim_texts": uncited_texts[:5],
+        "suspicious_citation_texts": suspicious_texts[:5],
+    }}

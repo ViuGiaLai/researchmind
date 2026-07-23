@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { IconCheck, IconError, IconSearch, IconDownload, IconBrain, IconChart, IconWarning, IconFileText, IconLink, IconWithText } from "../Icons";
+import { IconCheck, IconError, IconSearch, IconDownload, IconChart, IconWarning, IconFileText, IconLink, IconWithText, IconArrowRight } from "../Icons";
 
 interface ClaimAnalysis {
   total_claims: number;
@@ -9,7 +9,12 @@ interface ClaimAnalysis {
   direct_sources: number;
   indirect_sources: number;
   suspicious_citations: number;
-  confidence_score: number;
+  confidence_score: number; // backward-compatible citation coverage
+  citation_coverage_score: number;
+  evidence_support_score: number;
+  supported_claims: number;
+  partial_claims: number;
+  unsupported_claims: number;
   uncited_claim_texts: string[];
   suspicious_citation_texts: string[];
 }
@@ -37,78 +42,63 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
     return { bg: "rgba(239, 68, 68, 0.1)", color: "#ef4444", label: t("trust.severity_low") };
   };
 
-  const severity = severityColor(analysis.confidence_score);
+  const supportScore = analysis.evidence_support_score ?? analysis.confidence_score;
+  const severity = severityColor(supportScore);
 
   if (!analysis || analysis.total_claims === 0) return null;
 
   return (
-    <div
-      className="trust-panel"
-      style={{
-        marginTop: "16px",
-        borderRadius: "8px",
-        border: "1px solid var(--color-border)",
-        background: "var(--color-surface)",
-        overflow: "hidden",
-      }}
-    >
+    <details className="trust-panel">
       {/* Header */}
-      <div
-        className="trust-panel-header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 14px",
-          borderBottom: "1px solid var(--color-border)",
-          background: "rgba(var(--color-primary-rgb), 0.04)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <IconBrain size={16} />
-          <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{t("trust.report_title")}</span>
+      <summary className="trust-panel-header">
+        <div className="trust-panel-header-left">
+          <span className="trust-panel-icon"><IconCheck size={15} /></span>
+          <span className="trust-panel-header-title">{t("trust.report_title")}</span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            padding: "3px 10px",
-            borderRadius: "12px",
-            background: severity.bg,
-            color: severity.color,
-            fontSize: "0.78rem",
-            fontWeight: 600,
-          }}
-        >
-          <span>{analysis.confidence_score}%</span>
-          <span style={{ fontWeight: 400, opacity: 0.8 }}>{severity.label}</span>
+        <div className="trust-panel-header-meta">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "3px 10px",
+              borderRadius: "7px",
+              background: severity.bg,
+              color: severity.color,
+              fontSize: "0.78rem",
+              fontWeight: 600,
+            }}
+          >
+            <span>{supportScore}%</span>
+            <span style={{ fontWeight: 400, opacity: 0.8 }}>{severity.label}</span>
+          </div>
+          <IconArrowRight className="trust-panel-chevron" size={15} />
         </div>
-      </div>
+      </summary>
 
       {/* Stats grid */}
       <div
         className="trust-panel-stats"
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
           gap: "1px",
           background: "var(--color-border)",
         }}
       >
         {[
-          { label: t("trust.total_claims"), value: analysis.total_claims, icon: IconChart },
+          { label: t("trust.citation_coverage"), value: `${analysis.citation_coverage_score ?? analysis.confidence_score}%`, icon: IconChart },
           { label: t("trust.cited_claims"), value: `${analysis.cited_claims}/${analysis.total_claims}`, icon: IconCheck, color: "#10b981" },
           { label: t("trust.uncited_claims"), value: analysis.uncited_claims, icon: IconWarning, color: analysis.uncited_claims > 0 ? "#f59e0b" : undefined },
           { label: t("trust.direct_sources"), value: analysis.direct_sources, icon: IconFileText },
-          { label: t("trust.indirect_sources"), value: analysis.indirect_sources, icon: IconLink, color: "#94a3b8" },
+          { label: t("trust.partial_claims"), value: analysis.partial_claims ?? 0, icon: IconLink, color: "#f59e0b" },
           { label: t("trust.suspicious_citations"), value: analysis.suspicious_citations, icon: IconSearch, color: analysis.suspicious_citations > 0 ? "#ef4444" : undefined },
         ].map((stat, i) => (
           <div
             key={i}
             className="trust-panel-stat"
             style={{
-              padding: "8px 12px",
+              padding: "6px 10px",
               background: "var(--color-surface)",
               display: "flex",
               alignItems: "center",
@@ -119,7 +109,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   color: "var(--color-text-muted)",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -130,7 +120,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               </div>
               <div
                 style={{
-                  fontSize: "0.95rem",
+                  fontSize: "0.86rem",
                   fontWeight: 700,
                   color: stat.color || "var(--color-text)",
                 }}
@@ -144,15 +134,13 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
 
       {/* Uncited claims list */}
       {analysis.uncited_claim_texts.length > 0 && (
-        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border)" }}>
+        <div style={{ padding: "7px 12px", borderTop: "1px solid var(--color-border)" }}>
           <div
             style={{
               fontSize: "0.75rem",
               fontWeight: 600,
               color: "#f59e0b",
               marginBottom: "6px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
             }}
           >
             <IconWithText icon={IconWarning} size={12}>
@@ -164,7 +152,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               key={i}
               style={{
                 padding: "4px 0",
-                fontSize: "0.8rem",
+                fontSize: "0.75rem",
                 color: "var(--color-text-secondary, #a3a3a3)",
                 fontStyle: "italic",
                 borderBottom: i < analysis.uncited_claim_texts.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
@@ -178,15 +166,13 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
 
       {/* Suspicious citations */}
       {analysis.suspicious_citation_texts.length > 0 && (
-        <div style={{ padding: "8px 14px", borderTop: "1px solid var(--color-border)" }}>
+        <div style={{ padding: "7px 12px", borderTop: "1px solid var(--color-border)" }}>
           <div
             style={{
               fontSize: "0.75rem",
               fontWeight: 600,
               color: "#ef4444",
               marginBottom: "6px",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
             }}
           >
             <IconWithText icon={IconSearch} size={12}>
@@ -198,7 +184,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
               key={i}
               style={{
                 padding: "4px 0",
-                fontSize: "0.8rem",
+                fontSize: "0.75rem",
                 color: "var(--color-text-secondary, #a3a3a3)",
                 fontStyle: "italic",
               }}
@@ -215,7 +201,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
         style={{
           display: "flex",
           gap: "6px",
-          padding: "8px 14px",
+          padding: "6px 12px",
           borderTop: "1px solid var(--color-border)",
           flexWrap: "wrap",
         }}
@@ -231,7 +217,7 @@ export const TrustPanel: React.FC<TrustPanelProps> = ({
         )}
         <ActionButton label={t("trust.action_export_report")} icon={<IconDownload size={12} />} onClick={onExport} />
       </div>
-    </div>
+    </details>
   );
 };
 
@@ -246,8 +232,8 @@ const ActionButton: React.FC<{ label: string; icon: React.ReactNode; onClick?: (
       display: "inline-flex",
       alignItems: "center",
       gap: "4px",
-      padding: "4px 10px",
-      borderRadius: "4px",
+      padding: "3px 8px",
+      borderRadius: "6px",
       border: "1px solid var(--color-border, #333)",
       background: "rgba(255,255,255,0.03)",
       color: "var(--color-text-secondary, #a3a3a3)",

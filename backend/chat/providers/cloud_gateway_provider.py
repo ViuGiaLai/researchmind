@@ -24,6 +24,7 @@ class CloudGatewayProviderMixin:
     def _gateway_payload(self, prompt: str, max_tokens: int, system_prompt_override: str | None = None) -> dict:
         return {
             "task_type": getattr(self._local, "task_type", "chat") or "chat",
+            "reasoning_mode": getattr(self._local, "reasoning_mode", "fast") or "fast",
             "system_prompt": system_prompt_override or self._get_system_prompt(),
             "user_prompt": prompt,
             "language": getattr(self._local, "lang", "auto"),
@@ -31,6 +32,15 @@ class CloudGatewayProviderMixin:
             "temperature": 0.3,
         }
 
+    @staticmethod
+    def _gateway_routing_reason(data: dict) -> str:
+        routing_key = str(data.get("routing_key", ""))
+        selected = str(data.get("selected_provider") or data.get("provider", ""))
+        primary = str(data.get("primary_provider", ""))
+        if data.get("fallback_used"):
+            reason = str(data.get("fallback_reason", "")).strip()
+            return f"{routing_key}: {primary} -> {selected} (fallback: {reason})"
+        return f"{routing_key}: {selected} (primary)" if routing_key else ""
     def _generate_cloud_gateway(self, prompt: str, max_tokens: int = 1024, system_prompt_override: str | None = None) -> GenerationResult:
         try:
             response = self.http_client.post(
@@ -48,6 +58,7 @@ class CloudGatewayProviderMixin:
                 content=content,
                 citations=citations,
                 model_used=f"researchmind_cloud/{data.get('provider', 'unknown')}/{data.get('model', 'unknown')}",
+                router_reason=self._gateway_routing_reason(data),
                 finish_reason=str(data.get("finish_reason", "stop")),
             )
         except httpx.HTTPStatusError as exc:
@@ -86,6 +97,7 @@ class CloudGatewayProviderMixin:
                         event_type = event.get("type")
                         if event_type == "meta":
                             self._set_model(f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}")
+                            self.current_router_reason = self._gateway_routing_reason(event)
                         elif event_type == "delta":
                             yield str(event.get("content", ""))
                         elif event_type == "error":

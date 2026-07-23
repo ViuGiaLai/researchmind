@@ -52,6 +52,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageInput, setPageInput] = useState(String(initialPage));
+  const [annotationPage, setAnnotationPage] = useState(initialPage);
   const [annotations, setAnnotations] = useState<PdfAnnotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,6 +67,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
   const [panelWidth, setPanelWidth] = useState(42);
   const panelRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<{ startX: number; startWidth: number; pointerId: number } | null>(null);
+
+  useEffect(() => {
+    setAnnotationPage(currentPage);
+  }, [currentPage]);
 
   const pdfUrl = useMemo(() => {
     if (highlights.length > 0) {
@@ -84,9 +89,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         api.getReadingProgress(paperId),
       ]);
       setAnnotations(annotationData.annotations);
-      const startPage = initialPage > 1 ? initialPage : progress.current_page;
+      const startPage = initialPage > 1 ? initialPage : progress.current_page || 1;
       setCurrentPage(startPage);
       setPageInput(String(startPage));
+      setAnnotationPage(startPage);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t("pdf.load_error"));
     } finally {
@@ -105,10 +111,32 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     return () => window.clearTimeout(timer);
   }, [currentPage, paperId]);
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        let data = event.data;
+        if (typeof data === "string") {
+          data = JSON.parse(data);
+        }
+        if (data && typeof data === "object") {
+          const page = Number(data.pageNumber || data.page || data.currentPage || (data.detail && data.detail.pageNumber));
+          if (Number.isFinite(page) && page > 0) {
+            setCurrentPage(page);
+            setPageInput(String(page));
+            setAnnotationPage(page);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
   const goToPage = useCallback((page: number) => {
     const nextPage = Math.max(1, Math.min(page, totalPages || 9999));
     setCurrentPage(nextPage);
     setPageInput(String(nextPage));
+    setAnnotationPage(nextPage);
   }, [totalPages]);
 
   const submitPage = () => {
@@ -123,7 +151,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
     setError("");
     try {
       const created = await api.createAnnotation(paperId, {
-        page_number: currentPage,
+        page_number: annotationPage,
         kind: quote.trim() ? "highlight" : "note",
         quote_text: quote.trim(),
         note: note.trim(),
@@ -193,25 +221,29 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
         aria-label={t("pdf.reader")}
       >
         <header className="pdf-reader__toolbar">
-          <div className="pdf-reader__identity">
-            <IconFileText size={15} />
-            <strong title={paperTitle}>{paperTitle}</strong>
-          </div>
-          <div className="pdf-reader__pager">
-            <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} aria-label={t("pdf.previous")}>‹</button>
-            <label className="pdf-page-field">
-              <span className="sr-only">{t("pdf.go_to_page")}</span>
-              <input
-                inputMode="numeric"
-                value={pageInput}
-                onChange={(event) => setPageInput(event.target.value)}
-                onBlur={submitPage}
-                onKeyDown={(event) => event.key === "Enter" && submitPage()}
-              />
-              {totalPages ? <span>/ {totalPages}</span> : null}
-            </label>
-            <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage + 1)} disabled={Boolean(totalPages && currentPage >= totalPages)} aria-label={t("pdf.next")}>›</button>
-          </div>
+          {mode !== "embedded" && (
+            <>
+              <div className="pdf-reader__identity">
+                <IconFileText size={15} />
+                <strong title={paperTitle}>{paperTitle}</strong>
+              </div>
+              <div className="pdf-reader__pager">
+                <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} aria-label={t("pdf.previous")}>‹</button>
+                <label className="pdf-page-field">
+                  <span className="sr-only">{t("pdf.go_to_page")}</span>
+                  <input
+                    inputMode="numeric"
+                    value={pageInput}
+                    onChange={(event) => setPageInput(event.target.value)}
+                    onBlur={submitPage}
+                    onKeyDown={(event) => event.key === "Enter" && submitPage()}
+                  />
+                  {totalPages ? <span>/ {totalPages}</span> : null}
+                </label>
+                <button type="button" className="pdf-tool-btn" onClick={() => goToPage(currentPage + 1)} disabled={Boolean(totalPages && currentPage >= totalPages)} aria-label={t("pdf.next")}>›</button>
+              </div>
+            </>
+          )}
           <div className="pdf-reader__actions">
             {highlights.length > 0 && (
               <button
@@ -246,11 +278,42 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
             <aside className="pdf-annotations" aria-label={t("pdf.annotations")}>
               <div className="pdf-annotation-composer">
                 <div className="pdf-annotation-composer__heading">
-                  <strong>{t("pdf.add_annotation")}</strong>
-                  <span>{t("pdf.page_short", { page: currentPage })}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <strong>{t("pdf.add_annotation")}</strong>
+                    <select
+                      className="pdf-annotation-page-select-dropdown"
+                      value={annotationPage}
+                      onChange={(e) => {
+                        const p = Number(e.target.value);
+                        setAnnotationPage(p);
+                        goToPage(p);
+                      }}
+                      title={t("pdf.go_to_page")}
+                    >
+                      {Array.from({ length: totalPages || 1 }, (_, i) => i + 1).map((p) => (
+                        <option key={p} value={p}>
+                          Trang {p}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    className="pdf-close-sidebar-btn"
+                    onClick={() => setShowAnnotations(false)}
+                    title={t("pdf.close")}
+                  >
+                    ✕
+                  </button>
                 </div>
-                <textarea value={quote} onChange={(event) => setQuote(event.target.value)} placeholder={t("pdf.quote_placeholder")} rows={3} />
-                <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={t("pdf.note_placeholder")} rows={2} />
+                <div className="pdf-annotation-field">
+                  <label className="pdf-annotation-field-label">{t("pdf.quote_label")}</label>
+                  <textarea value={quote} onChange={(event) => setQuote(event.target.value)} placeholder={t("pdf.quote_placeholder")} rows={2} />
+                </div>
+                <div className="pdf-annotation-field">
+                  <label className="pdf-annotation-field-label">{t("pdf.note_label")}</label>
+                  <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder={t("pdf.note_placeholder")} rows={2} />
+                </div>
                 <div className="pdf-annotation-composer__footer">
                   <div className="pdf-color-picker" aria-label={t("pdf.color")}>
                     {COLORS.map((item) => (
@@ -264,9 +327,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
                       />
                     ))}
                   </div>
-                  <button type="button" className="rm-btn rm-btn-primary rm-btn-sm" disabled={saving || (!quote.trim() && !note.trim())} onClick={saveAnnotation}>
+                  <button type="button" className="pdf-save-annotation-btn" disabled={saving || (!quote.trim() && !note.trim())} onClick={saveAnnotation}>
                     {saving ? <IconSpinner size={13} /> : <IconBookmark size={13} />}
-                    {t("pdf.save_annotation")}
+                    <span>{t("pdf.save_annotation")}</span>
                   </button>
                 </div>
               </div>

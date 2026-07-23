@@ -81,3 +81,76 @@ def test_development_quota_is_enforced(monkeypatch):
         manager.reserve(user, 10)
     assert getattr(exc.value, "status_code", None) == 429
 
+
+
+def test_mode_aware_routing_policy_selects_specialized_models():
+    settings = GatewaySettings(
+        _env_file=None,
+        gemini_api_key="key",
+        groq_api_key="key",
+        deepseek_api_key="key",
+        openrouter_r1_api_key="key",
+    )
+    router = ProviderRouter(settings)
+
+    assert router.candidates("chat", "fast")[0] == "gemini"
+    assert router.candidates("chat", "deep")[0] == "deepseek"
+    assert router.candidates("chat", "deep+")[0] == "openrouter_r1"
+    assert router.candidates("rag", "fast")[0] == "gemini"
+    assert router.candidates("review_outline", "fast")[0] == "groq"
+
+
+def test_missing_primary_is_reported_as_fallback_not_silent_default():
+    from cloud_gateway.schemas import GenerateRequest
+
+    settings = GatewaySettings(_env_file=None, groq_api_key="key")
+    router = ProviderRouter(settings)
+    request = GenerateRequest(
+        user_prompt="test",
+        task_type="rag",
+        reasoning_mode="fast",
+    )
+
+    assert router.candidates("rag", "fast")[0] == "groq"
+    metadata = router.routing_metadata(request, "groq", [])
+    assert metadata == {
+        "primary_provider": "gemini",
+        "selected_provider": "groq",
+        "fallback_used": True,
+        "fallback_reason": "gemini is not configured or unavailable",
+        "routing_key": "rag.fast",
+    }
+
+def test_all_academic_task_routes_have_an_explicit_policy():
+    settings = GatewaySettings(
+        _env_file=None,
+        gemini_api_key="key",
+        groq_api_key="key",
+        deepseek_api_key="key",
+        nvidia_deepseek_api_key="key",
+        github_api_key="key",
+        cerebras_api_key="key",
+    )
+    router = ProviderRouter(settings)
+    expected_primary = {
+        "review_outline": "groq",
+        "review_section": "nvidia_deepseek",
+        "review": "nvidia_deepseek",
+        "verify": "gemini",
+        "critique": "gemini",
+        "debate": "nvidia_deepseek",
+        "summary": "groq",
+        "quality_check": "github",
+        "translate": "gemini",
+        "entity": "cerebras",
+        "research": "deepseek",
+        "synthesis": "deepseek",
+        "gap": "deepseek",
+        "insight": "github",
+    }
+
+    for task_type, primary in expected_primary.items():
+        routing_key, planned = router.route(task_type, "fast")
+        assert routing_key == task_type
+        assert planned[0] == primary
+        assert router.candidates(task_type, "fast")[0] == primary

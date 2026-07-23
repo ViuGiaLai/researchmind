@@ -332,6 +332,7 @@ async def translate_papers(request: Request, body: dict = Body(...)):
                         headers=gateway_headers,
                         json={
                             "task_type": "translate",
+                            "reasoning_mode": "fast",
                             "system_prompt": system_prompt,
                             "user_prompt": f"Translate only the title and abstract values in this JSON into {target_language_name}:\n\n{prompt}",
                             "language": target_language,

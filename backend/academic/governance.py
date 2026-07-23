@@ -163,13 +163,11 @@ class AcademicGovernance:
         else:
             rules = list(self.rules(rule_ids))
         presentation = (
-            "Structure your response like an audit report:\n"
-            "1. **CONCLUSION** first (1 line)\n"
-            "2. **EVIDENCE** with source citations\n"
-            "3. **CONFIDENCE** level\n"
-            "4. **NEXT STEPS** if applicable"
+            "Answer with conclusion, cited evidence, limitations, and next steps. "
+            "Never score confidence; ResearchMind engines do that."
         ) if strict_evidence else (
-            "Answer directly and concisely. Structure: conclusion first, then evidence, then confidence."
+            "Answer directly: conclusion first, then cited evidence and limitations. "
+            "Do not assign confidence scores or expose internal engine data."
         )
         return "\n".join(["You are ResearchMind, an academic research assistant.", presentation, *[f"- {rule}" for rule in rules], language_instruction]).strip()
 

@@ -75,10 +75,14 @@ class GatewaySettings(BaseSettings):
     task_provider_map: str = (
         '{"chat":"gemini","rag":"gemini","summary":"groq",'
         '"daily_reader":"github","review":"nvidia_deepseek",'
+        '"review_outline":"groq","review_section":"groq",'
         '"verify":"gemini","critique":"gemini","debate":"nvidia_deepseek",'
         '"gap":"nvidia_deepseek","insight":"github",'
         '"quality_check":"github","research":"groq",'
         '"synthesis":"groq","entity":"cerebras","translate":"gemini"}'
+    )
+    routing_policy: str = (
+        '{"chat.fast":["gemini","github","groq"],"chat.deep":["deepseek","openrouter","nvidia_deepseek","gemini"],"chat.deep_plus":["openrouter_r1","deepseek","nvidia_deepseek","gemini"],"rag.fast":["gemini","groq","cerebras"],"rag.deep":["deepseek","gemini","nvidia"],"rag.deep_plus":["openrouter_r1","deepseek","gemini"],"review_outline":["groq","gemini","cerebras"],"review_section":["nvidia_deepseek","deepseek","gemini","groq"],"review":["nvidia_deepseek","deepseek","gemini"],"verify":["gemini","deepseek","groq"],"critique":["gemini","deepseek","nvidia"],"debate":["nvidia_deepseek","deepseek","gemini"],"summary":["groq","gemini","cerebras"],"quality_check":["github","gemini","groq"],"translate":["gemini","groq"],"entity":["cerebras","groq"],"research":["deepseek","groq","gemini"],"synthesis":["deepseek","groq","gemini"],"daily_reader":["github","gemini","groq"],"gap":["deepseek","nvidia_deepseek","gemini"],"insight":["github","gemini","groq"]}'
     )
     provider_fallback_chain: str = (
         "groq,cerebras,cloudflare,nvidia,nvidia_deepseek,"

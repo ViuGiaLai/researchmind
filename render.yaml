@@ -31,6 +31,26 @@ services:
         value: "true"
       - key: HOSTED_RESEARCH_ENABLED
         value: "false"
+      - key: OPENROUTER_R1_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
+      - key: GITHUB_API_KEY
+        sync: false
+      - key: GITHUB_MODEL
+        value: gpt-4o-mini
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_MODEL
+        value: moonshotai/kimi-k2.6
+      - key: NVIDIA_DEEPSEEK_API_KEY
+        sync: false
+      - key: NVIDIA_DEEPSEEK_MODEL
+        value: deepseek-ai/deepseek-v4-pro
+      - key: ROUTING_POLICY
+        value: '{"chat.fast":["gemini","github","groq"],"chat.deep":["deepseek","openrouter","nvidia_deepseek","gemini"],"chat.deep_plus":["openrouter_r1","deepseek","nvidia_deepseek","gemini"],"rag.fast":["gemini","groq","cerebras"],"rag.deep":["deepseek","gemini","nvidia"],"rag.deep_plus":["openrouter_r1","deepseek","gemini"],"review_outline":["groq","gemini","cerebras"],"review_section":["nvidia_deepseek","deepseek","gemini","groq"],"review":["nvidia_deepseek","deepseek","gemini"],"verify":["gemini","deepseek","groq"],"critique":["gemini","deepseek","nvidia"],"debate":["nvidia_deepseek","deepseek","gemini"],"summary":["groq","gemini","cerebras"],"quality_check":["github","gemini","groq"],"translate":["gemini","groq"],"entity":["cerebras","groq"],"research":["deepseek","groq","gemini"],"synthesis":["deepseek","groq","gemini"],"daily_reader":["github","gemini","groq"],"gap":["deepseek","nvidia_deepseek","gemini"],"insight":["github","gemini","groq"]}'
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: GOOGLE_APPLICATION_CREDENTIALS
@@ -68,6 +88,26 @@ services:
         sync: false
       - key: CLAUDE_API_KEY
         sync: false
+      - key: OPENROUTER_R1_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_MODEL
+        value: deepseek-chat
+      - key: GITHUB_API_KEY
+        sync: false
+      - key: GITHUB_MODEL
+        value: gpt-4o-mini
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_MODEL
+        value: moonshotai/kimi-k2.6
+      - key: NVIDIA_DEEPSEEK_API_KEY
+        sync: false
+      - key: NVIDIA_DEEPSEEK_MODEL
+        value: deepseek-ai/deepseek-v4-pro
+      - key: ROUTING_POLICY
+        value: '{"chat.fast":["gemini","github","groq"],"chat.deep":["deepseek","openrouter","nvidia_deepseek","gemini"],"chat.deep_plus":["openrouter_r1","deepseek","nvidia_deepseek","gemini"],"rag.fast":["gemini","groq","cerebras"],"rag.deep":["deepseek","gemini","nvidia"],"rag.deep_plus":["openrouter_r1","deepseek","gemini"],"review_outline":["groq","gemini","cerebras"],"review_section":["nvidia_deepseek","deepseek","gemini","groq"],"review":["nvidia_deepseek","deepseek","gemini"],"verify":["gemini","deepseek","groq"],"critique":["gemini","deepseek","nvidia"],"debate":["nvidia_deepseek","deepseek","gemini"],"summary":["groq","gemini","cerebras"],"quality_check":["github","gemini","groq"],"translate":["gemini","groq"],"entity":["cerebras","groq"],"research":["deepseek","groq","gemini"],"synthesis":["deepseek","groq","gemini"],"daily_reader":["github","gemini","groq"],"gap":["deepseek","nvidia_deepseek","gemini"],"insight":["github","gemini","groq"]}'
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_SERVICE_ACCOUNT_JSON

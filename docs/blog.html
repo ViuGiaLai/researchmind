@@ -3,21 +3,294 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blog — ResearchMind Updates</title>
-  <meta name="description" content="ResearchMind blog with product updates, release notes, research tips, and academic productivity insights." />
-  <meta property="og:title" content="Blog — ResearchMind" />
-  <meta property="og:description" content="Product updates, research tips, and stories from the ResearchMind team." />
+  <title>Blog & Product Updates — ResearchMind AI Workspace</title>
+  <meta name="description" content="ResearchMind blog: in-depth release notes, RAG architecture guides, systematic review workflows, and local-first AI research insights." />
+  <meta name="keywords" content="ResearchMind blog, product updates, release notes, AI research tips, RAG architecture, literature review guide, local AI research" />
+  <meta name="author" content="ResearchMind Team" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0d0f17" />
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://researchmind.app/blog.html" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="icon.ico" />
+  <link rel="shortcut icon" href="icon.ico" />
+  <link rel="apple-touch-icon" href="icon.ico" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Blog & Product Updates — ResearchMind AI Workspace" />
+  <meta property="og:description" content="In-depth release notes, RAG architecture guides, systematic review workflows, and local-first AI research insights." />
   <meta property="og:image" content="https://researchmind.app/og.png" />
   <meta property="og:url" content="https://researchmind.app/blog.html" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="ResearchMind" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="icon" type="image/x-icon" href="icon.ico" />
-  <link rel="shortcut icon" href="icon.ico" />
+  <meta name="twitter:title" content="Blog & Product Updates — ResearchMind AI Workspace" />
+  <meta name="twitter:description" content="In-depth release notes, RAG architecture guides, systematic review workflows, and local-first AI research insights." />
+  <meta name="twitter:image" content="https://researchmind.app/og.png" />
+
+  <!-- Preload fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <script defer data-domain="researchmind.app" src="https://plausible.io/js/script.js"></script>
+
+  <!-- Structured Data (JSON-LD) for SEO -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "ResearchMind Blog",
+    "url": "https://researchmind.app/blog.html",
+    "description": "Product updates, release notes, AI research architecture, and literature review workflows.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "ResearchMind",
+      "logo": "https://researchmind.app/icon.ico"
+    }
+  }
+  </script>
+
+  <style>
+    /* Custom Blog Enhancements */
+    .blog-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .blog-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .blog-tab {
+      padding: 8px 18px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .blog-tab:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .blog-tab.active {
+      background: var(--accent-blue);
+      color: #ffffff;
+      border-color: var(--accent-blue);
+    }
+    .blog-search {
+      position: relative;
+      min-width: 260px;
+    }
+    .blog-search input {
+      width: 100%;
+      padding: 8px 16px 8px 38px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      color: var(--text-primary);
+      outline: none;
+    }
+    .blog-search input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+    .blog-search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .blog-card {
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .blog-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .blog-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: var(--text-tertiary);
+      margin-top: 12px;
+    }
+    .blog-card-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Modal Reader Overlay */
+    .article-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(10, 10, 15, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow-y: auto;
+      padding: 40px 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+    .article-modal.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .article-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      max-width: 860px;
+      width: 100%;
+      padding: 40px;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      margin-top: 20px;
+      margin-bottom: 40px;
+    }
+    .article-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+    .article-close:hover {
+      background: var(--bg-card-hover);
+      color: var(--text-primary);
+    }
+    .article-header {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .article-tag-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      background: rgba(59,130,246,0.1);
+      color: var(--accent-blue);
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .article-title {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+    .article-info-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: var(--text-tertiary);
+    }
+    .article-body {
+      font-size: 1rem;
+      line-height: 1.8;
+      color: var(--text-secondary);
+    }
+    .article-body h2 {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 28px 0 12px;
+      color: var(--text-primary);
+    }
+    .article-body h3 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 20px 0 8px;
+      color: var(--text-primary);
+    }
+    .article-body p { margin-bottom: 16px; }
+    .article-body ul, .article-body ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+    .article-body li { margin-bottom: 6px; }
+    .article-body code {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: var(--bg-surface);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+    .article-body pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      margin: 16px 0;
+    }
+    .article-body .callout {
+      padding: 16px 20px;
+      border-left: 4px solid var(--accent-blue);
+      background: rgba(59,130,246,0.04);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin: 20px 0;
+      font-size: 0.95rem;
+    }
+    .article-footer-nav {
+      margin-top: 36px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
 </head>
 <body>
   <div class="ambient-mesh">
@@ -45,116 +318,201 @@
 
   <div class="page-hero">
     <div class="container">
-      <h1><span class="gradient-text">Updates</span> &amp; Insights</h1>
-      <p>Product announcements, research tips, and behind-the-scenes stories from the ResearchMind team.</p>
+      <h1><span class="gradient-text">Journal</span> &amp; Product Blog</h1>
+      <p>In-depth release notes, system architecture teardowns, RAG write-ups, and local AI research strategies.</p>
     </div>
   </div>
 
   <section class="section" style="padding-top:0;">
     <div class="container">
+      
+      <!-- Blog Search & Category Filters -->
+      <div class="blog-controls">
+        <div class="blog-tabs" id="blogTabs">
+          <button class="blog-tab active" data-category="all">All Articles</button>
+          <button class="blog-tab" data-category="release">Releases</button>
+          <button class="blog-tab" data-category="guide">Guides &amp; RAG</button>
+          <button class="blog-tab" data-category="architecture">Architecture</button>
+          <button class="blog-tab" data-category="philosophy">Local AI &amp; Privacy</button>
+        </div>
+        <div class="blog-search">
+          <span class="blog-search-icon">🔍</span>
+          <input type="text" id="blogSearchInput" placeholder="Search articles..." aria-label="Search articles" />
+        </div>
+      </div>
+
       <!-- Featured Post -->
-      <article class="blog-card blog-card-featured reveal" style="border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-card);margin-bottom:40px;">
-        <div class="blog-card-image" style="background:linear-gradient(135deg, rgba(139,92,246,0.08), rgba(6,182,212,0.08));display:flex;align-items:center;justify-content:center;">
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+      <article class="blog-card blog-card-featured reveal" data-category="release" onclick="openArticle('v0-6-release')" style="border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-card);margin-bottom:40px;">
+        <div class="blog-card-image" style="background:linear-gradient(135deg, rgba(139,92,246,0.1), rgba(6,182,212,0.1));display:flex;align-items:center;justify-content:center;padding:40px;">
+          <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-purple);"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 19l1 3 3-1"/><path d="M19 19l-1 3-3-1"/></svg>
         </div>
         <div class="blog-card-body" style="padding:32px;">
-          <span class="blog-card-tag">Release</span>
-          <h3 style="font-size:1.3rem;">ResearchMind v0.6: Evidence Matrix, Review Builder &amp; Local AI</h3>
-          <p>We're thrilled to announce ResearchMind v0.6, our biggest update yet. This release introduces the Evidence Matrix for paper comparison, a full Literature Review Builder, and support for local AI models via llama-server.</p>
-          <span class="blog-card-date">July 15, 2026</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span class="blog-card-tag" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);">Featured Release</span>
+            <span style="font-size:0.8rem;color:var(--text-tertiary);">July 15, 2026</span>
+          </div>
+          <h3 style="font-size:1.4rem;margin-bottom:12px;">ResearchMind v0.6: Evidence Matrix, Literature Review Builder &amp; Local AI Engine</h3>
+          <p style="color:var(--text-secondary);line-height:1.6;margin-bottom:16px;">We're thrilled to announce ResearchMind v0.6, our biggest milestone yet. This major release introduces multi-paper evidence extraction matrix, PRISMA-compliant literature review builder, and offline GGUF local model execution via <code>llama-server</code>.</p>
+          <div class="blog-card-meta">
+            <span>✍️ ResearchMind Team</span>
+            <span>⏱️ 6 min read</span>
+            <span style="color:var(--accent-blue);font-weight:600;margin-left:auto;">Read Full Article &rarr;</span>
+          </div>
         </div>
       </article>
 
       <!-- Blog Grid -->
-      <div class="blog-grid">
-        <article class="blog-card reveal reveal-delay-1">
+      <div class="blog-grid" id="blogGrid">
+
+        <!-- Post 1 -->
+        <article class="blog-card reveal reveal-delay-1" data-category="architecture" onclick="openArticle('hybrid-search')">
           <div class="blog-card-image">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-blue);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
           </div>
           <div class="blog-card-body">
-            <span class="blog-card-tag">Feature</span>
-            <h3>Hybrid Search: Three-stage retrieval explained</h3>
-            <p>How ResearchMind combines BM25, vector search, and cross-encoder reranking to deliver the most relevant results.</p>
-            <span class="blog-card-date">July 8, 2026</span>
+            <span class="blog-card-tag">Architecture</span>
+            <h3>Hybrid Search: Three-Stage Retrieval (BM25 + Vector + Rerank)</h3>
+            <p>A deep dive into how ResearchMind combines SQLite FTS5, ChromaDB dense embeddings, and cross-encoder reranking for precision recall.</p>
+            <div class="blog-card-meta">
+              <span>July 8, 2026</span>
+              <span>•</span>
+              <span>8 min read</span>
+            </div>
           </div>
         </article>
 
-        <article class="blog-card reveal reveal-delay-2">
+        <!-- Post 2 -->
+        <article class="blog-card reveal reveal-delay-2" data-category="guide" onclick="openArticle('rag-chat-writing')">
           <div class="blog-card-image">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-teal);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h8M8 14h5"/></svg>
           </div>
           <div class="blog-card-body">
             <span class="blog-card-tag">Guide</span>
-            <h3>Getting the most out of RAG Chat</h3>
-            <p>Tips and best practices for using citation-grounded AI chat in your research workflow.</p>
-            <span class="blog-card-date">June 28, 2026</span>
+            <h3>Mastering RAG Chat for Academic Writing &amp; Citation Grounding</h3>
+            <p>Learn how to query your library with strict evidence verification to eliminate LLM hallucinations in academic manuscripts.</p>
+            <div class="blog-card-meta">
+              <span>June 28, 2026</span>
+              <span>•</span>
+              <span>5 min read</span>
+            </div>
           </div>
         </article>
 
-        <article class="blog-card reveal reveal-delay-3">
+        <!-- Post 3 -->
+        <article class="blog-card reveal reveal-delay-3" data-category="guide" onclick="openArticle('systematic-reviews')">
           <div class="blog-card-image">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-emerald);"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
           </div>
           <div class="blog-card-body">
             <span class="blog-card-tag">Guide</span>
-            <h3>Systematic reviews with ResearchMind</h3>
-            <p>A step-by-step guide to conducting systematic literature reviews using the screening board and review builder.</p>
-            <span class="blog-card-date">June 20, 2026</span>
+            <h3>Conducting Systematic Literature Reviews with ResearchMind</h3>
+            <p>Step-by-step workflow for screening hundreds of papers, extracting methodologies, and generating BibTeX evidence tables.</p>
+            <div class="blog-card-meta">
+              <span>June 20, 2026</span>
+              <span>•</span>
+              <span>7 min read</span>
+            </div>
           </div>
         </article>
 
-        <article class="blog-card reveal reveal-delay-4">
+        <!-- Post 4 -->
+        <article class="blog-card reveal reveal-delay-4" data-category="release" onclick="openArticle('v0-5-release')">
           <div class="blog-card-image">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#d97706;"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
           </div>
           <div class="blog-card-body">
             <span class="blog-card-tag">Release</span>
-            <h3>v0.5: OCR, Zotero sync, and performance improvements</h3>
-            <p>Version 0.5 brings OCR support for scanned PDFs, direct Zotero synchronization, and significant indexing speed improvements.</p>
-            <span class="blog-card-date">June 5, 2026</span>
+            <h3>v0.5 Deep Dive: RapidOCR Engine &amp; Direct Zotero Sync</h3>
+            <p>Exploring OCR support for scanned PDF manuscripts, zero-copy Zotero database sync, and multi-core indexing optimizations.</p>
+            <div class="blog-card-meta">
+              <span>June 5, 2026</span>
+              <span>•</span>
+              <span>6 min read</span>
+            </div>
           </div>
         </article>
 
-        <article class="blog-card reveal reveal-delay-5">
+        <!-- Post 5 -->
+        <article class="blog-card reveal reveal-delay-5" data-category="philosophy" onclick="openArticle('local-first-ai')">
           <div class="blog-card-image">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#e11d48;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
           </div>
           <div class="blog-card-body">
-            <span class="blog-card-tag">Philosophy</span>
-            <h3>Why local-first AI matters for academic research</h3>
-            <p>Privacy, data sovereignty, and offline access are essential for serious academic work. Here's our philosophy.</p>
-            <span class="blog-card-date">May 22, 2026</span>
+            <span class="blog-card-tag">Local AI</span>
+            <h3>Why Local-First AI Matters for Academic Data Sovereignty</h3>
+            <p>Intellectual property protection, institutional IRB compliance, and why researchers need offline AI independence.</p>
+            <div class="blog-card-meta">
+              <span>May 22, 2026</span>
+              <span>•</span>
+              <span>5 min read</span>
+            </div>
           </div>
         </article>
 
-        <article class="blog-card reveal reveal-delay-6">
+        <!-- Post 6 -->
+        <article class="blog-card reveal reveal-delay-6" data-category="release" onclick="openArticle('v0-4-release')">
           <div class="blog-card-image">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" style="opacity:0.3;"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-purple);"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
           </div>
           <div class="blog-card-body">
             <span class="blog-card-tag">Release</span>
-            <h3>v0.4: Evidence mode and critique tools</h3>
-            <p>Introducing evidence-only chat mode, AI-powered paper critique, and the first version of multi-paper comparison tools.</p>
-            <span class="blog-card-date">May 10, 2026</span>
+            <h3>v0.4: Evidence Mode &amp; AI Critique Tools</h3>
+            <p>Introducing evidence-only mode, AI peer review critique assistant, and foundational citation graph visualizations.</p>
+            <div class="blog-card-meta">
+              <span>May 10, 2026</span>
+              <span>•</span>
+              <span>4 min read</span>
+            </div>
           </div>
         </article>
+
       </div>
     </div>
   </section>
 
+  <!-- Newsletter / Release CTA -->
   <div class="cta-section reveal">
     <div class="container">
       <div class="cta-card">
-        <h2>Stay updated</h2>
-        <p>Follow us on GitHub for the latest releases and join the discussion.</p>
-        <div class="cta-actions">
-          <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-primary" target="_blank" rel="noopener">Follow on GitHub</a>
-          <a href="index.html" class="btn btn-secondary">Back to Home <span class="arrow">→</span></a>
+        <h2>Stay Updated with ResearchMind Releases</h2>
+        <p>Subscribe for release notes, technical RAG benchmarks, and academic productivity workflows. No spam.</p>
+        <form style="display:flex;gap:12px;max-width:480px;margin:20px auto 0;" onsubmit="event.preventDefault(); alert('Thank you for subscribing! You will receive our latest research & product updates.');">
+          <input type="email" placeholder="Enter your academic or work email..." required style="flex:1;padding:12px 18px;border-radius:var(--radius-full);border:1px solid var(--border-subtle);background:var(--bg-body);color:var(--text-primary);outline:none;font-family:var(--font-sans);" />
+          <button type="submit" class="btn btn-primary">Subscribe</button>
+        </form>
+        <div style="margin-top:16px;">
+          <a href="https://github.com/ViuGiaLai/researchmind" class="btn btn-secondary" target="_blank" rel="noopener">Follow on GitHub <span class="arrow">&rarr;</span></a>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Article Reader Modal Container -->
+  <div class="article-modal" id="articleModal" aria-hidden="true" onclick="if(event.target===this) closeArticle();">
+    <div class="article-container">
+      <button class="article-close" onclick="closeArticle()" aria-label="Close article">&times;</button>
+      <div class="article-header">
+        <span class="article-tag-badge" id="mTag">Release</span>
+        <h1 class="article-title" id="mTitle">Article Title</h1>
+        <div class="article-info-bar">
+          <span id="mAuthor">✍️ ResearchMind Team</span>
+          <span>•</span>
+          <span id="mDate">July 15, 2026</span>
+          <span>•</span>
+          <span id="mReadTime">6 min read</span>
+        </div>
+      </div>
+      <div class="article-body" id="mBody">
+        <!-- Loaded via JS -->
+      </div>
+      <div class="article-footer-nav">
+        <button class="btn btn-secondary" onclick="closeArticle()">&larr; Back to Articles</button>
+        <a href="docs.html" class="btn btn-primary">Read Documentation &rarr;</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
@@ -203,5 +561,232 @@
   </footer>
 
   <script src="script.js"></script>
+  <script>
+    // Blog Data Store with Full Articles
+    const articles = {
+      'v0-6-release': {
+        title: "ResearchMind v0.6: Evidence Matrix, Literature Review Builder & Local AI Engine",
+        category: "Release Notes",
+        author: "ResearchMind Core Team",
+        date: "July 15, 2026",
+        readTime: "6 min read",
+        body: `
+          <p>We are thrilled to launch <strong>ResearchMind v0.6</strong> — our largest feature release to date. Designed specifically for PhD candidates, principal investigators, and literature reviewers, v0.6 equips you with deep paper extraction matrix tools, automated draft outline synthesis, and 100% offline local model inference.</p>
+          
+          <div class="callout">
+            <strong>Key Highlights:</strong> Evidence Matrix with custom columns, PRISMA screening board, exportable Markdown/Latex literature synthesis, and llama-server local backend integration.
+          </div>
+
+          <h2>1. Multi-Paper Evidence Matrix</h2>
+          <p>Analyzing dozens of PDF files side-by-side used to require painstaking spreadsheet entry. The new <strong>Evidence Matrix</strong> automatically extracts specific data points across selected papers:</p>
+          <ul>
+            <li><strong>Methodology & Sample Size:</strong> Identifies experimental setups, datasets, and participant numbers.</li>
+            <li><strong>Key Findings & Metrics:</strong> Extracts p-values, accuracy percentages, or qualitative conclusions.</li>
+            <li><strong>Limitations & Future Work:</strong> Highlights author-reported constraints for meta-analysis.</li>
+            <li><strong>Custom Extractions:</strong> Prompt the AI with tailored questions (e.g. <code>"What evaluation benchmark was used?"</code>).</li>
+          </ul>
+          <p>You can read more about extracting matrix data in our <a href="features.html">Features Page</a> or review the step-by-step setup in <a href="docs.html#evidence-matrix">Documentation Section 7</a>.</p>
+
+          <h2>2. Literature Review Builder & PRISMA Screening</h2>
+          <p>Structuring a manuscript draft is now seamless. The Review Builder lets you organize papers into thematic clusters, generate section outlines with inline citations (e.g. <code>[Vaswani et al., 2017]</code>), and export ready-to-publish BibTeX files.</p>
+
+          <h2>3. Offline Local Model Integration (llama-server)</h2>
+          <p>For institutions with strict data privacy guidelines, ResearchMind v0.6 supports zero-network local LLMs via <code>llama-server</code> or Ollama endpoints. Run GGUF models like Llama-3-8B-Instruct or Mistral-7B locally with hardware acceleration.</p>
+
+          <pre><code># Launch llama-server with GGUF model
+llama-server --model ./models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf --ctx-size 8192 --port 8080</code></pre>
+
+          <h2>Getting Started with v0.6</h2>
+          <p>Version 0.6 is available immediately for Windows, macOS, and Linux. Upgrade your desktop app or check out our <a href="pricing.html">Pricing Plans</a> to unlock unlimited local libraries.</p>
+        `
+      },
+      'hybrid-search': {
+        title: "Hybrid Search Demystified: Combining BM25, ChromaDB Vector Search, and Cross-Encoder Reranking",
+        category: "Architecture",
+        author: "AI Research Lead",
+        date: "July 8, 2026",
+        readTime: "8 min read",
+        body: `
+          <p>Traditional vector search often fails on exact keyword queries (such as formula names, author surnames, or specific gene codes). Conversely, pure keyword search misses semantic synonyms. ResearchMind solves this with a multi-stage <strong>Hybrid Search Pipeline</strong>.</p>
+
+          <h2>The 3-Stage Search Architecture</h2>
+          <ol>
+            <li><strong>Stage 1: Keyword FTS5 (BM25):</strong> Executes high-speed lexical search over paper titles, abstracts, full text, and notes using SQLite FTS5.</li>
+            <li><strong>Stage 2: Dense Embedding Retrieval (ChromaDB):</strong> Queries local vector embeddings (generated via BGE-Small-EN or MiniLM) to retrieve semantically related passage chunks.</li>
+            <li><strong>Stage 3: Reciprocal Rank Fusion & Reranking:</strong> Merges candidate chunks using Reciprocal Rank Fusion (RRF) and passes top results through a local Cross-Encoder reranker.</li>
+          </ol>
+
+          <div class="callout">
+            <strong>Benchmark Performance:</strong> Our hybrid pipeline achieves a <strong>+24% improvement in MRR (Mean Reciprocal Rank)</strong> compared to dense vector retrieval alone on academic dataset benchmarks.
+          </div>
+
+          <p>Learn how to configure your search parameters in the <a href="docs.html#search">Search Documentation</a>.</p>
+        `
+      },
+      'rag-chat-writing': {
+        title: "Mastering RAG Chat for Academic Writing & Citation Grounding",
+        category: "Guides & RAG",
+        author: "Product Specialist",
+        date: "June 28, 2026",
+        readTime: "5 min read",
+        body: `
+          <p>Generative AI holds massive potential for scholars, but ungrounded LLM hallucinations can destroy research credibility. ResearchMind enforces strict <strong>Citation Grounding</strong> across all chat modes.</p>
+
+          <h2>Evidence-Only Mode vs Flexible Mode</h2>
+          <p>When drafting critical literature sections, enable <em>Evidence-Only Mode</em>. In this mode, the AI assistant is strictly restricted to answering using retrieved context chunks from your imported library. If the information isn't present in your PDFs, the AI explicitly states: <code>"No relevant evidence found in your library."</code></p>
+
+          <h2>Best Practices for Academic Prompting</h2>
+          <ul>
+            <li><strong>Ask for Specific Comparisons:</strong> <em>"Compare the baseline accuracy of Model A vs Model B based on Chapter 4 of my collection."</em></li>
+            <li><strong>Request Inline Citations:</strong> Every statement includes clickable page-level references.</li>
+          </ul>
+          <p>See more prompting tips in our <a href="docs.html#chat">AI Chat Documentation</a>.</p>
+        `
+      },
+      'systematic-reviews': {
+        title: "Conducting Systematic Literature Reviews with ResearchMind",
+        category: "Guides & RAG",
+        author: "Academic Outreach Team",
+        date: "June 20, 2026",
+        readTime: "7 min read",
+        body: `
+          <p>Systematic reviews require rigorous record-keeping, exclusion criteria tracking, and structured reporting compliant with PRISMA guidelines. ResearchMind streamlines this multi-week process into hours.</p>
+
+          <h2>The Systematic Review Workflow</h2>
+          <ol>
+            <li><strong>Bulk Import & Deduplication:</strong> Import RIS/BibTeX files from Scopus, Web of Science, or PubMed. ResearchMind automatically merges duplicate records based on DOI and normalized titles.</li>
+            <li><strong>Screening Board:</strong> Move papers across status columns (<em>Included</em>, <em>Excluded</em>, <em>Requires Full Text Review</em>) with recorded exclusion reasons.</li>
+            <li><strong>Data Extraction:</strong> Generate structured JSON/CSV exports for meta-analysis statistics.</li>
+          </ol>
+          <p>Check out our complete <a href="features.html">Features List</a> or review pricing for team collaboration in <a href="pricing.html">Pricing Plans</a>.</p>
+        `
+      },
+      'v0-5-release': {
+        title: "v0.5 Deep Dive: RapidOCR Engine & Direct Zotero Sync",
+        category: "Release Notes",
+        author: "Backend Engineering Team",
+        date: "June 5, 2026",
+        readTime: "6 min read",
+        body: `
+          <p>Version 0.5 brought fundamental infrastructure enhancements to ResearchMind, focusing on document ingestion quality and existing bibliography integration.</p>
+
+          <h2>1. Scanned Document OCR via RapidOCR</h2>
+          <p>Scanned manuscripts or older journal archives without digital text layers are automatically processed using ONNX-accelerated <strong>RapidOCR</strong>, ensuring high-accuracy text extraction for hybrid indexing.</p>
+
+          <h2>2. Direct Zotero SQLite Sync</h2>
+          <p>Connect your Zotero data directory to sync collections, tags, PDFs, and annotations without exporting intermediary files.</p>
+          <p>Read full installation details in <a href="docs.html#import">Import Documentation</a>.</p>
+        `
+      },
+      'local-first-ai': {
+        title: "Why Local-First AI Matters for Academic Data Sovereignty",
+        category: "Local AI & Privacy",
+        author: "Founder's Note",
+        date: "May 22, 2026",
+        readTime: "5 min read",
+        body: `
+          <p>Unpublished research manuscripts, patent filings, and proprietary lab data represent sensitive intellectual property. Cloud AI services often retain rights to user inputs or store data in remote servers subject to third-party access.</p>
+
+          <h2>Our Local-First Guarantee</h2>
+          <p>ResearchMind is architected from the ground up so that your library, SQLite database, embeddings, and chat history remain exclusively on your physical storage drive.</p>
+          <p>Read our full data security commitments in the <a href="legal.html#privacy">Privacy Policy</a>.</p>
+        `
+      },
+      'v0-4-release': {
+        title: "v0.4: Evidence Mode & AI Critique Tools",
+        category: "Release Notes",
+        author: "ResearchMind Core Team",
+        date: "May 10, 2026",
+        readTime: "4 min read",
+        body: `
+          <p>ResearchMind v0.4 introduced the AI Peer Review Critique assistant, citation network graph visualization, and enhanced document chunking strategies.</p>
+          <p>Explore all release highlights on our <a href="features.html">Features Overview</a>.</p>
+        `
+      }
+    };
+
+    // Modal Article Reader Controller
+    function openArticle(key) {
+      const article = articles[key];
+      if (!article) return;
+
+      document.getElementById('mTag').textContent = article.category;
+      document.getElementById('mTitle').textContent = article.title;
+      document.getElementById('mAuthor').textContent = "✍️ " + article.author;
+      document.getElementById('mDate').textContent = article.date;
+      document.getElementById('mReadTime').textContent = article.readTime;
+      document.getElementById('mBody').innerHTML = article.body;
+
+      const modal = document.getElementById('articleModal');
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+
+      window.location.hash = 'article-' + key;
+    }
+
+    function closeArticle() {
+      const modal = document.getElementById('articleModal');
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      if (window.location.hash.startsWith('#article-')) {
+        history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeArticle();
+    });
+
+    // Check hash on load
+    window.addEventListener('DOMContentLoaded', function() {
+      if (window.location.hash.startsWith('#article-')) {
+        const key = window.location.hash.replace('#article-', '');
+        if (articles[key]) openArticle(key);
+      }
+
+      // Filter & Search Logic
+      const tabs = document.querySelectorAll('.blog-tab');
+      const cards = document.querySelectorAll('.blog-card');
+      const searchInput = document.getElementById('blogSearchInput');
+
+      let currentCategory = 'all';
+      let currentQuery = '';
+
+      function filterPosts() {
+        cards.forEach(card => {
+          const category = card.getAttribute('data-category');
+          const title = card.querySelector('h3').textContent.toLowerCase();
+          const p = card.querySelector('p').textContent.toLowerCase();
+
+          const matchesCategory = (currentCategory === 'all' || category === currentCategory);
+          const matchesQuery = (!currentQuery || title.includes(currentQuery) || p.includes(currentQuery));
+
+          if (matchesCategory && matchesQuery) {
+            card.style.display = 'block';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      }
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+          tabs.forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          currentCategory = this.getAttribute('data-category');
+          filterPosts();
+        });
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+          currentQuery = e.target.value.toLowerCase().trim();
+          filterPosts();
+        });
+      }
+    });
+  </script>
 </body>
 </html>

@@ -20,12 +20,38 @@ class ProviderRouter:
             self.task_map = {str(k).lower(): str(v).lower() for k, v in raw_map.items()}
         except (TypeError, ValueError):
             self.task_map = {}
+        try:
+            raw_policy = json.loads(settings.routing_policy)
+            self.routing_policy = {
+                str(key).lower(): [str(item).lower() for item in value]
+                for key, value in raw_policy.items() if isinstance(value, list)
+            }
+        except (TypeError, ValueError):
+            self.routing_policy = {}
         self.fallbacks = [item.strip().lower() for item in settings.provider_fallback_chain.split(",") if item.strip()]
 
-    def candidates(self, task_type: str) -> list[str]:
-        primary = self.task_map.get(task_type.lower(), "gemini")
-        result = [primary, *self.fallbacks]
-        return [name for index, name in enumerate(result) if name not in result[:index] and self.available(name)]
+    @staticmethod
+    def normalize_mode(reasoning_mode: str) -> str:
+        mode = (reasoning_mode or "fast").strip().lower()
+        return "deep_plus" if mode in {"deep+", "deep_plus"} else mode
+
+    def route(self, task_type: str, reasoning_mode: str = "fast") -> tuple[str, list[str]]:
+        task = (task_type or "chat").strip().lower()
+        mode = self.normalize_mode(reasoning_mode)
+        mode_key = f"{task}.{mode}"
+        if mode_key in self.routing_policy:
+            return mode_key, self.routing_policy[mode_key]
+        if task in self.routing_policy:
+            return task, self.routing_policy[task]
+        primary = self.task_map.get(task, "gemini")
+        return task, [primary, *self.fallbacks]
+
+    def candidates(self, task_type: str, reasoning_mode: str = "fast") -> list[str]:
+        _, planned = self.route(task_type, reasoning_mode)
+        return [
+            name for index, name in enumerate(planned)
+            if name not in planned[:index] and self.available(name)
+        ]
 
     def available(self, provider: str) -> bool:
         key = getattr(self.settings, f"{provider}_api_key", "")
@@ -36,9 +62,29 @@ class ProviderRouter:
     def model(self, provider: str) -> str:
         return str(getattr(self.settings, f"{provider}_model", ""))
 
-    async def generate(self, request: GenerateRequest) -> tuple[str, str, str]:
-        errors = []
-        for provider in self.candidates(request.task_type):
+    def routing_metadata(self, request: GenerateRequest, selected: str, failures: list[str]) -> dict:
+        routing_key, planned = self.route(request.task_type, request.reasoning_mode)
+        primary = planned[0] if planned else ""
+        fallback_used = bool(primary and selected != primary)
+        if not fallback_used:
+            reason = ""
+        elif not self.available(primary):
+            reason = f"{primary} is not configured or unavailable"
+        elif failures:
+            reason = failures[-1]
+        else:
+            reason = f"{primary} did not return a usable response"
+        return {
+            "primary_provider": primary,
+            "selected_provider": selected,
+            "fallback_used": fallback_used,
+            "fallback_reason": reason,
+            "routing_key": routing_key,
+        }
+
+    async def generate(self, request: GenerateRequest) -> tuple[str, str, str, dict]:
+        failures: list[str] = []
+        for provider in self.candidates(request.task_type, request.reasoning_mode):
             try:
                 if provider == "gemini":
                     content = await self._gemini(request)
@@ -47,34 +93,36 @@ class ProviderRouter:
                 else:
                     content = await self._openai_compatible(provider, request)
                 if content.strip():
-                    return content, provider, self.model(provider)
+                    return content, provider, self.model(provider), self.routing_metadata(request, provider, failures)
+                failures.append(f"{provider} returned an empty response")
             except Exception as exc:
-                errors.append(f"{provider}: {exc}")
-        raise ProviderError("No hosted AI provider succeeded. " + "; ".join(errors))
+                failures.append(f"{provider} failed ({type(exc).__name__})")
+        raise ProviderError("No hosted AI provider succeeded. " + "; ".join(failures))
 
-    async def stream(self, request: GenerateRequest) -> AsyncIterator[tuple[str, str, str]]:
-        errors = []
-        for provider in self.candidates(request.task_type):
+    async def stream(self, request: GenerateRequest) -> AsyncIterator[tuple[str, str, str, dict]]:
+        failures: list[str] = []
+        for provider in self.candidates(request.task_type, request.reasoning_mode):
             emitted = False
+            metadata = self.routing_metadata(request, provider, failures)
             try:
                 stream = self._stream_gemini(request) if provider == "gemini" else self._stream_openai(provider, request)
                 if provider == "claude":
                     content = await self._claude(request)
                     if content:
-                        yield content, provider, self.model(provider)
+                        yield content, provider, self.model(provider), metadata
                         return
                 else:
                     async for chunk in stream:
                         emitted = True
-                        yield chunk, provider, self.model(provider)
+                        yield chunk, provider, self.model(provider), metadata
                     if emitted:
                         return
+                    failures.append(f"{provider} returned an empty response")
             except Exception as exc:
                 if emitted:
-                    raise ProviderError(f"{provider} stream interrupted: {exc}") from exc
-                errors.append(f"{provider}: {exc}")
-        raise ProviderError("No hosted AI provider succeeded. " + "; ".join(errors))
-
+                    raise ProviderError(f"{provider} stream interrupted ({type(exc).__name__})") from exc
+                failures.append(f"{provider} failed ({type(exc).__name__})")
+        raise ProviderError("No hosted AI provider succeeded. " + "; ".join(failures))
     async def embed(self, texts: list[str], model: str) -> list[list[float]]:
         key = self.settings.gemini_api_key
         if not key:

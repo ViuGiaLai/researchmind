@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { api, ReviewSection, ReviewSectionResponse, OutlineSection, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, getAuthenticatedApiUrl } from "../../lib/api";
+import { api, ReviewSection, ReviewSectionResponse, OutlineSection, EvidencePreflightResponse, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, QualityMetrics, getAuthenticatedApiUrl } from "../../lib/api";
 import { paperDisplayTitle } from "../../lib/paperDisplay";
 import { SectionCard } from "./SectionCard";
 import { ReviewSectionEditor } from "./ReviewSectionEditor";
@@ -27,16 +27,17 @@ import {
 } from "../Icons";
 
 function getDefaultSections(t: (key: string) => string): OutlineSection[] {
-  return [
-    { key: "background", title: t("review_builder.section_overview"), description: t("review_builder.section_overview_desc") },
-    { key: "related_work", title: t("review_builder.section_related"), description: t("review_builder.section_related_desc") },
-    { key: "methodology_comparison", title: t("review_builder.section_methods"), description: t("review_builder.section_methods_desc") },
-    { key: "findings", title: t("review_builder.section_results"), description: t("review_builder.section_results_desc") },
-    { key: "limitations", title: t("review_builder.section_limitations"), description: t("review_builder.section_limitations_desc") },
-    { key: "research_gaps", title: t("review_builder.section_gaps"), description: t("review_builder.section_gaps_desc") },
-    { key: "future_directions", title: t("review_builder.section_future"), description: t("review_builder.section_future_desc") },
-    { key: "bibliography", title: t("review_builder.section_references"), description: t("review_builder.section_references_desc") },
+  const keys = [
+    "review_scope", "conceptual_background", "study_characteristics",
+    "methodology_comparison", "comparative_synthesis", "limitations",
+    "research_gaps", "conclusion", "bibliography",
   ];
+  return keys.map((key, index) => ({
+    key,
+    title: `${index + 1}. ${t(`review_builder.framework_${key}`)}`,
+    description: t(`review_builder.framework_${key}_desc`),
+    subheadings: [],
+  }));
 }
 
 type Step = "select" | "outline" | "review";
@@ -61,6 +62,8 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [generatingSections, setGeneratingSections] = useState<Set<string>>(new Set());
   const [generatingAll, setGeneratingAll] = useState(false);
   const [generatingOutline, setGeneratingOutline] = useState(false);
+  const [preflightLoading, setPreflightLoading] = useState(false);
+  const [preflightReport, setPreflightReport] = useState<EvidencePreflightResponse | null>(null);
   const [streamingContent, setStreamingContent] = useState<Record<string, string>>({});
   const sectionStreamRef = useRef<{ abort: () => void } | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -74,6 +77,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [activePdf, setActivePdf] = useState<{ paperId: string; paperTitle: string; page?: number } | null>(null);
   const pdfDialogRef = useDialogFocus<HTMLDivElement>(Boolean(activePdf), () => setActivePdf(null));
   const [qualityIssues, setQualityIssues] = useState<QualityIssue[]>([]);
+  const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
   const [qualityLoading, setQualityLoading] = useState(false);
   const toast = useToast();
 
@@ -292,33 +296,67 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   };
 
   const togglePaper = (id: string) => {
+    setPreflightReport(null);
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
   const selectAllFiltered = () => {
+    setPreflightReport(null);
     setSelectedIds(papers.map((p) => p.id));
   };
 
   const deselectAll = () => {
+    setPreflightReport(null);
     setSelectedIds([]);
   };
 
-  const handleContinueToOutline = async () => {
+  const handleContinueToOutline = async (preserveExisting = false) => {
     if (selectedIds.length === 0) {
       toast.addToast("error", t("review_builder.error_select_one"));
       return;
     }
+    if (!preserveExisting) {
+      setPreflightLoading(true);
+      try {
+        const report = await api.reviewEvidencePreflight(selectedIds);
+        setPreflightReport(report);
+        if (!report.passed) {
+          const message = report.blocking_issues?.[0]?.message || t("review_builder.preflight_failed");
+          toast.addToast("error", message);
+          return;
+        }
+        if (report.warnings?.length) {
+          toast.addToast("warning", t("review_builder.preflight_warning", { count: report.warnings.length }));
+        }
+      } catch (e) {
+        toast.addToast("error", t("review_builder.preflight_error", { msg: e instanceof Error ? e.message : String(e) }));
+        return;
+      } finally {
+        setPreflightLoading(false);
+      }
+    }
+
     setStep("outline");
     setGeneratingOutline(true);
     try {
-      const res = await api.generateOutline(selectedIds, outlineSections);
+      const res = await api.generateOutline(
+        selectedIds,
+        preserveExisting ? outlineSections : undefined,
+        preserveExisting
+          ? { useCache: false, variation: Date.now() }
+          : { useCache: true },
+      );
       if (res.error) {
         toast.addToast("error", res.error);
         return;
       }
-      setOutlineSections(res.sections || getDefaultSections(t));
+      const detailsByKey = new Map((res.sections || []).map((item) => [item.key, item.subheadings || []]));
+      setOutlineSections(getDefaultSections(t).map((item) => ({
+        ...item,
+        subheadings: detailsByKey.get(item.key) || [],
+      })));
       setPaperTitles(res.paper_titles);
     } catch (e) {
       toast.addToast("error", t("review_builder.error_outline", { msg: e instanceof Error ? e.message : String(e) }));
@@ -327,10 +365,12 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
     }
   };
 
+
   const loadEvidence = async (section: string) => {
     setEvidenceLoading((prev) => new Set(prev).add(section));
     try {
-      const res = await api.getEvidence(selectedIds, section, 10);
+      const sectionMeta = outlineSections.find((item) => item.key === section);
+      const res = await api.getEvidence(selectedIds, section, 10, sectionMeta);
       if (!res.error) {
         setEvidence((prev) => ({ ...prev, [section]: res.evidence }));
       }
@@ -354,7 +394,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
     try {
       const sectionKeys = outlineSections.map((s) => s.key);
-      api.generateReviewDraftStream(selectedIds, title, sectionKeys, {
+      api.generateReviewDraftStream(selectedIds, title, sectionKeys, outlineSections, {
         onStart: (payload) => {
           setPaperTitles(payload.paper_titles || []);
         },
@@ -398,7 +438,8 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
     setGeneratingSections((prev) => new Set(prev).add(sectionKey));
     setStreamingContent((prev) => ({ ...prev, [sectionKey]: "" }));
 
-    sectionStreamRef.current = api.generateReviewSectionStream(selectedIds, sectionKey, {
+    const sectionMeta = outlineSections.find((item) => item.key === sectionKey);
+    sectionStreamRef.current = api.generateReviewSectionStream(selectedIds, sectionKey, sectionMeta, {
       onStart: () => {
         setStreamingContent((prev) => ({ ...prev, [sectionKey]: "" }));
       },
@@ -495,13 +536,15 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
     }
     setQualityLoading(true);
     setQualityIssues([]);
+    setQualityMetrics(null);
     try {
-      const res = await api.checkQuality(title, sections);
+      const res = await api.checkQuality(title, sections, outlineSections, selectedIds);
       if (res.error) {
         toast.addToast("error", res.error);
         return;
       }
       setQualityIssues(res.issues || []);
+      setQualityMetrics(res.metrics || null);
       if (res.issues && res.issues.length > 0) {
         const highCount = res.issues.filter((i) => i.severity === "high").length;
         const mediumCount = res.issues.filter((i) => i.severity === "medium").length;
@@ -841,13 +884,41 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                   <button
                     type="button"
                     className="evidence-create-matrix-btn"
-                    onClick={handleContinueToOutline}
-                    disabled={selectedCount === 0}
+                    onClick={() => handleContinueToOutline(false)}
+                    disabled={selectedCount === 0 || preflightLoading}
                   >
-                    <IconBookOpen size={16} />
-                    <span>{t("review_builder.continue_outline")}</span>
+                    {preflightLoading ? <IconSpinner size={16} /> : <IconBookOpen size={16} />}
+                    <span>{preflightLoading ? t("review_builder.preflight_running") : t("review_builder.continue_outline")}</span>
                   </button>
                 </div>
+                {preflightReport && (
+                  <div style={{
+                    margin: "10px 0 14px", padding: "12px", borderRadius: 10,
+                    border: `1px solid ${preflightReport.passed ? "rgba(16,185,129,.3)" : "rgba(239,68,68,.3)"}`,
+                    background: preflightReport.passed ? "rgba(16,185,129,.06)" : "rgba(239,68,68,.06)",
+                    fontSize: "0.72rem", lineHeight: 1.5,
+                  }}>
+                    <div style={{ fontWeight: 700, color: preflightReport.passed ? "var(--color-success)" : "var(--color-error)" }}>
+                      {preflightReport.passed ? t("review_builder.preflight_passed") : t("review_builder.preflight_blocked")}
+                    </div>
+                    <div style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+                      {t("review_builder.preflight_metrics", {
+                        ready: preflightReport.metrics.ready_papers || 0,
+                        total: preflightReport.metrics.selected_papers || selectedCount,
+                        chunks: preflightReport.metrics.total_chunks || 0,
+                        score: preflightReport.metrics.readiness_score || 0,
+                      })}
+                    </div>
+                    {preflightReport.blocking_issues.slice(0, 2).map((issue, index) => (
+                      <div key={`${issue.code}-${index}`} style={{ color: "var(--color-error)", marginTop: 4 }}>• {issue.message}</div>
+                    ))}
+                    {preflightReport.warnings.length > 0 && (
+                      <div style={{ color: "var(--color-warning)", marginTop: 4 }}>
+                        {t("review_builder.preflight_warning", { count: preflightReport.warnings.length })}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="evidence-sidebar-btn-wrapper">
                   <button
                     type="button"
@@ -952,6 +1023,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                       section={sec.key}
                       title={sec.title}
                       description={sec.description}
+                      subheadings={sec.subheadings}
                       status="pending"
                       onGenerate={() => {
                         setStep("review");
@@ -972,7 +1044,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                   {generatingAll ? t("review_builder.generating_draft_all") : t("review_builder.generate_full_review")}
                 </button>
                 <button
-                  onClick={handleContinueToOutline}
+                  onClick={() => handleContinueToOutline(true)}
                   disabled={generatingOutline}
                   className="u-btn-ghost-sm" style={{ padding: "10px 20px", fontSize: "0.85rem" }}
                 >
@@ -1054,6 +1126,11 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                   {qualityLoading ? <IconSpinner size={14} /> : <IconZap size={14} />}
                   {qualityLoading ? t("review_builder.checking_quality") : t("review_builder.check_quality")}
                 </button>
+                {qualityMetrics && (
+                  <span className="u-row-gap4" style={{ fontSize: "0.75rem", fontWeight: 600, color: qualityMetrics.passed ? "var(--color-success)" : "var(--color-warning)" }}>
+                    {t("review_builder.quality_score", { score: qualityMetrics.academic_score, coverage: qualityMetrics.claim_citation_coverage })}
+                  </span>
+                )}
                 {qualityIssues.length > 0 && (
                   <span className="u-row-gap4" style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
                     {qualityIssues.filter((i) => i.severity === "high").length > 0 && (

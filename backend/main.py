@@ -449,7 +449,10 @@ app.include_router(publishing_router)
 # Serve React frontend (SPA) — hỗ trợ share qua ngrok
 frontend_dist = Path(__file__).resolve().parent.parent / "apps" / "desktop" / "dist"
 if frontend_dist.exists():
-    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+    assets_dir = frontend_dist / "assets"
+    if not assets_dir.exists():
+        assets_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_frontend(full_path: str):
