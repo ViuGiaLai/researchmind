@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 # UUID (with optional surrounding separators) at start of stored filename/title
 UUID_PREFIX_RE = re.compile(

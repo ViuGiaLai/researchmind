@@ -13,14 +13,15 @@ verify.py (_build_clean_academic_context).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from .ontology import (
     AcademicOntologyGraph,
     ClaimEntity,
+    DatasetEntity,
     ExperimentEntity,
     MethodEntity,
-    DatasetEntity,
     MetricEntity,
 )
 
@@ -103,7 +104,13 @@ def _extract_experiments(line: str, index: int) -> list[ExperimentEntity]:
     line_lower = line.lower()
     methods = _extract_methods(line_lower)
     datasets = _extract_datasets(line_lower)
-    exp_matches = _re.findall(r"([a-z_]+)\s*(?:=|:)\s*(\d+\.?\d*)\s*%?", line_lower)
+    # Metric identifiers commonly contain digits (for example f1, hits@10, or
+    # recall_5). Requiring letters only silently dropped those measurements and
+    # weakened the ontology supplied to the reasoning pipeline.
+    exp_matches = _re.findall(
+        r"\b([a-z][a-z0-9_]*(?:@[0-9]+)?)\s*(?:=|:)\s*(\d+(?:\.\d+)?)\s*%?",
+        line_lower,
+    )
     for metric, val_str in exp_matches:
         if metric in _SKIP_KEYS:
             continue
@@ -114,7 +121,9 @@ def _extract_experiments(line: str, index: int) -> list[ExperimentEntity]:
                 ExperimentEntity(
                     id=eid,
                     paper_id="local",
-                    method_name=methods[0] if methods else "unknown",
+                    # Preserve standalone key/value semantics: when no named
+                    # method is present, the key is more useful than "unknown".
+                    method_name=methods[0] if methods else metric,
                     dataset_name=datasets[0] if datasets else "unknown",
                     metric_name=metric,
                     value=val,

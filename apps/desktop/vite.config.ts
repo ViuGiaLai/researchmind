@@ -26,12 +26,29 @@ export default defineConfig(async () => ({
   build: {
     rollupOptions: {
       output: {
-        // These libraries are only needed by lazy-loaded views. Keeping them
-        // separate avoids making the initial desktop shell parse editor/graph code.
+        // Stable dependency groups improve caching and keep the initial app
+        // chunk small enough to parse quickly on lower-end desktop devices.
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
           if (id.includes("@tiptap") || id.includes("prosemirror")) return "editor";
-          if (id.includes("vis-data") || id.includes("vis-network")) return "graph-vendor";
+          if (id.includes("vis-network")) return "graph-network";
+          if (id.includes("vis-data")) return "graph-data";
+          if (id.includes("@clerk") || id.includes("firebase")) return "auth-vendor";
+          if (id.includes("@tauri-apps")) return "tauri-vendor";
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("/scheduler/")
+          ) {
+            return "react-vendor";
+          }
+          if (
+            id.includes("i18next") ||
+            id.includes("marked") ||
+            id.includes("turndown")
+          ) {
+            return "content-vendor";
+          }
           return undefined;
         },
       },

@@ -4,15 +4,14 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Request
 from loguru import logger
 
 from app_state import state
-from common.i18n import t, get_language
-from config.settings import settings
+from common.i18n import get_language, t
+from common.rag_ready import rag_unavailable_message
 from db.database import get_session
 from db.models import ChatHistory, Paper
-from common.rag_ready import rag_unavailable_message
 from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/personal", tags=["Personal"])

@@ -725,7 +725,37 @@
     "citations_influential": "{count} influential",
     "recent_citing": "Recent citing research (from 2022)",
     "s2_citations": "Notable Citations (S2)",
-    "s2_recommendations": "Similar Recommended Research"
+    "s2_recommendations": "Similar Recommended Research",
+    "academic_verdict": "Academic verdict",
+    "unknown": "Unknown",
+    "academic_basis": "Academic basis",
+    "rules_applied": "Rules applied",
+    "methods": "Methods",
+    "standards": "Standards",
+    "evidence_count": "Evidence ({count})",
+    "limitations": "Limitations",
+    "unverifiable_items": "Unverifiable items",
+    "assumption": "Assumption",
+    "no_significant_limitations": "No significant limitations detected.",
+    "confidence": "Confidence",
+    "next_steps": "Next steps",
+    "venue_compliance": "Venue compliance",
+    "verdicts": {
+      "supported": "Supported",
+      "partially_supported": "Partially supported",
+      "inconclusive": "Inconclusive",
+      "contradicted": "Contradicted"
+    },
+    "confidence_levels": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "evidence_status": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "warning": "Warning"
+    }
   },
   "discovery": {
     "title": "Academic Discovery",

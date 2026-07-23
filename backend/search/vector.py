@@ -19,11 +19,11 @@ import chromadb.telemetry.product.posthog
 # Monkey-patch telemetry once at module level (before any client is created)
 chromadb.telemetry.product.posthog.Posthog.capture = lambda self, event: None
 
-from typing import Optional
 from dataclasses import dataclass
 from pathlib import Path
-from loguru import logger
+
 import numpy as np
+from loguru import logger
 
 
 @dataclass
@@ -33,7 +33,7 @@ class VectorResult:
     paper_title: str
     chunk_index: int
     content: str
-    page_number: Optional[int]
+    page_number: int | None
     score: float
 
 
@@ -119,9 +119,9 @@ class VectorSearch:
     def search(
         self,
         query_embedding: list[float],
-        paper_ids: Optional[list[str]] = None,
+        paper_ids: list[str] | None = None,
         top_k: int = 20,
-        mmr_lambda: Optional[float] = None,
+        mmr_lambda: float | None = None,
     ) -> list[VectorResult]:
         """
         Search for similar chunks using vector similarity.

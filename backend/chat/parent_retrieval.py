@@ -1,5 +1,7 @@
 """Expand matched child chunks with adjacent parent context."""
 from db.models import Chunk
+
+
 def expand_parent_context(session, chunks: list[dict], radius: int = 1) -> list[dict]:
     result = []
     for child in chunks:

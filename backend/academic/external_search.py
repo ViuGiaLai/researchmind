@@ -1,8 +1,8 @@
 import asyncio
+
 from academic.openalex import search_works
 from academic.semantic_scholar import search_papers
 from academic.web_search import search_web
-from typing import Optional
 
 
 def _format_openalex_results(results: list[dict]) -> str:

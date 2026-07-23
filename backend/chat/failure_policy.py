@@ -1,5 +1,7 @@
 """Classify provider failures for retry and fallback decisions."""
 import httpx
+
+
 def classify_failure(error: Exception) -> dict:
     if isinstance(error, (TimeoutError, httpx.TimeoutException)):
         return {"kind":"timeout", "retryable":True}

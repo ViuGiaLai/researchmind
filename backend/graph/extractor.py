@@ -5,16 +5,18 @@ https://github.com/microsoft/graphrag/blob/main/packages/graphrag/graphrag/index
 """
 
 from __future__ import annotations
+
 import re
 import uuid
 from typing import Any
 
 from loguru import logger
 
-from app_state import state
-from .models import GraphEntity, GraphRelationship
-from .errors import GraphBuildCancelled
 from academic.governance import get_academic_governance
+from app_state import state
+
+from .errors import GraphBuildCancelled
+from .models import GraphEntity, GraphRelationship
 
 # ── Versioned graph extraction schema ────────────────────────────
 

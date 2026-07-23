@@ -5,12 +5,12 @@ https://github.com/langchain-ai/open_deep_research
 """
 
 import asyncio
+
 from fastapi import APIRouter, Body, HTTPException
 from loguru import logger
 
 from app_state import state
-from config.settings import settings
-from research.orchestrator import deep_research, DeepResearchResult
+from research.orchestrator import DeepResearchResult, deep_research
 from research.planner import decompose_query
 
 router = APIRouter(prefix="/api/research", tags=["Research"])

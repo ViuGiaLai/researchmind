@@ -1,6 +1,6 @@
 """Resolve safe research metadata filters to paper IDs."""
-import json
 from db.models import Paper
+
 _ALLOWED = {"year_from", "year_to", "authors", "tags", "language", "read_status", "starred"}
 def filter_paper_ids(session, filters: dict | None) -> list[str] | None:
     if not filters: return None

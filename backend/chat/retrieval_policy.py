@@ -1,5 +1,7 @@
 """Adaptive retrieval controls that remain deterministic and local."""
 import re
+
+
 def adaptive_top_k(query: str, requested: int = 5, task_type: str = "") -> int:
     # Task-type overrides (lowest priority, applied before adaptive logic)
     task_cap = {

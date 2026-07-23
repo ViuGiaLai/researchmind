@@ -13,10 +13,6 @@ from loguru import logger
 from .generator_v2 import Generator as OriginalGenerator
 
 # Provider mixins (take precedence via MRO)
-from .providers.openai_provider import OpenAIProviderMixin
-from .providers.gemini_provider import GeminiProviderMixin
-from .providers.claude_provider import ClaudeProviderMixin
-from .providers.local_provider import LocalProviderMixin
 
 
 class PatchedGenerator(
@@ -42,7 +38,7 @@ class PatchedGenerator(
             if provider == "researchmind_cloud":
                 if not self.researchmind_cloud_url:
                     return
-                self._set_model(f"researchmind_cloud/...")
+                self._set_model("researchmind_cloud/...")
                 yield from self._stream_cloud_gateway(user_prompt, max_tokens)
                 return
             elif provider == "github":

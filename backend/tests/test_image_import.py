@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from ingestion.image_ocr import ocr_image_bytes, MIN_IMAGE_DIM
+from ingestion.image_ocr import MIN_IMAGE_DIM, ocr_image_bytes
 
 
 def _make_text_image(text: str) -> bytes:

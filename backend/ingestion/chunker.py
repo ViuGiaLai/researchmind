@@ -9,7 +9,6 @@ https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/
 """
 
 import re
-from typing import Optional
 from dataclasses import dataclass
 
 
@@ -17,7 +16,7 @@ from dataclasses import dataclass
 class Chunk:
     index: int
     text: str
-    page_number: Optional[int]
+    page_number: int | None
     section_header: str
     token_count: int
     paper_id: str = ""
@@ -76,7 +75,7 @@ class SentenceSplitter:
     ) -> list[Chunk]:
         chunks: list[Chunk] = []
         overlap_chars = self.chunk_overlap * 4
-        chunk_chars = self.chunk_size * 4
+        self.chunk_size * 4
 
         buffer = ""
         current_page = 1

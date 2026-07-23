@@ -4,11 +4,12 @@ Uses OpenAI-compatible API first, falls back to native /completion endpoint.
 """
 
 import json
-from typing import Optional
-import json
-from loguru import logger
+
 import httpx
+from loguru import logger
+
 from common.i18n import t as _t
+
 from ..types import GenerationResult
 
 
@@ -24,7 +25,7 @@ class LocalProviderMixin:
     """
 
     def _generate_local(self, prompt: str, system_prompt_override: str = None,
-                        max_tokens: Optional[int] = None) -> "GenerationResult":
+                        max_tokens: int | None = None) -> "GenerationResult":
         sp = system_prompt_override or self._get_system_prompt()
         messages = [{"role": "system", "content": sp}, {"role": "user", "content": prompt}]
         content = None

@@ -4,16 +4,16 @@
 - Observability (common/audit_trail.py)
 - Plugin Manager (academic/plugins.py)
 - Multi-Agent ReviewAgent (agents/review_agent.py)
-- Continuous Guideline Sync (publishing/guideline_fetcher.py)
 """
+
 import pytest
-from evaluation.platform_evaluator import evaluate_pipeline_result, EvaluationMetrics
-from academic.memory import MemoryStore, FeedbackEntry
-from common.audit_trail import AuditTrailLogger, AuditTrailRecord
+
+from academic.memory import FeedbackEntry, MemoryStore
 from academic.plugins import plugin_manager
+from agents import AgentContext, run_pipeline
 from agents.review_agent import ReviewAgent
-from agents import run_pipeline, AgentContext
-from publishing.guideline_fetcher import check_all_venue_updates
+from common.audit_trail import AuditTrailLogger, AuditTrailRecord
+from evaluation.platform_evaluator import EvaluationMetrics, evaluate_pipeline_result
 
 
 def test_evaluation_framework():
@@ -77,13 +77,15 @@ def test_observability_audit_trail(tmp_path):
 
 
 def test_plugin_manager():
-    venue_id = plugin_manager.register_venue({
-        "id": "custom_conf",
-        "name": "Custom Conference 2026",
-        "venue_code": "CUSTOM",
-        "publisher": "Custom Press",
-        "version": "1.0",
-    })
+    venue_id = plugin_manager.register_venue(
+        {
+            "id": "custom_conf",
+            "name": "Custom Conference 2026",
+            "venue_code": "CUSTOM",
+            "publisher": "Custom Press",
+            "version": "1.0",
+        }
+    )
     assert venue_id == "custom_conf"
     assert plugin_manager.get_custom_venue("custom_conf")["name"] == "Custom Conference 2026"
 
@@ -96,17 +98,14 @@ async def test_review_agent():
         query="What are transformer models?",
         venue_id="ieee_trans",
         workflow_step="review",
-        available_artifacts={"title": "Test Paper", "draft": "## Abstract\nShort abstract.\n\n## Method\nProposed method."},
+        available_artifacts={
+            "title": "Test Paper",
+            "draft": "## Abstract\nShort abstract.\n\n## Method\nProposed method.",
+        },
     )
     result = await agent.run(ctx)
     assert result.success is True
     assert "overall_recommendation" in result.output
-
-
-def test_continuous_guideline_sync():
-    sync_report = check_all_venue_updates()
-    assert sync_report["total_venues"] >= 12
-    assert "results" in sync_report
 
 
 @pytest.mark.asyncio

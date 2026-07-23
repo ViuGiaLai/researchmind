@@ -1,8 +1,9 @@
 """Auto Fixer tool — applies mechanical, rule-safe fixes from an audit report."""
 from __future__ import annotations
-import re
+
 from dataclasses import dataclass
 from typing import Any
+
 from .base import BaseTool, ToolResult
 
 

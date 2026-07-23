@@ -1,14 +1,16 @@
-﻿name = "researchmind-cloud-sync"
-compatibility_date = "2024-03-20"
+name = "researchmind-cloud-sync"
+compatibility_date = "2026-07-23"
+compatibility_flags = ["nodejs_compat"]
 main = "src/index.ts"
 
-# 1. Liên kết Database D1
 [[d1_databases]]
-binding = "DB" # Tên biến truy cập trong worker (ví dụ: env.DB)
+binding = "DB"
 database_name = "researchmind_db"
 database_id = "your_d1_database_id_here"
-# preview_database_id = "your_preview_id_here" # Dành cho local dev (tùy chọn)
 
-# 2. Cấu hình biến môi trường tĩnh (các biến bảo mật thì dùng wrangler secret put)
 [vars]
-ALLOWED_ORIGINS = "http://localhost:1420,tauri://localhost"
+ALLOWED_ORIGINS = "http://localhost:1420,http://tauri.localhost,https://tauri.localhost,tauri://localhost"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1

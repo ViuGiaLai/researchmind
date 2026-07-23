@@ -9,7 +9,9 @@ Audits manuscripts against venue-specific rule definitions with full provenance 
 
 import re
 from typing import Any
+
 from publishing.templates import get_venue_template
+
 
 class AuditReport:
     def __init__(self, template_id: str):

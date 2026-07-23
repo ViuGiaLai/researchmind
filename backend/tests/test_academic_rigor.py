@@ -8,11 +8,11 @@
 import pytest
 
 pytestmark = pytest.mark.integration
-from academic.methodology import AcademicMethodologyEngine
 from academic.hypothesis_engine import AcademicHypothesisEngine
-from academic.validity_auditor import ValidityAuditor
-from academic.reproducibility import ReproducibilityEvaluator
+from academic.methodology import AcademicMethodologyEngine
 from academic.refutation_engine import AdversarialRefutationEngine
+from academic.reproducibility import ReproducibilityEvaluator
+from academic.validity_auditor import ValidityAuditor
 
 
 def test_prisma_methodology_flow():
@@ -50,7 +50,7 @@ def test_validity_auditor_threats():
     text = "We proposed Method A and tested it on ImageNet dataset. Results show accuracy improvement."
     threats = auditor.audit_threats_to_validity(text)
     assert len(threats) >= 2  # missing random seeds, missing statistical significance test, etc.
-    
+
     score = auditor.calculate_validity_score(threats)
     assert score < 1.0
 

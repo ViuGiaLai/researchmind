@@ -1,7 +1,8 @@
 """Base classes for the academic tool layer."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Any
 
 

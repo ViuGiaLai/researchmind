@@ -1,7 +1,9 @@
 """Metadata Checker tool — validates manuscript metadata fields against venue rules."""
 from __future__ import annotations
+
 import re
 from typing import Any
+
 from .base import BaseTool, ToolResult
 
 
@@ -17,8 +19,8 @@ class MetadataCheckerTool(BaseTool):
         venue_id: str = "ieee_trans",
         metadata: dict[str, Any] | None = None,
     ) -> ToolResult:
-        from publishing.templates import get_venue_template
         from academic.governance import get_academic_governance
+        from publishing.templates import get_venue_template
 
         gov = get_academic_governance()
         template = get_venue_template(venue_id)
@@ -30,7 +32,7 @@ class MetadataCheckerTool(BaseTool):
         passed_fields: list[str] = []
         warnings: list[str] = []
 
-        text_lower = text_content.lower()
+        text_content.lower()
 
         # 1. Keywords
         if rules_spec.get("requires_keywords", False):

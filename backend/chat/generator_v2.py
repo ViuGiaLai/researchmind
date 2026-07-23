@@ -10,34 +10,34 @@ Supports:
 Provider implementations are split into backend/chat/providers/*.py mixins.
 """
 
-from typing import Optional
 import json
 import re
 import threading
 import time
-import httpx
-from loguru import logger
-from config.settings import settings
-from common.text_utils import redact_api_key
-from common.i18n import get_language_instruction
-
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    import anthropic
 
-from .types import GenerationResult
-from .prompt_budget import fit_prompt_for_provider, get_provider_input_budget, trim_context_text
-from .providers.openai_provider import OpenAIProviderMixin
-from .providers.gemini_provider import GeminiProviderMixin
-from .providers.claude_provider import ClaudeProviderMixin
-from .providers.local_provider import LocalProviderMixin
-from .providers.cloud_gateway_provider import CloudGatewayProviderMixin
-from .cache_version import cache_fingerprint
-from .provider_resilience import provider_health
+from loguru import logger
+
+from common.i18n import get_language_instruction
+from config.settings import settings
+
+if TYPE_CHECKING:
+    pass
+
 from common.ai_observability import trace
 from common.prompt_security import neutralize_untrusted_text, redact_sensitive_text
-from .prompt_factory import build_rag_user_prompt, build_system_prompt
+
+from .cache_version import cache_fingerprint
 from .failure_policy import classify_failure
+from .prompt_budget import fit_prompt_for_provider, get_provider_input_budget, trim_context_text
+from .prompt_factory import build_rag_user_prompt, build_system_prompt
+from .provider_resilience import provider_health
+from .providers.claude_provider import ClaudeProviderMixin
+from .providers.cloud_gateway_provider import CloudGatewayProviderMixin
+from .providers.gemini_provider import GeminiProviderMixin
+from .providers.local_provider import LocalProviderMixin
+from .providers.openai_provider import OpenAIProviderMixin
+from .types import GenerationResult
 
 
 class Generator(
@@ -95,7 +95,7 @@ class Generator(
         cerebras_model: str = "qwen-3-235b-a22b-instruct-2507",
         cerebras_url: str = "https://api.cerebras.net/v1",
         mode: str = "cloud_free",
-        task_provider_map: Optional[str] = None,
+        task_provider_map: str | None = None,
         custom_cloud_provider: str = "deepseek",
         local_max_tokens: int = 160,
         task_ultimate_fallback_chain: str = "",
@@ -198,6 +198,10 @@ class Generator(
             mode = "fast"
         self._local.task_type = task
         self._local.reasoning_mode = mode
+        self._local.current_model = ""
+        self._local.current_router_reason = ""
+        self._local.current_token_count = 0
+        self._local.stream_gateway_error = ""
         return task, mode
 
     def _parse_task_provider_map(self, raw: str):
@@ -237,7 +241,7 @@ class Generator(
 
         if self.researchmind_cloud_url and self.mode == "cloud_free":
             return "researchmind_cloud"
-        
+
         # An explicit per-task route is authoritative. Reasoning-mode routing is
         # only a default when the task has no configured provider.
         provider = self.task_provider_map.get(task_type)
@@ -700,7 +704,7 @@ class Generator(
         self,
         query: str,
         context_text: str,
-        citations_meta: Optional[list[dict]] = None,
+        citations_meta: list[dict] | None = None,
         reasoning_mode: str = "fast",
         task_type: str = "chat",
         strict_evidence: bool = False,
@@ -812,8 +816,8 @@ class Generator(
         self,
         query: str,
         context_text: str,
-        citations_meta: Optional[list[dict]] = None,
-        max_tokens: Optional[int] = None,
+        citations_meta: list[dict] | None = None,
+        max_tokens: int | None = None,
         task_type: str = "",
     ) -> GenerationResult:
         max_out = max_tokens or 1024
@@ -1027,7 +1031,7 @@ class Generator(
         query: str,
         context_text: str,
         external_data_text: str = "",
-        citations_meta: Optional[list[dict]] = None,
+        citations_meta: list[dict] | None = None,
         task_type: str = "verify",
         lang: str = "",
     ) -> GenerationResult:
@@ -1241,17 +1245,36 @@ class Generator(
             self._local.system_prompt_override = previous_prompt
 
     def _set_model(self, model_str: str, token_count: int = 0) -> None:
+        self._local.current_model = model_str
+        self._local.current_token_count = token_count
         self.current_model = model_str
         self.current_token_count = token_count
         try:
             from ai.model_router import ModelRouter
             sel = ModelRouter(default_model=model_str)
             sel_result = sel.select_for_content("", task_type="chat")
+            self._local.current_router_reason = sel_result.reason
             self.current_router_reason = sel_result.reason
         except Exception:
+            self._local.current_router_reason = ""
             self.current_router_reason = ""
 
+    def get_stream_metadata(self) -> dict[str, str | int]:
+        """Snapshot metadata for the request running on the current thread."""
+        return {
+            "model_used": getattr(self._local, "current_model", self.current_model),
+            "router_reason": getattr(
+                self._local, "current_router_reason", self.current_router_reason
+            ),
+            "token_count": getattr(
+                self._local, "current_token_count", self.current_token_count
+            ),
+            "gateway_error": getattr(self._local, "stream_gateway_error", ""),
+        }
+
     def _stream_chain(self, user_prompt: str, max_tokens: int = 1024, task_type: str = ""):
+        self._local.current_router_reason = ""
+        self._local.current_token_count = 0
         self.current_router_reason = ""
         self.current_token_count = 0
 

@@ -1,17 +1,18 @@
 """Hybrid search combining BM25 + Vector results with RRF fusion and cross-encoder re-ranking."""
 
-import functools
 import copy
+import functools
 import hashlib
 import json
+import threading
+import time
 from collections import OrderedDict
-from typing import Optional
 from dataclasses import dataclass
+
 from loguru import logger
+
 from config.settings import settings
 from search.calibration import retrieval_weights
-import time
-import threading
 
 
 @dataclass
@@ -21,7 +22,7 @@ class SearchResult:
     paper_title: str
     chunk_index: int
     content: str
-    page_number: Optional[int]
+    page_number: int | None
     score: float
     rank_source: str = "hybrid"  # bm25, vector, or hybrid
 
@@ -81,7 +82,7 @@ class HybridSearch:
     def search(
         self,
         query: str,
-        paper_ids: Optional[list[str]] = None,
+        paper_ids: list[str] | None = None,
         top_k: int = 10,
         use_reranker: bool = True,
     ) -> list[SearchResult]:
@@ -115,7 +116,7 @@ class HybridSearch:
             vector_top_k = getattr(settings, "top_k_vector", 50)
             vector_results = self.vector.search(query_embedding, paper_ids, top_k=vector_top_k, mmr_lambda=mmr_lambda)
         except Exception as embed_err:
-            self.embedding_warning = f"⚠️ Vector search unavailable (embedding error). Results are BM25-only."
+            self.embedding_warning = "⚠️ Vector search unavailable (embedding error). Results are BM25-only."
             logger.warning(f"Vector search failed (embedding error): {embed_err}. Falling back to BM25-only.")
         t2 = time.time()
         logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
@@ -131,8 +132,6 @@ class HybridSearch:
             logger.debug(f"Cross-encoder rerank: {len(fused)} results in {t3-t2:.2f}s")
 
         # Step 5: Take top_k
-        final = fused[:top_k]
-
         # Convert to SearchResult
         results = []
         for i, item in enumerate(fused[:top_k]):
@@ -155,7 +154,6 @@ class HybridSearch:
 
         RRF score = sum(1 / (k + rank_i)) for each item across all rankings.
         """
-        import math
 
         # Normalize BM25 scores to 0-1 range
         if bm25_results:

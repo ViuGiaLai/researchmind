@@ -1,12 +1,14 @@
 """Lightweight, local-first tracing and aggregate AI metrics."""
+import json
+import random
+import time
+import uuid
 from collections import Counter
 from contextlib import contextmanager
 from contextvars import ContextVar
-import time
-import uuid
-import json
-import random
+
 from loguru import logger
+
 _trace_id: ContextVar[str] = ContextVar("ai_trace_id", default="")
 _metrics = Counter()
 def current_trace_id() -> str: return _trace_id.get()

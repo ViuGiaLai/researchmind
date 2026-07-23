@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 _KEY_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 _NUMBERED_CITATION_RE = re.compile(r"\[(\d+)\]")

@@ -5,10 +5,10 @@ Searches across millions of public academic papers (arXiv, OpenAlex, Semantic Sc
 with semantic query expansion, deduplication, and citation synthesis.
 """
 
-import json
 import urllib.parse
 import urllib.request
 from typing import Any
+
 try:
     from loguru import logger
 except ImportError:
@@ -16,6 +16,7 @@ except ImportError:
     logger = logging.getLogger("literature_engine")
 from academic.openalex import search_openalex
 from academic.semantic_scholar import search_papers as s2_search
+
 
 def search_arxiv(query: str, max_results: int = 5) -> list[dict[str, Any]]:
     """Search arXiv public papers API."""
@@ -34,9 +35,9 @@ def search_arxiv(query: str, max_results: int = 5) -> list[dict[str, Any]]:
                     summary_elem = entry.find("atom:summary", ns)
                     id_elem = entry.find("atom:id", ns)
                     published_elem = entry.find("atom:published", ns)
-                    
+
                     authors = [a.find("atom:name", ns).text for a in entry.findall("atom:author", ns) if a.find("atom:name", ns) is not None]
-                    
+
                     title = title_elem.text.strip().replace("\n", " ") if title_elem is not None and title_elem.text else ""
                     summary = summary_elem.text.strip().replace("\n", " ") if summary_elem is not None and summary_elem.text else ""
                     arxiv_id = id_elem.text.split("/")[-1] if id_elem is not None and id_elem.text else ""

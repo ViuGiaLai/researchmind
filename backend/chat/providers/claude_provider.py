@@ -1,8 +1,9 @@
 """Anthropic Claude provider implementation."""
 
-from typing import Optional
 from loguru import logger
+
 from common.i18n import t as _t
+
 from ..types import GenerationResult
 
 

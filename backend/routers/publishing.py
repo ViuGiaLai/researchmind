@@ -11,21 +11,22 @@ Endpoints:
 """
 
 import json
+
 from fastapi import APIRouter, Body, HTTPException, Request, Response
-from fastapi.responses import Response, HTMLResponse
+from fastapi.responses import HTMLResponse, Response
+
 try:
     from loguru import logger
 except ImportError:
     import logging
     logger = logging.getLogger("publishing_router")
 
-from common.i18n import t
 from db.database import get_session
-from db.models import Paper, Chunk
-from publishing.templates import PUBLISHING_TEMPLATES
+from db.models import Chunk, Paper
 from publishing.auditor import audit_manuscript
-from publishing.latex_exporter import export_paper_to_latex_zip, build_bibtex_entry
 from publishing.guideline_fetcher import sync_venue_guideline
+from publishing.latex_exporter import build_bibtex_entry, export_paper_to_latex_zip
+from publishing.templates import PUBLISHING_TEMPLATES
 
 router = APIRouter(prefix="/api/publishing", tags=["publishing"])
 

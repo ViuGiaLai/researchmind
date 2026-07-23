@@ -3,11 +3,11 @@
 Uses versioned planning schemas from academic governance. The model creates domain
 perspectives, while scope, output shape, and validation are deterministic.
 """
-from dataclasses import dataclass, field
-from typing import Optional
 import json
+from dataclasses import dataclass, field
 
 from loguru import logger
+
 from academic.governance import get_academic_governance
 
 
@@ -27,10 +27,10 @@ class PerspectiveSet:
     related_topics: list[str] = field(default_factory=list)
 
 
-def generate_personas(query: str, related_topics: Optional[list[str]] = None) -> PerspectiveSet:
+def generate_personas(query: str, related_topics: list[str] | None = None) -> PerspectiveSet:
     """Generate validated, non-overlapping research perspectives for a query."""
-    from chat.generator import Generator
     from app_state import state
+    from chat.generator_v2 import Generator
 
     generator: Generator = getattr(state, "generator", None)
     if not generator:
@@ -65,8 +65,8 @@ def generate_personas(query: str, related_topics: Optional[list[str]] = None) ->
 
 def generate_perspective_questions(topic: str, persona: Persona) -> list[str]:
     """Generate validated research questions from one research perspective."""
-    from chat.generator import Generator
     from app_state import state
+    from chat.generator_v2 import Generator
 
     generator: Generator = getattr(state, "generator", None)
     if not generator:

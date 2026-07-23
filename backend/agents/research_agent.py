@@ -1,9 +1,9 @@
 """Research Agent — RAG retrieval, query parsing, claim analysis, and citation verification."""
 from __future__ import annotations
-import re
-from typing import Any
-from .base import BaseAgent, AgentContext, AgentResult
+
 from loguru import logger
+
+from .base import AgentContext, AgentResult, BaseAgent
 
 
 class ResearchAgent(BaseAgent):
@@ -16,8 +16,8 @@ class ResearchAgent(BaseAgent):
     allowed_tools = ("citation_checker", "doi_lookup")
 
     async def run(self, ctx: AgentContext) -> AgentResult:
-        from app_state import state
         from academic.governance import get_academic_governance
+        from app_state import state
 
         gov = get_academic_governance()
         step = ctx.workflow_step or "retrieve"

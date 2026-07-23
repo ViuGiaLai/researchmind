@@ -5,14 +5,15 @@ https://github.com/microsoft/graphrag
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from loguru import logger
 
-from .models import GraphCommunityReport, GraphCommunity
-from .storage import KnowledgeGraph
 from academic.governance import get_academic_governance
 
+from .models import GraphCommunityReport
+from .storage import KnowledgeGraph
 
 
 async def global_search(

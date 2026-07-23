@@ -3,9 +3,9 @@ Semantic Scholar API client — free, no key required (rate limit ~100 req/sec).
 Cung cấp: paper search, citations, recommendations, related works.
 """
 
-import httpx
 from dataclasses import dataclass
-from typing import Optional
+
+import httpx
 
 S2_BASE = "https://api.semanticscholar.org/graph/v1"
 HEADERS = {"User-Agent": "ResearchMindVN/0.3 (mailto:worksor.78@gmail.com)"}
@@ -15,18 +15,18 @@ HEADERS = {"User-Agent": "ResearchMindVN/0.3 (mailto:worksor.78@gmail.com)"}
 class S2Paper:
     paper_id: str
     title: str
-    year: Optional[int]
+    year: int | None
     citation_count: int
     influential_citation_count: int
     authors: list[str]
     external_ids: dict
-    abstract: Optional[str]
-    venue: Optional[str]
-    citation_stats: Optional[dict] = None
+    abstract: str | None
+    venue: str | None
+    citation_stats: dict | None = None
     is_open_access: bool = False
-    open_access_pdf_url: Optional[str] = None
-    url: Optional[str] = None
-    fields_of_study: Optional[list[str]] = None
+    open_access_pdf_url: str | None = None
+    url: str | None = None
+    fields_of_study: list[str] | None = None
 
 
 async def search_papers(
@@ -49,7 +49,7 @@ async def search_papers(
             return []
 
 
-async def get_paper_by_id(s2_id: str, timeout: float = 5.0) -> Optional[S2Paper]:
+async def get_paper_by_id(s2_id: str, timeout: float = 5.0) -> S2Paper | None:
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             resp = await client.get(
@@ -64,7 +64,7 @@ async def get_paper_by_id(s2_id: str, timeout: float = 5.0) -> Optional[S2Paper]
             return None
 
 
-async def get_paper_by_doi(doi: str, timeout: float = 5.0) -> Optional[S2Paper]:
+async def get_paper_by_doi(doi: str, timeout: float = 5.0) -> S2Paper | None:
     doi_clean = doi.replace("https://doi.org/", "").replace("http://doi.org/", "").strip()
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
@@ -150,8 +150,8 @@ async def get_recommendations(
 
 async def get_batch_papers(
     s2_ids: list[str], timeout: float = 15.0
-) -> list[Optional[S2Paper]]:
-    async with httpx.AsyncClient(timeout=timeout) as client:
+) -> list[S2Paper | None]:
+    async with httpx.AsyncClient(timeout=timeout):
         results = []
         for s2_id in s2_ids:
             paper = await get_paper_by_id(s2_id)
@@ -184,7 +184,7 @@ def _parse_paper(data: dict) -> S2Paper:
     )
 
 
-def _parse_citing_paper(data: dict, key: str = "citingPaper") -> Optional[S2Paper]:
+def _parse_citing_paper(data: dict, key: str = "citingPaper") -> S2Paper | None:
     paper = data.get(key)
     if not paper:
         return None

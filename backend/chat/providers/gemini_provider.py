@@ -1,12 +1,13 @@
 """Google Gemini provider implementation (native API, non-OpenAI-compatible)."""
 
 import json
-from typing import Optional
-import json
-from loguru import logger
+
 import httpx
-from common.text_utils import redact_api_key
+from loguru import logger
+
 from common.i18n import t as _t
+from common.text_utils import redact_api_key
+
 from ..types import GenerationResult
 
 

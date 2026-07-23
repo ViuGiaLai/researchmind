@@ -1,6 +1,6 @@
 """Format Auditor tool — thin wrapper on publishing.auditor with ToolResult interface."""
 from __future__ import annotations
-from typing import Any
+
 from .base import BaseTool, ToolResult
 
 
@@ -19,11 +19,11 @@ class FormatAuditorTool(BaseTool):
         venue_id: str = "ieee_trans",
         author_name: str = "",
     ) -> ToolResult:
-        from publishing.auditor import audit_manuscript
         from academic.governance import get_academic_governance
+        from publishing.auditor import audit_manuscript
 
         gov = get_academic_governance()
-        rules = gov.rules(("format_compliance",))
+        gov.rules(("format_compliance",))
 
         audit = audit_manuscript(title, text_content, venue_id, author_name)
 

@@ -1,24 +1,24 @@
-import fitz  # PyMuPDF
 import re
+import threading
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass
+
+import fitz  # PyMuPDF
 from loguru import logger
-import threading
+
 from config.settings import settings
 
-from .layout_parser import reorder_page_text, detect_layout_stats
 from .image_ocr import (
-    get_ocr_engine,
-    ocr_image_bytes,
-    extract_pdf_page_image_text,
     extract_docx_image_text,
     extract_docx_table_text,
+    extract_pdf_page_image_text,
+    get_ocr_engine,
+    ocr_image_bytes,
 )
+from .layout_parser import detect_layout_stats, reorder_page_text
 from .metadata_quality import (
     clean_authors,
-    display_title,
     humanize_filename,
     is_poor_title,
     normalize_ocr_page_text,
@@ -41,7 +41,7 @@ class ExtractedDocument:
     filename: str
     title: str
     authors: str  # JSON array string
-    year: Optional[int]
+    year: int | None
     doi: str
     page_count: int
     file_size: int
@@ -51,8 +51,8 @@ class ExtractedDocument:
     ocr_pages_count: int = 0
     ocr_pages_failed: int = 0
     is_scanned: bool = False
-    layout_stats: Optional[dict] = None
-    suggested_title: Optional[str] = None
+    layout_stats: dict | None = None
+    suggested_title: str | None = None
 
 
 def create_image_stub_document(file_path: str, original_filename: str | None = None) -> ExtractedDocument:
@@ -101,7 +101,7 @@ def _extract_title_from_text(text: str, fallback: str, max_chars: int = 150) -> 
     return cleaned_fallback[:max_chars].strip()
 
 
-def extract_document(file_path: str) -> Optional[ExtractedDocument]:
+def extract_document(file_path: str) -> ExtractedDocument | None:
     path = Path(file_path)
     if not path.exists():
         return None
@@ -124,14 +124,15 @@ def extract_document(file_path: str) -> Optional[ExtractedDocument]:
     return None
 
 
-def extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
+def extract_pdf(file_path: str) -> ExtractedDocument | None:
     return _extract_pdf(file_path)
 
 
-def _process_single_page(file_path: str, page_num: int, collect_layout: bool = False, include_image_ocr: bool = False) -> tuple[int, str, bool, bool, Optional[dict]]:
-    import fitz
+def _process_single_page(file_path: str, page_num: int, collect_layout: bool = False, include_image_ocr: bool = False) -> tuple[int, str, bool, bool, dict | None]:
     import re
-    
+
+    import fitz
+
     text = ""
     ocr_attempted = False
     ocr_succeeded = False
@@ -149,7 +150,7 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
                     layout = detect_layout_stats(page)
                     logger.info(f"Page {page_num+1}: detected {layout.get('columns', '?')}-column layout, reordered text")
                 text = reordered
-        
+
         # Detect text with corrupted character encoding (control chars in wrong ranges)
         bad_chars = sum(1 for c in text if ord(c) < 0x09 or 0x0E <= ord(c) < 0x20 or 0x80 <= ord(c) < 0xA0)
         is_garbled = bad_chars > max(3, len(text.strip()) * 0.05)
@@ -212,7 +213,7 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
         doc.close()
     except Exception as e:
         logger.error(f"Error processing page {page_num + 1} from {file_path}: {e}")
-        
+
     ocr_failed = ocr_attempted and not ocr_succeeded
     return page_num, text, ocr_attempted, ocr_failed, layout
 
@@ -246,7 +247,7 @@ def _parse_pdf_authors(raw: str) -> list[str]:
     return clean_authors([part.strip() for part in parts if part.strip()])
 
 
-def _extract_metadata_year(*values: str) -> Optional[int]:
+def _extract_metadata_year(*values: str) -> int | None:
     for value in values:
         if not value:
             continue
@@ -258,7 +259,7 @@ def _extract_metadata_year(*values: str) -> Optional[int]:
     return None
 
 
-def _extract_pdf(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_pdf(file_path: str) -> ExtractedDocument | None:
     path = Path(file_path)
 
     try:
@@ -382,7 +383,7 @@ def _make_suggested_title(doc: ExtractedDocument) -> str:
     return _extract_title_from_text(first_text, doc.filename)
 
 
-def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_docx(file_path: str) -> ExtractedDocument | None:
     try:
         from docx import Document as DocxDocument
     except ImportError:
@@ -452,7 +453,7 @@ def _extract_docx(file_path: str) -> Optional[ExtractedDocument]:
     )
 
 
-def _extract_txt(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_txt(file_path: str) -> ExtractedDocument | None:
     path = Path(file_path)
     try:
         raw = path.read_bytes()
@@ -489,7 +490,7 @@ def _extract_txt(file_path: str) -> Optional[ExtractedDocument]:
     )
 
 
-def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_markdown(file_path: str) -> ExtractedDocument | None:
     path = Path(file_path)
     try:
         raw = path.read_bytes()
@@ -577,7 +578,7 @@ def _extract_markdown(file_path: str) -> Optional[ExtractedDocument]:
     )
 
 
-def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_html(file_path: str) -> ExtractedDocument | None:
     path = Path(file_path)
     try:
         from lxml import html
@@ -649,7 +650,7 @@ def _extract_html(file_path: str) -> Optional[ExtractedDocument]:
     )
 
 
-def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_epub(file_path: str) -> ExtractedDocument | None:
     try:
         from ebooklib import epub
     except ImportError:
@@ -717,7 +718,7 @@ def _extract_epub(file_path: str) -> Optional[ExtractedDocument]:
     )
 
 
-def _extract_image(file_path: str) -> Optional[ExtractedDocument]:
+def _extract_image(file_path: str) -> ExtractedDocument | None:
     """Import a standalone image file via OCR."""
     path = Path(file_path)
     try:

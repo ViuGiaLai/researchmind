@@ -1,5 +1,7 @@
 """Versioned prompt registry with optional output-schema metadata."""
 from dataclasses import dataclass
+
+
 @dataclass(frozen=True)
 class PromptSpec:
     name: str

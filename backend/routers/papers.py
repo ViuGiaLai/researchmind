@@ -10,21 +10,13 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from loguru import logger
-
 from sqlalchemy import or_
 
-from common.i18n import t
 from app_state import state
+from common.i18n import t
 from config.settings import settings
 from db.database import get_session
-from db.models import Paper, Chunk, Setting, ImportJob, CollectionPaper, Annotation
-from utils.pdf_annotator import add_highlights_to_pdf, save_highlighted_pdf
-from ingestion.parser import (
-    extract_document,
-    SUPPORTED_EXTENSIONS,
-    IMAGE_EXTENSIONS,
-    create_image_stub_document,
-)
+from db.models import Annotation, Chunk, CollectionPaper, ImportJob, Paper
 from ingestion.chunker import SentenceSplitter
 from ingestion.metadata_quality import (
     clean_authors,
@@ -33,6 +25,13 @@ from ingestion.metadata_quality import (
     repair_vietnamese_ocr_text,
     resolve_paper_title,
 )
+from ingestion.parser import (
+    IMAGE_EXTENSIONS,
+    SUPPORTED_EXTENSIONS,
+    create_image_stub_document,
+    extract_document,
+)
+from utils.pdf_annotator import add_highlights_to_pdf, save_highlighted_pdf
 
 router = APIRouter(prefix="/api/papers", tags=["Papers"])
 jobs_router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
@@ -49,14 +48,14 @@ def _parse_authors(authors_str: str) -> list[str]:
             return clean_authors([str(a) for a in val])
     except (json.JSONDecodeError, TypeError):
         pass
-    
+
     try:
         val = json.loads(authors_str.replace("'", '"'))
         if isinstance(val, list):
             return clean_authors([str(a) for a in val])
     except Exception:
         pass
-        
+
     import re
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
     return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
@@ -617,7 +616,6 @@ async def import_metadata(body: dict = Body(...)):
     title = (body.get("title") or "Untitled").strip()
     authors = body.get("authors", [])
     year = body.get("year")
-    journal = (body.get("journal") or "").strip()
     abstract = (body.get("abstract") or "").strip()
 
     if not title:
@@ -668,34 +666,34 @@ def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
 
     # Normalize text
     text_lower = text.lower()
-    
+
     # Extract words
     words = re.findall(r"\b[a-z_àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]+\b", text_lower)
-    
+
     # Filter unigrams
     filtered_unigrams = [w for w in words if len(w) > 3 and w not in stopwords and not w.isdigit()]
-    
+
     # Calculate frequencies of unigrams
     unigram_counts = Counter(filtered_unigrams)
-    
+
     # Extract bigrams
     bigrams = []
     for i in range(len(words) - 1):
         w1, w2 = words[i], words[i+1]
-        if (len(w1) > 2 and len(w2) > 2 and 
-            w1 not in stopwords and w2 not in stopwords and 
+        if (len(w1) > 2 and len(w2) > 2 and
+            w1 not in stopwords and w2 not in stopwords and
             not w1.isdigit() and not w2.isdigit()):
             bigrams.append(f"{w1} {w2}")
-            
+
     bigram_counts = Counter(bigrams)
-    
+
     # Combine candidates
     candidates = {}
-    
+
     # Add bigrams with a small frequency boost
     for k, v in bigram_counts.most_common(15):
         candidates[k] = v * 1.5
-        
+
     for k, v in unigram_counts.most_common(20):
         is_sub = False
         for cand in candidates:
@@ -704,15 +702,15 @@ def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
                 break
         if not is_sub:
             candidates[k] = v
-            
+
     sorted_candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-    
+
     # Format and capitalize first letter
     extracted = []
     for kw, _ in sorted_candidates[:top_n]:
         capitalized = " ".join(word.capitalize() for word in kw.split())
         extracted.append(capitalized)
-        
+
     return extracted
 
 
@@ -1003,10 +1001,10 @@ Do not infer contributions or limitations that are absent from the context. Pres
 async def _enrich_paper_background(paper_id: str, file_path: str, title: str, authors: list):
     """Chạy ngầm sau khi import — fetch metadata từ OpenAlex + Crossref vào cache."""
     try:
+        from academic.cache import cache_set
+        from academic.crossref import get_work_by_doi as cr_get
         from academic.doi_extractor import extract_doi_from_paper
         from academic.openalex import get_work_by_doi as oa_get
-        from academic.crossref import get_work_by_doi as cr_get
-        from academic.cache import cache_set, TTL_OPENALEX, TTL_CROSSREF
 
         doi = await extract_doi_from_paper(
             pdf_path=file_path,
@@ -1600,8 +1598,6 @@ async def get_paper_viewer(paper_id: str, hl: str = Query(""), page: int = Query
 
         pdf_bytes = add_highlights_to_pdf(str(path), highlights)
         media_type = "application/pdf"
-        fragment = f"#page={page}" if page > 1 else ""
-
         from fastapi.responses import Response
         return Response(
             content=pdf_bytes,
@@ -1983,9 +1979,9 @@ async def generate_citations(body: dict):
                     author_display = ", ".join(authors_list[:3]) + " et al."
 
                 entry_html_lines = []
-                entry_html_lines.append(f'<div class="cite-entry">')
+                entry_html_lines.append('<div class="cite-entry">')
                 entry_html_lines.append(f'  <span class="cite-num">[{len(citations) + 1}]</span>')
-                entry_html_lines.append(f'  <div class="cite-body">')
+                entry_html_lines.append('  <div class="cite-body">')
                 entry_html_lines.append(f'    <span class="cite-authors">{_escape_html(author_display)}</span>')
                 entry_html_lines.append(f'    <span class="cite-title">{_escape_html(title)}</span>')
                 entry_html_lines.append(f'    <span class="cite-year">({year_str})</span>')
@@ -1993,8 +1989,8 @@ async def generate_citations(body: dict):
                     entry_html_lines.append(f'    <span class="cite-pages">{pages_str}</span>')
                 if doi_str:
                     entry_html_lines.append(f'    <span class="cite-doi">DOI: <a href="https://doi.org/{_escape_html(doi_str)}" target="_blank">{_escape_html(doi_str)}</a></span>')
-                entry_html_lines.append(f'  </div>')
-                entry_html_lines.append(f'</div>')
+                entry_html_lines.append('  </div>')
+                entry_html_lines.append('</div>')
                 formatted = "\n".join(entry_html_lines)
 
             else:

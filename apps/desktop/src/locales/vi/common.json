@@ -725,7 +725,37 @@
     "citations_influential": "{count} quan trọng",
     "recent_citing": "Nghiên cứu gần đây trích dẫn (từ 2022)",
     "s2_citations": "Trích dẫn nổi bật (S2)",
-    "s2_recommendations": "Nghiên cứu tương đồng đề xuất"
+    "s2_recommendations": "Nghiên cứu tương đồng đề xuất",
+    "academic_verdict": "K?t lu?n h?c thu?t",
+    "unknown": "Kh?ng x?c ??nh",
+    "academic_basis": "C? s? h?c thu?t",
+    "rules_applied": "Quy t?c ?p d?ng",
+    "methods": "Ph??ng ph?p",
+    "standards": "Ti?u chu?n",
+    "evidence_count": "B?ng ch?ng ({count})",
+    "limitations": "H?n ch?",
+    "unverifiable_items": "N?i dung ch?a th? x?c minh",
+    "assumption": "Gi? ??nh",
+    "no_significant_limitations": "Kh?ng ph?t hi?n h?n ch? ??ng k?.",
+    "confidence": "?? tin c?y",
+    "next_steps": "B??c ti?p theo",
+    "venue_compliance": "Tu?n th? y?u c?u c?ng b?",
+    "verdicts": {
+      "supported": "???c h? tr?",
+      "partially_supported": "???c h? tr? m?t ph?n",
+      "inconclusive": "Ch?a th? k?t lu?n",
+      "contradicted": "M?u thu?n"
+    },
+    "confidence_levels": {
+      "high": "Cao",
+      "medium": "Trung b?nh",
+      "low": "Th?p"
+    },
+    "evidence_status": {
+      "pass": "??t",
+      "fail": "Kh?ng ??t",
+      "warning": "C?nh b?o"
+    }
   },
   "discovery": {
     "title": "Khám phá học thuật",

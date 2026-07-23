@@ -35,13 +35,6 @@ const VERDICT_ICONS: Record<string, string> = {
   contradicted: "❌",
 };
 
-const VERDICT_LABELS: Record<string, string> = {
-  supported: "Supported",
-  partially_supported: "Partially Supported",
-  inconclusive: "Inconclusive",
-  contradicted: "Contradicted",
-};
-
 export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyReport }: VerifyPanelProps) {
   const { t } = useTranslation();
   const [refreshingDoi, setRefreshingDoi] = useState<string | null>(null);
@@ -80,7 +73,7 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <Scale size={14} />
-            <span>ACADEMIC VERDICT</span>
+            <span>{t("verify.academic_verdict")}</span>
           </div>
           <div className="verify-section-body">
             <div className={`verify-verdict verdict-${verifyReport.academic_verdict.verdict}`}>
@@ -88,7 +81,7 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
                 {VERDICT_ICONS[verifyReport.academic_verdict.verdict] || "❓"}
               </span>
               <div className="verify-verdict-text">
-                <div>{VERDICT_LABELS[verifyReport.academic_verdict.verdict] || "Unknown"}</div>
+                <div>{t(`verify.verdicts.${verifyReport.academic_verdict.verdict}`, { defaultValue: t("verify.unknown") })}</div>
                 <div className="verify-verdict-reason">{verifyReport.academic_verdict.reason}</div>
               </div>
             </div>
@@ -101,24 +94,24 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <FileText size={14} />
-            <span>ACADEMIC BASIS</span>
+            <span>{t("verify.academic_basis")}</span>
           </div>
           <div className="verify-section-body">
             {verifyReport.academic_basis.rules_applied.length > 0 && (
               <div className="verify-basis-line">
-                <span className="verify-basis-label">Rules applied:</span>{" "}
+                <span className="verify-basis-label">{t("verify.rules_applied")}:</span>{" "}
                 {verifyReport.academic_basis.rules_applied.join(", ")}
               </div>
             )}
             {verifyReport.academic_basis.verification_methods.length > 0 && (
               <div className="verify-basis-line">
-                <span className="verify-basis-label">Methods:</span>{" "}
+                <span className="verify-basis-label">{t("verify.methods")}:</span>{" "}
                 {verifyReport.academic_basis.verification_methods.join(", ")}
               </div>
             )}
             {verifyReport.academic_basis.standards_used.length > 0 && (
               <div className="verify-basis-line">
-                <span className="verify-basis-label">Standards:</span>{" "}
+                <span className="verify-basis-label">{t("verify.standards")}:</span>{" "}
                 {verifyReport.academic_basis.standards_used.join(", ")}
               </div>
             )}
@@ -131,7 +124,7 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <ShieldCheck size={14} />
-            <span>EVIDENCE ({verifyReport.evidence.length})</span>
+            <span>{t("verify.evidence_count", { count: verifyReport.evidence.length })}</span>
           </div>
           <div className="verify-section-body">
             {verifyReport.evidence.map((item, idx) => (
@@ -147,10 +140,10 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
                   <div className="verify-evidence-meta">
                     <span className="verify-evidence-source">{item.source}</span>
                     <span className={`verify-evidence-confidence ${item.confidence.toLowerCase()}`}>
-                      {item.confidence}
+                      {t(`verify.confidence_levels.${item.confidence.toLowerCase()}`, { defaultValue: item.confidence })}
                     </span>
                     <span className={`verify-evidence-status ${item.status}`}>
-                      {item.status}
+                      {t(`verify.evidence_status.${item.status.toLowerCase()}`, { defaultValue: item.status })}
                     </span>
                   </div>
                 </div>
@@ -165,13 +158,13 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <HelpCircle size={14} />
-            <span>LIMITATIONS</span>
+            <span>{t("verify.limitations")}</span>
           </div>
           <div className="verify-section-body">
             {verifyReport.limitations.unverifiable_items.length > 0 && (
               <>
                 <div className="verify-limitations-label">
-                  Unverifiable Items:
+                  {t("verify.unverifiable_items")}:
                 </div>
                 {verifyReport.limitations.unverifiable_items.map((lim, idx) => (
                   <div key={idx} className="verify-limitation-item">
@@ -194,14 +187,14 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
             {verifyReport.limitations.assumptions.map((assumption, idx) => (
               <div key={`as-${idx}`} className="verify-missing-item">
                 <Info size={12} />
-                <span>Assumption: {assumption}</span>
+                <span>{t("verify.assumption")}: {assumption}</span>
               </div>
             ))}
             {verifyReport.limitations.unverifiable_items.length === 0 &&
               verifyReport.limitations.missing_data.length === 0 &&
               verifyReport.limitations.assumptions.length === 0 && (
               <div className="verify-limitations-none">
-                No significant limitations detected.
+                {t("verify.no_significant_limitations")}
               </div>
             )}
           </div>
@@ -213,14 +206,21 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <BarChart2 size={14} />
-            <span>CONFIDENCE</span>
+            <span>{t("verify.confidence")}</span>
           </div>
           <div className="verify-section-body">
             <div className="verify-confidence-bar">
               <span className={`verify-confidence-level level-${verifyReport.confidence.level.toLowerCase()}`}>
-                {verifyReport.confidence.level}
+                {t(`verify.confidence_levels.${verifyReport.confidence.level.toLowerCase()}`, { defaultValue: verifyReport.confidence.level })}
               </span>
-              <div className="verify-confidence-track">
+              <div
+                className="verify-confidence-track"
+                role="progressbar"
+                aria-label={t("verify.confidence")}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(verifyReport.confidence.score * 100)}
+              >
                 <div
                   className={`verify-confidence-fill fill-${verifyReport.confidence.level.toLowerCase()}`}
                   style={{ width: `${Math.round(verifyReport.confidence.score * 100)}%` }}
@@ -242,7 +242,7 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <Lightbulb size={14} />
-            <span>NEXT STEPS</span>
+            <span>{t("verify.next_steps")}</span>
           </div>
           <div className="verify-section-body">
             {verifyReport.next_steps.map((step, idx) => (
@@ -257,7 +257,7 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
         <div className="verify-section">
           <div className="verify-section-header">
             <BarChart2 size={14} />
-            <span>VENUE COMPLIANCE</span>
+            <span>{t("verify.venue_compliance")}</span>
             {venueAudit.venue_info?.name && (
               <span className="verify-venue-header-name">
                 — {venueAudit.venue_info.name}
@@ -269,7 +269,14 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
               <span className={`verify-venue-score-label ${venueScoreClass}`}>
                 {venueAudit.overall_score}%
               </span>
-              <div className="verify-confidence-track">
+              <div
+                className="verify-confidence-track"
+                role="progressbar"
+                aria-label={t("verify.venue_compliance")}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={venueAudit.overall_score}
+              >
                 <div
                   className={`verify-confidence-fill ${venueAudit.overall_score >= 80 ? "verify-venue-fill-high" : venueAudit.overall_score >= 60 ? "verify-venue-fill-medium" : "verify-venue-fill-low"}`}
                   style={{ width: `${venueAudit.overall_score}%` }}
@@ -337,7 +344,7 @@ export function VerifyPanel({ sources, status, onRefresh, venueAudit, verifyRepo
                         }
                       }}
                       disabled={refreshingDoi === src.doi}
-                      className="verify-refresh-btn"
+                      className="verify-refresh-btn" title={t("verify.refresh_title")} aria-label={t("verify.refresh_title")}
                     >
                       <RefreshCw size={10} className={refreshingDoi === src.doi ? "animate-spin" : ""} />
                       <span>{refreshingDoi === src.doi ? t("verify.refreshing") : t("verify.refresh_btn")}</span>

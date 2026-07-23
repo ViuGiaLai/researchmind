@@ -4,8 +4,8 @@ Enforces Popperian falsifiability: every scientific claim must have a testable N
 and Alternative Hypothesis (H1) with explicit Independent/Dependent variables.
 """
 from __future__ import annotations
-import re
-from dataclasses import dataclass, field
+
+from dataclasses import dataclass
 from typing import Any
 
 

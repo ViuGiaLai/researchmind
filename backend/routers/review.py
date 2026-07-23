@@ -13,26 +13,27 @@ import json
 import math
 import re
 from datetime import datetime
+
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import func
 
-from app_state import state
-from academic.paper_check import check_papers_ready
 from academic.crossref import get_work_by_doi
 from academic.governance import get_academic_governance
+from academic.paper_check import check_papers_ready
 from academic.review_methodology import (
     academic_fallback_outline,
     custom_section_request,
     deterministic_quality_issues,
-    normalize_outline,
     section_retrieval_query,
 )
-from common.i18n import t, get_language
+from app_state import state
+from common.i18n import get_language, t
 from db.database import get_session
-from db.models import Paper, Chunk, ReviewDraft, EvidenceMatrixDraft
+from db.models import Chunk, EvidenceMatrixDraft, Paper, ReviewDraft
 from ingestion.metadata_quality import clean_authors, display_title
+
 
 def _parse_authors(authors_str: str) -> list[str]:
     if not authors_str:
@@ -43,14 +44,14 @@ def _parse_authors(authors_str: str) -> list[str]:
             return clean_authors([str(a) for a in val])
     except (json.JSONDecodeError, TypeError):
         pass
-    
+
     try:
         val = json.loads(authors_str.replace("'", '"'))
         if isinstance(val, list):
             return clean_authors([str(a) for a in val])
     except Exception:
         pass
-        
+
     import re
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
     return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
@@ -267,7 +268,6 @@ async def _generate_section(paper_ids: list[str], section: str, paper_titles: di
             use_reranker=False,
         )
 
-    paper_list_text = "\n".join([f"- {t}" for t in paper_titles.values()])
     if config:
         section_query = ACADEMIC_GOVERNANCE.review_request(section, paper_titles.values())
     else:
@@ -1478,6 +1478,7 @@ async def export_review(request: Request, body: dict = Body(...)):
 
     import io
     import re
+
     from fastapi.responses import StreamingResponse
 
     safe_title = re.sub(r"[^\w\-]", "_", title)
@@ -1498,10 +1499,10 @@ async def export_review(request: Request, body: dict = Body(...)):
     if fmt == "docx":
         try:
             from docx import Document
-            from docx.shared import Cm, Pt, RGBColor
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             from docx.oxml import OxmlElement
             from docx.oxml.ns import qn
+            from docx.shared import Cm, Pt, RGBColor
         except ImportError:
             raise HTTPException(
                 status_code=500,
@@ -1682,7 +1683,7 @@ async def export_review(request: Request, body: dict = Body(...)):
 @router.post("/evidence-matrix")
 async def generate_evidence_matrix(request: Request, body: dict = Body(...)):
     """Generate an evidence matrix comparing papers across dimensions.
-    
+
     Extracts: methodology, dataset, result, limitation, finding
     Each cell includes: quote, page number, confidence score, extraction status.
     """

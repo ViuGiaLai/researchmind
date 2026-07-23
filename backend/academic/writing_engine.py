@@ -10,8 +10,9 @@ Sections:
 7. Conclusion (Summary of achievements, Future directions)
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any
+
 from academic.governance import get_academic_governance
 
 
@@ -51,7 +52,7 @@ class ScientificWritingEngine:
 
     def format_section(self, section_name: str, content: str) -> str:
         """Format and structure a draft section into valid Markdown/LaTeX."""
-        tmpl = self.get_section_template(section_name)
+        self.get_section_template(section_name)
         lines = [
             f"## {section_name.title()}",
             content.strip(),

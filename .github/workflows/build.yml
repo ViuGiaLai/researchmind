@@ -5,6 +5,8 @@ on:
     branches: [ "main", "feature/*", "develop" ]
     paths:
       - "apps/desktop/**"
+      - "apps/cloud-sync/**"
+      - "cloud_gateway/**"
       - "backend/**"
       - "docs/**"
       - ".github/**"
@@ -28,6 +30,8 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
       rust: ${{ steps.filter.outputs.rust }}
+      cloud_sync: ${{ steps.filter.outputs.cloud_sync }}
+      gateway: ${{ steps.filter.outputs.gateway }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -47,6 +51,10 @@ jobs:
               - 'apps/desktop/src-tauri/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+            cloud_sync:
+              - 'apps/cloud-sync/**'
+            gateway:
+              - 'cloud_gateway/**'
 
   # ──────────────────────────────────────────────
   # Backend Jobs
@@ -102,8 +110,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt pytest-timeout pytest-cov
 
-      - name: Run unit tests (exclude integration & benchmark)
-        run: python -m pytest tests -q --timeout=120 -m "not integration and not benchmark" --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
+      - name: Run unit tests (exclude integration)
+        run: python -m pytest tests -q --timeout=120 -m "not integration" --cov=. --cov-report=term --cov-report=xml --cov-fail-under=60
         working-directory: backend
 
       - name: Upload coverage to artifacts
@@ -138,9 +146,8 @@ jobs:
       - name: Run integration tests
         run: python -m pytest tests -q --timeout=180 -m "integration"
         working-directory: backend
-        continue-on-error: true
 
-  test-backend-benchmark:
+  test-rag-quality:
     needs: changes
     if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -155,16 +162,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-bench-${{ hashFiles('backend/requirements.txt') }}
+          key: ${{ runner.os }}-pip-rag-${{ hashFiles('backend/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-bench-
+            ${{ runner.os }}-pip-rag-
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt pytest-timeout
-
-      - name: Run benchmark tests
-        run: python -m pytest tests -q --timeout=300 -m "benchmark"
-        working-directory: backend
+        run: pip install -r backend/requirements.txt
 
       - name: RAG recall quality gate
         run: python -m evaluation.benchmark evaluation/fixtures/rag_smoke.json --min-recall 0.7 --min-mrr 0.6
@@ -196,7 +199,7 @@ jobs:
       - run: pnpm exec tsc --noEmit
         working-directory: apps/desktop
 
-      - run: pnpm exec vitest run
+      - run: pnpm test
         working-directory: apps/desktop
 
       - run: pnpm run validate:locales
@@ -209,6 +212,50 @@ jobs:
         working-directory: apps/desktop
 
   # ──────────────────────────────────────────────
+  # Cloud Worker Jobs
+  # ----------------------------------------------------------------
+  typecheck-cloud-sync:
+    needs: changes
+    if: needs.changes.outputs.cloud_sync == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: apps/cloud-sync/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/cloud-sync
+
+      - run: pnpm typecheck
+        working-directory: apps/cloud-sync
+
+  test-cloud-gateway:
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: cloud_gateway/requirements.txt
+
+      - name: Install gateway dependencies
+        run: pip install -r cloud_gateway/requirements.txt pytest-timeout
+
+      - name: Run gateway tests
+        run: python -m pytest cloud_gateway/tests -q --timeout=120 -c cloud_gateway/pytest.ini
+
   # Rust Jobs
   # ──────────────────────────────────────────────
   lint-rust:

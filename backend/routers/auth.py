@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from common.firebase_auth import FirebaseAuthError, upsert_user_profile
-from common.i18n import t, get_language
+from common.i18n import get_language, t
 from config.settings import settings
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -43,11 +43,6 @@ class DesktopOAuthStatus(DesktopOAuthStart):
 
 def _oauth_callback_page(title: str, message: str, *, success: bool = False, lang: str = "vi") -> HTMLResponse:
     accent = "#2dd4bf" if success else "#fca5a5"
-    auto_close = """
-      <script>
-        window.setTimeout(() => window.close(), 1800);
-      </script>
-    """ if success else ""
     return HTMLResponse(f"""<!doctype html>
 <html lang="{lang}">
 <head>
@@ -145,7 +140,7 @@ async def finish_desktop_google_sign_in(request: Request, state: str = "", code:
             id_token = str(response.json().get("id_token", ""))
         if not id_token:
             raise ValueError("Google did not return an ID token.")
-    except (httpx.HTTPError, ValueError) as exc:
+    except (httpx.HTTPError, ValueError):
         async with _desktop_oauth_lock:
             session = _desktop_oauth_sessions.get(state)
             if session:

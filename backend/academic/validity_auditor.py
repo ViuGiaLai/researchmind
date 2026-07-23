@@ -7,8 +7,9 @@ Categories:
 4. Statistical Conclusion Validity (Sample size, statistical power)
 """
 from __future__ import annotations
+
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 

@@ -1,5 +1,7 @@
 """Split an answer into atomic, citation-aware claims."""
 import re
+
+
 def decompose_claims(answer: str) -> list[dict]:
     claims = []
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer or ""):

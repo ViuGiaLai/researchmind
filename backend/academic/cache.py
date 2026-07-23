@@ -4,14 +4,13 @@ TTL: 24h cho OpenAlex, 7 ngày cho Crossref (metadata ít thay đổi).
 Không dùng Redis để giữ local-first.
 """
 import json
-import time
 import sqlite3
+import time
 from pathlib import Path
-from typing import Optional
 
 from config.settings import settings
 
-CACHE_DB_PATH: Optional[Path] = None
+CACHE_DB_PATH: Path | None = None
 
 TTL_OPENALEX = 24 * 3600
 TTL_CROSSREF = 7 * 24 * 3600
@@ -42,7 +41,7 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
-def cache_get(key: str, ttl: int) -> Optional[dict]:
+def cache_get(key: str, ttl: int) -> dict | None:
     conn = _get_conn()
     row = conn.execute(
         "SELECT data, created_at FROM academic_cache WHERE cache_key = ?",

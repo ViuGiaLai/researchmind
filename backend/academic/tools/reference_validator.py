@@ -1,7 +1,9 @@
 """Reference Validator tool — checks reference list structure and completeness."""
 from __future__ import annotations
+
 import re
 from typing import Any
+
 from .base import BaseTool, ToolResult
 
 

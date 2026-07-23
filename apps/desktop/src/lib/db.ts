@@ -1,177 +1,174 @@
 /**
- * ResearchMind Local DB — Lightweight IndexedDB wrapper.
+ * Small IndexedDB wrapper for offline-first cloud-sync data.
  *
- * Provides Dexie-like API (db.projects.filter().toArray(), bulkPut())
- * without requiring the Dexie package. Backed by raw IndexedDB.
- *
- * Schema:
- *   - projects: { id, name, description, status, last_synced_at, ... }
- *   - documents: { id, title, authors, ... }
- *   - annotations: { id, document_id, ... }
- *   - encrypted_notes: { id, encrypted_payload, nonce, ... }
- *   - sync_metadata: { id, device_id, ... }
+ * The connection is shared across operations. Opening a new IDBDatabase for
+ * every record leaked handles and added latency during bulk synchronization.
  */
 
 const DB_NAME = "ResearchMindLocal";
 const DB_VERSION = 2;
 
+let databasePromise: Promise<IDBDatabase> | null = null;
+
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (databasePromise) return databasePromise;
+
+  databasePromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
+      const database = (event.target as IDBOpenDBRequest).result;
 
-      if (!db.objectStoreNames.contains("projects")) {
-        const store = db.createObjectStore("projects", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("projects")) {
+        const store = database.createObjectStore("projects", { keyPath: "id" });
         store.createIndex("last_synced_at", "last_synced_at", { unique: false });
         store.createIndex("updated_at", "updated_at", { unique: false });
         store.createIndex("status", "status", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains("documents")) {
-        const store = db.createObjectStore("documents", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("documents")) {
+        const store = database.createObjectStore("documents", { keyPath: "id" });
         store.createIndex("project_id", "project_id", { unique: false });
         store.createIndex("updated_at", "updated_at", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains("annotations")) {
-        const store = db.createObjectStore("annotations", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("annotations")) {
+        const store = database.createObjectStore("annotations", { keyPath: "id" });
         store.createIndex("document_id", "document_id", { unique: false });
         store.createIndex("updated_at", "updated_at", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains("encrypted_notes")) {
-        const store = db.createObjectStore("encrypted_notes", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("encrypted_notes")) {
+        const store = database.createObjectStore("encrypted_notes", { keyPath: "id" });
         store.createIndex("user_id", "user_id", { unique: false });
         store.createIndex("updated_at", "updated_at", { unique: false });
       }
 
-      if (!db.objectStoreNames.contains("sync_metadata")) {
-        db.createObjectStore("sync_metadata", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("sync_metadata")) {
+        database.createObjectStore("sync_metadata", { keyPath: "id" });
       }
 
-      if (!db.objectStoreNames.contains("user_preferences")) {
-        db.createObjectStore("user_preferences", { keyPath: "user_id" });
+      if (!database.objectStoreNames.contains("user_preferences")) {
+        database.createObjectStore("user_preferences", { keyPath: "user_id" });
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        database.close();
+        databasePromise = null;
+      };
+      database.onclose = () => {
+        databasePromise = null;
+      };
+      resolve(database);
+    };
+    request.onerror = () => {
+      databasePromise = null;
+      reject(request.error ?? new Error("Unable to open the local database"));
+    };
+    request.onblocked = () => {
+      databasePromise = null;
+      reject(new Error("Local database upgrade is blocked by another window"));
+    };
   });
-}
 
-function getStore(db: IDBDatabase, name: string, mode: IDBTransactionMode = "readonly"): IDBObjectStore {
-  const tx = db.transaction(name, mode);
-  return tx.objectStore(name);
+  return databasePromise;
 }
-
-// ─── Store proxy with filter() / toArray() / bulkPut() ──────────
 
 class StoreProxy<T extends Record<string, unknown>> {
   constructor(
-    private storeName: string,
+    private readonly storeName: string,
     keyField: string = "id",
   ) {
     void keyField;
   }
 
-  /** Put (upsert) a single record. */
   async put(item: T): Promise<void> {
-    const db = await openDb();
+    const database = await openDb();
     return new Promise((resolve, reject) => {
-      const store = getStore(db, this.storeName, "readwrite");
-      const req = store.put(item);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      const transaction = database.transaction(this.storeName, "readwrite");
+      transaction.objectStore(this.storeName).put(item);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error(`Failed to update ${this.storeName}`));
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error(`Update aborted for ${this.storeName}`));
     });
   }
 
-  /** Bulk insert/update records. */
   async bulkPut(items: T[]): Promise<void> {
     if (items.length === 0) return;
-    const db = await openDb();
+    const database = await openDb();
     return new Promise((resolve, reject) => {
-      const store = getStore(db, this.storeName, "readwrite");
-      let successes = 0;
-      let failures = 0;
-      let lastError: DOMException | null = null;
-      for (const item of items) {
-        const req = store.put(item);
-        req.onsuccess = () => {
-          successes += 1;
-          if (successes + failures === items.length) {
-            if (failures > 0) reject(lastError || new Error("Bulk put had failures"));
-            else resolve();
-          }
-        };
-        req.onerror = () => {
-          failures += 1;
-          lastError = req.error;
-          if (successes + failures === items.length) {
-            reject(lastError || new Error("Bulk put had failures"));
-          }
-        };
-      }
+      const transaction = database.transaction(this.storeName, "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      for (const item of items) store.put(item);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error(`Bulk update failed for ${this.storeName}`));
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error(`Bulk update aborted for ${this.storeName}`));
     });
   }
 
-  /** Get all records. */
   async toArray(): Promise<T[]> {
-    const db = await openDb();
+    const database = await openDb();
     return new Promise((resolve, reject) => {
-      const store = getStore(db, this.storeName);
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result as T[]);
-      req.onerror = () => reject(req.error);
+      const request = database
+        .transaction(this.storeName, "readonly")
+        .objectStore(this.storeName)
+        .getAll();
+      request.onsuccess = () => resolve(request.result as T[]);
+      request.onerror = () => reject(request.error);
     });
   }
 
-  /** Filter records by a predicate (client-side). */
   filter(predicate: (item: T) => boolean): { toArray: () => Promise<T[]> } {
     return {
-      toArray: async () => {
-        const all = await this.toArray();
-        return all.filter(predicate);
-      },
+      toArray: async () => (await this.toArray()).filter(predicate),
     };
   }
 
-  /** Get a single record by its key. */
   async get(key: string): Promise<T | undefined> {
-    const db = await openDb();
+    const database = await openDb();
     return new Promise((resolve, reject) => {
-      const store = getStore(db, this.storeName);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result as T | undefined);
-      req.onerror = () => reject(req.error);
+      const request = database
+        .transaction(this.storeName, "readonly")
+        .objectStore(this.storeName)
+        .get(key);
+      request.onsuccess = () => resolve(request.result as T | undefined);
+      request.onerror = () => reject(request.error);
     });
   }
 
-  /** Delete a record by its key. */
   async delete(key: string): Promise<void> {
-    const db = await openDb();
+    const database = await openDb();
     return new Promise((resolve, reject) => {
-      const store = getStore(db, this.storeName, "readwrite");
-      const req = store.delete(key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      const transaction = database.transaction(this.storeName, "readwrite");
+      transaction.objectStore(this.storeName).delete(key);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error(`Delete failed for ${this.storeName}`));
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error(`Delete aborted for ${this.storeName}`));
     });
   }
 
-  /** Clear all records. */
   async clear(): Promise<void> {
-    const db = await openDb();
+    const database = await openDb();
     return new Promise((resolve, reject) => {
-      const store = getStore(db, this.storeName, "readwrite");
-      const req = store.clear();
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      const transaction = database.transaction(this.storeName, "readwrite");
+      transaction.objectStore(this.storeName).clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error(`Clear failed for ${this.storeName}`));
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error(`Clear aborted for ${this.storeName}`));
     });
   }
 }
-
-// ─── Types ─────────────────────────────────────────────────────
 
 export interface DbProject extends Record<string, unknown> {
   id: string;
@@ -211,13 +208,16 @@ export interface DbEncryptedNote extends Record<string, unknown> {
   updated_at?: number;
 }
 
-// ─── Database instance ─────────────────────────────────────────
-
 export const db = {
   projects: new StoreProxy<DbProject>("projects"),
   documents: new StoreProxy<DbDocument>("documents"),
   annotations: new StoreProxy<DbAnnotation>("annotations"),
   encrypted_notes: new StoreProxy<DbEncryptedNote>("encrypted_notes"),
-  sync_metadata: new StoreProxy<{ id: string; [key: string]: unknown }>("sync_metadata"),
-  user_preferences: new StoreProxy<{ user_id: string; [key: string]: unknown }>("user_preferences", "user_id"),
+  sync_metadata: new StoreProxy<{ id: string; [key: string]: unknown }>(
+    "sync_metadata",
+  ),
+  user_preferences: new StoreProxy<{
+    user_id: string;
+    [key: string]: unknown;
+  }>("user_preferences", "user_id"),
 };

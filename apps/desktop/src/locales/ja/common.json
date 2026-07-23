@@ -498,7 +498,37 @@
     "citations_influential": "{count}重要な引用",
     "recent_citing": "最近の引用研究（2022年以降）",
     "s2_citations": "注目の引用（S2）",
-    "s2_recommendations": "類似研究の推奨"
+    "s2_recommendations": "類似研究の推奨",
+    "academic_verdict": "?????",
+    "unknown": "??",
+    "academic_basis": "?????",
+    "rules_applied": "?????",
+    "methods": "????",
+    "standards": "????",
+    "evidence_count": "??????{count}??",
+    "limitations": "????",
+    "unverifiable_items": "????????",
+    "assumption": "??",
+    "no_significant_limitations": "?????????????????",
+    "confidence": "???",
+    "next_steps": "??????",
+    "venue_compliance": "?????????",
+    "verdicts": {
+      "supported": "??",
+      "partially_supported": "????",
+      "inconclusive": "????",
+      "contradicted": "??"
+    },
+    "confidence_levels": {
+      "high": "?",
+      "medium": "?",
+      "low": "?"
+    },
+    "evidence_status": {
+      "pass": "??",
+      "fail": "???",
+      "warning": "??"
+    }
   },
   "discovery": {
     "title": "学術ディスカバリー",

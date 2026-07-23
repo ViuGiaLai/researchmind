@@ -5,6 +5,7 @@ https://github.com/microsoft/graphrag/blob/main/packages/graphrag/graphrag/index
 """
 
 from __future__ import annotations
+
 import uuid
 from collections import defaultdict
 from typing import Any

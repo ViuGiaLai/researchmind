@@ -11,18 +11,18 @@ MIT License — adapted from llama_index:
 https://github.com/run-llama/llama_index/blob/main/llama-index-core/llama_index/core/postprocessor/node.py
 """
 
-from typing import Optional
 from dataclasses import dataclass
+
 from loguru import logger
+
 from chat.retrieval_policy import adaptive_top_k, decompose_query
 from common.ai_observability import increment, trace
 from common.prompt_security import neutralize_untrusted_text
 from config.settings import settings
-
 from search.postprocessor import (
     BaseNodePostprocessor,
-    SimilarityPostprocessor,
     LongContextReorder,
+    SimilarityPostprocessor,
 )
 
 
@@ -48,7 +48,7 @@ class Retriever:
     def __init__(
         self,
         hybrid_search,
-        postprocessors: Optional[list[BaseNodePostprocessor]] = None,
+        postprocessors: list[BaseNodePostprocessor] | None = None,
     ):
         self.hybrid = hybrid_search
         from config.settings import settings
@@ -61,7 +61,7 @@ class Retriever:
     def retrieve(
         self,
         query: str,
-        paper_ids: Optional[list[str]] = None,
+        paper_ids: list[str] | None = None,
         top_k: int = 5,
         use_reranker: bool = True,
         metadata_filters: dict | None = None,
@@ -86,8 +86,8 @@ class Retriever:
         top_k = adaptive_top_k(query, top_k, task_type)
         if metadata_filters:
             from app_state import state
-            from db.database import get_session
             from chat.metadata_filters import filter_paper_ids
+            from db.database import get_session
             session = get_session(state.engine)
             try:
                 filtered_ids = filter_paper_ids(session, metadata_filters) or []
@@ -176,8 +176,8 @@ class Retriever:
         radius = max(0, min(int(getattr(settings, "parent_context_radius", 0)), 2))
         if radius and chunks:
             from app_state import state
-            from db.database import get_session
             from chat.parent_retrieval import expand_parent_context
+            from db.database import get_session
             session = get_session(state.engine)
             try:
                 chunks = expand_parent_context(session, chunks, radius)
@@ -188,10 +188,10 @@ class Retriever:
 
         # Step 8: Apply Anonymization ONCE on the final context (not per chunk)
         if context_text and chunks:
+            from anonymization.engine import AnonymizationEngine, EntityEntry
             from app_state import state
             from db.database import get_session
             from db.models import AnonymizationMap
-            from anonymization.engine import AnonymizationEngine, EntityEntry
             anon_engine = AnonymizationEngine()
             import json
             t_anon = _time.time()
@@ -290,7 +290,7 @@ class Retriever:
 
         return expansions
 
-    def _detect_intent(self, query: str) -> Optional[str]:
+    def _detect_intent(self, query: str) -> str | None:
         query_lower = query.lower()
         intent_keywords = {
             "comparison": ["so sánh", "compare", "comparison", "versus", "vs", "khác nhau", "khác biệt", "tương tự", "tương đồng"],
@@ -373,7 +373,7 @@ class Retriever:
     def _cluster_by_paper(self, chunks: list[dict]) -> list[dict]:
         return self._interleave_by_paper(chunks)
 
-    def _build_context(self, chunks: list[dict], query: Optional[str] = None, task_type: str = "") -> str:
+    def _build_context(self, chunks: list[dict], query: str | None = None, task_type: str = "") -> str:
         if not chunks:
             return ""
 

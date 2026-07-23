@@ -1,7 +1,8 @@
+import json
 import os
 import sys
-import json
 from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,7 +54,7 @@ def get_resolved_data_dir() -> Path:
     config_file = default_dir / "config.json"
     if config_file.exists():
         try:
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 data = json.load(f)
                 custom_path = data.get("data_dir")
                 if custom_path:
@@ -174,15 +175,15 @@ class Settings(BaseSettings):
     llama_server_url: str = "http://127.0.0.1:8080"
     local_model: str = "Qwen3-4B-Q4_K_M.gguf"
     local_max_tokens: int = 1024
-    
+
     # Claude Cloud
     claude_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
-    
+
     # DeepSeek Cloud
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
-    
+
     # Gemini Cloud
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
@@ -197,7 +198,7 @@ class Settings(BaseSettings):
     nvidia_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_deepseek_api_key: str = ""
     nvidia_deepseek_model: str = "deepseek-ai/deepseek-v4-pro"
-    
+
     # Groq Cloud
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
@@ -240,7 +241,7 @@ class Settings(BaseSettings):
     cerebras_api_key: str = ""
     cerebras_model: str = "qwen-3-235b-a22b-instruct-2507"
     cerebras_url: str = "https://api.cerebras.ai/v1"
-    
+
     # Reranking settings (BGE cross-encoder for improved relevance)
     enable_reranker: bool = True
 
@@ -277,19 +278,19 @@ class Settings(BaseSettings):
     large_context_threshold: int = 105000
     large_context_model: str = ""
     large_context_provider: str = ""
-    
+
     # Free Cloud settings (tries Groq → Gemini → FreeModel → local)
     free_cloud_daily_limit: int = 10
-    
+
     # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (llama-server)
     llm_mode: str = "cloud_free"
     cloud_ai_consent: bool = True
     diagnostics_consent: bool = False
     redact_metadata_for_cloud: bool = True
-    
+
     # Custom provider: "deepseek", "claude", or "gemini"
     custom_cloud_provider: str = "deepseek"
-    
+
     # Per-task provider map (JSON string): task_type → provider name
     # Factory default (override via .env):
     # {"summary":"github","daily_reader":"github","chat":"github","quality_check":"github",
@@ -310,10 +311,10 @@ class Settings(BaseSettings):
     # Ultimate fallback chain (comma-separated): tried in order when primary + fallback both fail
     # Factory default: "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
     task_ultimate_fallback_chain: str = "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
-    
+
     # Onboarding setup completed state
     setup_completed: bool = False
-    
+
     # Academic verification
     openalex_email: str = ""
     crossref_email: str = ""

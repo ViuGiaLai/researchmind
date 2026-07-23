@@ -1,5 +1,5 @@
-from routers.chat import _process_citations
 from chat.retriever import Retriever
+from routers.chat import _process_citations
 
 
 def test_process_citations_marks_retrieved_passage_as_verified():

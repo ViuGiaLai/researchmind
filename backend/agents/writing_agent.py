@@ -1,7 +1,9 @@
 """Writing Agent — synthesis and report generation using governance contracts."""
 from __future__ import annotations
-from .base import BaseAgent, AgentContext, AgentResult
+
 from loguru import logger
+
+from .base import AgentContext, AgentResult, BaseAgent
 
 
 class WritingAgent(BaseAgent):

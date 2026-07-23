@@ -5,6 +5,7 @@ All venue templates are loaded from publishing/resources/venue_rules.json
 so they can be versioned, updated, and audited without code changes.
 """
 from __future__ import annotations
+
 import json
 from functools import lru_cache
 from pathlib import Path

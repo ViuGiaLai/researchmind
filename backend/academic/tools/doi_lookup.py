@@ -1,7 +1,9 @@
 """DOI Lookup tool — unified resolver across Crossref, OpenAlex, Semantic Scholar."""
 from __future__ import annotations
+
 import asyncio
-from typing import Any, Optional
+from typing import Any
+
 from .base import BaseTool, ToolResult
 
 

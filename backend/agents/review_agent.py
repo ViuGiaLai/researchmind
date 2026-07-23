@@ -1,7 +1,9 @@
 """Review Agent — scientific peer review simulation using governance standards."""
 from __future__ import annotations
-from .base import BaseAgent, AgentContext, AgentResult
+
 from loguru import logger
+
+from .base import AgentContext, AgentResult, BaseAgent
 
 
 class ReviewAgent(BaseAgent):
@@ -24,7 +26,7 @@ class ReviewAgent(BaseAgent):
         else:
             draft = str(draft)
 
-        logger.info(f"ReviewAgent: evaluating manuscript quality against peer_review_standards")
+        logger.info("ReviewAgent: evaluating manuscript quality against peer_review_standards")
         try:
             auditor = self.get_tool("format_auditor")
             audit_res = auditor.run(

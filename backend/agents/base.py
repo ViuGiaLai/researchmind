@@ -1,9 +1,9 @@
 """Base agent infrastructure — role-driven, tool-constrained, governance-backed."""
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+
 from abc import ABC, abstractmethod
-from loguru import logger
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -16,7 +16,7 @@ class AgentContext:
     available_artifacts: dict[str, Any] = field(default_factory=dict)  # step_id → result
     language: str = "en"
 
-    def with_artifact(self, step_id: str, result: Any) -> "AgentContext":
+    def with_artifact(self, step_id: str, result: Any) -> AgentContext:
         """Return a new context with the step artifact added."""
         new_artifacts = dict(self.available_artifacts)
         new_artifacts[step_id] = result

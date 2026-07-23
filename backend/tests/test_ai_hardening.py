@@ -3,8 +3,7 @@ from types import SimpleNamespace
 from chat.generator_v2 import Generator
 from chat.retriever import Retriever
 from config.settings import settings
-from routers.chat import _build_chunk_map, _chat_cache_key
-from routers.chat import _process_citations
+from routers.chat import _build_chunk_map, _chat_cache_key, _process_citations
 
 
 def test_chat_cache_key_isolated_by_language_and_modes():

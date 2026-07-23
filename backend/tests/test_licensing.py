@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -29,7 +29,7 @@ def test_valid_signed_license():
         "license_id": "lic_2026_001",
         "plan": "pro",
         "email": "researcher@example.com",
-        "expires_at": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+        "expires_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
         "features": ["priority_support"],
     })
     claims = verify_license_token(token, public_key)
@@ -50,7 +50,7 @@ def test_expired_license_is_rejected():
     token, public_key = _token({
         "license_id": "lic_expired",
         "plan": "pro",
-        "expires_at": (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+        "expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
     })
     with pytest.raises(LicenseError, match="expired"):
         verify_license_token(token, public_key)

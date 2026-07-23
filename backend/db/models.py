@@ -1,9 +1,18 @@
+import uuid
+
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, func,
-    UniqueConstraint, CheckConstraint, ForeignKey, Index
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import DeclarativeBase
-import uuid
 
 
 class Base(DeclarativeBase):
@@ -20,7 +29,7 @@ class Paper(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     filename = Column(String, nullable=False)
     title = Column(String, default="")
-    authors = Column(Text, default="[]")          # JSON array
+    authors = Column(Text, default="[]")  # JSON array
     year = Column(Integer, nullable=True)
     doi = Column(String, default="")
     abstract = Column(Text, default="")
@@ -28,8 +37,8 @@ class Paper(Base):
     page_count = Column(Integer, nullable=True)
     file_size = Column(Integer, default=0)
     file_path = Column(String, nullable=False, unique=True)
-    status = Column(String, default="pending")    # pending / indexing / indexed / failed
-    tags = Column(Text, default="[]")             # JSON array
+    status = Column(String, default="pending")  # pending / indexing / indexed / failed
+    tags = Column(Text, default="[]")  # JSON array
     notes = Column(Text, default="")
     auto_summary = Column(Text, default="")  # AI-generated summary
     auto_summary_lang = Column(String, default="")  # Language of auto_summary (vi/en/ja)
@@ -76,9 +85,7 @@ class Chunk(Base):
     section_header = Column(String, default="")
     token_count = Column(Integer, nullable=True)
 
-    __table_args__ = (
-        UniqueConstraint("paper_id", "chunk_index", name="uq_paper_chunk"),
-    )
+    __table_args__ = (UniqueConstraint("paper_id", "chunk_index", name="uq_paper_chunk"),)
 
 
 class ChatHistory(Base):
@@ -89,9 +96,9 @@ class ChatHistory(Base):
     role = Column(String, nullable=False)  # user / assistant
     content = Column(Text, nullable=False)
     context_papers = Column(Text, default="[]")  # JSON array of paper_ids
-    citations = Column(Text, default="[]")        # JSON array of citations
+    citations = Column(Text, default="[]")  # JSON array of citations
     model_used = Column(String, default="")
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now(), index=True)
 
 
 class Setting(Base):
@@ -136,9 +143,7 @@ class CollectionPaper(Base):
     paper_id = Column(String, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
-    __table_args__ = (
-        UniqueConstraint("collection_id", "paper_id", name="uq_collection_paper"),
-    )
+    __table_args__ = (UniqueConstraint("collection_id", "paper_id", name="uq_collection_paper"),)
 
 
 class SavedSearch(Base):
@@ -182,7 +187,9 @@ class ResearchArtifact(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        CheckConstraint("artifact_type IN ('note', 'evidence', 'review', 'matrix', 'report')", name="ck_research_artifact_type"),
+        CheckConstraint(
+            "artifact_type IN ('note', 'evidence', 'review', 'matrix', 'report')", name="ck_research_artifact_type"
+        ),
         Index("ix_research_artifact_project", "project_id"),
     )
 
@@ -192,12 +199,14 @@ class ReviewDraft(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     title = Column(String, default="Literature Review")
-    paper_ids = Column(Text, default="[]")         # JSON array
-    paper_titles = Column(Text, default="[]")       # JSON array
-    outline_sections = Column(Text, default="[]")   # JSON array of {key, title, description}
-    sections = Column(Text, default="{}")           # JSON object key → section data
+    paper_ids = Column(Text, default="[]")  # JSON array
+    paper_titles = Column(Text, default="[]")  # JSON array
+    outline_sections = Column(Text, default="[]")  # JSON array of {key, title, description}
+    sections = Column(Text, default="{}")  # JSON object key → section data
     full_text = Column(Text, default="")
-    versions = Column(Text, default="[]")  # JSON array: [{title, paper_ids, paper_titles, outline_sections, sections, full_text, saved_at}, ...]
+    versions = Column(
+        Text, default="[]"
+    )  # JSON array: [{title, paper_ids, paper_titles, outline_sections, sections, full_text, saved_at}, ...]
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -207,10 +216,10 @@ class EvidenceMatrixDraft(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     title = Column(String, default="Comparison Matrix")
-    paper_ids = Column(Text, default="[]")         # JSON array
-    paper_names = Column(Text, default="[]")        # JSON array
-    columns = Column(Text, default="[]")            # JSON array of paper titles
-    rows = Column(Text, default="[]")               # JSON array of {criterion, cells[...]}
+    paper_ids = Column(Text, default="[]")  # JSON array
+    paper_names = Column(Text, default="[]")  # JSON array
+    columns = Column(Text, default="[]")  # JSON array of paper titles
+    rows = Column(Text, default="[]")  # JSON array of {criterion, cells[...]}
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -418,6 +427,7 @@ class AnonymizationMap(Base):
     anonymized_text: Full text đã được ẩn danh (Markdown)
     is_active: 1 nếu đang bật chế độ ẩn danh cho paper này
     """
+
     __tablename__ = "anonymization_maps"
 
     paper_id = Column(
@@ -432,6 +442,4 @@ class AnonymizationMap(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    __table_args__ = (
-        Index("ix_anonymization_active", "is_active"),
-    )
+    __table_args__ = (Index("ix_anonymization_active", "is_active"),)

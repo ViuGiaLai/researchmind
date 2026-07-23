@@ -4,22 +4,23 @@ Each workflow step declared in academic_governance.json maps to an agent.
 Pipeline runs are logged to audit_trail.jsonl and automatically evaluated.
 """
 from __future__ import annotations
-import asyncio
+
 import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
+
 from loguru import logger
 
-from .base import AgentContext, AgentResult, BaseAgent
-from .research_agent import ResearchAgent
-from .audit_agent import AuditAgent
-from .writing_agent import WritingAgent
-from .review_agent import ReviewAgent
-from .publishing_agent import PublishingAgent
-from common.audit_trail import audit_trail_logger, AuditTrailRecord
-from evaluation.platform_evaluator import evaluate_pipeline_result, EvaluationMetrics
+from common.audit_trail import AuditTrailRecord, audit_trail_logger
+from evaluation.platform_evaluator import EvaluationMetrics, evaluate_pipeline_result
 
+from .audit_agent import AuditAgent
+from .base import AgentContext, AgentResult, BaseAgent
+from .publishing_agent import PublishingAgent
+from .research_agent import ResearchAgent
+from .review_agent import ReviewAgent
+from .writing_agent import WritingAgent
 
 # Step → Agent mapping (data-driven)
 _STEP_AGENT_MAP: dict[str, type[BaseAgent]] = {
@@ -71,8 +72,8 @@ async def run_pipeline(
 
     Each step is executed, audited, and logged. Overall execution quality is evaluated.
     """
-    from research.workflow_engine import build_workflow
     from academic.governance import get_academic_governance
+    from research.workflow_engine import build_workflow
 
     gov = get_academic_governance()
     workflow = build_workflow()
@@ -105,7 +106,7 @@ async def run_pipeline(
 
         start_t = time.time()
         logger.info(f"Pipeline [{trace_id[:8]}]: running step '{step.id}' with agent '{agent_cls.name}'")
-        
+
         ctx_step = AgentContext(
             query=ctx.query,
             paper_ids=ctx.paper_ids,

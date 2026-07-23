@@ -3,11 +3,12 @@
 Fetches, verifies, and continuously syncs venue guidelines against official live sources.
 Tracks changes and records versioned provenance.
 """
+import re
 import time
 import urllib.request
-import re
 from typing import Any
-from publishing.templates import get_venue_template, get_official_source, get_all_venues
+
+from publishing.templates import get_all_venues, get_official_source, get_venue_template
 
 
 def sync_venue_guideline(venue_id: str) -> dict[str, Any]:

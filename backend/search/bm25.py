@@ -1,11 +1,11 @@
 """BM25 full-text search using SQLite FTS5."""
 
-import json
-from typing import Optional
+import re
 from dataclasses import dataclass
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+
 from loguru import logger
+from sqlalchemy import text
+from sqlalchemy.orm import Session, sessionmaker
 
 
 @dataclass
@@ -14,61 +14,78 @@ class BM25Result:
     paper_id: str
     chunk_index: int
     content: str
-    page_number: Optional[int]
+    page_number: int | None
     paper_title: str
     score: float
 
 
 class BM25Search:
-    """BM25 search engine backed by SQLite FTS5."""
+    """BM25 search engine backed by SQLite FTS5.
+
+    A fresh SQLAlchemy session is created for every operation. The service is
+    shared by FastAPI requests and background threads, while SQLAlchemy Session
+    instances are explicitly not thread-safe.
+    """
 
     def __init__(self, db_session: Session):
-        self.db = db_session
+        bind = db_session.get_bind()
+        self._session_factory = sessionmaker(bind=bind, expire_on_commit=False)
+        # The constructor historically took ownership of this long-lived
+        # session. It is no longer retained, so release its connection now.
+        db_session.close()
 
     def ensure_fts_table(self):
-        """Create FTS5 virtual table if it doesn't exist, and populate it."""
-        # Create the FTS5 table
-        self.db.execute(text("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
-                content,
-                content='chunks',
-                content_rowid='id',
-                tokenize='unicode61'
+        """Create the FTS5 virtual table if it does not exist and populate it."""
+        with self._session_factory() as db:
+            db.execute(
+                text(
+                    """
+                    CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+                        content,
+                        content='chunks',
+                        content_rowid='id',
+                        tokenize='unicode61'
+                    )
+                    """
+                )
             )
-        """))
-        self.db.commit()
+            db.commit()
 
-        # Check if FTS table is empty and needs population
-        row = self.db.execute(text("SELECT COUNT(*) FROM chunks_fts")).scalar()
-        if row == 0:
-            self._rebuild_fts()
+            # COUNT(*) on an external-content FTS table mirrors the content
+            # table even when the search index itself is empty. The docsize
+            # table tracks documents actually present in the FTS index.
+            source_count = db.execute(text("SELECT COUNT(*) FROM chunks")).scalar() or 0
+            try:
+                indexed_count = (
+                    db.execute(text("SELECT COUNT(*) FROM chunks_fts_docsize")).scalar() or 0
+                )
+            except Exception:
+                indexed_count = -1
+            if indexed_count != source_count:
+                self._rebuild_fts(db)
 
-    def _rebuild_fts(self):
-        """Rebuild FTS index from chunks table."""
-        logger.info("Rebuilding FTS5 index...")
-        self.db.execute(text("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')"))
-        self.db.commit()
-        count = self.db.execute(text("SELECT COUNT(*) FROM chunks_fts")).scalar()
-        logger.info(f"FTS5 index rebuilt: {count} chunks indexed")
+    def _rebuild_fts(self, db: Session | None = None):
+        """Rebuild the FTS index using an isolated session when called directly."""
+        owns_session = db is None
+        if db is None:
+            db = self._session_factory()
+        try:
+            logger.info("Rebuilding FTS5 index...")
+            db.execute(text("INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild')"))
+            db.commit()
+            count = db.execute(text("SELECT COUNT(*) FROM chunks_fts_docsize")).scalar()
+            logger.info(f"FTS5 index rebuilt: {count} chunks indexed")
+        finally:
+            if owns_session:
+                db.close()
 
     def search(
         self,
         query: str,
-        paper_ids: Optional[list[str]] = None,
+        paper_ids: list[str] | None = None,
         top_k: int = 20,
     ) -> list[BM25Result]:
-        """
-        Execute BM25 search using SQLite FTS5.
-
-        Args:
-            query: Search query text.
-            paper_ids: Optional filter to specific papers.
-            top_k: Number of results to return.
-
-        Returns:
-            List of BM25Result sorted by BM25 score (descending).
-        """
-        # Sanitize query for FTS5 (escape special characters)
+        """Execute BM25 search and return results sorted by SQLite rank."""
         fts_query = _sanitize_fts_query(query)
         if not fts_query:
             return []
@@ -88,26 +105,26 @@ class BM25Search:
             WHERE chunks_fts MATCH :query
             AND p.status = 'indexed'
         """
-        params = {"query": fts_query}
+        params: dict[str, object] = {"query": fts_query}
 
         if paper_ids:
             placeholders = ", ".join(f":pid_{i}" for i in range(len(paper_ids)))
             sql += f" AND c.paper_id IN ({placeholders})"
-            for i, pid in enumerate(paper_ids):
-                params[f"pid_{i}"] = pid
+            for i, paper_id in enumerate(paper_ids):
+                params[f"pid_{i}"] = paper_id
 
         sql += " ORDER BY rank LIMIT :limit"
-        params["limit"] = top_k
+        params["limit"] = max(1, min(int(top_k), 1000))
 
         try:
-            rows = self.db.execute(text(sql), params).fetchall()
-        except Exception as e:
-            logger.warning(f"FTS5 search failed: {e}")
+            with self._session_factory() as db:
+                rows = db.execute(text(sql), params).fetchall()
+        except Exception as exc:
+            logger.warning(f"FTS5 search failed: {exc}")
             return []
 
-        results = []
-        for row in rows:
-            results.append(BM25Result(
+        return [
+            BM25Result(
                 chunk_id=row[0],
                 paper_id=row[1],
                 chunk_index=row[2],
@@ -115,26 +132,20 @@ class BM25Search:
                 page_number=row[4],
                 paper_title=row[5],
                 score=float(row[6]) if row[6] is not None else 0.0,
-            ))
-
-        return results
+            )
+            for row in rows
+        ]
 
 
 def _sanitize_fts_query(query: str) -> str:
-    """Convert a natural language query to FTS5 query syntax."""
-    # Remove special characters, keep alphanumeric and unicode
-    import re
-    # Split into words, filter out empty/stop words
-    words = query.split()
-    # Escape special FTS5 characters
+    """Convert a natural-language query to safe FTS5 terms."""
     sanitized = []
-    for w in words:
-        w = re.sub(r'[^\w\sàáảãạăắằẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]', '', w)
-        if w and len(w) > 1:
-            sanitized.append(w)
-
-    if not sanitized:
-        return ""
-
-    # Use NEAR operator for phrase matching, OR for individual terms
+    for word in query.split():
+        word = re.sub(
+            r"[^\w\sàáảãạăắằẳẵặâấầẩẫậđèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ]",
+            "",
+            word,
+        )
+        if word and len(word) > 1:
+            sanitized.append(word)
     return " OR ".join(sanitized)
