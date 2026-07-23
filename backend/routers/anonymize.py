@@ -12,13 +12,13 @@ Endpoints:
 import json
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from loguru import logger
+from pydantic import BaseModel
 
+from anonymization.engine import AnonymizationEngine, AnonymizationResult
 from app_state import state
 from db.database import get_session
 from db.models import AnonymizationMap, Chunk, Paper
-from anonymization.engine import AnonymizationEngine, AnonymizationResult
 
 router = APIRouter(prefix="/api/anonymize", tags=["Anonymization"])
 
@@ -305,7 +305,7 @@ async def anonymize_text_snippet(paper_id: str, req: TextRequest):
             return {"text": req.raw_text, "anonymized": False}
 
         try:
-            from anonymization.engine import AnonymizationResult, EntityEntry
+            from anonymization.engine import EntityEntry
             entity_data = json.loads(existing.entity_map_json)
             entity_map = {
                 orig: EntityEntry(

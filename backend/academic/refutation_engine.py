@@ -4,8 +4,8 @@ Generates scientific counter-arguments, edge-case challenges, and refutation sce
 to stress-test conclusions against bias or premature generalization.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Any
+
+from dataclasses import dataclass
 
 
 @dataclass

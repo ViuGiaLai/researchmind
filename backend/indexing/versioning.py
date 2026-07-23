@@ -1,6 +1,7 @@
 """Index configuration fingerprints and selective reindex decisions."""
 import hashlib
 import json
+
 CURRENT_SCHEMA_VERSION = 1
 def index_fingerprint(*, chunk_size: int, overlap: int, embedding_model: str) -> str:
     return hashlib.sha256(json.dumps({"schema":CURRENT_SCHEMA_VERSION,"chunk_size":chunk_size,"overlap":overlap,"embedding_model":embedding_model},sort_keys=True).encode()).hexdigest()

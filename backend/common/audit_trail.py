@@ -1,10 +1,12 @@
 """Observability & Audit Trail — records complete lineage of AI execution."""
 from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
 from loguru import logger
 
 _AUDIT_LOG_FILE = Path(__file__).parent.parent / "logs" / "audit_trail.jsonl"

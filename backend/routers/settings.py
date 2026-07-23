@@ -1,17 +1,16 @@
 import json
 
 from fastapi import APIRouter, Body, HTTPException, Request
-from common.text_utils import redact_api_key
-from common.secret_store import SecretStorageError, set_secret
-from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from common.i18n import t, get_language
 from app_state import state
-from config.settings import settings
-from db.models import Setting
-from db.database import get_session
 from chat.generator_factory import build_generator
+from common.i18n import get_language, t
+from common.secret_store import SecretStorageError, set_secret
+from common.text_utils import redact_api_key
+from config.settings import settings
+from db.database import get_session
+from db.models import Setting
 
 router = APIRouter(prefix="/api", tags=["Settings"])
 
@@ -457,7 +456,7 @@ async def get_local_status(request: Request):
 @router.get("/settings/cache-stats")
 async def get_cache_stats():
     """Get number of cached LLM responses and embeddings."""
-    from db.models import LLMCache, EmbeddingCache
+    from db.models import EmbeddingCache, LLMCache
     session = get_session(state.engine)
     try:
         llm_count = session.query(LLMCache).count()
@@ -477,7 +476,7 @@ async def get_cache_stats():
 async def clear_cache(request: Request):
     """Clear all LLM and embedding caches."""
     lang = get_language(request)
-    from db.models import LLMCache, EmbeddingCache
+    from db.models import EmbeddingCache, LLMCache
     session = get_session(state.engine)
     try:
         session.query(LLMCache).delete()
@@ -511,24 +510,24 @@ async def rebuild_settings_fts():
 async def get_model_status():
     """Get the current loaded/unloaded status of offline models (embedding and cross-encoder)."""
     import time
-    
+
     embedder_loaded = False
     embedder_last_used = 0.0
     embedder_idle_sec = 0.0
-    
+
     reranker_loaded = False
     reranker_last_used = 0.0
     reranker_idle_sec = 0.0
-    
+
     if hasattr(state, "embedder") and state.embedder is not None:
         embedder_loaded = True  # cloud embedding is always ready
         embedder_idle_sec = 0
-        
+
     if hasattr(state, "hybrid") and state.hybrid is not None:
         reranker_loaded = state.hybrid._cross_encoder is not None
         reranker_last_used = getattr(state.hybrid, "last_used", 0.0)
         reranker_idle_sec = max(0.0, time.time() - reranker_last_used) if reranker_last_used > 0 else 0.0
-        
+
     return {
         "embedder": {
             "loaded": embedder_loaded,

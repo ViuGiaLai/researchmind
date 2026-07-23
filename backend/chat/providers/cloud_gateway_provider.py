@@ -1,10 +1,12 @@
 """Hosted inference adapter with no upstream provider credentials."""
 
 import json
+
 import httpx
 from loguru import logger
 
 from common.request_context import get_request_bearer_token
+
 from ..types import GenerationResult
 
 

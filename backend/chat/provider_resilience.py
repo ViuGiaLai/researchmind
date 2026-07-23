@@ -1,7 +1,9 @@
 """Thread-safe provider circuit breaker and rolling health score."""
-from dataclasses import dataclass
 import threading
 import time
+from dataclasses import dataclass
+
+
 @dataclass
 class ProviderState:
     successes: int = 0; failures: int = 0; consecutive_failures: int = 0

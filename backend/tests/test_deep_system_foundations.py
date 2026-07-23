@@ -1,15 +1,17 @@
 import json
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from db.models import AIJob, Base, IndexManifest, Paper
-from jobs.ai_jobs import cancel_job, create_job, resumable_jobs, update_job
+
 from chat.claim_decomposition import decompose_claims
 from chat.metadata_filters import filter_paper_ids
 from chat.parent_retrieval import expand_parent_context
 from chat.provider_resilience import ProviderHealth
-from db.models import Chunk
+from db.models import Base, Chunk, IndexManifest, Paper
 from indexing.versioning import commit_manifest, index_fingerprint, rollback_manifest, stage_manifest
+from jobs.ai_jobs import cancel_job, create_job, resumable_jobs, update_job
 from search.calibration import retrieval_weights
+
 
 def _session():
     engine = create_engine("sqlite:///:memory:")

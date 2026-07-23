@@ -3,8 +3,10 @@
 Links Paper ↔ Author ↔ Venue ↔ Citation ↔ Dataset ↔ Method ↔ Metric after DOI resolution and entity extraction.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any
+
 from loguru import logger
 
 
@@ -12,8 +14,8 @@ from loguru import logger
 class GraphAuthor:
     """Normalized author node for the knowledge graph."""
     name: str
-    orcid: Optional[str] = None
-    affiliation: Optional[str] = None
+    orcid: str | None = None
+    affiliation: str | None = None
     paper_ids: list[str] = None
 
     def __post_init__(self):
@@ -40,7 +42,7 @@ class CitationLink:
     """A directed citation edge: source_paper cites target_doi."""
     source_paper_id: str
     target_doi: str
-    target_title: Optional[str] = None
+    target_title: str | None = None
     is_verified: bool = False  # True after Crossref lookup
 
 
@@ -48,7 +50,7 @@ class CitationLink:
 class GraphDataset:
     """Dataset node linked to papers."""
     name: str
-    url: Optional[str] = None
+    url: str | None = None
     paper_ids: list[str] = None
 
     def __post_init__(self):
@@ -60,7 +62,7 @@ class GraphDataset:
 class GraphMethod:
     """Method/Algorithm node linked to papers."""
     name: str
-    category: Optional[str] = None
+    category: str | None = None
     paper_ids: list[str] = None
 
     def __post_init__(self):
@@ -72,7 +74,7 @@ class GraphMethod:
 class GraphMetric:
     """Evaluation metric node linked to papers."""
     name: str
-    unit: Optional[str] = None
+    unit: str | None = None
     paper_ids: list[str] = None
 
     def __post_init__(self):
@@ -80,7 +82,7 @@ class GraphMetric:
             self.paper_ids = []
 
 
-def infer_venue_from_doi(doi: str) -> Optional[str]:
+def infer_venue_from_doi(doi: str) -> str | None:
     """Infer venue code from DOI prefix patterns.
 
     Uses pattern matching — no external API call.
@@ -126,12 +128,12 @@ def link_paper_authors(
 
 def link_paper_venue(
     paper_id: str,
-    doi: Optional[str],
-    journal: Optional[str],
+    doi: str | None,
+    journal: str | None,
     venue_store: dict[str, GraphVenue],
-) -> Optional[GraphVenue]:
+) -> GraphVenue | None:
     """Link a paper to a venue node, creating the node if it doesn't exist."""
-    venue_code: Optional[str] = None
+    venue_code: str | None = None
     venue_name = journal or ""
 
     if doi:

@@ -8,19 +8,18 @@ Executes a multi-step research flow with perspective-guided decomposition:
 5. Synthesize final comprehensive answer
 """
 
-from typing import Optional
+from dataclasses import dataclass
+
 from loguru import logger
 
-from dataclasses import dataclass
+from chat.generator_v2 import Generator
+from chat.retriever import Retriever
 from research.planner import (
     ResearchPlan,
-    decompose_query,
     compress_findings,
+    decompose_query,
     synthesize_answer,
 )
-from research.persona_generator import Persona
-from chat.retriever import Retriever
-from chat.generator import Generator, GenerationResult
 
 
 @dataclass
@@ -37,7 +36,7 @@ def deep_research(
     query: str,
     retriever: Retriever,
     generator: Generator,
-    paper_ids: Optional[list[str]] = None,
+    paper_ids: list[str] | None = None,
     top_k_per_question: int = 3,
 ) -> DeepResearchResult:
     """Execute deep research on a query.

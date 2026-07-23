@@ -1,14 +1,14 @@
 """Tool registry — single lookup point for all academic tools."""
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
+from .auto_fixer import AutoFixerTool
 from .base import BaseTool
 from .citation_checker import CitationCheckerTool
 from .doi_lookup import DOILookupTool
-from .reference_validator import ReferenceValidatorTool
-from .format_auditor import FormatAuditorTool
-from .auto_fixer import AutoFixerTool
-from .metadata_checker import MetadataCheckerTool
 from .exporter import ExporterTool
+from .format_auditor import FormatAuditorTool
+from .metadata_checker import MetadataCheckerTool
+from .reference_validator import ReferenceValidatorTool
 
 TOOL_REGISTRY: dict[str, type[BaseTool]] = {
     "citation_checker": CitationCheckerTool,

@@ -1,9 +1,10 @@
 """Continuous Academic Knowledge Sync — multi-source sync engine across OpenAlex, Crossref, Semantic Scholar, Venue Guidelines, and Taxonomy.
 """
 from __future__ import annotations
-import asyncio
+
 import time
 from typing import Any
+
 from loguru import logger
 
 from academic.crossref import get_work_by_doi as crossref_get_work

@@ -7,8 +7,8 @@
 import pytest
 
 pytestmark = pytest.mark.benchmark
-from evaluation.benchmark_suite import BenchmarkSuite
 from evaluation.ablation_study import AblationStudyEngine
+from evaluation.benchmark_suite import BenchmarkSuite
 from evaluation.stress_tester import StressTestingSuite
 
 
@@ -27,7 +27,7 @@ def test_benchmark_suite_head_to_head():
     assert len(results["results"]) == 2
     platform_res = results["results"][0]
     raw_res = results["results"][1]
-    
+
     assert platform_res["f1_score"] > raw_res["f1_score"]
     assert platform_res["hallucination_rate"] < raw_res["hallucination_rate"]
 

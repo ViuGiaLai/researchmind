@@ -5,16 +5,17 @@ https://github.com/microsoft/graphrag
 """
 
 from __future__ import annotations
+
 import uuid
 from typing import Any
 
 from loguru import logger
 
-from .models import GraphCommunity, GraphCommunityReport, GraphEntity, GraphRelationship
-from .storage import KnowledgeGraph
-from .errors import GraphBuildCancelled
 from academic.governance import get_academic_governance
 
+from .errors import GraphBuildCancelled
+from .models import GraphCommunity, GraphCommunityReport
+from .storage import KnowledgeGraph
 
 
 async def summarize_community(

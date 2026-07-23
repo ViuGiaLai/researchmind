@@ -6,9 +6,10 @@ Performs logic deduction without relying solely on LLMs:
 - Evidence gap & unverified assertion identification.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any
-from .ontology import AcademicOntologyGraph, ExperimentEntity, ClaimEntity, EvidenceEntity
+
+from .ontology import AcademicOntologyGraph, ExperimentEntity
 
 
 @dataclass
@@ -64,12 +65,12 @@ class AcademicReasoningEngine:
                 c1, c2 = claims[i], claims[j]
                 if c1.paper_id == c2.paper_id:
                     continue
-                
+
                 # Check for antonyms or contradictory indicators
                 words1 = set(c1.statement.lower().split())
                 words2 = set(c2.statement.lower().split())
                 common = words1.intersection(words2)
-                
+
                 if len(common) >= 3 and (("improves" in words1 and "degrades" in words2) or ("outperforms" in words1 and "underperforms" in words2)):
                     conflicts.append(DeductedFact(
                         fact_type="evidence_conflict",

@@ -3,8 +3,8 @@
 Entities: Paper, Author, Venue, Method, Dataset, Metric, Experiment, Claim, Evidence, Limitation.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Optional, Any
 
 
 @dataclass
@@ -12,17 +12,17 @@ class PaperEntity:
     id: str
     title: str
     authors: list[str] = field(default_factory=list)
-    venue: Optional[str] = None
-    year: Optional[int] = None
-    doi: Optional[str] = None
+    venue: str | None = None
+    year: int | None = None
+    doi: str | None = None
     abstract: str = ""
 
 
 @dataclass
 class AuthorEntity:
     name: str
-    orcid: Optional[str] = None
-    affiliation: Optional[str] = None
+    orcid: str | None = None
+    affiliation: str | None = None
     paper_ids: list[str] = field(default_factory=list)
 
 
@@ -47,7 +47,7 @@ class MethodEntity:
 class DatasetEntity:
     name: str
     domain: str = "computer_science"
-    url: Optional[str] = None
+    url: str | None = None
     paper_ids: list[str] = field(default_factory=list)
 
 
@@ -84,7 +84,7 @@ class EvidenceEntity:
     id: str
     paper_id: str
     passage: str
-    page: Optional[int] = None
+    page: int | None = None
     section: str = ""
     confidence: float = 1.0
 

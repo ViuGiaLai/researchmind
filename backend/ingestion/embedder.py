@@ -3,12 +3,12 @@
 Fallback chain: gateway → Gemini API → local sentence-transformers → zeros.
 """
 
-from typing import Optional
 import hashlib
 import json
 import time
 
 from loguru import logger
+
 from config.settings import settings
 
 
@@ -16,7 +16,7 @@ class Embedder:
     def __init__(self, model_name: str = "gemini-embedding-001", embedding_mode: str = "cloud"):
         self.model_name = model_name
         self.embedding_mode = embedding_mode
-        self._cloud_dim: Optional[int] = None
+        self._cloud_dim: int | None = None
         self._local_model = None
         self._local_dim: int = 1024
 
@@ -126,6 +126,7 @@ class Embedder:
 
     def _call_gateway(self, gateway_url: str, texts: list[str]) -> list[list[float]]:
         import httpx
+
         from common.request_context import get_request_bearer_token
 
         shared = getattr(settings, "researchmind_cloud_token", "")
@@ -228,7 +229,7 @@ class Embedder:
         return self._cloud_dim or 768  # fallback until first API call
 
 
-_embedder: Optional[Embedder] = None
+_embedder: Embedder | None = None
 
 
 def get_embedder(model_name: str = "gemini-embedding-001", embedding_mode: str = "cloud") -> Embedder:

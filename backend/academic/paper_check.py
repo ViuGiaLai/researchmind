@@ -2,15 +2,16 @@
 Helper kiểm tra trạng thái paper trước khi gọi insight/verify endpoints.
 Tránh trường hợp paper đang được index mà vẫn chạy retrieve → không có chunks → báo lỗi.
 """
-from typing import Optional
+
 from loguru import logger
+
 from app_state import state
+from common.i18n import t
 from db.database import get_session
 from db.models import Paper
-from common.i18n import t
 
 
-def check_papers_ready(paper_ids: Optional[list[str]], lang: str = "vi") -> Optional[str]:
+def check_papers_ready(paper_ids: list[str] | None, lang: str = "vi") -> str | None:
     """
     Kiểm tra tất cả paper đã được index chưa.
     Returns: error message (str) nếu có vấn đề, None nếu OK.

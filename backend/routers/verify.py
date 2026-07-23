@@ -7,36 +7,37 @@ Cung cáº¥p: metadata verification, citation analysis, related research, evolu
 import asyncio
 import json
 import re
+
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from typing import Optional
-
-from app_state import state
-from config.settings import settings
-from db.database import get_session
-from db.models import ChatHistory, Paper
 from loguru import logger
+from pydantic import BaseModel
 
-from academic.openalex import OpenAlexWork, get_work_by_doi, get_work_by_title, get_recent_citing_works
-from academic.crossref import CrossrefWork, get_work_by_doi as crossref_get_work
-from academic.semantic_scholar import S2Paper, get_paper_by_doi as s2_get_by_doi, get_citations as s2_get_citations, get_recommendations as s2_get_recommendations
-from academic.doi_extractor import extract_doi_from_paper, extract_multiple_dois
-from academic.paper_check import check_papers_ready
-from common.rag_ready import rag_unavailable_message
-from common.i18n import t, get_language
+from academic.cache import TTL_CROSSREF, TTL_OPENALEX, cache_get, cache_set
 from academic.context_builder import ExternalPaperData
-from academic.cache import cache_get, cache_set, TTL_OPENALEX, TTL_CROSSREF
+from academic.crossref import CrossrefWork
+from academic.crossref import get_work_by_doi as crossref_get_work
+from academic.doi_extractor import extract_doi_from_paper, extract_multiple_dois
+from academic.knowledge_engine import knowledge_engine as ke
+from academic.ontology import AcademicOntologyGraph
+from academic.ontology_populator import populate_verify_ontology
+from academic.openalex import OpenAlexWork, get_recent_citing_works, get_work_by_doi, get_work_by_title
+from academic.paper_check import check_papers_ready
+from academic.reasoning_engine import AcademicReasoningEngine
+from academic.refutation_engine import AdversarialRefutationEngine
+from academic.semantic_scholar import get_citations as s2_get_citations
+from academic.semantic_scholar import get_paper_by_doi as s2_get_by_doi
+from academic.semantic_scholar import get_recommendations as s2_get_recommendations
 from academic.tools.format_auditor import FormatAuditorTool
 from academic.verification_engine import AcademicVerificationEngine
-from academic.reasoning_engine import AcademicReasoningEngine
-from academic.ontology import AcademicOntologyGraph, ClaimEntity, ExperimentEntity
-from academic.knowledge_engine import knowledge_engine as ke
-from academic.ontology_populator import populate_verify_ontology
-from academic.refutation_engine import AdversarialRefutationEngine
-from graph.local_search import build_local_context
-from graph.linker import infer_venue_from_doi
 from academic.verify_report_builder import VerifyReportBuilder
+from app_state import state
+from common.i18n import get_language, t
+from common.rag_ready import rag_unavailable_message
+from db.database import get_session
+from db.models import ChatHistory, Paper
+from graph.linker import infer_venue_from_doi
+from graph.local_search import build_local_context
 
 router = APIRouter(prefix="/api/verify", tags=["verify"])
 
@@ -44,8 +45,8 @@ router = APIRouter(prefix="/api/verify", tags=["verify"])
 class VerifyRequest(BaseModel):
     message: str
     paper_ids: list[str] = []
-    collection_id: Optional[str] = None
-    session_id: Optional[str] = None
+    collection_id: str | None = None
+    session_id: str | None = None
     stream: bool = False
 
 
@@ -304,7 +305,7 @@ def _build_verify_report(
     local_context: str = "",
 ) -> dict:
     """Build structured VerifyReport from rule engine outputs.
-    
+
     LLM only formats this report into natural language.
     The content is determined by rule engines, not by the LLM.
     """
@@ -410,7 +411,6 @@ async def _build_clean_academic_context(
             name = check.get("name", "Unknown check")
             severity = check.get("severity", "unknown")
             message = check.get("message", "")
-            priority = check.get("priority", "required")
             icon = {"pass": "✓", "critical": "✗", "warning": "⚠", "suggestion": "·"}.get(severity, "?")
             audit_lines.append(f"{icon} [{severity.upper()}] {name}: {message}")
 
@@ -744,7 +744,7 @@ async def _cached_or_fetch(cached, coro):
         return cached
     try:
         return await asyncio.wait_for(coro, timeout=5.0)
-    except (asyncio.TimeoutError, Exception):
+    except (TimeoutError, Exception):
         return None
 
 

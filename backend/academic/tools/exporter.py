@@ -1,6 +1,6 @@
 """Exporter tool — formats and exports manuscripts to PDF or LaTeX formats."""
 from __future__ import annotations
-from typing import Any
+
 from .base import BaseTool, ToolResult
 
 
@@ -18,9 +18,9 @@ class ExporterTool(BaseTool):
         title: str = "Untitled Manuscript",
         author_name: str = "Anonymous",
     ) -> ToolResult:
-        from publishing.templates import get_venue_template
         from academic.governance import get_academic_governance
         from publishing.latex_exporter import export_paper_to_latex_zip
+        from publishing.templates import get_venue_template
 
         gov = get_academic_governance()
         template = get_venue_template(venue_id)

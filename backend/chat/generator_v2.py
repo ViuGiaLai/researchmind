@@ -10,34 +10,34 @@ Supports:
 Provider implementations are split into backend/chat/providers/*.py mixins.
 """
 
-from typing import Optional
 import json
 import re
 import threading
 import time
-import httpx
-from loguru import logger
-from config.settings import settings
-from common.text_utils import redact_api_key
-from common.i18n import get_language_instruction
-
 from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    import anthropic
 
-from .types import GenerationResult
-from .prompt_budget import fit_prompt_for_provider, get_provider_input_budget, trim_context_text
-from .providers.openai_provider import OpenAIProviderMixin
-from .providers.gemini_provider import GeminiProviderMixin
-from .providers.claude_provider import ClaudeProviderMixin
-from .providers.local_provider import LocalProviderMixin
-from .providers.cloud_gateway_provider import CloudGatewayProviderMixin
-from .cache_version import cache_fingerprint
-from .provider_resilience import provider_health
+from loguru import logger
+
+from common.i18n import get_language_instruction
+from config.settings import settings
+
+if TYPE_CHECKING:
+    pass
+
 from common.ai_observability import trace
 from common.prompt_security import neutralize_untrusted_text, redact_sensitive_text
-from .prompt_factory import build_rag_user_prompt, build_system_prompt
+
+from .cache_version import cache_fingerprint
 from .failure_policy import classify_failure
+from .prompt_budget import fit_prompt_for_provider, get_provider_input_budget, trim_context_text
+from .prompt_factory import build_rag_user_prompt, build_system_prompt
+from .provider_resilience import provider_health
+from .providers.claude_provider import ClaudeProviderMixin
+from .providers.cloud_gateway_provider import CloudGatewayProviderMixin
+from .providers.gemini_provider import GeminiProviderMixin
+from .providers.local_provider import LocalProviderMixin
+from .providers.openai_provider import OpenAIProviderMixin
+from .types import GenerationResult
 
 
 class Generator(
@@ -95,7 +95,7 @@ class Generator(
         cerebras_model: str = "qwen-3-235b-a22b-instruct-2507",
         cerebras_url: str = "https://api.cerebras.net/v1",
         mode: str = "cloud_free",
-        task_provider_map: Optional[str] = None,
+        task_provider_map: str | None = None,
         custom_cloud_provider: str = "deepseek",
         local_max_tokens: int = 160,
         task_ultimate_fallback_chain: str = "",
@@ -237,7 +237,7 @@ class Generator(
 
         if self.researchmind_cloud_url and self.mode == "cloud_free":
             return "researchmind_cloud"
-        
+
         # An explicit per-task route is authoritative. Reasoning-mode routing is
         # only a default when the task has no configured provider.
         provider = self.task_provider_map.get(task_type)
@@ -700,7 +700,7 @@ class Generator(
         self,
         query: str,
         context_text: str,
-        citations_meta: Optional[list[dict]] = None,
+        citations_meta: list[dict] | None = None,
         reasoning_mode: str = "fast",
         task_type: str = "chat",
         strict_evidence: bool = False,
@@ -812,8 +812,8 @@ class Generator(
         self,
         query: str,
         context_text: str,
-        citations_meta: Optional[list[dict]] = None,
-        max_tokens: Optional[int] = None,
+        citations_meta: list[dict] | None = None,
+        max_tokens: int | None = None,
         task_type: str = "",
     ) -> GenerationResult:
         max_out = max_tokens or 1024
@@ -1027,7 +1027,7 @@ class Generator(
         query: str,
         context_text: str,
         external_data_text: str = "",
-        citations_meta: Optional[list[dict]] = None,
+        citations_meta: list[dict] | None = None,
         task_type: str = "verify",
         lang: str = "",
     ) -> GenerationResult:

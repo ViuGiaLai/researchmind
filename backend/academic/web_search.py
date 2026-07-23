@@ -1,4 +1,5 @@
 import asyncio
+
 from duckduckgo_search import DDGS
 
 

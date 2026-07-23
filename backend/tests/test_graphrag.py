@@ -1,23 +1,21 @@
 """Unit tests for GraphRAG — models, storage, extractor, cluster, local_search."""
 
 from __future__ import annotations
+
 import json
-import uuid
 import tempfile
 from pathlib import Path
-from dataclasses import asdict
 
 import pytest
 
 from graph.models import (
-    GraphEntity,
-    GraphRelationship,
     GraphCommunity,
     GraphCommunityReport,
+    GraphEntity,
+    GraphRelationship,
     GraphTextUnit,
 )
-from graph.storage import KnowledgeGraph, GraphStore
-
+from graph.storage import GraphStore, KnowledgeGraph
 
 # ═══════════════════════════════════════════════════════════════════
 # Data Models

@@ -1,5 +1,7 @@
 """Offline RAG evaluation metrics; no network or model dependency."""
 from dataclasses import dataclass
+
+
 @dataclass
 class RagCase:
     query: str; relevant_chunk_ids: set[str]

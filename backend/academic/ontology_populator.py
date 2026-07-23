@@ -13,14 +13,15 @@ verify.py (_build_clean_academic_context).
 """
 
 from __future__ import annotations
+
 from typing import Any
 
 from .ontology import (
     AcademicOntologyGraph,
     ClaimEntity,
+    DatasetEntity,
     ExperimentEntity,
     MethodEntity,
-    DatasetEntity,
     MetricEntity,
 )
 

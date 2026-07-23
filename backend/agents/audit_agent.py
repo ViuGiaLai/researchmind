@@ -1,8 +1,9 @@
 """Audit Agent — format compliance, metadata check, reference validation, and auto-fix."""
 from __future__ import annotations
-from typing import Any
-from .base import BaseAgent, AgentContext, AgentResult
+
 from loguru import logger
+
+from .base import AgentContext, AgentResult, BaseAgent
 
 
 class AuditAgent(BaseAgent):

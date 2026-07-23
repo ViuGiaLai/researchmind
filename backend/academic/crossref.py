@@ -2,9 +2,9 @@
 Crossref API client — miễn phí, polite pool với email.
 Dùng để: validate DOI, lấy metadata chuẩn (author, journal, year).
 """
-import httpx
 from dataclasses import dataclass
-from typing import Optional
+
+import httpx
 
 CROSSREF_BASE = "https://api.crossref.org"
 POLITE_EMAIL = "worksor.78@gmail.com"
@@ -19,14 +19,14 @@ class CrossrefWork:
     doi: str
     title: str
     authors: list[str]
-    journal: Optional[str]
-    year: Optional[int]
-    publisher: Optional[str]
+    journal: str | None
+    year: int | None
+    publisher: str | None
     citation_count: int
     is_valid: bool
 
 
-async def get_work_by_doi(doi: str, timeout: float = 5.0) -> Optional[CrossrefWork]:
+async def get_work_by_doi(doi: str, timeout: float = 5.0) -> CrossrefWork | None:
     doi_clean = doi.replace("https://doi.org/", "").strip()
 
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -49,7 +49,7 @@ async def get_work_by_doi(doi: str, timeout: float = 5.0) -> Optional[CrossrefWo
             return None
 
 
-async def find_doi_by_title(title: str, authors: list[str] = None, timeout: float = 5.0) -> Optional[str]:
+async def find_doi_by_title(title: str, authors: list[str] = None, timeout: float = 5.0) -> str | None:
     query = title
     if authors:
         query += " " + " ".join(authors[:2])

@@ -4,9 +4,9 @@ Ensures every claim is grounded with explicit provenance locator (paper title, p
 and a calculated confidence score (0.0 to 1.0).
 """
 from __future__ import annotations
+
 import re
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass
@@ -25,7 +25,7 @@ class EvidenceEngine:
         """Parse claims from text and bind each claim to evidence in context."""
         grounded: list[GroundedClaim] = []
         claims = [line.strip("- ") for line in text_content.splitlines() if line.strip() and not line.startswith("#")]
-        
+
         context_lower = evidence_context.lower()
 
         for claim in claims:

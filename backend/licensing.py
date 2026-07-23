@@ -9,7 +9,7 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class LicenseError(ValueError):
@@ -34,7 +34,7 @@ class LicenseClaims:
 
     @property
     def expired(self) -> bool:
-        return bool(self.expires_at and self.expires_at <= datetime.now(timezone.utc))
+        return bool(self.expires_at and self.expires_at <= datetime.now(UTC))
 
 
 def verify_license_token(token: str, public_key_b64: str) -> LicenseClaims:
@@ -65,7 +65,7 @@ def verify_license_token(token: str, public_key_b64: str) -> LicenseClaims:
         try:
             expires_at = datetime.fromisoformat(str(expires_raw).replace("Z", "+00:00"))
             if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
+                expires_at = expires_at.replace(tzinfo=UTC)
         except ValueError as exc:
             raise LicenseError("License expiration is invalid.") from exc
 

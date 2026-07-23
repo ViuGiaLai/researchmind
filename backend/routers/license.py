@@ -1,12 +1,12 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Body, HTTPException
 
+from app_state import state
 from common.secret_store import SecretStorageError, get_secret, set_secret
 from config.settings import settings
 from db.database import get_session
 from db.models import Setting
-from app_state import state
 from licensing import LicenseError, verify_license_token
 
 router = APIRouter(prefix="/api/license", tags=["License"])
@@ -27,12 +27,12 @@ def _trial_started_at() -> datetime:
     try:
         row = session.query(Setting).filter(Setting.key == "trial_started_at").first()
         if not row:
-            started = datetime.now(timezone.utc)
+            started = datetime.now(UTC)
             session.add(Setting(key="trial_started_at", value=started.isoformat()))
             session.commit()
             return started
         started = datetime.fromisoformat(row.value.replace("Z", "+00:00"))
-        return started if started.tzinfo else started.replace(tzinfo=timezone.utc)
+        return started if started.tzinfo else started.replace(tzinfo=UTC)
     finally:
         session.close()
 
@@ -61,7 +61,7 @@ def get_license_status() -> dict:
 
     started = _trial_started_at()
     trial_ends = started + timedelta(days=TRIAL_DAYS)
-    trial_active = datetime.now(timezone.utc) < trial_ends
+    trial_active = datetime.now(UTC) < trial_ends
     return {
         "plan": "trial" if trial_active else "free",
         "active": trial_active,

@@ -4,8 +4,8 @@ import re
 
 from loguru import logger
 
-from common.text_utils import count_tokens, truncate_to_token_limit
 from chat.context_compressor import compress_context_blocks
+from common.text_utils import count_tokens, truncate_to_token_limit
 
 # Conservative input budgets (tokens), leaving room for system prompt + output.
 PROVIDER_INPUT_BUDGET: dict[str, int] = {

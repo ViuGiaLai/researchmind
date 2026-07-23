@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "researchmind-cloud-sync",
   "version": "1.0.0",
   "private": true,
@@ -9,6 +9,7 @@
     "db:init:remote": "wrangler d1 execute researchmind_db --file=./schema.sql --remote"
   },
   "dependencies": {
+    "@clerk/backend": "^3.12.0",
     "hono": "^4.1.0"
   },
   "devDependencies": {

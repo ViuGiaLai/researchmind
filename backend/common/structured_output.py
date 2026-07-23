@@ -1,6 +1,8 @@
 """JSON extraction, schema validation, and conservative repair."""
 import json
 import re
+
+
 class StructuredOutputError(ValueError): pass
 def parse_structured_output(text: str, required: tuple[str, ...] = ()) -> dict:
     value = (text or "").strip()

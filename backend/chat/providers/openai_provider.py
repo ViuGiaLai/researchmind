@@ -5,13 +5,14 @@ All use the same /chat/completions endpoint pattern.
 """
 
 import json
-from typing import Optional
-from loguru import logger
+
 import httpx
-from common.text_utils import redact_api_key
+from loguru import logger
+
 from common.i18n import t as _t
-from ..types import GenerationResult
 from config.settings import settings
+
+from ..types import GenerationResult
 
 
 class OpenAIProviderMixin:

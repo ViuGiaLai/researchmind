@@ -20,10 +20,8 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 
 from loguru import logger
-
 
 # ─── Entity Types ─────────────────────────────────────────────────
 
@@ -110,7 +108,7 @@ class AnonymizationResult:
         return json.dumps(data, ensure_ascii=False)
 
     @classmethod
-    def from_json(cls, json_str: str, anonymized_text: str) -> "AnonymizationResult":
+    def from_json(cls, json_str: str, anonymized_text: str) -> AnonymizationResult:
         """Deserialize from SQLite storage."""
         data = json.loads(json_str)
         entity_map: dict[str, EntityEntry] = {}
@@ -160,7 +158,7 @@ class AnonymizationEngine:
 
     # ─── Public API ───────────────────────────────────────────────
 
-    def anonymize(self, text: str, existing_map: Optional[dict[str, EntityEntry]] = None) -> AnonymizationResult:
+    def anonymize(self, text: str, existing_map: dict[str, EntityEntry] | None = None) -> AnonymizationResult:
         """
         Anonymize text. Nếu có existing_map (từ lần xử lý trước), reuse labels.
 

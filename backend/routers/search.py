@@ -1,9 +1,10 @@
 import asyncio
 import time
+
 from fastapi import APIRouter, Body, HTTPException, Query
 from loguru import logger
+
 from app_state import state
-from config.settings import settings
 from db.database import get_session
 from db.models import CollectionPaper, Paper
 from ingestion.metadata_quality import display_title
@@ -17,10 +18,10 @@ _suggest_cache_ttl = 30.0
 @router.post("")
 async def search(query: dict = Body(...)):
     """Hybrid search across all indexed PDFs with support for tag: or thẻ: filters."""
-    import re
     import json
+    import re
     t0 = time.time()
-    
+
     text = query.get("text", "")
     paper_ids = query.get("paper_ids") or []
     top_k = query.get("top_k", 10)
@@ -41,7 +42,7 @@ async def search(query: dict = Body(...)):
 
     # Remove tags from the query text to perform semantic search on clean text
     clean_text = re.sub(tag_pattern, "", text).strip()
-    
+
     # If clean_text is empty but we have tags, search for the tags as keywords
     if not clean_text and tags_to_filter:
         clean_text = " ".join(tags_to_filter)
@@ -97,14 +98,14 @@ async def search(query: dict = Body(...)):
                         pass
                 elif not tags_to_filter:
                     filtered_paper_ids.append(p.id)
-            
+
             if not filtered_paper_ids:
                 return {
                     "query": text,
                     "total": 0,
                     "results": []
                 }
-            
+
             if paper_ids:
                 # Intersect with user-selected paper IDs
                 paper_ids = list(set(paper_ids).intersection(filtered_paper_ids))
@@ -234,13 +235,13 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
             .limit(max(limit * 5, 20))
             .all()
         )
-        
+
         matched_tags = set()
         matched_papers = [
             {"id": row.id, "title": display_title(row.title, row.filename)}
             for row in title_matches
         ]
-        
+
         import json
         for (tags_json,) in tag_candidates:
             if tags_json:
@@ -254,7 +255,7 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
 
         tags_res = sorted(list(matched_tags))[:limit]
         papers_res = matched_papers[:limit]
-        
+
         suggestions = []
         for tag in tags_res:
             suggestions.append(f"Tag: {tag}")

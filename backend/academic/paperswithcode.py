@@ -11,6 +11,7 @@ import json
 import urllib.parse
 import urllib.request
 from typing import Any
+
 try:
     from loguru import logger
 except ImportError:
@@ -27,7 +28,7 @@ def _fetch_json(endpoint: str, params: dict[str, Any] | None = None, timeout: in
         query_str = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
         if query_str:
             url += f"?{query_str}"
-            
+
     cached = cache_get(url, 86400)
     if cached:
         return cached
@@ -65,7 +66,7 @@ def get_task_benchmarks(task_id: str) -> list[dict[str, Any]]:
     res = _fetch_json(f"tasks/{task_id}/eval-tables/")
     if not res or "results" not in res:
         return []
-    
+
     benchmarks = []
     for item in res["results"]:
         benchmarks.append({
@@ -84,7 +85,7 @@ def search_paper_results(paper_title: str) -> list[dict[str, Any]]:
     res = _fetch_json("papers/", {"q": paper_title, "items_per_page": 3})
     if not res or "results" not in res:
         return []
-    
+
     out = []
     for p in res["results"]:
         paper_id = p.get("id")

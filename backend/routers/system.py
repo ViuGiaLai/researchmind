@@ -10,21 +10,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.responses import JSONResponse
 from loguru import logger
 
-from common.i18n import get_language, t
-from common.ai_observability import snapshot as ai_metrics_snapshot
-from common.text_utils import count_tokens
-from evaluation.benchmark import run as run_rag_benchmark
-from evaluation.quality_evaluator import aggregate_history, prompt_regression_snapshot
-from chat.provider_resilience import provider_health
-from chat.cache_version import PROMPT_CONTRACT_VERSION
-
 from app_state import state
+from chat.cache_version import PROMPT_CONTRACT_VERSION
+from chat.provider_resilience import provider_health
+from common.ai_observability import snapshot as ai_metrics_snapshot
+from common.i18n import get_language, t
+from common.text_utils import count_tokens
 from config.settings import settings
 from db.database import get_session
 from db.models import AIJob, AITrace, Base, ChatHistory, Chunk, ImportJob, Paper, Setting
+from evaluation.benchmark import run as run_rag_benchmark
+from evaluation.quality_evaluator import aggregate_history, prompt_regression_snapshot
 from search.bm25 import BM25Search
 from search.hybrid import HybridSearch
 from search.vector import VectorSearch
@@ -310,7 +308,7 @@ async def get_diagnostics():
     llm_cache_count = 0
     embedding_cache_count = 0
     try:
-        from db.models import LLMCache, EmbeddingCache
+        from db.models import EmbeddingCache, LLMCache
 
         cache_session = get_session(state.engine)
         try:
@@ -603,7 +601,7 @@ async def clear_all_data(request: Request):
             state.vector = VectorSearch(settings.chroma_dir)
             state.vector.clear_collection()
             deleted["chroma_chunks"] = old_count
-            logger.info(f"🧹 ChromaDB: xoá collection cũ, tạo mới")
+            logger.info("🧹 ChromaDB: xoá collection cũ, tạo mới")
         except Exception as e:
             logger.warning(f"ChromaDB collection clear failed: {e}")
 

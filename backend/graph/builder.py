@@ -4,6 +4,7 @@ MIT License — adapted from microsoft/graphrag.
 """
 
 from __future__ import annotations
+
 import asyncio
 import uuid
 from typing import Any
@@ -12,15 +13,16 @@ from loguru import logger
 
 from app_state import state
 from common.i18n import t as _t
+
+from .cluster import detect_communities
 from .errors import GraphBuildCancelled
+from .extractor import extract_entities_and_relationships
 from .models import (
     GraphEntity,
     GraphRelationship,
     GraphTextUnit,
 )
-from .storage import KnowledgeGraph, GraphStore
-from .extractor import extract_entities_and_relationships
-from .cluster import detect_communities
+from .storage import GraphStore, KnowledgeGraph
 from .summarizer import summarize_community
 
 
@@ -222,7 +224,6 @@ async def build_graph_from_chunks(
         logger.info("Summarizing communities...")
         for idx, comm in enumerate(graph.communities.values()):
             _ensure_not_cancelled()
-            pct = 90 + int((idx + 1) / max(n_communities, 1) * 10)
             _set_progress(
                 "summarize",
                 idx + 1,

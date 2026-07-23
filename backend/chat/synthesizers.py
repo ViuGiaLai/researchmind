@@ -13,10 +13,8 @@ Strategies:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from enum import Enum
-from typing import Awaitable, Callable, Optional
-
-from loguru import logger
 
 
 class ResponseMode(str, Enum):
@@ -37,7 +35,7 @@ class ResponseSynthesizer:
     def __init__(
         self,
         llm_predict: Callable[[str], str],
-        llm_predict_async: Optional[Callable[[str], Awaitable[str]]] = None,
+        llm_predict_async: Callable[[str], Awaitable[str]] | None = None,
         compact_threshold: int = 3000,
     ):
         self._predict = llm_predict

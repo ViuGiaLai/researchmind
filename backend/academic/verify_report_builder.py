@@ -12,10 +12,10 @@ Flow:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field, asdict
-from typing import Any
-import json
 
+import json
+from dataclasses import dataclass, field
+from typing import Any
 
 # ── Report sections (all pre-verified, LLM-proof) ───────────────
 
@@ -94,7 +94,7 @@ class NextStepsSection:
 @dataclass
 class VerifyReport:
     """Complete pre-verified academic audit report.
-    
+
     All fields are populated by rule engines. The LLM receives this
     as structured JSON and ONLY formats it into natural language.
     """
@@ -154,7 +154,7 @@ class VerifyReport:
 
 class VerifyReportBuilder:
     """Builds a VerifyReport from structured engine outputs.
-    
+
     This is the RULE-based layer. Every finding, verdict, and
     confidence level is determined here, NOT by the LLM.
     """
@@ -410,7 +410,7 @@ class VerifyReportBuilder:
             return
 
         for ep in external_data[:3]:
-            doi = ep.get('doi', '') if isinstance(ep, dict) else getattr(ep, 'doi', '')
+            ep.get('doi', '') if isinstance(ep, dict) else getattr(ep, 'doi', '')
             title = ep.get('title', '') if isinstance(ep, dict) else getattr(ep, 'title', '')
 
             oa = ep.get('openalex', None) if isinstance(ep, dict) else getattr(ep, 'openalex', None)
@@ -493,7 +493,7 @@ Format the report with these sections:
 
 ## YOUR OUTPUT
 Format the above JSON into a readable academic audit report following exactly the sections above. Do not deviate from the data provided."""
-    
+
     def _add_standard_next_steps(self, result: dict):
         """Add standard next steps based on verification gaps."""
         if not result.get("doi_valid", True):

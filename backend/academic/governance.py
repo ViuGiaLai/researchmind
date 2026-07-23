@@ -6,13 +6,12 @@ Governance data: academic_governance.json (v1.1.0+)
 """
 from __future__ import annotations
 
+import json
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import lru_cache
-import json
 from pathlib import Path
-import re
-from typing import Iterable
-
 
 _RESOURCE = Path(__file__).with_name("resources") / "academic_governance.json"
 _TOKEN = re.compile(r"[\w-]+", re.UNICODE)

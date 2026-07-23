@@ -7,12 +7,13 @@
 - Continuous Guideline Sync (publishing/guideline_fetcher.py)
 """
 import pytest
-from evaluation.platform_evaluator import evaluate_pipeline_result, EvaluationMetrics
-from academic.memory import MemoryStore, FeedbackEntry
-from common.audit_trail import AuditTrailLogger, AuditTrailRecord
+
+from academic.memory import FeedbackEntry, MemoryStore
 from academic.plugins import plugin_manager
+from agents import AgentContext, run_pipeline
 from agents.review_agent import ReviewAgent
-from agents import run_pipeline, AgentContext
+from common.audit_trail import AuditTrailLogger, AuditTrailRecord
+from evaluation.platform_evaluator import EvaluationMetrics, evaluate_pipeline_result
 from publishing.guideline_fetcher import check_all_venue_updates
 
 

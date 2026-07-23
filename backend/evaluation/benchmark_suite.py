@@ -11,8 +11,9 @@ on Gold Standard Datasets across 7 empirical metrics:
 7. F1-Score
 """
 from __future__ import annotations
+
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -65,7 +66,7 @@ class BenchmarkSuite:
         from academic.tools.format_auditor import FormatAuditorTool
 
         citation_tool = CitationCheckerTool()
-        format_tool = FormatAuditorTool()
+        FormatAuditorTool()
 
         total_citations = 0
         valid_citations = 0

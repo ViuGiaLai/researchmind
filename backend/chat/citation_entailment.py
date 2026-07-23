@@ -1,5 +1,6 @@
 """Deterministic claim-to-passage support scoring with no extra model call."""
 import re
+
 _WORD = re.compile(r"\b[\w-]{3,}\b", re.UNICODE)
 _STOP = {"the", "and", "that", "this", "with", "from", "were", "have", "page", "paper"}
 def entailment_score(claim: str, passage: str) -> float:

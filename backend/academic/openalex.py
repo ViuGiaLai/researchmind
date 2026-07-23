@@ -2,9 +2,9 @@
 OpenAlex API client — không cần API key, rate limit 100k/ngày.
 Polite pool: thêm email vào header để tăng rate limit.
 """
-import httpx
 from dataclasses import dataclass
-from typing import Optional
+
+import httpx
 
 OPENALEX_BASE = "https://api.openalex.org"
 POLITE_EMAIL = "worksor.78@gmail.com"
@@ -17,9 +17,9 @@ HEADERS = {
 @dataclass
 class OpenAlexWork:
     openalex_id: str
-    doi: Optional[str]
+    doi: str | None
     title: str
-    publication_year: Optional[int]
+    publication_year: int | None
     citation_count: int
     related_work_ids: list[str]
     referenced_work_ids: list[str]
@@ -30,18 +30,18 @@ class OpenAlexWork:
 class OpenAlexResult:
     """Lightweight result for search_openalex — used by KnowledgeEngine & LiteratureEngine."""
     id: str
-    doi: Optional[str]
+    doi: str | None
     title: str
-    abstract: Optional[str]
+    abstract: str | None
     authors: list[str]
-    year: Optional[int]
-    primary_url: Optional[str]
+    year: int | None
+    primary_url: str | None
     cited_by_count: int
-    fwci: Optional[float]
+    fwci: float | None
     concepts: list[dict]
 
 
-async def get_work_by_doi(doi: str, timeout: float = 5.0) -> Optional[OpenAlexWork]:
+async def get_work_by_doi(doi: str, timeout: float = 5.0) -> OpenAlexWork | None:
     doi_clean = doi.replace("https://doi.org/", "").replace("http://doi.org/", "").strip()
 
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -58,7 +58,7 @@ async def get_work_by_doi(doi: str, timeout: float = 5.0) -> Optional[OpenAlexWo
             return None
 
 
-async def get_work_by_title(title: str, timeout: float = 5.0) -> Optional[OpenAlexWork]:
+async def get_work_by_title(title: str, timeout: float = 5.0) -> OpenAlexWork | None:
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             resp = await client.get(

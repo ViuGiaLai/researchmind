@@ -11,8 +11,8 @@ Key ideas:
 - Final sort: left-to-right by column, top-to-bottom within column
 """
 
+
 import numpy as np
-from collections import Counter
 from loguru import logger
 
 
@@ -111,7 +111,7 @@ def _assign_columns(
         from sklearn.cluster import KMeans
         km = KMeans(n_clusters=best_k, random_state=0, n_init="auto")
         km.fit(x0s_narrow)
-        
+
         # Predict column labels for all blocks (including wide ones)
         all_labels = km.predict(x0s)
 
@@ -130,7 +130,6 @@ def reorder_page_text(page: "fitz.Page") -> str:
 
     Falls back to page.get_text('text') for single-column pages.
     """
-    import fitz
 
     blocks = page.get_text("blocks")
     if not blocks:
@@ -174,7 +173,6 @@ def reorder_page_text(page: "fitz.Page") -> str:
 
 def detect_layout_stats(page: "fitz.Page") -> dict:
     """Return layout diagnostics: detected columns, text block count, etc."""
-    import fitz
 
     blocks = page.get_text("blocks")
     text_blocks = []

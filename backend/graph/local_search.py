@@ -5,13 +5,16 @@ https://github.com/microsoft/graphrag
 """
 
 from __future__ import annotations
-from typing import Any, Callable
+
+from collections.abc import Callable
+from typing import Any
 
 from loguru import logger
 
-from .models import GraphEntity, GraphRelationship
-from .storage import KnowledgeGraph
 from academic.governance import get_academic_governance
+
+from .models import GraphEntity
+from .storage import KnowledgeGraph
 
 LOCAL_SEARCH_SYSTEM_PROMPT = get_academic_governance().graph_contract("local")
 

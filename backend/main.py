@@ -14,6 +14,7 @@ Routes are organized into routers/:
 """
 
 import os
+
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -31,50 +32,49 @@ from pathlib import Path
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 from loguru import logger
 
 from app_state import state
-from config.settings import settings
-from common.i18n import get_language, set_request_language, t
-from common.request_context import set_request_bearer_token, reset_request_bearer_token
-from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token
-from common.secret_store import SecretStorageError, get_secret, set_secret
-from db.database import get_engine, get_session
-from db.models import Base, Paper, Setting
-from ingestion.embedder import get_embedder
-from search.bm25 import BM25Search
-from search.vector import VectorSearch
-from search.hybrid import HybridSearch
-from chat.retriever import Retriever
 from chat.patched_generator import PatchedGenerator as Generator
-
+from chat.retriever import Retriever
+from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token
+from common.i18n import get_language, set_request_language, t
+from common.request_context import reset_request_bearer_token, set_request_bearer_token
+from common.secret_store import SecretStorageError, get_secret, set_secret
+from config.settings import settings
+from db.database import get_engine, get_session
+from db.migrations import run_migrations
+from db.models import Base, Paper, Setting
 from export import router as export_router
-from zotero_import import router as zotero_import_router
-
-from routers.papers import router as papers_router, jobs_router, recover_interrupted_import_jobs
-from routers.search import router as search_router
+from graph.router import router as graph_router
+from ingestion.embedder import get_embedder
+from routers.academic import router as academic_router
+from routers.anonymize import router as anonymize_router
+from routers.auth import router as auth_router
 from routers.chat import router as chat_router
+from routers.collections import router as collections_router
 from routers.insights import router as insights_router
+from routers.license import get_license_status
+from routers.license import router as license_router
+from routers.papers import jobs_router, recover_interrupted_import_jobs
+from routers.papers import router as papers_router
+from routers.personal import router as personal_router
+from routers.research import router as research_router
+from routers.review import router as review_router
+from routers.search import router as search_router
 from routers.settings import router as settings_router
 from routers.system import router as system_router
-from routers.personal import router as personal_router
 from routers.verify import router as verify_router
-from routers.academic import router as academic_router
-from routers.collections import router as collections_router
-from routers.review import router as review_router
-from routers.research import router as research_router
-from routers.auth import router as auth_router
-from routers.license import router as license_router
-from routers.license import get_license_status
 from routers.workspace import router as workspace_router
-from routers.anonymize import router as anonymize_router
-from db.migrations import run_migrations
-from graph.router import router as graph_router
-
+from search.bm25 import BM25Search
+from search.hybrid import HybridSearch
+from search.vector import VectorSearch
+from zotero_import import router as zotero_import_router
 
 # ─── Lifespan ────────────────────────────────────────────────────
 
@@ -191,8 +191,8 @@ def _migrate_review_draft_versions(engine):
 def _generate_missing_thumbnails():
     """Generate thumbnails for existing PDFs that don't have one yet."""
     import fitz
+
     from db.database import get_session
-    from db.models import Paper
     thumb_dir = settings.data_dir / "thumbs"
     thumb_dir.mkdir(parents=True, exist_ok=True)
     session = get_session(state.engine)
@@ -412,8 +412,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 # The Render disk can be empty when the process is imported. The directory is
 # created in the lifespan hook before any request is served.
@@ -424,6 +424,7 @@ app.mount("/static/thumbs", StaticFiles(directory=thumbs_dir, check_dir=False), 
 
 
 from routers.publishing import router as publishing_router
+
 app.include_router(export_router)
 app.include_router(zotero_import_router)
 app.include_router(papers_router)
@@ -566,6 +567,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     import sys
+
     import uvicorn
     # Khi chạy bằng PyInstaller (.exe), sys.frozen = True
     is_frozen = getattr(sys, "frozen", False)

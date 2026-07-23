@@ -1,9 +1,18 @@
+import uuid
+
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, func,
-    UniqueConstraint, CheckConstraint, ForeignKey, Index
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import DeclarativeBase
-import uuid
 
 
 class Base(DeclarativeBase):

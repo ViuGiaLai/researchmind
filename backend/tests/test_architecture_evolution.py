@@ -6,14 +6,24 @@ Tests for Architecture Evolution components:
 - Agent Orchestrator (agents/)
 """
 import pytest
-from publishing.templates import get_venue_template, get_all_venues, PUBLISHING_TEMPLATES
-from academic.tools import get_tool, ToolResult
-from graph.linker import (
-    GraphAuthor, GraphVenue, GraphDataset, GraphMethod, GraphMetric,
-    infer_venue_from_doi, link_paper_authors, link_paper_venue,
-    link_paper_datasets, link_paper_methods, link_paper_metrics, link_external_metadata
-)
+
+from academic.tools import ToolResult, get_tool
 from agents import AgentContext, run_pipeline
+from graph.linker import (
+    GraphAuthor,
+    GraphDataset,
+    GraphMethod,
+    GraphMetric,
+    GraphVenue,
+    infer_venue_from_doi,
+    link_external_metadata,
+    link_paper_authors,
+    link_paper_datasets,
+    link_paper_methods,
+    link_paper_metrics,
+    link_paper_venue,
+)
+from publishing.templates import PUBLISHING_TEMPLATES, get_all_venues, get_venue_template
 
 
 def test_rule_engine_venue_json():
@@ -138,7 +148,7 @@ async def test_agent_orchestrator_full_8_step_pipeline():
     assert res.query == "What are the latest advances in transformer architectures?"
     assert res.governance_version == "1.2.0"
     assert len(res.steps) == 8
-    
+
     executed_steps = [s.step for s in res.steps]
     assert executed_steps == ["parse", "retrieve", "analyze", "audit", "verify", "auto_fix", "synthesize", "export"]
     assert all(s.success for s in res.steps)

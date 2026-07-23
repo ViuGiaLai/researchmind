@@ -10,17 +10,17 @@ Covers:
 6. Error handling patterns (isolated, not requiring full app state)
 """
 import pytest
-from academic.reasoning_engine import AcademicReasoningEngine, DeductedFact
+
 from academic.ontology import (
     AcademicOntologyGraph,
     ClaimEntity,
+    DatasetEntity,
     EvidenceEntity,
     ExperimentEntity,
     MethodEntity,
-    DatasetEntity,
     MetricEntity,
 )
-
+from academic.reasoning_engine import AcademicReasoningEngine, DeductedFact
 
 # ─────────────────────────────────────────────────────────────
 # Fixtures

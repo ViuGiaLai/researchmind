@@ -1,6 +1,8 @@
 """Persistent AI job state machine with cancellation, retry, and resume."""
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 from db.models import AIJob
+
 TERMINAL = {"completed", "failed", "cancelled"}
 def create_job(session, job_type: str, payload: str, max_attempts: int = 3) -> AIJob:
     job = AIJob(job_type=job_type, payload=payload, max_attempts=max_attempts)

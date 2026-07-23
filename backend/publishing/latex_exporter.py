@@ -6,11 +6,12 @@ ZIP archives matching target publication templates (IEEE, Springer, ACM, etc.).
 """
 
 import io
-import json
 import re
 import zipfile
 from typing import Any
+
 from publishing.templates import PUBLISHING_TEMPLATES
+
 
 def _clean_latex_str(text: str) -> str:
     """Escape special LaTeX characters."""
@@ -107,6 +108,6 @@ def export_paper_to_latex_zip(paper_data: dict[str, Any], template_id: str = "ie
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr("main.tex", tex_content.encode("utf-8"))
         zip_file.writestr("references.bib", bib_content.encode("utf-8"))
-        zip_file.writestr("README.txt", f"Exported from ResearchMind VN\nTemplate: {template['name']}\nDate: {year}\n".encode("utf-8"))
+        zip_file.writestr("README.txt", f"Exported from ResearchMind VN\nTemplate: {template['name']}\nDate: {year}\n".encode())
 
     return buffer.getvalue()

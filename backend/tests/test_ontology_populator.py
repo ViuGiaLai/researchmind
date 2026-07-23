@@ -11,18 +11,16 @@ Tests:
 7. populate_verify_ontology with external data
 8. Edge cases: empty text, no matches, malformed lines
 """
-import pytest
 from academic.ontology import AcademicOntologyGraph
 from academic.ontology_populator import (
+    _extract_claims,
+    _extract_datasets,
+    _extract_experiments,
+    _extract_methods,
+    _extract_metrics,
     populate_ontology_from_context,
     populate_verify_ontology,
-    _extract_methods,
-    _extract_datasets,
-    _extract_metrics,
-    _extract_claims,
-    _extract_experiments,
 )
-
 
 # ─────────────────────────────────────────────────────────────
 # Tests: _extract_methods

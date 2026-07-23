@@ -7,8 +7,10 @@
 5. Venue policy compliance
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
+
 from academic.tools import get_tool
 
 

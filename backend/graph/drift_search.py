@@ -5,16 +5,15 @@ https://github.com/microsoft/graphrag
 """
 
 from __future__ import annotations
-import re
+
 from typing import Any
 
 from loguru import logger
 
-from .models import GraphEntity
-from .storage import KnowledgeGraph
-from .local_search import build_local_context, local_search
 from academic.governance import get_academic_governance
 
+from .local_search import build_local_context
+from .storage import KnowledgeGraph
 
 
 async def drift_search(

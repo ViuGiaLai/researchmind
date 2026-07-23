@@ -13,6 +13,7 @@ Usage:
 """
 
 from dataclasses import dataclass
+
 from loguru import logger
 
 from common.text_utils import count_tokens

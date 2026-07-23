@@ -1,8 +1,8 @@
 """Deterministic workflow manifests for research operations."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from academic.governance import get_academic_governance
 

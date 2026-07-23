@@ -1,7 +1,10 @@
 """Plugin & Extension System — allows adding new venues, tools, and workflows dynamically."""
 from __future__ import annotations
-from typing import Any, Type
+
+from typing import Any
+
 from loguru import logger
+
 from academic.tools.base import BaseTool
 from academic.tools.registry import TOOL_REGISTRY
 
@@ -22,7 +25,7 @@ class PluginManager:
         logger.info(f"Registered custom venue plugin: '{venue_id}'")
         return venue_id
 
-    def register_tool(self, name: str, tool_class: Type[BaseTool]):
+    def register_tool(self, name: str, tool_class: type[BaseTool]):
         """Register a new tool class dynamically."""
         TOOL_REGISTRY[name] = tool_class
         logger.info(f"Registered custom tool plugin: '{name}'")

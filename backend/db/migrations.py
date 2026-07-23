@@ -3,7 +3,7 @@ from collections.abc import Callable
 from loguru import logger
 from sqlalchemy import inspect, text
 
-from db.models import SchemaMigration, Workspace, generate_uuid
+from db.models import SchemaMigration
 
 DEFAULT_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001"
 
@@ -23,20 +23,38 @@ def _seed_default_workspace(connection) -> None:
     )
 
 
+def _add_hot_path_indexes(connection) -> None:
+    """Index filters and sort keys used on every dashboard/chat request."""
+    statements = (
+        "CREATE INDEX IF NOT EXISTS ix_papers_status ON papers(status)",
+        "CREATE INDEX IF NOT EXISTS ix_papers_status_read ON papers(status, read_status)",
+        "CREATE INDEX IF NOT EXISTS ix_papers_created_at ON papers(created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_import_jobs_status_created ON import_jobs(status, created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_history_role_created ON chat_history(role, created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_history_session_created ON chat_history(session_id, created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_collection_papers_paper ON collection_papers(paper_id)",
+    )
+    for statement in statements:
+        connection.execute(text(statement))
+
+
 MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "seed_default_workspace", _seed_default_workspace),
+    (2, "add_hot_path_indexes", _add_hot_path_indexes),
 ]
 
 
 def run_migrations(engine) -> None:
-    """Apply idempotent, versioned data migrations in a transaction."""
+    """Apply idempotent, versioned migrations in a single transaction."""
     if not inspect(engine).has_table(SchemaMigration.__tablename__):
         SchemaMigration.__table__.create(engine, checkfirst=True)
 
     with engine.begin() as connection:
         applied = {
             row[0]
-            for row in connection.execute(text("SELECT version FROM schema_migrations")).all()
+            for row in connection.execute(
+                text("SELECT version FROM schema_migrations")
+            ).all()
         }
         for version, name, migration in MIGRATIONS:
             if version in applied:

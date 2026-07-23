@@ -1,6 +1,9 @@
 import httpx
+
 from chat.citation_entailment import MultilingualEntailmentVerifier
 from chat.failure_policy import classify_failure
+
+
 def _status_error(code: int):
     request = httpx.Request("POST", "https://provider.invalid")
     response = httpx.Response(code, request=request)

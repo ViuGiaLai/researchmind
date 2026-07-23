@@ -1,5 +1,5 @@
-import json
 import hashlib
+import json
 import os
 import re
 import sqlite3
@@ -17,9 +17,20 @@ from config.settings import settings
 from db.database import get_session
 from db.migrations import DEFAULT_WORKSPACE_ID
 from db.models import (
-    Annotation, Base, LivingReviewSubscription, Paper, Project, ProjectPaper, ReadingProgress,
-    ResearchArtifact, ReviewAuditEvent,
-    ScreeningDecision, SyncChange, SyncDevice, Workspace, WorkspaceMember,
+    Annotation,
+    Base,
+    LivingReviewSubscription,
+    Paper,
+    Project,
+    ProjectPaper,
+    ReadingProgress,
+    ResearchArtifact,
+    ReviewAuditEvent,
+    ScreeningDecision,
+    SyncChange,
+    SyncDevice,
+    Workspace,
+    WorkspaceMember,
 )
 from ingestion.metadata_quality import clean_authors, display_title
 

@@ -11,19 +11,20 @@ import ipaddress
 import json
 import re
 import socket
-import httpx
 from urllib.parse import urljoin, urlparse
-from fastapi import APIRouter, Body, Query, HTTPException, Request
+
+import httpx
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import Response
 from loguru import logger
 
-from config.settings import settings
-from common.i18n import t, get_output_language_name, get_prompt_language
-
-from academic.openalex import get_work_by_doi as oa_get, search_works as oa_search
+from academic.cache import TTL_CROSSREF, TTL_OPENALEX, cache_get, cache_invalidate_doi, cache_set
 from academic.crossref import get_work_by_doi as cr_get
+from academic.openalex import get_work_by_doi as oa_get
+from academic.openalex import search_works as oa_search
 from academic.semantic_scholar import search_papers as s2_search
-from academic.cache import cache_get, cache_set, cache_invalidate_doi, TTL_OPENALEX, TTL_CROSSREF
+from common.i18n import get_output_language_name, get_prompt_language, t
+from config.settings import settings
 
 router = APIRouter(prefix="/api/academic", tags=["academic"])
 
@@ -435,7 +436,7 @@ async def get_academic_knowledge(title: str = Query(...), doi: str | None = Quer
 @router.get("/sota")
 async def get_sota_benchmarks(query: str = Query(...)):
     """Search SOTA benchmarks and task leaderboards from PapersWithCode."""
-    from academic.paperswithcode import search_tasks, get_task_benchmarks
+    from academic.paperswithcode import get_task_benchmarks, search_tasks
     tasks = search_tasks(query, page=1, items_per_page=5)
     out = []
     for t_item in tasks:

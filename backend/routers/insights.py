@@ -1,17 +1,16 @@
 import asyncio
-import json
-from common.structured_output import parse_structured_output
+
 from fastapi import APIRouter, Body, Request
-from common.i18n import t, get_language
 from loguru import logger
 
+from academic.governance import get_academic_governance
+from academic.paper_check import check_papers_ready
 from app_state import state
-from config.settings import settings
+from common.i18n import get_language, t
+from common.rag_ready import rag_unavailable_message
+from common.structured_output import parse_structured_output
 from db.database import get_session
 from db.models import CollectionPaper
-from academic.paper_check import check_papers_ready
-from academic.governance import get_academic_governance
-from common.rag_ready import rag_unavailable_message
 from ingestion.metadata_quality import display_title
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
@@ -294,7 +293,7 @@ async def compare_papers(request: Request, body: dict = Body(...)):
                 },
                 "model_used": "none"
             }
-        
+
         prompt = f"""Extract a concise, evidence-grounded summary from the supplied excerpts of "{title}". Use 1-3 sentences per field.
 Return exactly this JSON structure:
 {{
@@ -315,11 +314,11 @@ Paper excerpts:\n{retrieval.context_text}"""
             context_text=retrieval.context_text,
             task_type="insight",
         )
-        
+
         content = (generation.content or "").strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        
+
         data = {}
         try:
             data = parse_structured_output(
@@ -336,11 +335,11 @@ Paper excerpts:\n{retrieval.context_text}"""
                 "findings": fallback_text[:500] if fallback_text else t("insights.extract_failed", lang),
                 "limitations": t("insights.extract_failed", lang),
             }
-            
+
         for key in ["objective", "methodology", "dataset", "findings", "limitations"]:
             if key not in data or not str(data[key]).strip():
                 data[key] = t("insights.extract_failed", lang)
-                
+
         return {
             "id": paper_id,
             "title": title,
@@ -353,14 +352,14 @@ Paper excerpts:\n{retrieval.context_text}"""
     for pid in paper_ids:
         title = paper_titles.get(pid, f"Paper {pid[:6]}")
         tasks.append(extract_single_paper(pid, title))
-        
+
     results = await asyncio.gather(*tasks)
 
     # Format into columns & rows for frontend table
     columns = [t("review.column_criterion", lang)]
     for res in results:
         columns.append(res["title"])
-        
+
     rows = [
         [t("review.extract_title_objective", lang), *[res["data"]["objective"] for res in results]],
         [t("review.extract_title_methodology", lang), *[res["data"]["methodology"] for res in results]],

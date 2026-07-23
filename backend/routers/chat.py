@@ -2,28 +2,28 @@ import asyncio
 import json
 import re
 import time as time_mod
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
-from academic.paper_check import check_papers_ready
 from academic.evidence_engine import EvidenceEngine
-from academic.validity_auditor import ValidityAuditor
-from academic.reasoning_engine import AcademicReasoningEngine
-from academic.ontology import AcademicOntologyGraph, ClaimEntity, ExperimentEntity
 from academic.knowledge_engine import knowledge_engine as ke
+from academic.ontology import AcademicOntologyGraph
 from academic.ontology_populator import populate_ontology_from_context
-from graph.local_search import build_local_context
+from academic.paper_check import check_papers_ready
+from academic.reasoning_engine import AcademicReasoningEngine
+from academic.validity_auditor import ValidityAuditor
 from app_state import state
-from config.settings import settings
-from common.i18n import get_prompt_language, t, get_language
+from chat.citation_entailment import MultilingualEntailmentVerifier, entailment_score, support_label
 from common.ai_observability import increment as increment_ai_metric
+from common.i18n import get_language, get_prompt_language, t
 from common.text_utils import count_tokens
-from chat.citation_entailment import entailment_score, support_label, MultilingualEntailmentVerifier
+from config.settings import settings
 from db.database import get_session
 from db.models import ChatHistory, CollectionPaper, Paper
+from graph.local_search import build_local_context
 
 router = APIRouter(prefix="/api", tags=["Chat"])
 
@@ -840,7 +840,7 @@ async def chat(req: Request, request: dict = Body(...)):
     if scope == "external":
         from types import SimpleNamespace
         if _is_simple_question(message):
-            logger.info(f"TIMING: external_search skipped (simple question)")
+            logger.info("TIMING: external_search skipped (simple question)")
             retrieval = SimpleNamespace(
                 context_text="__EXTERNAL_KNOWLEDGE__",
                 total_chunks=0,

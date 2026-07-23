@@ -10,15 +10,20 @@
 import pytest
 
 pytestmark = pytest.mark.integration
+from academic.evidence_engine import EvidenceEngine
+from academic.knowledge_sync import academic_knowledge_sync
 from academic.ontology import (
-    AcademicOntologyGraph, PaperEntity, ExperimentEntity, ClaimEntity, EvidenceEntity, LimitationEntity
+    AcademicOntologyGraph,
+    ClaimEntity,
+    EvidenceEntity,
+    ExperimentEntity,
+    LimitationEntity,
+    PaperEntity,
 )
 from academic.reasoning_engine import AcademicReasoningEngine
 from academic.verification_engine import AcademicVerificationEngine
 from academic.writing_engine import ScientificWritingEngine
-from academic.evidence_engine import EvidenceEngine
 from evaluation.academic_evaluator import evaluate_academic_benchmark
-from academic.knowledge_sync import academic_knowledge_sync
 
 
 def test_academic_ontology_10_entities():

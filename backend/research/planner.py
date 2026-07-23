@@ -12,14 +12,13 @@ Now supports perspective-guided decomposition (STORM-inspired):
 3. All questions are aggregated into the research plan
 """
 
-from typing import Optional
 from dataclasses import dataclass, field
+
 from loguru import logger
 
 from academic.governance import get_academic_governance
 from research.persona_generator import (
     Persona,
-    PerspectiveSet,
     generate_personas,
     generate_perspective_questions,
 )
@@ -62,8 +61,8 @@ def decompose_query(query: str) -> ResearchPlan:
     STORM-inspired: generates diverse personas, each asks questions from their angle,
     then aggregates into a comprehensive research plan.
     """
-    from chat.generator import Generator
     from app_state import state
+    from chat.generator_v2 import Generator
 
     generator: Generator = getattr(state, "generator", None)
     if not generator:
@@ -136,8 +135,8 @@ def decompose_query_simple(query: str) -> ResearchPlan:
 
     Fallback method without perspective guidance.
     """
-    from chat.generator import Generator
     from app_state import state
+    from chat.generator_v2 import Generator
 
     generator: Generator = getattr(state, "generator", None)
     if not generator:
@@ -165,8 +164,8 @@ def decompose_query_simple(query: str) -> ResearchPlan:
 
 def compress_findings(findings: list[str]) -> str:
     """Compress raw research findings into a structured summary."""
-    from chat.generator import Generator
     from app_state import state
+    from chat.generator_v2 import Generator
 
     generator: Generator = getattr(state, "generator", None)
     if not generator:
@@ -188,8 +187,8 @@ def compress_findings(findings: list[str]) -> str:
 
 def synthesize_answer(query: str, findings: str) -> str:
     """Synthesize final answer from compressed findings."""
-    from chat.generator import Generator
     from app_state import state
+    from chat.generator_v2 import Generator
 
     generator: Generator = getattr(state, "generator", None)
     if not generator:

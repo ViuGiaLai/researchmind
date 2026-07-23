@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import threading
 from io import BytesIO
-from typing import Optional
 
 from loguru import logger
 
@@ -40,7 +39,7 @@ def get_ocr_engine():
         return None if _global_ocr_engine is _MISSING else _global_ocr_engine
 
 
-def _image_dimensions(image_bytes: bytes) -> Optional[tuple[int, int]]:
+def _image_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
     try:
         from PIL import Image
 
@@ -88,7 +87,7 @@ def ocr_image_bytes(
     min_chars: int = 3,
     *,
     skip_byte_size_check: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Run OCR on raw image bytes; returns None if image is too small or unreadable."""
     if not image_bytes or len(image_bytes) < 64:
         return None

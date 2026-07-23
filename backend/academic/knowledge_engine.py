@@ -7,14 +7,16 @@ deep SOTA benchmark context, citation influence metrics, and domain knowledge.
 
 import asyncio
 from typing import Any
+
 try:
     from loguru import logger
 except ImportError:
     import logging
     logger = logging.getLogger("knowledge_engine")
-from academic.semantic_scholar import get_paper_by_doi, search_papers as s2_search
 from academic.openalex import search_openalex
 from academic.paperswithcode import search_paper_results
+from academic.semantic_scholar import get_paper_by_doi
+from academic.semantic_scholar import search_papers as s2_search
 
 
 class KnowledgeEngine:
@@ -25,7 +27,7 @@ class KnowledgeEngine:
 
     async def get_paper_knowledge(self, title: str, doi: str | None = None) -> dict[str, Any]:
         """Fetch comprehensive knowledge footprint for a paper.
-        
+
         Calls async APIs (Semantic Scholar) natively with await,
         and wraps sync HTTP calls (OpenAlex, PapersWithCode) in to_thread.
         """

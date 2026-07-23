@@ -1,8 +1,9 @@
 """Citation Checker tool — validates DOIs and citation formats against Crossref."""
 from __future__ import annotations
-import asyncio
+
 import re
 from typing import Any
+
 from .base import BaseTool, ToolResult
 
 

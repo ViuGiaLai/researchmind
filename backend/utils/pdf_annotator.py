@@ -1,6 +1,7 @@
-import fitz
 import io
 from pathlib import Path
+
+import fitz
 from loguru import logger
 
 
@@ -93,5 +94,5 @@ def save_highlighted_pdf(
     Generate a highlighted PDF and save it permanently to disk.
     Returns the output path as a string.
     """
-    pdf_bytes = add_highlights_to_pdf(pdf_path, highlights, output_path=output_path)
+    add_highlights_to_pdf(pdf_path, highlights, output_path=output_path)
     return str(output_path)

@@ -5,8 +5,6 @@ DOI Extraction với fallback chain 4 bước.
 DOI đã có trong PDF metadata (PyMuPDF) — đây là happy path chính.
 """
 import re
-from pathlib import Path
-from typing import Optional
 
 from .crossref import find_doi_by_title
 
@@ -17,11 +15,11 @@ DOI_PATTERN = re.compile(
 
 
 async def extract_doi_from_paper(
-    pdf_path: Optional[str] = None,
-    title: Optional[str] = None,
-    authors: Optional[list[str]] = None,
-    context_text: Optional[str] = None
-) -> Optional[str]:
+    pdf_path: str | None = None,
+    title: str | None = None,
+    authors: list[str] | None = None,
+    context_text: str | None = None
+) -> str | None:
     if pdf_path:
         doi = _extract_from_pdf_metadata(pdf_path)
         if doi:
@@ -44,7 +42,7 @@ async def extract_doi_from_paper(
     return None
 
 
-def _extract_from_pdf_metadata(pdf_path: str) -> Optional[str]:
+def _extract_from_pdf_metadata(pdf_path: str) -> str | None:
     try:
         import fitz
         doc = fitz.open(pdf_path)
@@ -63,7 +61,7 @@ def _extract_from_pdf_metadata(pdf_path: str) -> Optional[str]:
         return None
 
 
-def _extract_from_pdf_text(pdf_path: str) -> Optional[str]:
+def _extract_from_pdf_text(pdf_path: str) -> str | None:
     try:
         import fitz
         doc = fitz.open(pdf_path)
@@ -78,7 +76,7 @@ def _extract_from_pdf_text(pdf_path: str) -> Optional[str]:
         return None
 
 
-def _extract_from_text(text: str) -> Optional[str]:
+def _extract_from_text(text: str) -> str | None:
     search_zone = text[:2000]
     match = DOI_PATTERN.search(search_zone)
     if match:
