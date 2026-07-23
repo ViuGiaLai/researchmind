@@ -812,37 +812,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
         <LanguageSwitcher />
       </div>
 
-      {onOpenHelp && (
-        <div className="settings-section">
-          <h3 className="settings-section-title">
-            <IconHelp size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+      <div className="settings-section settings-section--compact settings-section--ai-card">
+        <div className="settings-ai-overview">
+          <span className="settings-ai-overview__icon" aria-hidden="true">
+            {llmMode === "cloud_free" ? <IconZap size={20} /> : llmMode === "cloud_custom" ? <IconKey size={20} /> : <IconLock size={20} />}
+          </span>
+          <div className="settings-ai-overview__content">
+            <span className="settings-ai-overview__eyebrow">{t("settings.ai_title")}</span>
+            <strong>{t(`settings.ai_${llmMode}`)}</strong>
+            <span>{modeSuggestions.find((mode) => mode.mode === llmMode)?.desc}</span>
+          </div>
+          {llmMode === "cloud_free" && usage && (
+            <span className="settings-ai-overview__usage">
+              <strong>{usage.used} / {usage.limit}</strong>
+              <small>{t("settings.ai_usage_questions")}</small>
+            </span>
+          )}
+          <button type="button" className="settings-ai-config-toggle" onClick={() => setShowAiModeModal(true)}>
+            {t("settings.ai_manage")}
+          </button>
+        </div>
+      </div>
+
+      {onOpenHelp && (<div className="settings-section settings-section--compact settings-section--help-card">
+        <div className="settings-help-header">
+          <h3 className="settings-section-title" style={{ margin: 0, fontSize: "0.8rem", fontWeight: 600 }}>
+            <IconHelp size={15} style={{ verticalAlign: "middle", marginRight: 5 }} />
             {t("settings.help_title")}
           </h3>
-          <p className="settings-desc" style={{ marginBottom: 10 }}>
-            {t("settings.help_desc")}
-          </p>
-          <div className="settings-help-links">
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("user-guide")}>
-              <IconBookOpen size={16} />
-              {t("settings.help_user_guide")}
-            </button>
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("faq")}>
-              <IconHelp size={16} />
-              {t("settings.help_faq")}
-            </button>
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("release-notes")}>
-              <IconSparkle size={16} />
-              {t("settings.help_whats_new")}
-            </button>
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("about")}>
-              <IconInfo size={16} />
-              {t("settings.help_about")}
-            </button>
-          </div>
         </div>
-      )}
-
-              </div>
+        <div className="settings-help-links">
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("user-guide")}>
+            <IconBookOpen size={14} />
+            <span>{t("settings.help_user_guide")}</span>
+          </button>
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("faq")}>
+            <IconHelp size={14} />
+            <span>{t("settings.help_faq")}</span>
+          </button>
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("release-notes")}>
+            <IconSparkle size={14} />
+            <span>{t("settings.help_whats_new")}</span>
+          </button>
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("about")}>
+            <IconInfo size={14} />
+            <span>{t("settings.help_about")}</span>
+          </button>
+        </div>
+      </div>)}
+      </div>
             )}
 
             {activeSection === "diagnostics" && (
@@ -1090,29 +1108,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
               </div>
             )}
 
-            {activeSection === "general" && (
-              <>
-      <div className="settings-section settings-section--flat">
-        <div className="settings-ai-overview">
-          <span className="settings-ai-overview__icon" aria-hidden="true">
-            {llmMode === "cloud_free" ? <IconZap size={20} /> : llmMode === "cloud_custom" ? <IconKey size={20} /> : <IconLock size={20} />}
-          </span>
-          <div className="settings-ai-overview__content">
-            <span className="settings-ai-overview__eyebrow">{t("settings.ai_title")}</span>
-            <strong>{t(`settings.ai_${llmMode}`)}</strong>
-            <span>{modeSuggestions.find((mode) => mode.mode === llmMode)?.desc}</span>
-          </div>
-          {llmMode === "cloud_free" && usage && (
-            <span className="settings-ai-overview__usage">
-              <strong>{usage.used} / {usage.limit}</strong>
-              <small>{t("settings.ai_usage_questions")}</small>
-            </span>
-          )}
-          <button type="button" className="settings-ai-config-toggle" onClick={() => setShowAiModeModal(true)}>
-            {t("settings.ai_change") || "Change"}
-          </button>
-        </div>
-
         {showAiModeModal && (
           <div className="rm-modal-overlay" onClick={() => setShowAiModeModal(false)}>
             <div className="rm-modal rm-modal-ai" ref={aiModalRef} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
@@ -1166,9 +1161,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
                   ) : (
                     <span>{t("settings.ai_usage_loading")}</span>
                   )}
-                </div>
-              </div>
-            </div>
+          </div>
+        </div>
+      </div>
             <p className="settings-field-hint" style={{ marginTop: 8 }}>
               <IconWithText icon={IconCloud} size={14}>
                 {t("settings.gateway_active") || "ResearchMind Cloud Gateway — No API key required"}
@@ -1525,9 +1520,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
             </div>
           </div>
         )}
-      </div>
-              </>
-            )}
 
             {activeSection === "data" && (
               <>
