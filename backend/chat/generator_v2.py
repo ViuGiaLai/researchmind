@@ -721,15 +721,6 @@ class Generator(
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
 
-        if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
-            context_text, detected = neutralize_untrusted_text(context_text)
-            context_text = redact_sensitive_text(
-                context_text,
-                redact_email=bool(getattr(settings, "redact_metadata_for_cloud", True)),
-            )
-            if detected:
-                logger.warning("RAG_SECURITY prompt injection pattern neutralized in streaming context")
-
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
             context_text = self._trim_review_context(context_text, query, task_type, max_tokens)
 
@@ -1053,6 +1044,15 @@ class Generator(
                 citations=[], model_used="none", finish_reason="no_context",
             )
 
+        if combined_context not in ("__EXTERNAL_KNOWLEDGE__", ""):
+            combined_context, detected = neutralize_untrusted_text(combined_context)
+            combined_context = redact_sensitive_text(
+                combined_context,
+                redact_email=bool(getattr(settings, "redact_metadata_for_cloud", True)),
+            )
+            if detected:
+                logger.warning("RAG_SECURITY prompt injection pattern neutralized in verify context")
+
         user_prompt = (
             f"## Context from documents and external academic sources:\n{combined_context}\n\n"
             f"## Question:\n{query}\n\n"
@@ -1168,6 +1168,15 @@ class Generator(
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
             max_tokens = 4096
 
+        if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
+            context_text, detected = neutralize_untrusted_text(context_text)
+            context_text = redact_sensitive_text(
+                context_text,
+                redact_email=bool(getattr(settings, "redact_metadata_for_cloud", True)),
+            )
+            if detected:
+                logger.warning("RAG_SECURITY prompt injection pattern neutralized in streaming context")
+
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
             context_text = self._trim_review_context(context_text, query, task_type, max_tokens)
 
@@ -1209,6 +1218,15 @@ class Generator(
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         previous_prompt = getattr(self._local, "system_prompt_override", None)
         self._local.system_prompt_override = self._get_verify_system_prompt() + "\n\n" + get_language_instruction(query)
+
+        if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
+            context_text, detected = neutralize_untrusted_text(context_text)
+            context_text = redact_sensitive_text(
+                context_text,
+                redact_email=bool(getattr(settings, "redact_metadata_for_cloud", True)),
+            )
+            if detected:
+                logger.warning("RAG_SECURITY prompt injection pattern neutralized in verify stream context")
 
         user_prompt = (
             f"## Context from documents and external academic sources:\n{context_text}\n\n"
