@@ -49,8 +49,9 @@ import type { AiControlMetrics, AiEvaluationReport, DiagnosticsResponse } from "
 import { SubTabBar } from "../shared/SubTabBar";
 import type { HelpSectionId } from "../help/helpContent";
 import { useConfirmDialog } from "../shared/ConfirmDialog";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
 
-export type SettingsSection = "general" | "privacy" | "diagnostics" | "ai" | "data" | "advanced";
+export type SettingsSection = "general" | "privacy" | "diagnostics" | "data" | "advanced";
 
 interface SettingsViewProps {
   initialSection?: SettingsSection;
@@ -95,10 +96,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
   // ── Local (llama-server) ──────────────────────────────────
   const [llamaServerUrl, setLlamaServerUrl] = useState("http://127.0.0.1:8080");
   const [localModel, setLocalModel] = useState("Qwen3-4B-Q4_K_M.gguf");
+  const [showAiModeModal, setShowAiModeModal] = useState(false);
 
   // ── Machine Specs ───────────────────────────────────────────
   const [specs, setSpecs] = useState<SpecsResult | null>(null);
-  const [specsLoading, setSpecsLoading] = useState(false);
 
   // ── Usage status ────────────────────────────────────────────
   const [usage, setUsage] = useState<{ used: number; limit: number; remaining: number } | null>(null);
@@ -129,6 +130,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
   const [embeddingTestMsg, setEmbeddingTestMsg] = useState<string>("");
   const [stats, setStats] = useState<{ total_papers: number; total_chunks: number; chroma_chunks: number; data_dir?: string } | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
+
+  const aiModalRef = useDialogFocus<HTMLDivElement>(showAiModeModal, () => setShowAiModeModal(false));
 
   // ── Provider Routing ────────────────────────────────────────
   const ALL_TASKS = [
@@ -291,14 +294,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
   };
 
   const loadSpecs = async () => {
-    setSpecsLoading(true);
     try {
       const s = await api.detectSpecs();
       setSpecs(s);
     } catch (e) {
       console.error("Failed to detect specs:", e);
-    } finally {
-      setSpecsLoading(false);
     }
   };
 
@@ -680,7 +680,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
     { key: "general" as const, label: t("settings.section_general"), icon: IconMonitor },
     { key: "privacy" as const, label: t("privacy.title"), icon: IconLock },
     { key: "diagnostics" as const, label: t("settings.section_diagnostics"), icon: IconActivity },
-    { key: "ai" as const, label: t("settings.section_ai"), icon: IconBrain },
     { key: "data" as const, label: t("settings.section_data"), icon: IconFolder },
     { key: "advanced" as const, label: t("settings.section_advanced"), icon: IconZap },
   ];
@@ -694,9 +693,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
     },
     diagnostics: {
       desc: t("settings.section_diagnostics_desc"),
-    },
-    ai: {
-      desc: t("settings.section_ai_desc"),
     },
     data: {
       desc: t("settings.section_data_desc"),
@@ -729,17 +725,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
               <span className="settings-meta-chip">{t("settings.stats_papers", { count: stats.total_papers })}</span>
             )}
             <span className="settings-meta-chip">v0.6.0</span>
-            {activeSection === "ai" && (
-              <button
-                type="button"
-                className="settings-save-btn settings-save-btn--header"
-                onClick={saveSettings}
-                disabled={saving}
-              >
-                {saving ? <IconSpinner size={16} /> : <IconCheck size={16} />}
-                <span>{saving ? t("common.loading") : t("common.save")}</span>
-              </button>
-            )}
           </div>
         </header>
 
@@ -827,64 +812,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
         <LanguageSwitcher />
       </div>
 
-      {onOpenHelp && (
-        <div className="settings-section">
-          <h3 className="settings-section-title">
-            <IconHelp size={18} style={{ verticalAlign: "middle", marginRight: 6 }} />
+      <div className="settings-section settings-section--compact settings-section--ai-card">
+        <div className="settings-ai-overview">
+          <span className="settings-ai-overview__icon" aria-hidden="true">
+            {llmMode === "cloud_free" ? <IconZap size={20} /> : llmMode === "cloud_custom" ? <IconKey size={20} /> : <IconLock size={20} />}
+          </span>
+          <div className="settings-ai-overview__content">
+            <span className="settings-ai-overview__eyebrow">{t("settings.ai_title")}</span>
+            <strong>{t(`settings.ai_${llmMode}`)}</strong>
+            <span>{modeSuggestions.find((mode) => mode.mode === llmMode)?.desc}</span>
+          </div>
+          {llmMode === "cloud_free" && usage && (
+            <span className="settings-ai-overview__usage">
+              <strong>{usage.used} / {usage.limit}</strong>
+              <small>{t("settings.ai_usage_questions")}</small>
+            </span>
+          )}
+          <button type="button" className="settings-ai-config-toggle" onClick={() => setShowAiModeModal(true)}>
+            {t("settings.ai_manage")}
+          </button>
+        </div>
+      </div>
+
+      {onOpenHelp && (<div className="settings-section settings-section--compact settings-section--help-card">
+        <div className="settings-help-header">
+          <h3 className="settings-section-title" style={{ margin: 0, fontSize: "0.8rem", fontWeight: 600 }}>
+            <IconHelp size={15} style={{ verticalAlign: "middle", marginRight: 5 }} />
             {t("settings.help_title")}
           </h3>
-          <p className="settings-desc" style={{ marginBottom: 10 }}>
-            {t("settings.help_desc")}
-          </p>
-          <div className="settings-help-links">
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("user-guide")}>
-              <IconBookOpen size={16} />
-              {t("settings.help_user_guide")}
-            </button>
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("faq")}>
-              <IconHelp size={16} />
-              {t("settings.help_faq")}
-            </button>
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("release-notes")}>
-              <IconSparkle size={16} />
-              {t("settings.help_whats_new")}
-            </button>
-            <button type="button" className="settings-help-link" onClick={() => onOpenHelp("about")}>
-              <IconInfo size={16} />
-              {t("settings.help_about")}
-            </button>
-          </div>
         </div>
-      )}
-
-      <div className="settings-section">
-        <h3 className="settings-section-title" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          <IconMonitor size={18} /> {t("settings.specs_title")}
-        </h3>
-        {specsLoading ? (
-          <div className="aiwizard-loading">
-            <IconSpinner size={16} /> {t("settings.specs_loading")}
-          </div>
-        ) : specs ? (
-          <div className="settings-specs">
-            <div className="settings-spec-row">
-              <span className="settings-spec-label">{t("settings.specs_ram")}</span>
-              <span className="settings-spec-value">{specs.total_ram_gb} GB</span>
-            </div>
-            <div className="settings-spec-row">
-              <span className="settings-spec-label">{t("settings.specs_cpu")}</span>
-              <span className="settings-spec-value">{specs.cpu_cores} cores</span>
-            </div>
-            <div className="settings-spec-row">
-              <span className="settings-spec-label">{t("settings.specs_local_model")}</span>
-              <span className="settings-spec-value">{localModel}</span>
-            </div>
-          </div>
-        ) : (
-          <p className="settings-desc">{t("settings.specs_error")}</p>
-        )}
+        <div className="settings-help-links">
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("user-guide")}>
+            <IconBookOpen size={14} />
+            <span>{t("settings.help_user_guide")}</span>
+          </button>
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("faq")}>
+            <IconHelp size={14} />
+            <span>{t("settings.help_faq")}</span>
+          </button>
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("release-notes")}>
+            <IconSparkle size={14} />
+            <span>{t("settings.help_whats_new")}</span>
+          </button>
+          <button type="button" className="settings-help-link" onClick={() => onOpenHelp("about")}>
+            <IconInfo size={14} />
+            <span>{t("settings.help_about")}</span>
+          </button>
+        </div>
+      </div>)}
       </div>
-              </div>
             )}
 
             {activeSection === "diagnostics" && (
@@ -1132,18 +1108,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
               </div>
             )}
 
-            {activeSection === "ai" && (
-              <>
-      <div className="settings-section settings-section--flat">
-        <h3 className="settings-section-title">
-          <IconSparkle size={18} className="icon-gradient" style={{ verticalAlign: "middle", marginRight: 6 }} />
-          {t("settings.ai_title")}
-        </h3>
-        <p className="settings-desc">
-          {t("settings.ai_desc")}
-        </p>
-
-        <div className="settings-mode-cards">
+        {showAiModeModal && (
+          <div className="rm-modal-overlay" onClick={() => setShowAiModeModal(false)}>
+            <div className="rm-modal rm-modal-ai" ref={aiModalRef} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <div className="rm-modal-header">
+                <h3 className="rm-modal-title">{t("settings.ai_title")}</h3>
+                <button className="rm-modal-close" onClick={() => setShowAiModeModal(false)} aria-label="Close">&times;</button>
+              </div>
+              <div className="rm-modal-body">
+              <div className="settings-mode-cards settings-mode-cards--modal">
           {modeSuggestions.map((m) => (
             <button
               type="button"
@@ -1188,9 +1161,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
                   ) : (
                     <span>{t("settings.ai_usage_loading")}</span>
                   )}
-                </div>
-              </div>
-            </div>
+          </div>
+        </div>
+      </div>
             <p className="settings-field-hint" style={{ marginTop: 8 }}>
               <IconWithText icon={IconCloud} size={14}>
                 {t("settings.gateway_active") || "ResearchMind Cloud Gateway — No API key required"}
@@ -1543,9 +1516,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
             </span>
           )}
         </div>
-      </div>
-              </>
-            )}
+              </div>
+            </div>
+          </div>
+        )}
 
             {activeSection === "data" && (
               <>
