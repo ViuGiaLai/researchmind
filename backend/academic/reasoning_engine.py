@@ -15,9 +15,9 @@ from .ontology import AcademicOntologyGraph, ExperimentEntity, ClaimEntity, Evid
 class DeductedFact:
     fact_type: str  # 'sota_claim' | 'evidence_conflict' | 'unsupported_assertion' | 'method_advancement'
     statement: str
-    paper_ids: list[str]
-    confidence: float
-    reasoning_chain: list[str]
+    paper_ids: list[str] = field(default_factory=list)
+    confidence: float = 0.0
+    reasoning_chain: list[str] = field(default_factory=list)
 
 
 class AcademicReasoningEngine:
@@ -43,7 +43,7 @@ class AcademicReasoningEngine:
             best_exp.is_sota = True
             deductions.append(DeductedFact(
                 fact_type="sota_claim",
-                statement=f"Method '{best_exp.method_name}' achieves SOTA on '{ds}' under '{metric}' with value {best_exp.value}.",
+                statement=(f"Method '{best_exp.method_name}' achieves SOTA on '{best_exp.dataset_name}' under '{best_exp.metric_name}' with value {best_exp.value}."),
                 paper_ids=[best_exp.paper_id],
                 confidence=0.95,
                 reasoning_chain=[

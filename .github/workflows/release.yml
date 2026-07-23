@@ -52,7 +52,7 @@ jobs:
           pip install -r backend/requirements.txt ruff pytest-timeout
 
       - name: Ruff lint
-        run: ruff check backend/
+        run: ruff check .
         working-directory: backend
 
       - name: Unit tests (+ coverage gate 60%)
