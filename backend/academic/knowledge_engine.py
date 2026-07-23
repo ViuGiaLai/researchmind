@@ -12,6 +12,7 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger("knowledge_engine")
 from academic.openalex import search_openalex
 from academic.paperswithcode import search_paper_results
@@ -22,14 +23,20 @@ from academic.semantic_scholar import search_papers as s2_search
 class KnowledgeEngine:
     """Orchestrator for academic knowledge synthesis."""
 
-    def __init__(self):
-        pass
+    async def _fetch_semantic_scholar(self, title: str, doi: str | None) -> Any:
+        """Resolve a paper by DOI first, then fall back to a title search."""
+        paper = await get_paper_by_doi(doi) if doi else None
+        if not paper and title:
+            matches = await s2_search(title, limit=1)
+            if matches:
+                paper = matches[0]
+        return paper
 
     async def get_paper_knowledge(self, title: str, doi: str | None = None) -> dict[str, Any]:
         """Fetch comprehensive knowledge footprint for a paper.
 
-        Calls async APIs (Semantic Scholar) natively with await,
-        and wraps sync HTTP calls (OpenAlex, PapersWithCode) in to_thread.
+        Independent providers run concurrently. Async APIs are awaited natively,
+        while sync HTTP clients run in worker threads.
         """
         res: dict[str, Any] = {
             "title": title,
@@ -40,16 +47,17 @@ class KnowledgeEngine:
             "sota_benchmarks": [],
         }
 
-        # 1. Semantic Scholar Lookup (native async)
-        try:
-            s2_paper = None
-            if doi:
-                s2_paper = await get_paper_by_doi(doi)
-            if not s2_paper and title:
-                s2_matches = await s2_search(title, limit=1)
-                if s2_matches:
-                    s2_paper = s2_matches[0]
+        s2_result, oa_result, pwc_result = await asyncio.gather(
+            self._fetch_semantic_scholar(title, doi),
+            asyncio.to_thread(search_openalex, title, 1),
+            asyncio.to_thread(search_paper_results, title),
+            return_exceptions=True,
+        )
 
+        if isinstance(s2_result, Exception):
+            logger.warning(f"KnowledgeEngine S2 error: {s2_result}")
+        else:
+            s2_paper = s2_result
             if s2_paper:
                 res["semantic_scholar"] = {
                     "paper_id": s2_paper.paper_id,
@@ -60,29 +68,22 @@ class KnowledgeEngine:
                     "url": s2_paper.url,
                     "fields_of_study": s2_paper.fields_of_study,
                 }
-        except Exception as e:
-            logger.warning(f"KnowledgeEngine S2 error: {e}")
 
-        # 2. OpenAlex Lookup (sync HTTP wrapped in to_thread)
-        try:
-            oa_results = await asyncio.to_thread(search_openalex, title, 1)
-            if oa_results:
-                oa = oa_results[0]
-                res["openalex"] = {
-                    "id": oa.id,
-                    "cited_by_count": oa.cited_by_count,
-                    "fwci": oa.fwci,
-                    "concepts": [c.get("display_name") for c in oa.concepts[:5] if isinstance(c, dict)],
-                }
-        except Exception as e:
-            logger.warning(f"KnowledgeEngine OpenAlex error: {e}")
+        if isinstance(oa_result, Exception):
+            logger.warning(f"KnowledgeEngine OpenAlex error: {oa_result}")
+        elif oa_result:
+            oa = oa_result[0]
+            res["openalex"] = {
+                "id": oa.id,
+                "cited_by_count": oa.cited_by_count,
+                "fwci": oa.fwci,
+                "concepts": [c.get("display_name") for c in oa.concepts[:5] if isinstance(c, dict)],
+            }
 
-        # 3. PapersWithCode SOTA Benchmarks (sync HTTP wrapped in to_thread)
-        try:
-            pwc_results = await asyncio.to_thread(search_paper_results, title)
-            res["paperswithcode"] = pwc_results
-        except Exception as e:
-            logger.warning(f"KnowledgeEngine PapersWithCode error: {e}")
+        if isinstance(pwc_result, Exception):
+            logger.warning(f"KnowledgeEngine PapersWithCode error: {pwc_result}")
+        else:
+            res["paperswithcode"] = pwc_result
 
         return res
 
@@ -98,7 +99,9 @@ class KnowledgeEngine:
 
             s2 = p.get("semantic_scholar")
             if s2:
-                lines.append(f"  - Citations: {s2.get('citation_count', 0)} (Influential: {s2.get('influential_citation_count', 0)})")
+                lines.append(
+                    f"  - Citations: {s2.get('citation_count', 0)} (Influential: {s2.get('influential_citation_count', 0)})"
+                )
                 if s2.get("venue"):
                     lines.append(f"  - Venue: {s2.get('venue')}")
 

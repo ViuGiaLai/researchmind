@@ -198,6 +198,10 @@ class Generator(
             mode = "fast"
         self._local.task_type = task
         self._local.reasoning_mode = mode
+        self._local.current_model = ""
+        self._local.current_router_reason = ""
+        self._local.current_token_count = 0
+        self._local.stream_gateway_error = ""
         return task, mode
 
     def _parse_task_provider_map(self, raw: str):
@@ -1241,17 +1245,36 @@ class Generator(
             self._local.system_prompt_override = previous_prompt
 
     def _set_model(self, model_str: str, token_count: int = 0) -> None:
+        self._local.current_model = model_str
+        self._local.current_token_count = token_count
         self.current_model = model_str
         self.current_token_count = token_count
         try:
             from ai.model_router import ModelRouter
             sel = ModelRouter(default_model=model_str)
             sel_result = sel.select_for_content("", task_type="chat")
+            self._local.current_router_reason = sel_result.reason
             self.current_router_reason = sel_result.reason
         except Exception:
+            self._local.current_router_reason = ""
             self.current_router_reason = ""
 
+    def get_stream_metadata(self) -> dict[str, str | int]:
+        """Snapshot metadata for the request running on the current thread."""
+        return {
+            "model_used": getattr(self._local, "current_model", self.current_model),
+            "router_reason": getattr(
+                self._local, "current_router_reason", self.current_router_reason
+            ),
+            "token_count": getattr(
+                self._local, "current_token_count", self.current_token_count
+            ),
+            "gateway_error": getattr(self._local, "stream_gateway_error", ""),
+        }
+
     def _stream_chain(self, user_prompt: str, max_tokens: int = 1024, task_type: str = ""):
+        self._local.current_router_reason = ""
+        self._local.current_token_count = 0
         self.current_router_reason = ""
         self.current_token_count = 0
 

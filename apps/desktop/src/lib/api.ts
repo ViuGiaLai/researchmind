@@ -8,6 +8,7 @@
 import i18n from "../i18n";
 import { getCurrentToken } from "./auth-token";
 import { getFirebaseIdToken } from "./firebase";
+import { consumeJsonSse } from "./sse";
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
 
@@ -737,35 +738,23 @@ export const api = {
           handlers.onError?.(await res.text());
           return;
         }
-        const reader = res.body?.getReader();
-        if (!reader) {
+        if (!res.body) {
           handlers.onError?.("No response body");
           return;
         }
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            try {
-              const data = JSON.parse(line.slice(6).trim());
-              if (data.type === "jobs") handlers.onJobs?.(data.jobs || []);
-              else if (data.type === "done") {
-                handlers.onDone?.(data.jobs || []);
-                return;
-              } else if (data.type === "timeout") {
-                handlers.onError?.("Import status stream timed out");
-                return;
-              }
-            } catch {
-              // Ignore malformed SSE frames.
-            }
+        let completed = false;
+        await consumeJsonSse<any>(res.body, (data) => {
+          if (data.type === "jobs") handlers.onJobs?.(data.jobs || []);
+          else if (data.type === "done") {
+            completed = true;
+            handlers.onDone?.(data.jobs || []);
+          } else if (data.type === "timeout") {
+            completed = true;
+            handlers.onError?.("Import status stream timed out");
           }
+        });
+        if (!completed && !controller.signal.aborted) {
+          handlers.onError?.("Import status stream ended before completion");
         }
       } catch (err: any) {
         if (err.name !== "AbortError") handlers.onError?.(err instanceof Error ? err.message : String(err));
@@ -903,36 +892,23 @@ export const api = {
           stream.onError?.(err || `HTTP ${res.status}`);
           return;
         }
-        const reader = res.body?.getReader();
-        if (!reader) {
+        if (!res.body) {
           stream.onError?.("No response body");
           return;
         }
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.done) {
-                  stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "", data.warning || "");
-                } else if (data.status !== undefined) {
-                  stream.onStatus?.(data.status);
-                } else if (data.chunk !== undefined) {
-                  stream.onChunk?.(data.chunk);
-                }
-              } catch {
-                // skip
-              }
-            }
+        let completed = false;
+        await consumeJsonSse<any>(res.body, (data) => {
+          if (data.done) {
+            completed = true;
+            stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "", data.warning || "");
+          } else if (data.status !== undefined) {
+            stream.onStatus?.(data.status);
+          } else if (data.chunk !== undefined) {
+            stream.onChunk?.(data.chunk);
           }
+        });
+        if (!completed && !controller.signal.aborted) {
+          stream.onError?.("Response stream ended before completion");
         }
       } catch (err: any) {
         if (err.name !== "AbortError") {
@@ -991,38 +967,25 @@ export const api = {
           stream.onError?.(err || `HTTP ${res.status}`);
           return;
         }
-        const reader = res.body?.getReader();
-        if (!reader) {
+        if (!res.body) {
           stream.onError?.("No response body");
           return;
         }
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6).trim();
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.type === "academic") {
-                  stream.onAcademic?.(data.data || [], data.verify_status || "local_only");
-                } else if (data.type === "venue_audit") {
-                  stream.onVenueAudit?.(data.data || null);
-                } else if (data.type === "chunk") {
-                  stream.onChunk?.(data.chunk || "");
-                } else if (data.type === "done") {
-                  stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only", data.venue_audit || null);
-                }
-              } catch {
-                // skip
-              }
-            }
+        let completed = false;
+        await consumeJsonSse<any>(res.body, (data) => {
+          if (data.type === "academic") {
+            stream.onAcademic?.(data.data || [], data.verify_status || "local_only");
+          } else if (data.type === "venue_audit") {
+            stream.onVenueAudit?.(data.data || null);
+          } else if (data.type === "chunk") {
+            stream.onChunk?.(data.chunk || "");
+          } else if (data.type === "done") {
+            completed = true;
+            stream.onDone?.(data.model_used || "", data.citations || [], data.external_sources || [], data.verify_status || "local_only", data.venue_audit || null);
           }
+        });
+        if (!completed && !controller.signal.aborted) {
+          stream.onError?.("Verification stream ended before completion");
         }
       } catch (err: any) {
         if (err.name !== "AbortError") {

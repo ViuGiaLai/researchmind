@@ -99,7 +99,9 @@ class CloudGatewayProviderMixin:
                         event_type = event.get("type")
                         if event_type == "meta":
                             self._set_model(f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}")
-                            self.current_router_reason = self._gateway_routing_reason(event)
+                            routing_reason = self._gateway_routing_reason(event)
+                            self._local.current_router_reason = routing_reason
+                            self.current_router_reason = routing_reason
                         elif event_type == "delta":
                             yield str(event.get("content", ""))
                         elif event_type == "error":
@@ -107,5 +109,7 @@ class CloudGatewayProviderMixin:
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
                 logger.warning("Gateway stream HTTP {}", status)
-                self._stream_gateway_error = "free_30_limit" if status == 429 else "cloud_unavailable"
+                gateway_error = "free_30_limit" if status == 429 else "cloud_unavailable"
+                self._local.stream_gateway_error = gateway_error
+                self._stream_gateway_error = gateway_error
 

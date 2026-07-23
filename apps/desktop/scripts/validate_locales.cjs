@@ -145,6 +145,43 @@ for (const r of results) {
 }
 
 console.log(`\n${colors.bright}${colors.cyan}──────────────────────────────────────${colors.reset}`);
+const parityNamespaces = ["verify"];
+
+function flattenNamespaceKeys(value, prefix = "") {
+  const keys = [];
+  for (const [key, child] of Object.entries(value || {})) {
+    const keyPath = prefix ? `${prefix}.${key}` : key;
+    if (child && typeof child === "object" && !Array.isArray(child)) {
+      keys.push(...flattenNamespaceKeys(child, keyPath));
+    } else {
+      keys.push(keyPath);
+    }
+  }
+  return keys.sort();
+}
+
+const localeData = Object.fromEntries(
+  FILES.map(({ lang, file }) => [
+    lang,
+    JSON.parse(fs.readFileSync(path.join(__dirname, "..", file), "utf8")),
+  ]),
+);
+
+for (const namespace of parityNamespaces) {
+  const reference = flattenNamespaceKeys(localeData.en[namespace]);
+  for (const { lang } of FILES.filter(({ lang }) => lang !== "en")) {
+    const candidate = flattenNamespaceKeys(localeData[lang][namespace]);
+    const missing = reference.filter((key) => !candidate.includes(key));
+    const unexpected = candidate.filter((key) => !reference.includes(key));
+    if (missing.length || unexpected.length) {
+      allValid = false;
+      console.log(`  ${colors.red}?${colors.reset} ${lang}.${namespace} key parity failed`);
+      if (missing.length) console.log(`      Missing: ${missing.join(", ")}`);
+      if (unexpected.length) console.log(`      Unexpected: ${unexpected.join(", ")}`);
+    }
+  }
+}
+
 console.log(`${colors.bright}Summary:${colors.reset}`);
 console.log(`  Files:     ${results.length} (${results.filter(r => r.valid).length} valid, ${results.filter(r => !r.valid).length} invalid)`);
 console.log(`  Keys:      ~${totalKeys}+ total across all namespaces`);

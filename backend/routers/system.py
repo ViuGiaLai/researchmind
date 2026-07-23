@@ -11,13 +11,14 @@ from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from loguru import logger
+from sqlalchemy import func
 
 from app_state import state
 from chat.cache_version import PROMPT_CONTRACT_VERSION
 from chat.provider_resilience import provider_health
 from common.ai_observability import snapshot as ai_metrics_snapshot
+from common.ai_usage import estimate_content_tokens
 from common.i18n import get_language, t
-from common.text_utils import count_tokens
 from config.settings import settings
 from db.database import get_session
 from db.models import AIJob, AITrace, Base, ChatHistory, Chunk, ImportJob, Paper, Setting
@@ -55,7 +56,13 @@ def _reliability_snapshot(session, *, total_chunks: int, vector_chunks: int) -> 
     latencies = [trace.elapsed_ms or 0 for trace in traces if trace.status == "success"]
     ai_jobs = session.query(AIJob).all()
     citation_total = citation_mapped = citation_verified = citation_invalid_page = 0
-    messages = (session.query(ChatHistory).filter(ChatHistory.role == "assistant", ChatHistory.created_at >= since).order_by(ChatHistory.created_at.desc()).limit(500).all())
+    messages = (
+        session.query(ChatHistory)
+        .filter(ChatHistory.role == "assistant", ChatHistory.created_at >= since)
+        .order_by(ChatHistory.created_at.desc())
+        .limit(500)
+        .all()
+    )
     for message in messages:
         try:
             citations = json.loads(message.citations or "[]")
@@ -73,7 +80,12 @@ def _reliability_snapshot(session, *, total_chunks: int, vector_chunks: int) -> 
                 citation_verified += 1
             if citation.get("page_valid") is False:
                 citation_invalid_page += 1
-    indexed_without_chunks = (session.query(Paper).filter(Paper.status == "indexed").filter(~Paper.id.in_(session.query(Chunk.paper_id).distinct())).count())
+    indexed_without_chunks = (
+        session.query(Paper)
+        .filter(Paper.status == "indexed")
+        .filter(~Paper.id.in_(session.query(Chunk.paper_id).distinct()))
+        .count()
+    )
     sync_ok = total_chunks == vector_chunks
     import_rate = _percent(import_ready, import_terminal)
     ai_rate = _percent(ai_success, len(traces))
@@ -100,12 +112,40 @@ def _reliability_snapshot(session, *, total_chunks: int, vector_chunks: int) -> 
     score -= min(20, round((100 - ai_rate) * 0.2)) if traces else 0
     score = max(0, score)
     return {
-        "window_days": 7, "score": score,
+        "window_days": 7,
+        "score": score,
         "status": "healthy" if score >= 90 else ("attention" if score >= 70 else "degraded"),
-        "ingestion": {"total": len(import_jobs), "ready": import_ready, "failed": import_failed, "active": import_active, "success_rate": import_rate},
-        "index": {"sqlite_chunks": total_chunks, "vector_chunks": vector_chunks, "sync_ok": sync_ok, "indexed_without_chunks": indexed_without_chunks},
-        "citations": {"messages_sampled": len(messages), "total": citation_total, "mapped": citation_mapped, "verified": citation_verified, "invalid_pages": citation_invalid_page, "mapping_rate": mapping_rate, "verification_rate": verification_rate},
-        "ai": {"traces": len(traces), "success": ai_success, "success_rate": ai_rate, "p50_ms": _percentile(latencies, 0.5), "p95_ms": _percentile(latencies, 0.95), "jobs_queued": sum(job.status == "queued" for job in ai_jobs), "jobs_failed": sum(job.status == "failed" for job in ai_jobs)},
+        "ingestion": {
+            "total": len(import_jobs),
+            "ready": import_ready,
+            "failed": import_failed,
+            "active": import_active,
+            "success_rate": import_rate,
+        },
+        "index": {
+            "sqlite_chunks": total_chunks,
+            "vector_chunks": vector_chunks,
+            "sync_ok": sync_ok,
+            "indexed_without_chunks": indexed_without_chunks,
+        },
+        "citations": {
+            "messages_sampled": len(messages),
+            "total": citation_total,
+            "mapped": citation_mapped,
+            "verified": citation_verified,
+            "invalid_pages": citation_invalid_page,
+            "mapping_rate": mapping_rate,
+            "verification_rate": verification_rate,
+        },
+        "ai": {
+            "traces": len(traces),
+            "success": ai_success,
+            "success_rate": ai_rate,
+            "p50_ms": _percentile(latencies, 0.5),
+            "p95_ms": _percentile(latencies, 0.95),
+            "jobs_queued": sum(job.status == "queued" for job in ai_jobs),
+            "jobs_failed": sum(job.status == "failed" for job in ai_jobs),
+        },
         "issues": issues,
     }
 
@@ -122,6 +162,7 @@ def _require_local_client(request: Request) -> None:
 
 
 # ─── Health ──────────────────────────────────────────────────────
+
 
 @router.get("/ping")
 async def ping():
@@ -174,9 +215,9 @@ async def ai_metrics(request: Request):
     session = get_session(state.engine)
     try:
         today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        messages = session.query(ChatHistory).filter(ChatHistory.created_at >= today).all()
-        estimated_tokens = sum(count_tokens(message.content or "") for message in messages)
-        jobs = session.query(AIJob).all()
+        content_rows = session.query(ChatHistory.content).filter(ChatHistory.created_at >= today).yield_per(256)
+        estimated_tokens, messages_today = estimate_content_tokens(content_rows)
+        job_counts = dict(session.query(AIJob.status, func.count(AIJob.id)).group_by(AIJob.status).all())
     finally:
         session.close()
     try:
@@ -195,14 +236,14 @@ async def ai_metrics(request: Request):
         },
         "usage": {
             "estimated_tokens_today": estimated_tokens,
-            "messages_today": len(messages),
+            "messages_today": messages_today,
             "daily_token_budget": max(0, int(getattr(settings, "ai_daily_token_budget", 0) or 0)),
         },
         "jobs": {
-            "queued": sum(job.status == "queued" for job in jobs),
-            "running": sum(job.status == "running" for job in jobs),
-            "failed": sum(job.status == "failed" for job in jobs),
-            "cancelled": sum(job.status == "cancelled" for job in jobs),
+            "queued": job_counts.get("queued", 0),
+            "running": job_counts.get("running", 0),
+            "failed": job_counts.get("failed", 0),
+            "cancelled": job_counts.get("cancelled", 0),
         },
         "routing": {"primary": routes, "fallback": fallbacks},
     }
@@ -248,6 +289,7 @@ def _count_chunks() -> int:
 
 
 # ─── Stats ───────────────────────────────────────────────────────
+
 
 @router.get("/stats")
 async def get_stats():
@@ -364,23 +406,29 @@ async def rebuild_fts_index(request: Request):
 
 # ─── Machine Specs ───────────────────────────────────────────────
 
+
 @router.get("/detect-specs")
 async def detect_specs():
     """
     Detect machine specs (RAM, CPU) for auto-configuring model tier.
     """
+
     def _detect_ram_gb() -> float:
         total_ram_gb = 8.0
         try:
             import psutil
+
             return round(psutil.virtual_memory().total / (1024**3), 1)
         except ImportError:
             pass
         try:
             import subprocess
+
             result = subprocess.run(
                 ["wmic", "MemoryChip", "get", "Capacity"],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             lines = result.stdout.strip().split("\n")[1:]
             total_bytes = sum(int(line.strip()) for line in lines if line.strip().isdigit())
@@ -413,12 +461,14 @@ async def detect_specs():
 
 # ─── Data Management ─────────────────────────────────────────────
 
+
 @router.post("/data/open-folder")
 async def open_data_folder(request: Request, body: dict = Body(default={})):
     """Open the specified or current local data folder in file explorer."""
     _require_local_client(request)
     lang = get_language(request)
     import subprocess as _subprocess
+
     try:
         # The UI only opens the active data directory. Do not allow an API
         # caller to launch arbitrary filesystem locations.
@@ -503,6 +553,7 @@ async def move_storage(request: Request, body: dict = Body(...)):
         settings.db_path = new_path / "db" / "researchmind.db"
 
         from config.settings import get_fixed_default_dir
+
         default_dir = get_fixed_default_dir()
         default_dir.mkdir(parents=True, exist_ok=True)
         config_file = default_dir / "config.json"
@@ -510,6 +561,7 @@ async def move_storage(request: Request, body: dict = Body(...)):
             json.dump({"data_dir": str(new_path)}, f, indent=2, ensure_ascii=False)
 
         from db.database import get_engine
+
         state.engine = get_engine(settings.db_path)
 
         db_session = get_session(state.engine)
@@ -543,6 +595,7 @@ async def move_storage(request: Request, body: dict = Body(...)):
         logger.error(f"Failed to move storage: {e}")
         try:
             from db.database import get_engine
+
             state.engine = get_engine(settings.db_path)
         except Exception:
             pass
@@ -568,7 +621,9 @@ async def clear_all_data(request: Request):
             db.query(Paper).delete()
             db.query(ChatHistory).delete()
             db.commit()
-            logger.info(f"🧹 SQLite: xoá {deleted['papers']} papers, {deleted['chunks']} chunks, {deleted['chat_history']} lịch sử chat")
+            logger.info(
+                f"🧹 SQLite: xoá {deleted['papers']} papers, {deleted['chunks']} chunks, {deleted['chat_history']} lịch sử chat"
+            )
         except Exception as e:
             db.rollback()
             raise e
@@ -621,11 +676,16 @@ async def clear_all_data(request: Request):
         file_list = deleted["files"][:5]
         file_preview = ", ".join(file_list)
         if len(deleted["files"]) > 5:
-            file_preview += t("system.files_truncated", lang, count=len(deleted['files'])-5)
+            file_preview += t("system.files_truncated", lang, count=len(deleted["files"]) - 5)
 
-        result_msg = t("system.cleared_summary", lang,
-            papers=deleted['papers'], chunks=deleted['chunks'],
-            vectors=deleted['chroma_chunks'], history=deleted['chat_history'])
+        result_msg = t(
+            "system.cleared_summary",
+            lang,
+            papers=deleted["papers"],
+            chunks=deleted["chunks"],
+            vectors=deleted["chroma_chunks"],
+            history=deleted["chat_history"],
+        )
         if file_preview:
             result_msg += t("system.files_deleted", lang, files=file_preview)
         result_msg += t("system.settings_kept", lang)
@@ -655,6 +715,7 @@ async def reset_app(request: Request):
                     logger.warning(f"Failed to delete directory {d}: {e}")
 
         from db.database import get_engine
+
         state.engine = get_engine(settings.db_path)
 
         try:
@@ -670,6 +731,7 @@ async def reset_app(request: Request):
             Base.metadata.create_all(state.engine)
 
         from db.migrations import run_migrations
+
         run_migrations(state.engine)
 
         db_session = get_session(state.engine)
@@ -696,6 +758,7 @@ async def reset_app(request: Request):
 
 
 # ─── Zotero Auto-Detect ──────────────────────────────────────────
+
 
 @router.get("/zotero/detect")
 async def detect_zotero_data_dir(request: Request):
@@ -813,7 +876,8 @@ async def detect_zotero_data_dir(request: Request):
         "path": str(detected.resolve()),
         "method": method,
         "has_storage": has_storage,
-        "message": t("zotero.detected_path", lang, path=detected_path) if has_storage
+        "message": t("zotero.detected_path", lang, path=detected_path)
+        if has_storage
         else t("zotero.detected_no_storage", lang, path=detected_path),
     }
 

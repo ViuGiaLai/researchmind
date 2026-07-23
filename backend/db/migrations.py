@@ -9,9 +9,7 @@ DEFAULT_WORKSPACE_ID = "00000000-0000-4000-8000-000000000001"
 
 
 def _seed_default_workspace(connection) -> None:
-    existing = connection.execute(
-        text("SELECT id FROM workspaces WHERE is_default = 1 LIMIT 1")
-    ).first()
+    existing = connection.execute(text("SELECT id FROM workspaces WHERE is_default = 1 LIMIT 1")).first()
     if existing:
         return
     connection.execute(
@@ -38,9 +36,15 @@ def _add_hot_path_indexes(connection) -> None:
         connection.execute(text(statement))
 
 
+def _add_chat_history_created_index(connection) -> None:
+    """Accelerate daily usage windows that do not filter by role or session."""
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_chat_history_created_at ON chat_history(created_at)"))
+
+
 MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "seed_default_workspace", _seed_default_workspace),
     (2, "add_hot_path_indexes", _add_hot_path_indexes),
+    (3, "add_chat_history_created_index", _add_chat_history_created_index),
 ]
 
 
@@ -50,12 +54,7 @@ def run_migrations(engine) -> None:
         SchemaMigration.__table__.create(engine, checkfirst=True)
 
     with engine.begin() as connection:
-        applied = {
-            row[0]
-            for row in connection.execute(
-                text("SELECT version FROM schema_migrations")
-            ).all()
-        }
+        applied = {row[0] for row in connection.execute(text("SELECT version FROM schema_migrations")).all()}
         for version, name, migration in MIGRATIONS:
             if version in applied:
                 continue

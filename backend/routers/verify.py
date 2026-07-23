@@ -32,6 +32,7 @@ from academic.tools.format_auditor import FormatAuditorTool
 from academic.verification_engine import AcademicVerificationEngine
 from academic.verify_report_builder import VerifyReportBuilder
 from app_state import state
+from common.async_iter import AsyncThreadIterator
 from common.i18n import get_language, t
 from common.rag_ready import rag_unavailable_message
 from db.database import get_session
@@ -825,7 +826,7 @@ def _serialize_external(ep: ExternalPaperData) -> dict:
     return result
 
 
-def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id, venue_audit=None, lang="vi", timing=None):
+async def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id, venue_audit=None, lang="vi", timing=None):
     import time as time_mod
     t_stream = time_mod.time()
     timing = timing or {}
@@ -838,11 +839,21 @@ def _stream_verify_response(query, combined_context, external_sources_json, veri
     if venue_audit:
         yield f"data: {json.dumps({'type': 'venue_audit', 'data': venue_audit})}\n\n"
 
-    for chunk in state.generator.stream_generate_verify(query, combined_context, task_type="verify", lang=lang):
-        full_response += chunk
-        yield f"data: {json.dumps({'type': 'chunk', 'chunk': chunk})}\n\n"
+    stream_iterator = AsyncThreadIterator(
+        lambda: state.generator.stream_generate_verify(
+            query, combined_context, task_type="verify", lang=lang
+        ),
+        on_complete=state.generator.get_stream_metadata,
+    )
+    try:
+        async for chunk in stream_iterator:
+            full_response += chunk
+            yield f"data: {json.dumps({'type': 'chunk', 'chunk': chunk})}\n\n"
+    finally:
+        await stream_iterator.aclose()
 
-    model_used = state.generator.current_model
+    stream_metadata = stream_iterator.result or {}
+    model_used = str(stream_metadata.get("model_used", ""))
 
     citations = []
     pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'

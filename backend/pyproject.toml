@@ -3,9 +3,7 @@ minversion = "9.0"
 testpaths = ["tests"]
 timeout = 120
 markers = [
-    "integration: tests that require external API access (network)",
-    "benchmark: tests that measure system performance or run benchmark suites",
-    "slow: tests that take >30s to complete",
+    "integration: tests that exercise multiple production modules together",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",
