@@ -14,16 +14,14 @@ import re
 import shutil
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
-
-from common.i18n import get_language, t
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from config.settings import settings
 from app_state import state
+from common.i18n import get_language, t
+from config.settings import settings
 from db.database import get_session
 from db.models import Chunk, Paper
 from ingestion.chunker import SentenceSplitter
@@ -78,7 +76,7 @@ def _parse_authors(authors_str: str) -> list[str]:
     return [a.strip() for a in authors_str.split(",") if a.strip()]
 
 
-def _parse_year(year_str: Optional[str]) -> Optional[int]:
+def _parse_year(year_str: str | None) -> int | None:
     """Extract a 4-digit year from a string."""
     if not year_str:
         return None
@@ -103,7 +101,7 @@ def _clean_title(title: str) -> str:
     return title
 
 
-def _find_existing(session: Session, title: str, doi: str) -> Optional[Paper]:
+def _find_existing(session: Session, title: str, doi: str) -> Paper | None:
     """Check if a paper already exists by DOI or normalized title."""
     if doi:
         paper = session.query(Paper).filter(Paper.doi == doi).first()
@@ -135,14 +133,14 @@ def _create_paper(
     session: Session,
     title: str,
     authors: str,
-    year: Optional[int],
+    year: int | None,
     doi: str,
     abstract: str,
     tags: str,
     journal: str = "",
-    pages: Optional[int] = None,
+    pages: int | None = None,
     language: str = "unknown",
-) -> tuple[Optional[Paper], bool]:
+) -> tuple[Paper | None, bool]:
     """Create a Paper entry in the database.
     Returns (paper, is_new) tuple. is_new=False means paper already existed."""
     # Check for duplicates
@@ -431,7 +429,7 @@ def _parse_zotero_attachment_path(attachment_str: str) -> list[dict]:
     r"""
     Parse Zotero "File Attachments" column value.
     Returns a list of dicts with keys: type, path, filename, is_pdf.
-    
+
     Examples:
       - "storage:ABCDEFGH\file.pdf"
       - "attachments:ABCDEFGH\file.pdf"
@@ -513,8 +511,8 @@ def _parse_zotero_attachment_path(attachment_str: str) -> list[dict]:
 
 def _locate_pdf_from_attachment(
     attachment: dict,
-    zotero_data_dir: Optional[str] = None,
-) -> Optional[str]:
+    zotero_data_dir: str | None = None,
+) -> str | None:
     """
     Try to find the actual PDF file on disk from an attachment entry.
     Returns the absolute path to the PDF if found, None otherwise.
@@ -571,7 +569,7 @@ def _copy_and_index_pdf(
     """
     Copy a PDF from Zotero storage to the app's papers directory,
     update the paper's file fields, and trigger background indexing.
-    
+
     Returns dict with status info.
     """
     from db.database import get_session as _get_db_session
@@ -873,7 +871,7 @@ async def import_zotero_csv_with_pdfs(
 ):
     r"""
     Import papers from Zotero CSV + tự động tìm và index PDF từ Zotero storage.
-    
+
     - file: File .csv export từ Zotero
     - zotero_data_dir: Đường dẫn thư mục Zotero data (VD: C:\Users\name\Zotero)
       Nếu để trống, chỉ import metadata.
@@ -1010,7 +1008,7 @@ async def import_zotero_sqlite_sync(
     identify new papers, and import/index them with their PDFs.
     """
     import sqlite3
-    
+
     lang = get_language(request)
     zotero_dir_str = settings.zotero_data_dir
     if not zotero_dir_str or not zotero_dir_str.strip():
@@ -1018,7 +1016,7 @@ async def import_zotero_sqlite_sync(
             status_code=400,
             detail=t("import.zotero_not_configured", lang),
         )
-        
+
     zotero_dir = Path(zotero_dir_str.strip())
     sqlite_path = zotero_dir / "zotero.sqlite"
     if not sqlite_path.exists():
@@ -1026,14 +1024,14 @@ async def import_zotero_sqlite_sync(
             status_code=400,
             detail=t("import.zotero_sqlite_not_found", lang, path=sqlite_path),
         )
-        
+
     try:
         conn = sqlite3.connect(str(sqlite_path))
         cursor = conn.cursor()
-        
+
         # Query main items
         query = """
-        SELECT 
+        SELECT
             i.itemId,
             i.key,
             t.typeName,
@@ -1049,20 +1047,20 @@ async def import_zotero_sqlite_sync(
         """
         cursor.execute(query)
         rows = cursor.fetchall()
-        
+
         synced_count = 0
         duplicate_count = 0
         error_count = 0
         pdf_imported = 0
         results = []
-        
+
         for row in rows:
             item_id, key, type_name, title, abstract, date_str, doi, journal, pages = row
             if not title:
                 continue
-                
+
             title = _clean_title(title)
-            
+
             # Get authors
             creators_query = """
             SELECT c.lastName, c.firstName
@@ -1079,7 +1077,7 @@ async def import_zotero_sqlite_sync(
                 if name:
                     authors_list.append(name)
             authors_json = json.dumps(authors_list, ensure_ascii=False)
-            
+
             # Get attachments
             attachments_query = """
             SELECT path
@@ -1088,13 +1086,13 @@ async def import_zotero_sqlite_sync(
             """
             cursor.execute(attachments_query, (item_id,))
             attachments = [r[0] for r in cursor.fetchall() if r[0]]
-            
+
             year = _parse_year(date_str)
             lang = _detect_language(f"{title} {abstract or ''}")
-            
+
             tags_list = [type_name.lower()]
             tags_json = json.dumps(tags_list, ensure_ascii=False)
-            
+
             # Check if paper already exists
             existing = _find_existing(db, title, doi or "")
             if existing:
@@ -1105,7 +1103,7 @@ async def import_zotero_sqlite_sync(
                     "paper_id": existing.id
                 })
                 continue
-                
+
             # Create paper entry
             paper, is_new = _create_paper(
                 session=db,
@@ -1119,7 +1117,7 @@ async def import_zotero_sqlite_sync(
                 pages=None,
                 language=lang,
             )
-            
+
             if not paper:
                 error_count += 1
                 results.append({
@@ -1128,14 +1126,14 @@ async def import_zotero_sqlite_sync(
                     "error": t("import.db_save_error", lang)
                 })
                 continue
-                
+
             result = {
                 "title": title,
                 "paper_id": paper.id,
                 "status": "imported",
                 "pdf_status": "none"
             }
-            
+
             # Try to copy PDF if exists
             pdf_found = False
             for att_path in attachments:
@@ -1165,15 +1163,15 @@ async def import_zotero_sqlite_sync(
                                 result["pdf_status"] = pdf_result["status"]
                             pdf_found = True
                             break
-                            
+
             if not pdf_found and attachments:
                 result["pdf_status"] = "not_found"
-                
+
             synced_count += 1
             results.append(result)
-            
+
         conn.close()
-        
+
         return {
             "total": len(rows),
             "imported": synced_count,
