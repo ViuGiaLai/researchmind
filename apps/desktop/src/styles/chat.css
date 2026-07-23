@@ -1375,3 +1375,136 @@
 .citation-verification--verified { border-color: var(--color-success); color: var(--color-success); }
 .citation-verification--partial { border-color: var(--color-warning); color: var(--color-warning); }
 .citation-verification--unverified { border-color: var(--color-danger); color: var(--color-danger); }
+.chat-view-footnotes-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+  padding: 0.15rem 0.25rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--radius-sm, 6px);
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.chat-view-footnotes-summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat-view-footnotes-summary:hover {
+  color: var(--color-text);
+  background: var(--color-surface-hover);
+}
+
+.chat-view-footnotes-summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.chat-view-footnotes-heading,
+.chat-view-disclosure-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-view-footnotes-heading {
+  min-width: 0;
+  font-size: 0.88em;
+  font-weight: 600;
+}
+
+.chat-view-disclosure-count {
+  min-width: 1.5rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 999px;
+  background: var(--color-surface-hover);
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.chat-view-disclosure-chevron {
+  color: var(--color-text-muted);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.chat-view-footnotes[open] .chat-view-disclosure-chevron {
+  transform: rotate(90deg);
+}
+
+.chat-view-footnotes-list {
+  padding-top: 0.45rem;
+  animation: chatDisclosureIn 180ms ease-out;
+}
+
+@keyframes chatDisclosureIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Compact evidence disclosures */
+.chat-view-footnotes {
+  margin-top: 0.8rem;
+  padding-top: 0;
+  border: 1px solid color-mix(in srgb, var(--color-border) 78%, var(--color-primary) 22%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface) 96%, var(--color-primary) 4%);
+  overflow: hidden;
+}
+
+.chat-view-footnotes-summary {
+  min-height: 2.85rem;
+  padding: 0 0.75rem;
+  border-radius: 0;
+}
+
+.chat-view-footnotes-summary:hover {
+  background: color-mix(in srgb, var(--color-surface-hover) 88%, var(--color-primary) 12%);
+}
+
+.chat-view-footnotes-heading {
+  gap: 0.62rem;
+  color: var(--color-text);
+  font-size: 0.84rem;
+  letter-spacing: -0.01em;
+}
+
+.chat-view-footnotes-heading > svg {
+  box-sizing: content-box;
+  padding: 0.38rem;
+  border-radius: 7px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.chat-view-disclosure-count {
+  min-width: 1.7rem;
+  padding: 0.16rem 0.44rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-surface-hover) 82%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.chat-view-footnotes[open] .chat-view-footnotes-summary {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.chat-view-footnotes-list {
+  gap: 0.42rem;
+  padding: 0.62rem;
+}
+
+.chat-view-footnote-entry {
+  border-color: var(--color-border-subtle);
+  background: var(--color-surface);
+}
+
+.chat-view-footnote-entry:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 48%, var(--color-border));
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-primary) 6%);
+}

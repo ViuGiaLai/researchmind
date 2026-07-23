@@ -184,6 +184,22 @@ class Generator(
 
     # ── Routing helpers ────────────────────────────────────────
 
+    def _set_request_routing_context(
+        self,
+        task_type: str = "chat",
+        reasoning_mode: str = "fast",
+    ) -> tuple[str, str]:
+        """Initialize per-request routing state and prevent thread-local leakage."""
+        task = (task_type or "chat").strip().lower()
+        mode = (reasoning_mode or "fast").strip().lower()
+        if mode in {"deep+", "deep_plus"}:
+            mode = "deep_plus"
+        elif mode not in {"fast", "deep"}:
+            mode = "fast"
+        self._local.task_type = task
+        self._local.reasoning_mode = mode
+        return task, mode
+
     def _parse_task_provider_map(self, raw: str):
         if not raw or not raw.strip():
             self.task_provider_map = {}
@@ -496,7 +512,9 @@ class Generator(
         Tries primary first, then fallback chain, then returns None.
         Returns GenerationResult on success, None if all fail.
         """
-        self._local.task_type = task_type
+        task_type, _ = self._set_request_routing_context(
+            task_type, getattr(self._local, "reasoning_mode", "fast")
+        )
         provider = self._get_provider_for_task(task_type)
         if not provider:
             return None
@@ -615,45 +633,39 @@ class Generator(
             return
 
     def _route_by_task_stream(self, task_type: str, user_prompt: str, max_tokens: int = 1024):
-        """Streaming version of _route_by_task.
-        Tries primary first, then fallback, then returns (no yield = use chain).
-        """
-        self._local.task_type = task_type
-        provider = self._get_provider_for_task(task_type)
-        if not provider:
+        """Stream through the same task-specific fallback chain as non-streaming calls."""
+        task_type, _ = self._set_request_routing_context(
+            task_type, getattr(self._local, "reasoning_mode", "fast")
+        )
+        primary = self._get_provider_for_task(task_type)
+        if not primary:
             return
 
-        # Try primary provider
-        logger.info(f"task_routing_stream: {task_type} → {provider} (primary)")
-        stream_gen = self._stream_provider(provider, user_prompt, max_tokens)
-        if stream_gen is not None:
+        providers = [primary, *self._get_fallback_chain(task_type)]
+        attempted: set[str] = set()
+        for provider in providers:
+            if not provider or provider in attempted:
+                continue
+            attempted.add(provider)
+            role = "primary" if provider == primary else "fallback"
+            logger.info(
+                f"task_routing_stream: {task_type} provider={provider} role={role}"
+            )
+            stream_gen = self._stream_provider(provider, user_prompt, max_tokens)
+            if stream_gen is None:
+                continue
             yielded = False
             for chunk in stream_gen:
                 yielded = True
                 yield chunk
             if yielded:
                 return
+            logger.warning(
+                f"task_routing_stream: {task_type} provider={provider} failed or returned no content"
+            )
 
-        # Try fallback provider
-        fallback = self._get_fallback_for_task(task_type)
-        if fallback and fallback != provider:
-            logger.info(f"task_routing_stream: {task_type} primary={provider} failed, trying fallback={fallback}")
-            stream_gen = self._stream_provider(fallback, user_prompt, max_tokens)
-            if stream_gen is not None:
-                yielded = False
-                for chunk in stream_gen:
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            logger.warning(f"task_routing_stream: {task_type} fallback={fallback} also failed")
-        else:
-            logger.info(f"task_routing_stream: {task_type} primary={provider} failed, no fallback")
-
-        return  # all fail → use default chain
-
-    # ── HTTP client ────────────────────────────────────────────
-
+        logger.info(f"task_routing_stream: {task_type} all task fallbacks failed")
+        return
     @property
     def http_client(self):
         if self._http_client is None:
@@ -694,8 +706,8 @@ class Generator(
         strict_evidence: bool = False,
         use_cache: bool = True,
     ) -> GenerationResult:
+        task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
-        self._local.reasoning_mode = reasoning_mode
         self._local.strict_evidence = strict_evidence
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
             context_text, detected = neutralize_untrusted_text(context_text)
@@ -737,9 +749,12 @@ class Generator(
 
         system_prompt = self._get_system_prompt()
         key_hash = cache_fingerprint(
-            model=self.current_model or "auto",
+            model=f"route:{task_type}:{reasoning_mode}",
             provider=self.custom_cloud_provider or self.mode,
-            prompt=system_prompt + "\n\n" + user_prompt,
+            prompt=(
+                f"[task={task_type};reasoning={reasoning_mode};strict={int(strict_evidence)}]\n"
+                + system_prompt + "\n\n" + user_prompt
+            ),
             context=context_text,
         )
 
@@ -755,7 +770,9 @@ class Generator(
                         content=cached_data["content"],
                         citations=cached_data["citations"],
                         model_used=cached_data["model_used"] + " (cached)",
-                        finish_reason=cached_data.get("finish_reason", "stop")
+                        finish_reason=cached_data.get("finish_reason", "stop"),
+                        router_reason=cached_data.get("router_reason", "cache hit"),
+                        router_token_count=cached_data.get("router_token_count", 0)
                     )
             except Exception as cache_err:
                 logger.warning(f"Failed to query LLM cache: {cache_err}")
@@ -771,7 +788,9 @@ class Generator(
                     "content": result.content,
                     "citations": result.citations,
                     "model_used": result.model_used,
-                    "finish_reason": result.finish_reason
+                    "finish_reason": result.finish_reason,
+                    "router_reason": result.router_reason,
+                    "router_token_count": result.router_token_count
                 }
                 existing = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
                 if existing:
@@ -1142,8 +1161,8 @@ class Generator(
         task_type: str = "chat",
         strict_evidence: bool = False,
     ):
+        task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
-        self._local.reasoning_mode = reasoning_mode
         self._local.strict_evidence = strict_evidence
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
@@ -1184,6 +1203,9 @@ class Generator(
             yield "No relevant documents were found. Import a PDF or try a different question."
             return
 
+        task_type, _ = self._set_request_routing_context(task_type, "fast")
+        self._local.lang = lang
+        self._local.strict_evidence = True
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         previous_prompt = getattr(self._local, "system_prompt_override", None)
         self._local.system_prompt_override = self._get_verify_system_prompt() + "\n\n" + get_language_instruction(query)

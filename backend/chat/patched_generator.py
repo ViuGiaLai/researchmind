@@ -152,38 +152,5 @@ class PatchedGenerator(
             return
 
     def _route_by_task_stream(self, task_type: str, user_prompt: str, max_tokens: int = 1024):
-        """Streaming version of _route_by_task.
-        Tries primary first, then fallback, then returns (no yield = use chain).
-        """
-        provider = self._get_provider_for_task(task_type)
-        if not provider:
-            return  # no mapping → use default chain
-
-        # Try primary provider
-        logger.info(f"task_routing_stream: {task_type} → {provider} (primary)")
-        stream_gen = self._stream_provider(provider, user_prompt, max_tokens)
-        if stream_gen is not None:
-            yielded = False
-            for chunk in stream_gen:
-                yielded = True
-                yield chunk
-            if yielded:
-                return
-
-        # Try fallback provider
-        fallback = self._get_fallback_for_task(task_type)
-        if fallback and fallback != provider:
-            logger.info(f"task_routing_stream: {task_type} primary={provider} failed, trying fallback={fallback}")
-            stream_gen = self._stream_provider(fallback, user_prompt, max_tokens)
-            if stream_gen is not None:
-                yielded = False
-                for chunk in stream_gen:
-                    yielded = True
-                    yield chunk
-                if yielded:
-                    return
-            logger.warning(f"task_routing_stream: {task_type} fallback={fallback} also failed")
-        else:
-            logger.info(f"task_routing_stream: {task_type} primary={provider} failed, no fallback")
-
-        return  # all fail → use default chain
+        """Use the canonical routing and fallback implementation from Generator."""
+        yield from super()._route_by_task_stream(task_type, user_prompt, max_tokens)

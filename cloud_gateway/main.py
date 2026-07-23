@@ -40,7 +40,20 @@ def validate_size(request: GenerateRequest) -> int:
 @app.get("/health")
 @app.get("/v1/health")
 async def health():
-    return {"status": "ok", "providers": ProviderRouter(settings).candidates("chat")}
+    router = ProviderRouter(settings)
+    return {
+        "status": "ok",
+        "providers": router.candidates("chat", "fast"),
+        "routes": {
+            "chat.fast": router.candidates("chat", "fast"),
+            "chat.deep": router.candidates("chat", "deep"),
+            "chat.deep_plus": router.candidates("chat", "deep_plus"),
+            "rag.fast": router.candidates("rag", "fast"),
+            "rag.deep": router.candidates("rag", "deep"),
+            "review_outline": router.candidates("review_outline"),
+            "review_section": router.candidates("review_section"),
+        },
+    }
 
 
 @app.get("/v1/quota")
@@ -58,8 +71,8 @@ async def get_quota(user: dict = Depends(require_user)):
 async def generate(request: GenerateRequest, user: dict = Depends(require_user)):
     quota.reserve(user, validate_size(request))
     try:
-        content, provider, model = await ProviderRouter(settings).generate(request)
-        return GenerateResponse(content=content, provider=provider, model=model)
+        content, provider, model, routing = await ProviderRouter(settings).generate(request)
+        return GenerateResponse(content=content, provider=provider, model=model, **routing)
     except ProviderError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
@@ -71,9 +84,9 @@ async def generate_stream(request: GenerateRequest, user: dict = Depends(require
     async def events():
         sent_meta = False
         try:
-            async for content, provider, model in ProviderRouter(settings).stream(request):
+            async for content, provider, model, routing in ProviderRouter(settings).stream(request):
                 if not sent_meta:
-                    yield json.dumps({"type": "meta", "provider": provider, "model": model}) + "\n"
+                    yield json.dumps({"type": "meta", "provider": provider, "model": model, **routing}) + "\n"
                     sent_meta = True
                 yield json.dumps({"type": "delta", "content": content}, ensure_ascii=False) + "\n"
             yield json.dumps({"type": "done"}) + "\n"
@@ -117,7 +130,7 @@ async def translate(request: TranslateRequest, user: dict = Depends(require_user
             max_tokens=request.max_tokens,
             temperature=request.temperature,
         )
-        content, provider, model = await ProviderRouter(settings).generate(gen_req)
+        content, provider, model, _routing = await ProviderRouter(settings).generate(gen_req)
         lines = [line.strip() for line in content.split("\n") if line.strip()]
         translations = lines[:len(request.texts)]
         while len(translations) < len(request.texts):

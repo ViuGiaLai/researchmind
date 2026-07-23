@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 class GenerateRequest(BaseModel):
     task_type: str = "chat"
+    reasoning_mode: Literal["fast", "deep", "deep_plus", "deep+"] = "fast"
     system_prompt: str = ""
     user_prompt: str
     language: str = "auto"
@@ -16,6 +17,11 @@ class GenerateResponse(BaseModel):
     model: str
     provider: str
     finish_reason: str = "stop"
+    primary_provider: str = ""
+    selected_provider: str = ""
+    fallback_used: bool = False
+    fallback_reason: str = ""
+    routing_key: str = ""
 
 
 class EmbedRequest(BaseModel):

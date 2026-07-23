@@ -1435,10 +1435,17 @@ export const ChatView: React.FC<{
                       )}
                     </div>
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="chat-view-footnotes">
-                        <div className="chat-view-footnotes-title">
-                          {t("chat.footnote_title")}
-                        </div>
+                      <details className="chat-view-footnotes">
+                        <summary className="chat-view-footnotes-summary">
+                          <span className="chat-view-footnotes-heading">
+                            <IconBook size={16} />
+                            <span>{t("chat.footnote_title")}</span>
+                          </span>
+                          <span className="chat-view-disclosure-meta">
+                            <span className="chat-view-disclosure-count">{msg.citations.length}</span>
+                            <IconArrowRight className="chat-view-disclosure-chevron" size={15} />
+                          </span>
+                        </summary>
                         <div className="chat-view-footnotes-list">
                           {msg.citations.map((c, j) => (
                             <div
@@ -1500,7 +1507,7 @@ export const ChatView: React.FC<{
                             </div>
                           ))}
                         </div>
-                      </div>
+                      </details>
                     )}
                   </>
               )}

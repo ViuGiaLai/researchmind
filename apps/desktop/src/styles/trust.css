@@ -161,3 +161,148 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+.trust-panel > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 180ms ease;
+}
+
+.trust-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.trust-panel > summary:hover {
+  background: var(--color-surface-hover) !important;
+}
+
+.trust-panel > summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.trust-panel[open] > .trust-panel-header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.trust-panel-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.trust-panel-chevron {
+  color: var(--color-text-muted);
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.trust-panel[open] .trust-panel-chevron {
+  transform: rotate(90deg);
+}
+
+.trust-panel[open] .trust-panel-stats,
+.trust-panel[open] .trust-panel-section,
+.trust-panel[open] .trust-panel-actions {
+  animation: trustDisclosureIn 180ms ease-out;
+}
+
+@keyframes trustDisclosureIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Compact audit disclosure */
+.trust-panel {
+  margin-top: 0.5rem;
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--color-border) 78%, var(--color-primary) 22%);
+  background: color-mix(in srgb, var(--color-surface) 96%, var(--color-primary) 4%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.trust-panel-header {
+  min-height: 2.85rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+}
+
+.trust-panel > summary:hover {
+  background: color-mix(in srgb, var(--color-surface-hover) 88%, var(--color-primary) 12%) !important;
+}
+
+.trust-panel-header-left {
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.trust-panel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: content-box;
+  padding: 0.38rem;
+  border-radius: 7px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.trust-panel-header-title {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.84rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trust-panel-confidence-badge,
+.trust-panel-header-meta > div {
+  font-variant-numeric: tabular-nums;
+}
+
+.trust-panel-header-meta > div {
+  min-height: 1.7rem;
+}
+
+.trust-panel[open] > .trust-panel-header {
+  border-bottom-color: var(--color-border-subtle);
+}
+
+.chat-view-model-footer {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+}
+/* Simple compact audit */
+.trust-panel {
+  box-shadow: none;
+}
+
+.trust-panel-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.trust-panel-stat {
+  min-height: 2.75rem;
+}
+
+.trust-panel-section-title {
+  margin-bottom: 0.3rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.trust-panel-actions {
+  gap: 0.35rem;
+}
+
+@media (max-width: 560px) {
+  .trust-panel-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trust-panel-confidence-label {
+    display: none;
+  }
+}

@@ -62,3 +62,63 @@ def test_patched_stream_respects_provider_budget(monkeypatch):
 
     assert list(generator._stream_provider("github", "prompt", 321)) == []
     assert calls == [("github", 321)]
+
+def test_verify_resets_stale_routing_context(monkeypatch):
+    generator = Generator()
+    generator._set_request_routing_context("review_section", "deep_plus")
+    captured = {}
+
+    def fake_stream_chain(_prompt, _max_tokens, task_type):
+        captured["task_type"] = task_type
+        captured["payload"] = generator._gateway_payload("prompt", 100)
+        yield "verified"
+
+    monkeypatch.setattr(generator, "_stream_chain", fake_stream_chain)
+    assert list(generator.stream_generate_verify("claim", "e" * 60, lang="vi")) == ["verified"]
+    assert captured["task_type"] == "verify"
+    assert captured["payload"]["task_type"] == "verify"
+    assert captured["payload"]["reasoning_mode"] == "fast"
+    assert generator._local.strict_evidence is True
+
+
+def test_stream_task_routing_matches_nonstream_task_fallback_chain(monkeypatch):
+    generator = PatchedGenerator(
+        task_provider_map='{"rag":"github"}',
+        task_ultimate_fallback_chain="cerebras",
+    )
+    generator.task_fallback_map = {"rag": "groq"}
+    attempted = []
+
+    def fake_stream_provider(provider, _prompt, _max_tokens):
+        attempted.append(provider)
+        if provider == "groq":
+            yield "ok"
+
+    monkeypatch.setattr(generator, "_stream_provider", fake_stream_provider)
+    assert list(generator._route_by_task_stream("rag", "prompt", 100)) == ["ok"]
+    assert attempted == ["github", "groq"]
+
+
+def test_cache_fingerprint_is_stable_and_separates_reasoning_modes(monkeypatch):
+    from chat import generator_v2 as generator_module
+
+    generator = Generator()
+    captured_models = []
+    monkeypatch.setattr(
+        generator_module,
+        "cache_fingerprint",
+        lambda **kwargs: captured_models.append(kwargs["model"]) or "key",
+    )
+    monkeypatch.setattr(
+        generator,
+        "_generate_uncached",
+        lambda *_args, **_kwargs: GenerationResult(
+            content="answer", citations=[], model_used="test/model"
+        ),
+    )
+
+    generator.generate("q", "", task_type="chat", reasoning_mode="fast", use_cache=False)
+    generator.current_model = "stale/provider"
+    generator.generate("q", "", task_type="chat", reasoning_mode="deep", use_cache=False)
+
+    assert captured_models == ["route:chat:fast", "route:chat:deep"]
