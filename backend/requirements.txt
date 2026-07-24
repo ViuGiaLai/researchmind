@@ -39,7 +39,7 @@ python-louvain==0.16.*   # community detection (always available fallback)
 
 # Tests
 pytest==9.*
-pytest-asyncio==1.3.*
+pytest-asyncio==1.4.*
 pytest-timeout==2.*
 
 # External Search
