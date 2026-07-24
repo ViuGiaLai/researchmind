@@ -1,4 +1,5 @@
 """Tool registry — single lookup point for all academic tools."""
+
 from __future__ import annotations
 
 from .auto_fixer import AutoFixerTool

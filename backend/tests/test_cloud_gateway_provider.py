@@ -10,12 +10,20 @@ def test_hosted_gateway_preserves_task_and_forwards_user_token():
     def handler(request: httpx.Request) -> httpx.Response:
         seen["authorization"] = request.headers.get("authorization")
         seen["payload"] = __import__("json").loads(request.content)
-        return httpx.Response(200, json={
-            "content": "Supported result [Paper A, page 2].",
-            "provider": "gemini", "model": "flash", "finish_reason": "stop",
-            "primary_provider": "gemini", "selected_provider": "gemini",
-            "fallback_used": False, "fallback_reason": "", "routing_key": "review",
-        })
+        return httpx.Response(
+            200,
+            json={
+                "content": "Supported result [Paper A, page 2].",
+                "provider": "gemini",
+                "model": "flash",
+                "finish_reason": "stop",
+                "primary_provider": "gemini",
+                "selected_provider": "gemini",
+                "fallback_used": False,
+                "fallback_reason": "",
+                "routing_key": "review",
+            },
+        )
 
     generator = Generator(
         researchmind_cloud_url="https://gateway.example",
@@ -52,6 +60,7 @@ def test_settings_can_initialize_without_env_file(monkeypatch):
     assert clean.host == "127.0.0.1"
     assert clean.gemini_api_key == ""
 
+
 def test_stream_generate_forwards_rag_task_and_reasoning_mode():
     generator = Generator(researchmind_cloud_url="https://gateway.example", mode="cloud_free")
     captured = {}
@@ -62,12 +71,14 @@ def test_stream_generate_forwards_rag_task_and_reasoning_mode():
         yield "hello"
 
     generator._stream_chain = fake_stream_chain
-    result = list(generator.stream_generate(
-        "question",
-        "Document context long enough to use the evidence-aware RAG path.",
-        reasoning_mode="fast",
-        task_type="rag",
-    ))
+    result = list(
+        generator.stream_generate(
+            "question",
+            "Document context long enough to use the evidence-aware RAG path.",
+            reasoning_mode="fast",
+            task_type="rag",
+        )
+    )
 
     assert result == ["hello"]
     assert captured["task_type_argument"] == "rag"

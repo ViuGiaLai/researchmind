@@ -1,4 +1,5 @@
 """Writing Agent — synthesis and report generation using governance contracts."""
+
 from __future__ import annotations
 
 from loguru import logger
@@ -12,6 +13,7 @@ class WritingAgent(BaseAgent):
     No external tools — uses LLM with task_contract('report_writing').
     All rules and knowledge come from governance layer.
     """
+
     name = "writing_agent"
     allowed_tools = ()
 
@@ -51,6 +53,4 @@ class WritingAgent(BaseAgent):
             )
         except Exception as exc:
             logger.error(f"WritingAgent error: {exc}")
-            return AgentResult(
-                agent=self.name, step="synthesize", success=False, errors=[str(exc)]
-            )
+            return AgentResult(agent=self.name, step="synthesize", success=False, errors=[str(exc)])

@@ -30,11 +30,7 @@ def _serialize_dataclass(obj: Any) -> dict[str, Any]:
 class _GraphEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if is_dataclass(obj):
-            return {
-                key: value
-                for key, value in asdict(obj).items()
-                if value is not None
-            }
+            return {key: value for key, value in asdict(obj).items() if value is not None}
         if isinstance(obj, uuid.UUID):
             return str(obj)
         if isinstance(obj, set):
@@ -80,11 +76,7 @@ class KnowledgeGraph:
         normalized = title.casefold()
         with self._lock:
             return next(
-                (
-                    entity
-                    for entity in self.entities.values()
-                    if entity.title.casefold() == normalized
-                ),
+                (entity for entity in self.entities.values() if entity.title.casefold() == normalized),
                 None,
             )
 
@@ -94,8 +86,7 @@ class KnowledgeGraph:
             return [
                 relationship
                 for relationship in self.relationships.values()
-                if relationship.source.casefold() == normalized
-                or relationship.target.casefold() == normalized
+                if relationship.source.casefold() == normalized or relationship.target.casefold() == normalized
             ]
 
     def get_neighbor_entities(self, title: str) -> list[GraphEntity]:
@@ -107,11 +98,7 @@ class KnowledgeGraph:
                     neighbor_titles.add(relationship.target.casefold())
                 elif relationship.target.casefold() == normalized:
                     neighbor_titles.add(relationship.source.casefold())
-            return [
-                entity
-                for entity in self.entities.values()
-                if entity.title.casefold() in neighbor_titles
-            ]
+            return [entity for entity in self.entities.values() if entity.title.casefold() in neighbor_titles]
 
     def clear(self) -> None:
         with self._lock:
@@ -135,25 +122,11 @@ class KnowledgeGraph:
         """Return a consistent serialization snapshot while mutations are paused."""
         with self._lock:
             return {
-                "entities": [
-                    _serialize_dataclass(entity) for entity in self.entities.values()
-                ],
-                "relationships": [
-                    _serialize_dataclass(relationship)
-                    for relationship in self.relationships.values()
-                ],
-                "communities": [
-                    _serialize_dataclass(community)
-                    for community in self.communities.values()
-                ],
-                "community_reports": [
-                    _serialize_dataclass(report)
-                    for report in self.community_reports.values()
-                ],
-                "text_units": [
-                    _serialize_dataclass(text_unit)
-                    for text_unit in self.text_units.values()
-                ],
+                "entities": [_serialize_dataclass(entity) for entity in self.entities.values()],
+                "relationships": [_serialize_dataclass(relationship) for relationship in self.relationships.values()],
+                "communities": [_serialize_dataclass(community) for community in self.communities.values()],
+                "community_reports": [_serialize_dataclass(report) for report in self.community_reports.values()],
+                "text_units": [_serialize_dataclass(text_unit) for text_unit in self.text_units.values()],
             }
 
 

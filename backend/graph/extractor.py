@@ -22,7 +22,9 @@ from .models import GraphEntity, GraphRelationship
 
 GRAPH_SCHEMA = get_academic_governance().graph_extraction_schema()
 GRAPH_EXTRACTION_PROMPT = GRAPH_SCHEMA.prompt
-CONTINUE_PROMPT = "Extract only additional explicitly supported records using the same schema; end with the completion delimiter."
+CONTINUE_PROMPT = (
+    "Extract only additional explicitly supported records using the same schema; end with the completion delimiter."
+)
 LOOP_PROMPT = "Answer Y only if an explicitly supported record is still absent; otherwise answer N."
 # ── Parser Constants ─────────────────────────────────────────────
 
@@ -51,7 +53,7 @@ def _truncate_to_tokens(text: str, max_chars: int) -> str:
     for boundary in (". ", "!\n", "?\n", "\n\n"):
         pos = truncated.rfind(boundary)
         if pos > max_chars // 2:
-            return truncated[:pos + 1]
+            return truncated[: pos + 1]
     return truncated
 
 
@@ -73,25 +75,29 @@ def _parse_extraction_result(result: str, source_id: str) -> tuple[list[dict[str
         record_type = parts[0].strip().lower().strip('"')
 
         if record_type == "entity" and len(parts) >= 4:
-            entities.append({
-                "title": _clean_str(parts[1]).upper(),
-                "type": _clean_str(parts[2]).upper(),
-                "description": _clean_str(parts[3]),
-                "source_id": source_id,
-            })
+            entities.append(
+                {
+                    "title": _clean_str(parts[1]).upper(),
+                    "type": _clean_str(parts[2]).upper(),
+                    "description": _clean_str(parts[3]),
+                    "source_id": source_id,
+                }
+            )
 
         if record_type == "relationship" and len(parts) >= 5:
             try:
                 weight = float(parts[4].strip().strip('"'))
             except (ValueError, IndexError):
                 weight = 1.0
-            relationships.append({
-                "source": _clean_str(parts[1]).upper(),
-                "target": _clean_str(parts[2]).upper(),
-                "description": _clean_str(parts[3]),
-                "weight": weight,
-                "source_id": source_id,
-            })
+            relationships.append(
+                {
+                    "source": _clean_str(parts[1]).upper(),
+                    "target": _clean_str(parts[2]).upper(),
+                    "description": _clean_str(parts[3]),
+                    "weight": weight,
+                    "source_id": source_id,
+                }
+            )
 
     return entities, relationships
 
@@ -135,6 +141,7 @@ def _ensure_not_cancelled() -> None:
 
 # ── Main Extraction Function ─────────────────────────────────────
 
+
 async def extract_entities_and_relationships(
     text: str,
     source_id: str,
@@ -156,9 +163,17 @@ async def extract_entities_and_relationships(
 
     if entity_types is None:
         entity_types = [
-            "CONCEPT", "METHOD", "DATASET", "METRIC",
-            "MODEL", "ALGORITHM", "ARCHITECTURE",
-            "TASK", "DOMAIN", "PERSON", "ORGANIZATION",
+            "CONCEPT",
+            "METHOD",
+            "DATASET",
+            "METRIC",
+            "MODEL",
+            "ALGORITHM",
+            "ARCHITECTURE",
+            "TASK",
+            "DOMAIN",
+            "PERSON",
+            "ORGANIZATION",
         ]
 
     # Skip gleaning for very short chunks — extraction is usually sufficient in one pass
@@ -236,7 +251,10 @@ async def extract_entities_and_relationships(
     allowed_entity_types = {item.upper() for item in entity_types}
     raw_entities = [entity for entity in raw_entities if entity["type"] in allowed_entity_types]
     raw_relationships = [
-        {**relationship, "weight": max(GRAPH_SCHEMA.weight_minimum, min(relationship["weight"], GRAPH_SCHEMA.weight_maximum))}
+        {
+            **relationship,
+            "weight": max(GRAPH_SCHEMA.weight_minimum, min(relationship["weight"], GRAPH_SCHEMA.weight_maximum)),
+        }
         for relationship in raw_relationships
     ]
 

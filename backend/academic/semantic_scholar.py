@@ -54,7 +54,9 @@ async def get_paper_by_id(s2_id: str, timeout: float = 5.0) -> S2Paper | None:
         try:
             resp = await client.get(
                 f"{S2_BASE}/paper/{s2_id}",
-                params={"fields": "title,year,citationCount,influentialCitationCount,authors,externalIds,abstract,venue"},
+                params={
+                    "fields": "title,year,citationCount,influentialCitationCount,authors,externalIds,abstract,venue"
+                },
                 headers=HEADERS,
             )
             if resp.status_code != 200:
@@ -70,7 +72,9 @@ async def get_paper_by_doi(doi: str, timeout: float = 5.0) -> S2Paper | None:
         try:
             resp = await client.get(
                 f"{S2_BASE}/paper/DOI:{doi_clean}",
-                params={"fields": "title,year,citationCount,influentialCitationCount,authors,externalIds,abstract,venue,citationStyles"},
+                params={
+                    "fields": "title,year,citationCount,influentialCitationCount,authors,externalIds,abstract,venue,citationStyles"
+                },
                 headers=HEADERS,
             )
             if resp.status_code != 200:
@@ -148,9 +152,7 @@ async def get_recommendations(
             return []
 
 
-async def get_batch_papers(
-    s2_ids: list[str], timeout: float = 15.0
-) -> list[S2Paper | None]:
+async def get_batch_papers(s2_ids: list[str], timeout: float = 15.0) -> list[S2Paper | None]:
     async with httpx.AsyncClient(timeout=timeout):
         results = []
         for s2_id in s2_ids:

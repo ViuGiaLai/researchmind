@@ -39,6 +39,7 @@ jobs_router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
 
 # ─── Helpers ─────────────────────────────────────────────────────
 
+
 def _parse_authors(authors_str: str) -> list[str]:
     if not authors_str:
         return []
@@ -57,6 +58,7 @@ def _parse_authors(authors_str: str) -> list[str]:
         pass
 
     import re
+
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
     return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
 
@@ -73,14 +75,14 @@ def _resolve_doc_title(doc, original_filename: str | None = None) -> str:
 
 def _parse_highlights_json(content: str) -> list[dict]:
     content = content.strip()
-    start = content.find('[')
-    end = content.rfind(']')
+    start = content.find("[")
+    end = content.rfind("]")
     if start == -1:
         raise ValueError("No JSON array found in response")
     # Models can hit the output-token limit after one or more complete objects.
     # Keep the truncated tail so repair/partial-object extraction can salvage
     # every complete highlight instead of exposing raw JSON to the UI.
-    json_str = content[start:end + 1] if end > start else content[start:]
+    json_str = content[start : end + 1] if end > start else content[start:]
 
     try:
         return _validate_highlights(json.loads(json_str))
@@ -127,11 +129,7 @@ def _validate_highlights(value: object) -> list[dict]:
         if not isinstance(item["note"], str):
             continue
         page_hint = item["page_hint"]
-        if page_hint is not None and (
-            not isinstance(page_hint, int)
-            or isinstance(page_hint, bool)
-            or page_hint < 1
-        ):
+        if page_hint is not None and (not isinstance(page_hint, int) or isinstance(page_hint, bool) or page_hint < 1):
             continue
         valid.append(item)
 
@@ -151,7 +149,7 @@ def _repair_truncated_json(s: str) -> str:
             result.append(ch)
             escape = False
             continue
-        if ch == '\\':
+        if ch == "\\":
             result.append(ch)
             escape = True
             continue
@@ -160,8 +158,8 @@ def _repair_truncated_json(s: str) -> str:
             if ch == quote_char:
                 in_string = False
                 quote_char = None
-            elif ch == '\n':
-                result.append('\\n')
+            elif ch == "\n":
+                result.append("\\n")
         else:
             if ch in ('"', "'"):
                 in_string = True
@@ -171,7 +169,7 @@ def _repair_truncated_json(s: str) -> str:
     if in_string:
         result.append(quote_char)
 
-    s2 = ''.join(result)
+    s2 = "".join(result)
 
     stack = []
     last_valid_end = -1
@@ -182,7 +180,7 @@ def _repair_truncated_json(s: str) -> str:
         if esc:
             esc = False
             continue
-        if ch == '\\':
+        if ch == "\\":
             esc = True
             continue
         if in_str:
@@ -193,9 +191,9 @@ def _repair_truncated_json(s: str) -> str:
         if ch in ('"', "'"):
             in_str = True
             q = ch
-        elif ch in ('[', '{'):
+        elif ch in ("[", "{"):
             stack.append(ch)
-        elif ch in (']', '}'):
+        elif ch in ("]", "}"):
             if stack:
                 stack.pop()
                 if not stack:
@@ -208,10 +206,10 @@ def _repair_truncated_json(s: str) -> str:
 
     if stack:
         if last_valid_end >= 0:
-            s2 = s2[:last_valid_end + 1]
-        close_map = {'[': ']', '{': '}', '"': '"', "'": "'"}
+            s2 = s2[: last_valid_end + 1]
+        close_map = {"[": "]", "{": "}", '"': '"', "'": "'"}
         for b in reversed(stack):
-            s2 += close_map.get(b, ']')
+            s2 += close_map.get(b, "]")
 
     return s2
 
@@ -220,7 +218,7 @@ def _extract_partial_objects(s: str) -> list[dict]:
     objects = []
     i = 0
     while i < len(s):
-        i = s.find('{', i)
+        i = s.find("{", i)
         if i == -1:
             break
         depth = 0
@@ -235,7 +233,7 @@ def _extract_partial_objects(s: str) -> list[dict]:
                     esc = False
                     j += 1
                     continue
-                if ch == '\\':
+                if ch == "\\":
                     esc = True
                     j += 1
                     continue
@@ -247,13 +245,13 @@ def _extract_partial_objects(s: str) -> list[dict]:
                     if ch in ('"', "'"):
                         in_str = True
                         quote = ch
-                    elif ch == '{':
+                    elif ch == "{":
                         depth += 1
-                    elif ch == '}':
+                    elif ch == "}":
                         depth -= 1
                         if depth == 0:
                             try:
-                                obj = json.loads(s[i:j + 1])
+                                obj = json.loads(s[i : j + 1])
                                 if isinstance(obj, dict):
                                     objects.append(obj)
                             except json.JSONDecodeError:
@@ -280,6 +278,7 @@ def _paper_to_dict(paper) -> dict:
     elif file_ext in IMAGE_EXTENSIONS and Path(paper.file_path).exists():
         # For images, serve the file itself as the thumbnail
         from urllib.parse import quote
+
         fname = Path(paper.file_path).name
         thumbnail_url = f"http://127.0.0.1:{settings.port}/static/papers/{quote(fname)}"
     else:
@@ -401,6 +400,7 @@ def _document_needs_ocr(doc) -> bool:
 
 # ─── Paper Import ────────────────────────────────────────────────
 
+
 @router.post("/import")
 async def import_document(
     file: UploadFile = File(...),
@@ -411,7 +411,7 @@ async def import_document(
     if ext not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file format '{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            detail=f"Unsupported file format '{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
         )
 
     file_id = str(uuid.uuid4())
@@ -499,6 +499,7 @@ async def import_document(
         "is_scanned": False,
     }
 
+
 @router.post("/import/folder")
 async def import_folder(
     folder_path: str = Body(..., embed=True),
@@ -525,19 +526,25 @@ async def import_folder(
             _update_import_job(job_id, status="parsing", stage="parsing", progress=20)
             doc = await asyncio.to_thread(extract_document, str(doc_file))
             if doc is None:
-                _update_import_job(job_id, status="failed", stage="parsing", progress=100, error="Cannot parse document")
-                import_results.append({
-                    "job_id": job_id,
-                    "filename": doc_file.name,
-                    "status": "failed",
-                    "error": "Cannot parse document",
-                })
+                _update_import_job(
+                    job_id, status="failed", stage="parsing", progress=100, error="Cannot parse document"
+                )
+                import_results.append(
+                    {
+                        "job_id": job_id,
+                        "filename": doc_file.name,
+                        "status": "failed",
+                        "error": "Cannot parse document",
+                    }
+                )
                 continue
 
             file_id = str(uuid.uuid4())
             save_path = settings.papers_dir / f"{file_id}_{doc_file.name}"
             shutil.copy2(str(doc_file), str(save_path))
-            _update_import_job(job_id, status="saved", stage="saved", progress=35, paper_id=file_id, file_path=str(save_path))
+            _update_import_job(
+                job_id, status="saved", stage="saved", progress=35, paper_id=file_id, file_path=str(save_path)
+            )
 
             paper_title = _resolve_doc_title(doc, doc_file.name)
 
@@ -564,12 +571,14 @@ async def import_folder(
             except Exception as e:
                 session.rollback()
                 _update_import_job(job_id, status="failed", stage="saved", progress=100, error=str(e))
-                import_results.append({
-                    "job_id": job_id,
-                    "filename": doc_file.name,
-                    "status": "failed",
-                    "error": str(e),
-                })
+                import_results.append(
+                    {
+                        "job_id": job_id,
+                        "filename": doc_file.name,
+                        "status": "failed",
+                        "error": str(e),
+                    }
+                )
                 continue
             finally:
                 session.close()
@@ -580,27 +589,31 @@ async def import_folder(
                 paper_id=file_id,
                 file_path=str(save_path),
                 title=paper_title or doc_file.name,
-                authors=_parse_authors(doc.authors)
+                authors=_parse_authors(doc.authors),
             )
-            import_results.append({
-                "job_id": job_id,
-                "filename": doc_file.name,
-                "status": "indexing",
-                "paper_id": file_id,
-                "pages": doc.page_count,
-                "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
-                "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
-                "is_scanned": bool(getattr(doc, "is_scanned", False)),
-            })
+            import_results.append(
+                {
+                    "job_id": job_id,
+                    "filename": doc_file.name,
+                    "status": "indexing",
+                    "paper_id": file_id,
+                    "pages": doc.page_count,
+                    "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
+                    "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
+                    "is_scanned": bool(getattr(doc, "is_scanned", False)),
+                }
+            )
 
         except Exception as e:
             _update_import_job(job_id, status="failed", stage="import", progress=100, error=str(e))
-            import_results.append({
-                "job_id": job_id,
-                "filename": doc_file.name,
-                "status": "error",
-                "error": str(e),
-            })
+            import_results.append(
+                {
+                    "job_id": job_id,
+                    "filename": doc_file.name,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
 
     return {
         "total": len(doc_files),
@@ -612,6 +625,7 @@ async def import_folder(
 async def import_metadata(body: dict = Body(...)):
     """Import a paper by metadata (no PDF). Creates a stub Paper record."""
     from db.models import Paper as PaperModel
+
     doi = (body.get("doi") or "").strip()
     title = (body.get("title") or "Untitled").strip()
     authors = body.get("authors", [])
@@ -624,7 +638,7 @@ async def import_metadata(body: dict = Body(...)):
     session = get_session(state.engine)
     try:
         file_id = str(uuid.uuid4())
-        safe_name = re.sub(r'[^\w\- ]', '', title)[:60]
+        safe_name = re.sub(r"[^\w\- ]", "", title)[:60]
         file_path = str(settings.papers_dir / f"metadata_{file_id}_{safe_name}.pdf")
 
         paper = PaperModel(
@@ -660,8 +674,84 @@ def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
 
     # Define standard stopwords for Vietnamese and English
     stopwords = {
-        "và", "hoặc", "của", "cho", "trong", "ngoài", "là", "bởi", "tại", "với", "các", "những", "cái", "được", "bị", "ra", "vào", "lên", "xuống", "đến", "đi", "này", "kia", "đó", "ấy", "sự", "cuộc", "việc", "như", "như_vậy", "thế_nào", "vì", "nên", "thì", "mà",
-        "the", "and", "of", "to", "in", "for", "with", "on", "at", "by", "an", "is", "this", "that", "from", "are", "was", "were", "be", "has", "have", "had", "with", "as", "it", "its", "we", "our", "you", "your", "they", "their", "he", "she", "him", "her", "who", "which", "what", "where", "when", "why", "how"
+        "và",
+        "hoặc",
+        "của",
+        "cho",
+        "trong",
+        "ngoài",
+        "là",
+        "bởi",
+        "tại",
+        "với",
+        "các",
+        "những",
+        "cái",
+        "được",
+        "bị",
+        "ra",
+        "vào",
+        "lên",
+        "xuống",
+        "đến",
+        "đi",
+        "này",
+        "kia",
+        "đó",
+        "ấy",
+        "sự",
+        "cuộc",
+        "việc",
+        "như",
+        "như_vậy",
+        "thế_nào",
+        "vì",
+        "nên",
+        "thì",
+        "mà",
+        "the",
+        "and",
+        "of",
+        "to",
+        "in",
+        "for",
+        "with",
+        "on",
+        "at",
+        "by",
+        "an",
+        "is",
+        "this",
+        "that",
+        "from",
+        "are",
+        "was",
+        "were",
+        "be",
+        "has",
+        "have",
+        "had",
+        "with",
+        "as",
+        "it",
+        "its",
+        "we",
+        "our",
+        "you",
+        "your",
+        "they",
+        "their",
+        "he",
+        "she",
+        "him",
+        "her",
+        "who",
+        "which",
+        "what",
+        "where",
+        "when",
+        "why",
+        "how",
     }
 
     # Normalize text
@@ -679,10 +769,15 @@ def _extract_keywords_local(text: str, top_n: int = 5) -> list[str]:
     # Extract bigrams
     bigrams = []
     for i in range(len(words) - 1):
-        w1, w2 = words[i], words[i+1]
-        if (len(w1) > 2 and len(w2) > 2 and
-            w1 not in stopwords and w2 not in stopwords and
-            not w1.isdigit() and not w2.isdigit()):
+        w1, w2 = words[i], words[i + 1]
+        if (
+            len(w1) > 2
+            and len(w2) > 2
+            and w1 not in stopwords
+            and w2 not in stopwords
+            and not w1.isdigit()
+            and not w2.isdigit()
+        ):
             bigrams.append(f"{w1} {w2}")
 
     bigram_counts = Counter(bigrams)
@@ -749,19 +844,21 @@ def _parse_and_index_image_paper(
     paper_title = _resolve_doc_title(doc, filename)
     session = get_session(state.engine)
     try:
-        session.query(Paper).filter(Paper.id == file_id).update({
-            "title": paper_title,
-            "authors": json.dumps(_parse_authors(doc.authors), ensure_ascii=False),
-            "year": doc.year,
-            "doi": doc.doi,
-            "page_count": doc.page_count,
-            "file_size": doc.file_size,
-            "language": doc.language,
-            "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
-            "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
-            "is_scanned": 1 if getattr(doc, "is_scanned", False) else 0,
-            "status": "indexing",
-        })
+        session.query(Paper).filter(Paper.id == file_id).update(
+            {
+                "title": paper_title,
+                "authors": json.dumps(_parse_authors(doc.authors), ensure_ascii=False),
+                "year": doc.year,
+                "doi": doc.doi,
+                "page_count": doc.page_count,
+                "file_size": doc.file_size,
+                "language": doc.language,
+                "ocr_pages_count": getattr(doc, "ocr_pages_count", 0),
+                "ocr_pages_failed": getattr(doc, "ocr_pages_failed", 0),
+                "is_scanned": 1 if getattr(doc, "is_scanned", False) else 0,
+                "status": "indexing",
+            }
+        )
         session.commit()
     finally:
         session.close()
@@ -778,12 +875,14 @@ def _parse_and_index_image_paper(
             authors = [a.strip() for a in doc.authors.split(",") if a.strip()]
 
     try:
-        asyncio.run(_enrich_paper_background(
-            paper_id=file_id,
-            file_path=file_path,
-            title=paper_title or filename,
-            authors=authors,
-        ))
+        asyncio.run(
+            _enrich_paper_background(
+                paper_id=file_id,
+                file_path=file_path,
+                title=paper_title or filename,
+                authors=authors,
+            )
+        )
     except Exception:
         pass
 
@@ -854,12 +953,14 @@ def _parse_and_index_document_paper(
     _index_paper(file_id, doc, job_id)
 
     try:
-        asyncio.run(_enrich_paper_background(
-            paper_id=file_id,
-            file_path=file_path,
-            title=paper_title or filename,
-            authors=_parse_authors(doc.authors),
-        ))
+        asyncio.run(
+            _enrich_paper_background(
+                paper_id=file_id,
+                file_path=file_path,
+                title=paper_title or filename,
+                authors=_parse_authors(doc.authors),
+            )
+        )
     except Exception:
         pass
 
@@ -950,8 +1051,12 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
             logger.warning(f"Keyword extraction failed for {doc.filename}: {kw_err}")
 
         try:
-            intro_chunks = session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
-            conclusion_chunk = session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.desc()).first()
+            intro_chunks = (
+                session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
+            )
+            conclusion_chunk = (
+                session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.desc()).first()
+            )
 
             summary_context = "\n".join([c.content for c in intro_chunks])
             if conclusion_chunk and conclusion_chunk.chunk_index > 2:
@@ -974,9 +1079,7 @@ Do not infer contributions or limitations that are absent from the context. Pres
             )
 
             if result and result.content:
-                session.query(Paper).filter(Paper.id == file_id).update({
-                    "auto_summary": result.content
-                })
+                session.query(Paper).filter(Paper.id == file_id).update({"auto_summary": result.content})
                 session.commit()
                 logger.info(f"Generated auto-summary for {doc.filename}")
         except Exception as sum_err:
@@ -1006,19 +1109,11 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
         from academic.doi_extractor import extract_doi_from_paper
         from academic.openalex import get_work_by_doi as oa_get
 
-        doi = await extract_doi_from_paper(
-            pdf_path=file_path,
-            title=title,
-            authors=authors
-        )
+        doi = await extract_doi_from_paper(pdf_path=file_path, title=title, authors=authors)
         if not doi:
             return
 
-        oa, cr = await asyncio.gather(
-            oa_get(doi),
-            cr_get(doi),
-            return_exceptions=True
-        )
+        oa, cr = await asyncio.gather(oa_get(doi), cr_get(doi), return_exceptions=True)
 
         if isinstance(oa, Exception):
             oa = None
@@ -1026,26 +1121,34 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
             cr = None
 
         if oa:
-            cache_set(f"oa:{doi}", "openalex", {
-                "openalex_id": oa.openalex_id,
-                "doi": oa.doi,
-                "title": oa.title,
-                "publication_year": oa.publication_year,
-                "citation_count": oa.citation_count,
-                "related_work_ids": oa.related_work_ids,
-                "referenced_work_ids": oa.referenced_work_ids,
-            })
+            cache_set(
+                f"oa:{doi}",
+                "openalex",
+                {
+                    "openalex_id": oa.openalex_id,
+                    "doi": oa.doi,
+                    "title": oa.title,
+                    "publication_year": oa.publication_year,
+                    "citation_count": oa.citation_count,
+                    "related_work_ids": oa.related_work_ids,
+                    "referenced_work_ids": oa.referenced_work_ids,
+                },
+            )
         if cr:
-            cache_set(f"cr:{doi}", "crossref", {
-                "doi": cr.doi,
-                "title": cr.title,
-                "authors": cr.authors,
-                "journal": cr.journal,
-                "year": cr.year,
-                "publisher": cr.publisher,
-                "citation_count": cr.citation_count,
-                "is_valid": cr.is_valid,
-            })
+            cache_set(
+                f"cr:{doi}",
+                "crossref",
+                {
+                    "doi": cr.doi,
+                    "title": cr.title,
+                    "authors": cr.authors,
+                    "journal": cr.journal,
+                    "year": cr.year,
+                    "publisher": cr.publisher,
+                    "citation_count": cr.citation_count,
+                    "is_valid": cr.is_valid,
+                },
+            )
 
         session = get_session(state.engine)
         try:
@@ -1056,8 +1159,7 @@ async def _enrich_paper_background(paper_id: str, file_path: str, title: str, au
                 if not current_authors and cr and cr.is_valid and cr.authors:
                     paper.authors = json.dumps(clean_authors(cr.authors), ensure_ascii=False)
                 authoritative_year = (
-                    cr.year if cr and cr.is_valid and cr.year
-                    else (oa.publication_year if oa else None)
+                    cr.year if cr and cr.is_valid and cr.year else (oa.publication_year if oa else None)
                 )
                 if authoritative_year:
                     paper.year = int(authoritative_year)
@@ -1264,7 +1366,10 @@ async def stream_import_jobs(ids: str = Query(...)):
                 last_payload = payload
                 yield f"data: {payload}\n\n"
 
-            if payload_jobs and all(job["status"] not in {"queued", "saved", "parsing", "indexing", "summarizing", "enriching"} for job in payload_jobs):
+            if payload_jobs and all(
+                job["status"] not in {"queued", "saved", "parsing", "indexing", "summarizing", "enriching"}
+                for job in payload_jobs
+            ):
                 yield f"data: {json.dumps({'type': 'done', 'jobs': payload_jobs}, ensure_ascii=False)}\n\n"
                 return
 
@@ -1296,6 +1401,7 @@ async def retry_import_job(job_id: str, background_tasks: BackgroundTasks):
 
 
 # ─── Paper CRUD ──────────────────────────────────────────────────
+
 
 @router.get("")
 async def list_papers(
@@ -1483,8 +1589,12 @@ async def regenerate_summary(paper_id: str):
         if not paper:
             raise HTTPException(status_code=404, detail="Paper not found")
 
-        intro_chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
-        conclusion_chunk = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.desc()).first()
+        intro_chunks = (
+            session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
+        )
+        conclusion_chunk = (
+            session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.desc()).first()
+        )
 
         if not intro_chunks:
             raise HTTPException(status_code=400, detail="Paper has no indexed chunks yet")
@@ -1504,6 +1614,7 @@ Use this Markdown format:
 Do not infer contributions or limitations that are absent from the context. Preserve technical terms and numerical results. Write concisely in the output language specified by the system."""
 
         import asyncio
+
         result = await asyncio.to_thread(
             state.generator.generate,
             query=summary_prompt,
@@ -1599,6 +1710,7 @@ async def get_paper_viewer(paper_id: str, hl: str = Query(""), page: int = Query
         pdf_bytes = add_highlights_to_pdf(str(path), highlights)
         media_type = "application/pdf"
         from fastapi.responses import Response
+
         return Response(
             content=pdf_bytes,
             media_type=media_type,
@@ -1737,13 +1849,15 @@ async def find_related_papers(paper_id: str, limit: int = Query(5)):
         related_papers = []
         for pid, data in all_related.items():
             avg_score = sum(data["scores"]) / len(data["scores"])
-            related_papers.append({
-                "paper_id": pid,
-                "title": data["title"],
-                "similarity": round(avg_score, 4),
-                "snippet": data["snippet"],
-                "matching_chunks": len(data["scores"]),
-            })
+            related_papers.append(
+                {
+                    "paper_id": pid,
+                    "title": data["title"],
+                    "similarity": round(avg_score, 4),
+                    "snippet": data["snippet"],
+                    "matching_chunks": len(data["scores"]),
+                }
+            )
 
         related_papers.sort(key=lambda x: x["similarity"], reverse=True)
 
@@ -1816,15 +1930,17 @@ async def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: i
                 seen_chunk_ids.add(chunk_id)
 
                 similarity = 1.0 - distance
-                matches.append({
-                    "chunk_id": chunk_id,
-                    "paper_id": other_paper_id,
-                    "paper_title": metadata.get("paper_title", ""),
-                    "content": search_results["documents"][0][i][:500],
-                    "page_number": metadata.get("page_number"),
-                    "chunk_index": metadata.get("chunk_index"),
-                    "similarity": round(similarity, 4),
-                })
+                matches.append(
+                    {
+                        "chunk_id": chunk_id,
+                        "paper_id": other_paper_id,
+                        "paper_title": metadata.get("paper_title", ""),
+                        "content": search_results["documents"][0][i][:500],
+                        "page_number": metadata.get("page_number"),
+                        "chunk_index": metadata.get("chunk_index"),
+                        "similarity": round(similarity, 4),
+                    }
+                )
 
                 if len(matches) >= limit:
                     break
@@ -1846,6 +1962,7 @@ async def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: i
 
 
 # ─── Citations ───────────────────────────────────────────────────
+
 
 @router.post("/cite")
 async def generate_citations(body: dict):
@@ -1905,7 +2022,7 @@ async def generate_citations(body: dict):
                 else:
                     author_str = ", ".join(authors_list[:3]) + ", et al."
 
-                formatted = f"{author_str}, \"{title}\", {year}"
+                formatted = f'{author_str}, "{title}", {year}'
                 if pages:
                     formatted += f", pp. 1-{pages}"
                 formatted += "."
@@ -1935,7 +2052,7 @@ async def generate_citations(body: dict):
                     else:
                         parts = first_author.strip().split()
                         last_name = parts[-1] if parts else "unknown"
-                    cite_key = re.sub(r'[^a-zA-Z0-9_]', '', last_name.lower())[:20]
+                    cite_key = re.sub(r"[^a-zA-Z0-9_]", "", last_name.lower())[:20]
                 else:
                     cite_key = "unknown"
                 year_bib = str(year) if year != "n.d." else "n.d."
@@ -1988,9 +2105,11 @@ async def generate_citations(body: dict):
                 if pages_str:
                     entry_html_lines.append(f'    <span class="cite-pages">{pages_str}</span>')
                 if doi_str:
-                    entry_html_lines.append(f'    <span class="cite-doi">DOI: <a href="https://doi.org/{_escape_html(doi_str)}" target="_blank">{_escape_html(doi_str)}</a></span>')
-                entry_html_lines.append('  </div>')
-                entry_html_lines.append('</div>')
+                    entry_html_lines.append(
+                        f'    <span class="cite-doi">DOI: <a href="https://doi.org/{_escape_html(doi_str)}" target="_blank">{_escape_html(doi_str)}</a></span>'
+                    )
+                entry_html_lines.append("  </div>")
+                entry_html_lines.append("</div>")
                 formatted = "\n".join(entry_html_lines)
 
             else:
@@ -2008,16 +2127,18 @@ async def generate_citations(body: dict):
                 if doi:
                     formatted += f" doi: {doi}."
 
-            citations.append({
-                "paper_id": paper.id,
-                "title": title,
-                "authors": authors_list,
-                "year": year,
-                "doi": doi,
-                "pages": pages,
-                "formatted": formatted,
-                "style": style,
-            })
+            citations.append(
+                {
+                    "paper_id": paper.id,
+                    "title": title,
+                    "authors": authors_list,
+                    "year": year,
+                    "doi": doi,
+                    "pages": pages,
+                    "formatted": formatted,
+                    "style": style,
+                }
+            )
 
         if style == "html":
             entries = "\n".join([c["formatted"] for c in citations])
@@ -2069,6 +2190,7 @@ async def generate_citations(body: dict):
 
 
 # ─── Highlights ──────────────────────────────────────────────────
+
 
 @router.get("/{paper_id}/highlights")
 async def get_paper_highlights(paper_id: str, limit: int = Query(10)):
@@ -2129,12 +2251,12 @@ Use only verbatim text found in the supplied excerpts. Do not reconstruct or par
         try:
             content = (generation.content or "").strip()
             if content.startswith("```"):
-                fences = re.findall(r'```', content)
+                fences = re.findall(r"```", content)
                 if len(fences) >= 2:
-                    content = content.split('\n', 1)[-1]
-                    content = content.rsplit('```', 1)[0].strip()
+                    content = content.split("\n", 1)[-1]
+                    content = content.rsplit("```", 1)[0].strip()
                 elif len(fences) == 1:
-                    content = content.replace('```', '').strip()
+                    content = content.replace("```", "").strip()
             highlights = _parse_highlights_json(content)
         except Exception as parse_err:
             logger.warning(f"Failed to parse highlights JSON: {parse_err}")

@@ -23,6 +23,7 @@ from typing import Any
 @dataclass
 class AcademicVerdict:
     """Final verdict — determined by rule engines, NOT the LLM."""
+
     verdict: str  # "supported" | "partially_supported" | "inconclusive" | "contradicted"
     reason: str
     determined_by: str = "AcademicVerificationEngine"
@@ -31,6 +32,7 @@ class AcademicVerdict:
 @dataclass
 class AcademicBasis:
     """What rules and methods were applied."""
+
     rules_applied: list[str] = field(default_factory=list)
     verification_methods: list[str] = field(default_factory=list)
     standards_used: list[str] = field(default_factory=list)
@@ -39,6 +41,7 @@ class AcademicBasis:
 @dataclass
 class EvidenceItem:
     """A single verified evidence finding."""
+
     check_name: str
     finding: str
     source: str  # "Local PDF" | "Crossref" | "OpenAlex" | "Semantic Scholar"
@@ -49,21 +52,25 @@ class EvidenceItem:
 @dataclass
 class EvidenceSection:
     """All evidence findings grouped by category."""
+
     items: list[EvidenceItem] = field(default_factory=list)
 
     def add(self, check_name: str, finding: str, source: str, confidence: str, status: str = "pass"):
-        self.items.append(EvidenceItem(
-            check_name=check_name,
-            finding=finding,
-            source=source,
-            confidence=confidence,
-            status=status,
-        ))
+        self.items.append(
+            EvidenceItem(
+                check_name=check_name,
+                finding=finding,
+                source=source,
+                confidence=confidence,
+                status=status,
+            )
+        )
 
 
 @dataclass
 class Limitation:
     """Something that could not be verified."""
+
     item: str
     detail: str
     impact: str  # "high" | "medium" | "low"
@@ -72,6 +79,7 @@ class Limitation:
 @dataclass
 class LimitationsSection:
     """What could NOT be verified."""
+
     unverifiable_items: list[Limitation] = field(default_factory=list)
     missing_data: list[str] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
@@ -80,6 +88,7 @@ class LimitationsSection:
 @dataclass
 class ConfidenceSection:
     """Overall confidence level and reasoning."""
+
     level: str  # "High" | "Medium" | "Low"
     reasoning: str = ""
     score: float = 0.0  # 0.0 - 1.0
@@ -88,6 +97,7 @@ class ConfidenceSection:
 @dataclass
 class NextStepsSection:
     """Concrete actions for the user."""
+
     steps: list[str] = field(default_factory=list)
 
 
@@ -98,6 +108,7 @@ class VerifyReport:
     All fields are populated by rule engines. The LLM receives this
     as structured JSON and ONLY formats it into natural language.
     """
+
     query: str = ""
     papers_analysed: list[str] = field(default_factory=list)
     academic_verdict: AcademicVerdict = field(default_factory=AcademicVerdict)
@@ -259,8 +270,7 @@ class VerifyReportBuilder:
         else:
             self.report.confidence.level = "Low"
         self.report.confidence.reasoning = (
-            f"{'All' if pass_rate == 1.0 else f'{int(pass_rate * 100)}% of'} "
-            f"verification checks passed."
+            f"{'All' if pass_rate == 1.0 else f'{int(pass_rate * 100)}% of'} verification checks passed."
         )
 
         # ── Limitations ──
@@ -330,9 +340,7 @@ class VerifyReportBuilder:
 
         # Next steps from venue audit
         if overall_score < 80:
-            self.report.next_steps.steps.append(
-                f"Improve venue compliance: current score is {overall_score}%."
-            )
+            self.report.next_steps.steps.append(f"Improve venue compliance: current score is {overall_score}%.")
 
     def apply_ontology_reasoning(self, reasoning: dict[str, list] | None):
         """Apply ontology-based reasoning results."""
@@ -344,8 +352,8 @@ class VerifyReportBuilder:
         unsupported = reasoning.get("unsupported_assertions", [])
 
         for claim in sota_claims[:5]:
-            stmt = claim.statement if hasattr(claim, 'statement') else claim.get('statement', '')
-            conf = claim.confidence if hasattr(claim, 'confidence') else claim.get('confidence', 0)
+            stmt = claim.statement if hasattr(claim, "statement") else claim.get("statement", "")
+            conf = claim.confidence if hasattr(claim, "confidence") else claim.get("confidence", 0)
             self.report.evidence.add(
                 check_name="SOTA Detection",
                 finding=f"🏆 {stmt}",
@@ -355,8 +363,8 @@ class VerifyReportBuilder:
             )
 
         for conflict in conflicts[:3]:
-            stmt = conflict.statement if hasattr(conflict, 'statement') else conflict.get('statement', '')
-            conf = conflict.confidence if hasattr(conflict, 'confidence') else conflict.get('confidence', 0)
+            stmt = conflict.statement if hasattr(conflict, "statement") else conflict.get("statement", "")
+            conf = conflict.confidence if hasattr(conflict, "confidence") else conflict.get("confidence", 0)
             self.report.evidence.add(
                 check_name="Evidence Conflict",
                 finding=f"⚡ {stmt}",
@@ -366,7 +374,7 @@ class VerifyReportBuilder:
             )
 
         for assertion in unsupported[:3]:
-            stmt = assertion.statement if hasattr(assertion, 'statement') else assertion.get('statement', '')
+            stmt = assertion.statement if hasattr(assertion, "statement") else assertion.get("statement", "")
             self.report.evidence.add(
                 check_name="Unsupported Assertion",
                 finding=f"❓ {stmt}",
@@ -381,10 +389,22 @@ class VerifyReportBuilder:
             return
 
         for counter in refutation_results[:5]:
-            severity = counter.severity if hasattr(counter, 'severity') else counter.get('severity', 'moderate')
-            angle = counter.refutation_angle if hasattr(counter, 'refutation_angle') else counter.get('refutation_angle', '')
-            challenge = counter.counter_statement if hasattr(counter, 'counter_statement') else counter.get('counter_statement', '')
-            experiment = counter.suggested_experiment if hasattr(counter, 'suggested_experiment') else counter.get('suggested_experiment', '')
+            severity = counter.severity if hasattr(counter, "severity") else counter.get("severity", "moderate")
+            angle = (
+                counter.refutation_angle
+                if hasattr(counter, "refutation_angle")
+                else counter.get("refutation_angle", "")
+            )
+            challenge = (
+                counter.counter_statement
+                if hasattr(counter, "counter_statement")
+                else counter.get("counter_statement", "")
+            )
+            experiment = (
+                counter.suggested_experiment
+                if hasattr(counter, "suggested_experiment")
+                else counter.get("suggested_experiment", "")
+            )
 
             self.report.evidence.add(
                 check_name=f"Refutation ({angle})",
@@ -394,9 +414,7 @@ class VerifyReportBuilder:
                 status="warning" if severity == "critical" else "pass",
             )
 
-            self.report.next_steps.steps.append(
-                f"[Refutation] {experiment}"
-            )
+            self.report.next_steps.steps.append(f"[Refutation] {experiment}")
 
     def apply_external_data(self, external_data: list, verify_status: str = "local_only"):
         """Apply external academic database findings."""
@@ -404,23 +422,21 @@ class VerifyReportBuilder:
             self.report.limitations.missing_data.append(
                 "No external academic data (OpenAlex/Crossref/Semantic Scholar)"
             )
-            self.report.limitations.assumptions.append(
-                "Verification is based solely on local PDF content"
-            )
+            self.report.limitations.assumptions.append("Verification is based solely on local PDF content")
             return
 
         for ep in external_data[:3]:
-            ep.get('doi', '') if isinstance(ep, dict) else getattr(ep, 'doi', '')
-            title = ep.get('title', '') if isinstance(ep, dict) else getattr(ep, 'title', '')
+            ep.get("doi", "") if isinstance(ep, dict) else getattr(ep, "doi", "")
+            title = ep.get("title", "") if isinstance(ep, dict) else getattr(ep, "title", "")
 
-            oa = ep.get('openalex', None) if isinstance(ep, dict) else getattr(ep, 'openalex', None)
-            cr = ep.get('crossref', None) if isinstance(ep, dict) else getattr(ep, 'crossref', None)
+            oa = ep.get("openalex", None) if isinstance(ep, dict) else getattr(ep, "openalex", None)
+            cr = ep.get("crossref", None) if isinstance(ep, dict) else getattr(ep, "crossref", None)
 
             if cr:
-                authors = cr.get('authors', []) if isinstance(cr, dict) else getattr(cr, 'authors', [])
-                journal = cr.get('journal', '') if isinstance(cr, dict) else getattr(cr, 'journal', '')
-                year = cr.get('year', '') if isinstance(cr, dict) else getattr(cr, 'year', '')
-                cite_count = cr.get('citation_count', 0) if isinstance(cr, dict) else getattr(cr, 'citation_count', 0)
+                authors = cr.get("authors", []) if isinstance(cr, dict) else getattr(cr, "authors", [])
+                journal = cr.get("journal", "") if isinstance(cr, dict) else getattr(cr, "journal", "")
+                year = cr.get("year", "") if isinstance(cr, dict) else getattr(cr, "year", "")
+                cite_count = cr.get("citation_count", 0) if isinstance(cr, dict) else getattr(cr, "citation_count", 0)
                 self.report.evidence.add(
                     check_name="Crossref Validation",
                     finding=f"DOI resolved: {title} ({authors[:2] if authors else 'Unknown'}, {journal}, {year}, {cite_count} citations)",
@@ -430,8 +446,10 @@ class VerifyReportBuilder:
                 )
 
             if oa:
-                oa_cite = oa.get('citation_count', 0) if isinstance(oa, dict) else getattr(oa, 'citation_count', 0)
-                oa_year = oa.get('publication_year', '') if isinstance(oa, dict) else getattr(oa, 'publication_year', '')
+                oa_cite = oa.get("citation_count", 0) if isinstance(oa, dict) else getattr(oa, "citation_count", 0)
+                oa_year = (
+                    oa.get("publication_year", "") if isinstance(oa, dict) else getattr(oa, "publication_year", "")
+                )
                 self.report.evidence.add(
                     check_name="OpenAlex Validation",
                     finding=f"Paper found in OpenAlex ({oa_cite} citations, {oa_year})",
@@ -444,7 +462,7 @@ class VerifyReportBuilder:
         """Apply knowledge graph context."""
         if graph_context and graph_context.strip() and len(graph_context) > 20:
             # Extract first meaningful line as evidence
-            first_line = graph_context.strip().split('\n')[0][:120]
+            first_line = graph_context.strip().split("\n")[0][:120]
             self.report.evidence.add(
                 check_name="Knowledge Graph",
                 finding=first_line or "Entity relationships found in local knowledge graph",
@@ -497,18 +515,10 @@ Format the above JSON into a readable academic audit report following exactly th
     def _add_standard_next_steps(self, result: dict):
         """Add standard next steps based on verification gaps."""
         if not result.get("doi_valid", True):
-            self.report.next_steps.steps.append(
-                "Verify DOI manually on Crossref (https://doi.org/)"
-            )
+            self.report.next_steps.steps.append("Verify DOI manually on Crossref (https://doi.org/)")
         if not result.get("citation_correctness", True):
-            self.report.next_steps.steps.append(
-                "Review citation formatting against venue guidelines"
-            )
+            self.report.next_steps.steps.append("Review citation formatting against venue guidelines")
         if not result.get("reference_exists", True):
-            self.report.next_steps.steps.append(
-                "Check that all references are complete and accessible"
-            )
+            self.report.next_steps.steps.append("Check that all references are complete and accessible")
         if not result.get("venue_compliant", True):
-            self.report.next_steps.steps.append(
-                "Review manuscript against venue submission requirements"
-            )
+            self.report.next_steps.steps.append("Review manuscript against venue submission requirements")

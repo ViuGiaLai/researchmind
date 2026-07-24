@@ -1,4 +1,5 @@
 """Combine local RAG context and external academic data for grounded LLM answers."""
+
 from dataclasses import dataclass, field
 
 from .crossref import CrossrefWork

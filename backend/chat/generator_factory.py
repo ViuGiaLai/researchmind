@@ -1,4 +1,5 @@
 """Build Generator from current settings — shared by main.py startup and settings router."""
+
 from chat.generator_v2 import Generator
 from config.settings import settings
 

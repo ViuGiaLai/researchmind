@@ -9,6 +9,7 @@ Sections:
 6. Discussion (Interpretation, Scope limitations, Broader impact)
 7. Conclusion (Summary of achievements, Future directions)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

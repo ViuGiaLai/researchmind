@@ -75,7 +75,9 @@ def export_paper_to_latex_zip(paper_data: dict[str, Any], template_id: str = "ie
         "\\usepackage{graphicx}",
         "",
         f"\\title{{{_clean_latex_str(title)}}}",
-        f"\\author{{{_clean_latex_str(', '.join(authors)) if authors else 'Anonymized Author'}}}" if not template.get("double_blind") else "\\author{Anonymized for Double-Blind Review}",
+        f"\\author{{{_clean_latex_str(', '.join(authors)) if authors else 'Anonymized Author'}}}"
+        if not template.get("double_blind")
+        else "\\author{Anonymized for Double-Blind Review}",
         "\\date{\\today}",
         "",
         "\\begin{document}",
@@ -84,21 +86,25 @@ def export_paper_to_latex_zip(paper_data: dict[str, Any], template_id: str = "ie
     ]
 
     if abstract:
-        tex_lines.extend([
-            "\\begin{abstract}",
-            _clean_latex_str(abstract),
-            "\\end{abstract}",
-            "",
-        ])
+        tex_lines.extend(
+            [
+                "\\begin{abstract}",
+                _clean_latex_str(abstract),
+                "\\end{abstract}",
+                "",
+            ]
+        )
 
-    tex_lines.extend([
-        "\\section{Introduction}",
-        _clean_latex_str(content if content else "Manuscript content placeholder."),
-        "",
-        "\\bibliographystyle{IEEEtran}" if template_id == "ieee" else "\\bibliographystyle{plain}",
-        "\\bibliography{references}",
-        "\\end{document}",
-    ])
+    tex_lines.extend(
+        [
+            "\\section{Introduction}",
+            _clean_latex_str(content if content else "Manuscript content placeholder."),
+            "",
+            "\\bibliographystyle{IEEEtran}" if template_id == "ieee" else "\\bibliographystyle{plain}",
+            "\\bibliography{references}",
+            "\\end{document}",
+        ]
+    )
 
     tex_content = "\n".join(tex_lines)
     bib_content = build_bibtex_entry(paper_data.get("id", "paper1"), title, authors, year, doi=doi)
@@ -108,6 +114,8 @@ def export_paper_to_latex_zip(paper_data: dict[str, Any], template_id: str = "ie
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         zip_file.writestr("main.tex", tex_content.encode("utf-8"))
         zip_file.writestr("references.bib", bib_content.encode("utf-8"))
-        zip_file.writestr("README.txt", f"Exported from ResearchMind VN\nTemplate: {template['name']}\nDate: {year}\n".encode())
+        zip_file.writestr(
+            "README.txt", f"Exported from ResearchMind VN\nTemplate: {template['name']}\nDate: {year}\n".encode()
+        )
 
     return buffer.getvalue()

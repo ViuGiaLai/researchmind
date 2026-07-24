@@ -54,6 +54,7 @@ def _try_leiden(
     """Try graspologic Leiden, handling API differences across versions."""
     try:
         from graspologic.partition import hierarchical_leiden
+
         result = hierarchical_leiden(
             graph,
             max_cluster_size=max_cluster_size,
@@ -64,6 +65,7 @@ def _try_leiden(
         logger.debug(f"graspologic Leiden failed ({e}), trying graspologic.partition.leiden...")
     try:
         from graspologic.partition import leiden
+
         result = leiden(graph, random_seed=seed)
         return _build_communities_flat(result, entities)
     except (ImportError, AttributeError, TypeError, Exception) as e:
@@ -90,11 +92,7 @@ def _build_communities_from_leiden(
 
     for level in sorted(clusters.keys()):
         for cluster_id, node_names in clusters[level].items():
-            entity_ids = [
-                entity_title_to_id.get(n.upper())
-                for n in node_names
-                if entity_title_to_id.get(n.upper())
-            ]
+            entity_ids = [entity_title_to_id.get(n.upper()) for n in node_names if entity_title_to_id.get(n.upper())]
             parent_id = hierarchy.get(cluster_id)
 
             comm = GraphCommunity(
@@ -123,18 +121,16 @@ def _build_communities_flat(
 
     communities: list[GraphCommunity] = []
     for cluster_id, node_names in cluster_groups.items():
-        entity_ids = [
-            entity_title_to_id.get(n.upper())
-            for n in node_names
-            if entity_title_to_id.get(n.upper())
-        ]
-        communities.append(GraphCommunity(
-            id=str(uuid.uuid4()),
-            title=f"C{cluster_id}",
-            level=0,
-            entity_ids=entity_ids,
-            size=len(node_names),
-        ))
+        entity_ids = [entity_title_to_id.get(n.upper()) for n in node_names if entity_title_to_id.get(n.upper())]
+        communities.append(
+            GraphCommunity(
+                id=str(uuid.uuid4()),
+                title=f"C{cluster_id}",
+                level=0,
+                entity_ids=entity_ids,
+                size=len(node_names),
+            )
+        )
     return communities
 
 
@@ -146,6 +142,7 @@ def _fallback_louvain(
     """Fallback using Louvain from community package."""
     try:
         import community as community_louvain
+
         partition = community_louvain.best_partition(graph, random_state=42)
     except ImportError:
         logger.error("Neither graspologic nor community-louvain available — returning flat communities")
@@ -160,11 +157,7 @@ def _fallback_louvain(
 
     communities: list[GraphCommunity] = []
     for cluster_id, node_names in cluster_groups.items():
-        entity_ids = [
-            entity_title_to_id.get(n.upper())
-            for n in node_names
-            if entity_title_to_id.get(n.upper())
-        ]
+        entity_ids = [entity_title_to_id.get(n.upper()) for n in node_names if entity_title_to_id.get(n.upper())]
         comm = GraphCommunity(
             id=str(uuid.uuid4()),
             title=f"C{cluster_id}",

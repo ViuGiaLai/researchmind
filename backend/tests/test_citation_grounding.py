@@ -34,14 +34,16 @@ def test_process_citations_rejects_unknown_source_without_page():
 
 def test_context_uses_readable_canonical_source_label():
     retriever = Retriever(None, postprocessors=[])
-    context = retriever._build_context([
-        {
-            "paper_id": "12345678-1234-1234-1234-123456789abc",
-            "paper_title": "Shared title",
-            "page_number": 7,
-            "content": "Evidence from the selected paper.",
-        }
-    ])
+    context = retriever._build_context(
+        [
+            {
+                "paper_id": "12345678-1234-1234-1234-123456789abc",
+                "paper_title": "Shared title",
+                "page_number": 7,
+                "content": "Evidence from the selected paper.",
+            }
+        ]
+    )
 
     assert "[Shared title, page 7]" in context
 

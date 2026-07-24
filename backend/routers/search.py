@@ -20,6 +20,7 @@ async def search(query: dict = Body(...)):
     """Hybrid search across all indexed PDFs with support for tag: or thẻ: filters."""
     import json
     import re
+
     t0 = time.time()
 
     text = query.get("text", "")
@@ -100,21 +101,13 @@ async def search(query: dict = Body(...)):
                     filtered_paper_ids.append(p.id)
 
             if not filtered_paper_ids:
-                return {
-                    "query": text,
-                    "total": 0,
-                    "results": []
-                }
+                return {"query": text, "total": 0, "results": []}
 
             if paper_ids:
                 # Intersect with user-selected paper IDs
                 paper_ids = list(set(paper_ids).intersection(filtered_paper_ids))
                 if not paper_ids:
-                    return {
-                        "query": text,
-                        "total": 0,
-                        "results": []
-                    }
+                    return {"query": text, "total": 0, "results": []}
             else:
                 paper_ids = filtered_paper_ids
         except Exception as e:
@@ -139,14 +132,24 @@ async def search(query: dict = Body(...)):
     if sort_by in {"year", "title", "created_at"} and results:
         session = get_session(state.engine)
         try:
-            paper_map = {p.id: p for p in session.query(Paper).filter(Paper.id.in_([r.paper_id for r in results])).all()}
+            paper_map = {
+                p.id: p for p in session.query(Paper).filter(Paper.id.in_([r.paper_id for r in results])).all()
+            }
             reverse = sort_order != "asc"
             if sort_by == "year":
-                results.sort(key=lambda r: paper_map.get(r.paper_id).year if paper_map.get(r.paper_id) else 0, reverse=reverse)
+                results.sort(
+                    key=lambda r: paper_map.get(r.paper_id).year if paper_map.get(r.paper_id) else 0, reverse=reverse
+                )
             elif sort_by == "title":
-                results.sort(key=lambda r: (paper_map.get(r.paper_id).title or "").lower() if paper_map.get(r.paper_id) else "", reverse=reverse)
+                results.sort(
+                    key=lambda r: (paper_map.get(r.paper_id).title or "").lower() if paper_map.get(r.paper_id) else "",
+                    reverse=reverse,
+                )
             elif sort_by == "created_at":
-                results.sort(key=lambda r: paper_map.get(r.paper_id).created_at if paper_map.get(r.paper_id) else None, reverse=reverse)
+                results.sort(
+                    key=lambda r: paper_map.get(r.paper_id).created_at if paper_map.get(r.paper_id) else None,
+                    reverse=reverse,
+                )
         finally:
             session.close()
 
@@ -160,6 +163,7 @@ async def search(query: dict = Body(...)):
     )
 
     from collections import OrderedDict
+
     clustered: OrderedDict = OrderedDict()
     seen_ids = set()
     for r in results:
@@ -173,13 +177,15 @@ async def search(query: dict = Body(...)):
                 "paper_title": r.paper_title,
                 "chunks": [],
             }
-        clustered[key]["chunks"].append({
-            "chunk_id": r.chunk_id,
-            "chunk_index": r.chunk_index,
-            "content": r.content,
-            "page_number": r.page_number,
-            "score": round(r.score, 4),
-        })
+        clustered[key]["chunks"].append(
+            {
+                "chunk_id": r.chunk_id,
+                "chunk_index": r.chunk_index,
+                "content": r.content,
+                "page_number": r.page_number,
+                "score": round(r.score, 4),
+            }
+        )
 
     for paper_data in clustered.values():
         paper_data["chunks"].sort(key=lambda c: c.get("chunk_index", 0))
@@ -237,12 +243,10 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
         )
 
         matched_tags = set()
-        matched_papers = [
-            {"id": row.id, "title": display_title(row.title, row.filename)}
-            for row in title_matches
-        ]
+        matched_papers = [{"id": row.id, "title": display_title(row.title, row.filename)} for row in title_matches]
 
         import json
+
         for (tags_json,) in tag_candidates:
             if tags_json:
                 try:
@@ -262,11 +266,7 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
         for p in papers_res:
             suggestions.append(p["title"])
 
-        result = {
-            "tags": tags_res,
-            "papers": papers_res,
-            "suggestions": suggestions[:limit * 2]
-        }
+        result = {"tags": tags_res, "papers": papers_res, "suggestions": suggestions[: limit * 2]}
         _suggest_cache[cache_key] = (time.time(), result)
         logger.info(
             "SUGGEST_TIMING "
@@ -281,5 +281,6 @@ async def search_suggest(q: str = Query(...), limit: int = Query(5)):
 async def search_literature_endpoint(q: str = Query(...), limit: int = Query(10)):
     """Search across public academic literature (arXiv, OpenAlex, Semantic Scholar, CrossRef)."""
     from search.literature_engine import search_public_literature
+
     results = await search_public_literature(q, limit=limit)
     return {"query": q, "count": len(results), "results": results}

@@ -4,6 +4,7 @@ ResearchMind VN — Venue Rule Engine (v6.0).
 All venue templates are loaded from publishing/resources/venue_rules.json
 so they can be versioned, updated, and audited without code changes.
 """
+
 from __future__ import annotations
 
 import json
@@ -52,6 +53,7 @@ def get_official_source(venue_id: str) -> str | None:
 # ---------------------------------------------------------------------------
 class _TemplateDictProxy(dict):
     """Proxy that loads venue data lazily from JSON on first access."""
+
     def __getitem__(self, key: str) -> dict[str, Any]:
         data = get_all_venues()
         if key in data:

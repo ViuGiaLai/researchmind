@@ -98,15 +98,17 @@ async def start_desktop_google_sign_in(payload: DesktopOAuthStart):
             expires_at=time.monotonic() + _DESKTOP_OAUTH_TTL_SECONDS,
         )
 
-    query = urlencode({
-        "client_id": client_id,
-        "redirect_uri": callback_url,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "state": payload.state,
-        "prompt": "select_account",
-        "access_type": "online",
-    })
+    query = urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": callback_url,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": payload.state,
+            "prompt": "select_account",
+            "access_type": "online",
+        }
+    )
     return {"authorizationUrl": f"https://accounts.google.com/o/oauth2/v2/auth?{query}"}
 
 
@@ -118,10 +120,14 @@ async def finish_desktop_google_sign_in(request: Request, state: str = "", code:
         _clear_expired_sessions()
         session = _desktop_oauth_sessions.get(state)
         if not session:
-            return _oauth_callback_page(t("auth.oauth_session_expired_title", lang), t("auth.oauth_session_expired_msg", lang), lang=lang)
+            return _oauth_callback_page(
+                t("auth.oauth_session_expired_title", lang), t("auth.oauth_session_expired_msg", lang), lang=lang
+            )
         if error or not code:
             session.error = t("auth.oauth_cancelled_msg", lang)
-            return _oauth_callback_page(t("auth.oauth_cancelled_title", lang), t("auth.oauth_cancelled_msg2", lang), lang=lang)
+            return _oauth_callback_page(
+                t("auth.oauth_cancelled_title", lang), t("auth.oauth_cancelled_msg2", lang), lang=lang
+            )
 
     client_id, client_secret, callback_url = _oauth_config()
     try:
@@ -145,14 +151,20 @@ async def finish_desktop_google_sign_in(request: Request, state: str = "", code:
             session = _desktop_oauth_sessions.get(state)
             if session:
                 session.error = t("auth.oauth_verify_failed_msg", lang)
-        return _oauth_callback_page(t("auth.oauth_verify_failed_title", lang), t("auth.oauth_verify_failed_msg", lang), lang=lang)
+        return _oauth_callback_page(
+            t("auth.oauth_verify_failed_title", lang), t("auth.oauth_verify_failed_msg", lang), lang=lang
+        )
 
     async with _desktop_oauth_lock:
         session = _desktop_oauth_sessions.get(state)
         if not session:
-            return _oauth_callback_page(t("auth.oauth_session_expired_title", lang), t("auth.oauth_session_expired_msg", lang), lang=lang)
+            return _oauth_callback_page(
+                t("auth.oauth_session_expired_title", lang), t("auth.oauth_session_expired_msg", lang), lang=lang
+            )
         session.id_token = id_token
-    return _oauth_callback_page(t("auth.oauth_complete_title", lang), t("auth.oauth_complete_msg", lang), success=True, lang=lang)
+    return _oauth_callback_page(
+        t("auth.oauth_complete_title", lang), t("auth.oauth_complete_msg", lang), success=True, lang=lang
+    )
 
 
 @router.post("/desktop/google/status")

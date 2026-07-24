@@ -21,6 +21,7 @@ from graph.storage import GraphStore, KnowledgeGraph
 # Data Models
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestGraphEntity:
     def test_create_minimal(self):
         e = GraphEntity(id="e1", title="TRANSFORMER")
@@ -113,10 +114,17 @@ class TestGraphTextUnit:
 # KnowledgeGraph
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestKnowledgeGraph:
     def test_empty(self):
         kg = KnowledgeGraph()
-        assert kg.stats() == {"entities": 0, "relationships": 0, "communities": 0, "community_reports": 0, "text_units": 0}
+        assert kg.stats() == {
+            "entities": 0,
+            "relationships": 0,
+            "communities": 0,
+            "community_reports": 0,
+            "text_units": 0,
+        }
 
     def test_add_entity(self):
         kg = KnowledgeGraph()
@@ -170,6 +178,7 @@ class TestKnowledgeGraph:
 # GraphStore (Persistence)
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestGraphStore:
     @pytest.fixture
     def tmp_path(self):
@@ -215,12 +224,14 @@ class TestGraphStore:
         """Verify that embedding vectors and other complex fields survive round-trip."""
         path = tmp_path / "graph.json"
         store = GraphStore(path=path)
-        store.graph.add_entity(GraphEntity(
-            id="e1",
-            title="EMBEDDED",
-            description_embedding=[0.1, 0.2, 0.3, 0.4],
-            community_ids=["c1", "c2"],
-        ))
+        store.graph.add_entity(
+            GraphEntity(
+                id="e1",
+                title="EMBEDDED",
+                description_embedding=[0.1, 0.2, 0.3, 0.4],
+                community_ids=["c1", "c2"],
+            )
+        )
         store.save()
 
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -238,10 +249,12 @@ class TestGraphStore:
 # Extractor — parsing only (no LLM)
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestExtractorParsing:
     def _parse(self, text: str, source_id: str = "src1"):
         """Helper to parse raw LLM output."""
         from graph.extractor import _parse_extraction_result
+
         entities, relationships = _parse_extraction_result(text, source_id)
         return entities, relationships
 
@@ -294,6 +307,7 @@ class TestExtractorParsing:
 
     def test_deduplicate_entities(self):
         from graph.extractor import _deduplicate_entities
+
         raw = [
             {"title": "A", "type": "CONCEPT", "description": "First desc", "source_id": "s1"},
             {"title": "A", "type": "CONCEPT", "description": "Second desc", "source_id": "s2"},
@@ -304,6 +318,7 @@ class TestExtractorParsing:
 
     def test_deduplicate_relationships(self):
         from graph.extractor import _deduplicate_relationships
+
         raw = [
             {"source": "A", "target": "B", "weight": 1.0},
             {"source": "A", "target": "B", "weight": 2.0},  # duplicate
@@ -318,49 +333,59 @@ class TestExtractorParsing:
 # Local Search — context building
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestLocalSearch:
     @pytest.fixture
     def graph(self):
         kg = KnowledgeGraph()
-        kg.add_entity(GraphEntity(id="e1", title="TRANSFORMER", type="MODEL",
-                                   description="A neural network using attention"))
-        kg.add_entity(GraphEntity(id="e2", title="CNN", type="MODEL",
-                                   description="Convolutional neural network"))
-        kg.add_entity(GraphEntity(id="e3", title="ATTENTION", type="CONCEPT",
-                                   description="Attention mechanism"))
-        kg.add_entity(GraphEntity(id="e4", title="IMAGE NET", type="DATASET",
-                                   description="Image classification dataset"))
-        kg.add_relationship(GraphRelationship(id="r1", source="TRANSFORMER", target="ATTENTION",
-                                               weight=0.95, description="Uses attention"))
-        kg.add_relationship(GraphRelationship(id="r2", source="CNN", target="IMAGE NET",
-                                               weight=0.8, description="Trained on"))
+        kg.add_entity(
+            GraphEntity(id="e1", title="TRANSFORMER", type="MODEL", description="A neural network using attention")
+        )
+        kg.add_entity(GraphEntity(id="e2", title="CNN", type="MODEL", description="Convolutional neural network"))
+        kg.add_entity(GraphEntity(id="e3", title="ATTENTION", type="CONCEPT", description="Attention mechanism"))
+        kg.add_entity(
+            GraphEntity(id="e4", title="IMAGE NET", type="DATASET", description="Image classification dataset")
+        )
+        kg.add_relationship(
+            GraphRelationship(
+                id="r1", source="TRANSFORMER", target="ATTENTION", weight=0.95, description="Uses attention"
+            )
+        )
+        kg.add_relationship(
+            GraphRelationship(id="r2", source="CNN", target="IMAGE NET", weight=0.8, description="Trained on")
+        )
         return kg
 
     def test_build_context_no_match(self, graph):
         from graph.local_search import build_local_context
+
         ctx = build_local_context("unrelated topic", graph, top_k_entities=5)
         assert ctx == ""  # no keyword match
 
     def test_build_context_keyword_match_title(self, graph):
         from graph.local_search import build_local_context
+
         ctx = build_local_context("transformer", graph, top_k_entities=5)
         assert "TRANSFORMER" in ctx
         assert "ATTENTION" in ctx  # neighbor
 
     def test_build_context_keyword_match_description(self, graph):
         from graph.local_search import build_local_context
+
         ctx = build_local_context("attention", graph, top_k_entities=5)
         assert "ATTENTION" in ctx
         assert "TRANSFORMER" in ctx  # linked entity
 
     def test_build_context_includes_relationships(self, graph):
         from graph.local_search import build_local_context
+
         ctx = build_local_context("transformer", graph, top_k_entities=5)
         assert "→" in ctx
         assert "Uses attention" in ctx
 
     def test_build_context_no_entities_returns_empty(self):
         from graph.local_search import build_local_context
+
         kg = KnowledgeGraph()
         ctx = build_local_context("anything", kg)
         assert ctx == ""
@@ -370,14 +395,17 @@ class TestLocalSearch:
 # Cluster — community detection
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestCluster:
     def test_empty_graph_returns_empty(self):
         from graph.cluster import detect_communities
+
         communities = detect_communities({}, {})
         assert communities == []
 
     def test_small_graph_returns_communities(self):
         from graph.cluster import detect_communities
+
         entities = {
             "e1": GraphEntity(id="e1", title="A"),
             "e2": GraphEntity(id="e2", title="B"),
@@ -400,9 +428,11 @@ class TestCluster:
 # Router — endpoint schemas
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestRouterSchemas:
     def test_graph_build_request(self):
         from graph.router import GraphBuildRequest
+
         req = GraphBuildRequest(paper_ids=["p1", "p2"])
         assert req.paper_ids == ["p1", "p2"]
         assert req.max_gleanings == 2
@@ -410,6 +440,7 @@ class TestRouterSchemas:
 
     def test_graph_query_request(self):
         from graph.router import GraphQuery
+
         req = GraphQuery(query="test query", strategy="local")
         assert req.query == "test query"
         assert req.strategy == "local"
@@ -417,11 +448,13 @@ class TestRouterSchemas:
 
     def test_graph_query_invalid_strategy(self):
         from graph.router import GraphQuery
+
         req = GraphQuery(query="test", strategy="invalid")
         assert req.strategy == "invalid"  # validation happens at endpoint
 
     def test_graph_stats_response(self):
         from graph.router import GraphStatsResponse
+
         resp = GraphStatsResponse(
             entities=10,
             relationships=5,
@@ -434,6 +467,7 @@ class TestRouterSchemas:
 
     def test_entity_response(self):
         from graph.router import EntityResponse
+
         resp = EntityResponse(
             id="e1",
             title="TEST",

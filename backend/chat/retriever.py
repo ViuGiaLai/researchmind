@@ -29,6 +29,7 @@ from search.postprocessor import (
 @dataclass
 class RetrievalResult:
     """Result of a RAG retrieval step."""
+
     chunks: list[dict]
     context_text: str
     total_chunks: int
@@ -52,6 +53,7 @@ class Retriever:
     ):
         self.hybrid = hybrid_search
         from config.settings import settings
+
         cutoff = getattr(settings, "similarity_cutoff", 0.0)
         self.postprocessors = postprocessors or [
             SimilarityPostprocessor(similarity_cutoff=cutoff),
@@ -81,6 +83,7 @@ class Retriever:
             RetrievalResult with chunks, context text, and metadata.
         """
         import time as _time
+
         _t_start = _time.time()
 
         top_k = adaptive_top_k(query, top_k, task_type)
@@ -88,6 +91,7 @@ class Retriever:
             from app_state import state
             from chat.metadata_filters import filter_paper_ids
             from db.database import get_session
+
             session = get_session(state.engine)
             try:
                 filtered_ids = filter_paper_ids(session, metadata_filters) or []
@@ -143,15 +147,17 @@ class Retriever:
             safe_content, injection_detected = neutralize_untrusted_text(r.content)
             if injection_detected:
                 increment("rag.prompt_injection_detected")
-            chunks.append({
-                "chunk_id": r.chunk_id,
-                "paper_id": r.paper_id,
-                "paper_title": r.paper_title,
-                "content": safe_content,
-                "page_number": r.page_number,
-                "score": r.score,
-                "chunk_index": getattr(r, 'chunk_index', 0),
-            })
+            chunks.append(
+                {
+                    "chunk_id": r.chunk_id,
+                    "paper_id": r.paper_id,
+                    "paper_title": r.paper_title,
+                    "content": safe_content,
+                    "page_number": r.page_number,
+                    "score": r.score,
+                    "chunk_index": getattr(r, "chunk_index", 0),
+                }
+            )
 
         chunks_before_pp = chunks[:]
         for pp in self.postprocessors:
@@ -178,6 +184,7 @@ class Retriever:
             from app_state import state
             from chat.parent_retrieval import expand_parent_context
             from db.database import get_session
+
             session = get_session(state.engine)
             try:
                 chunks = expand_parent_context(session, chunks, radius)
@@ -192,17 +199,20 @@ class Retriever:
             from app_state import state
             from db.database import get_session
             from db.models import AnonymizationMap
+
             anon_engine = AnonymizationEngine()
             import json
+
             t_anon = _time.time()
 
             paper_ids_in_chunks = list(set(c["paper_id"] for c in chunks))
             session = get_session(state.engine)
             try:
-                anon_maps = session.query(AnonymizationMap).filter(
-                    AnonymizationMap.paper_id.in_(paper_ids_in_chunks),
-                    AnonymizationMap.is_active == 1
-                ).all()
+                anon_maps = (
+                    session.query(AnonymizationMap)
+                    .filter(AnonymizationMap.paper_id.in_(paper_ids_in_chunks), AnonymizationMap.is_active == 1)
+                    .all()
+                )
 
                 if anon_maps:
                     # Parse all maps
@@ -212,9 +222,12 @@ class Retriever:
                             data = json.loads(m.entity_map_json)
                             parsed_maps[m.paper_id] = {
                                 orig: EntityEntry(
-                                    original=orig, label=info["label"],
-                                    entity_type=info["entity_type"], count=info.get("count", 0)
-                                ) for orig, info in data.items()
+                                    original=orig,
+                                    label=info["label"],
+                                    entity_type=info["entity_type"],
+                                    count=info.get("count", 0),
+                                )
+                                for orig, info in data.items()
                             }
                         except Exception as e:
                             logger.warning(f"Failed to parse anon map for {m.paper_id}: {e}")
@@ -293,15 +306,47 @@ class Retriever:
     def _detect_intent(self, query: str) -> str | None:
         query_lower = query.lower()
         intent_keywords = {
-            "comparison": ["so sánh", "compare", "comparison", "versus", "vs", "khác nhau", "khác biệt", "tương tự", "tương đồng"],
-            "strength_weakness": ["điểm mạnh", "điểm yếu", "ưu điểm", "nhược điểm", "advantages", "disadvantages", "strengths", "weaknesses", "pros", "cons"],
+            "comparison": [
+                "so sánh",
+                "compare",
+                "comparison",
+                "versus",
+                "vs",
+                "khác nhau",
+                "khác biệt",
+                "tương tự",
+                "tương đồng",
+            ],
+            "strength_weakness": [
+                "điểm mạnh",
+                "điểm yếu",
+                "ưu điểm",
+                "nhược điểm",
+                "advantages",
+                "disadvantages",
+                "strengths",
+                "weaknesses",
+                "pros",
+                "cons",
+            ],
             "limitation": ["hạn chế", "limitation", "drawback", "khó khăn", "challenge", "bất lợi"],
             "result": ["kết quả", "result", "finding", "outcome", "hiệu quả"],
             "method": ["phương pháp", "method", "approach", "technique", "cách tiếp cận", "giải pháp"],
             "evaluation": ["đánh giá", "evaluation", "assessment", "hiệu quả", "performance", "effectiveness"],
             "figure": [
-                "hình ", "hình 1", "hình 2", "figure", "fig.", "lưu đồ", "sơ đồ",
-                "biểu đồ", "chart", "diagram", "flowchart", "trong hình", "trong ảnh",
+                "hình ",
+                "hình 1",
+                "hình 2",
+                "figure",
+                "fig.",
+                "lưu đồ",
+                "sơ đồ",
+                "biểu đồ",
+                "chart",
+                "diagram",
+                "flowchart",
+                "trong hình",
+                "trong ảnh",
             ],
         }
         for intent, keywords in intent_keywords.items():
@@ -331,6 +376,7 @@ class Retriever:
             return chunks
 
         import re
+
         boosted = []
         for chunk in chunks:
             content_lower = chunk["content"].lower()
@@ -351,6 +397,7 @@ class Retriever:
             return chunks
 
         from collections import OrderedDict
+
         clustered: OrderedDict[str, list[dict]] = OrderedDict()
         for chunk in chunks:
             pid = chunk.get("paper_id", "")
@@ -400,7 +447,7 @@ class Retriever:
                 source += f", page {chunk['page_number']}"
             source += "]"
 
-            content = chunk['content'].strip()
+            content = chunk["content"].strip()
             if query and len(content) > compress_threshold:
                 content = self._compress_chunk_text(content, query, max_sentences=task_max_sentences)
 
@@ -427,18 +474,57 @@ class Retriever:
         Saves tokens and accelerates LLM prefill/inference.
         """
         import re
+
         stop_words = {
-            "và", "hoặc", "của", "cho", "trong", "ngoài", "là", "bởi", "tại", "với",
-            "the", "and", "of", "to", "in", "for", "with", "on", "at", "by", "an", "is",
-            "this", "that", "these", "those", "it", "its", "we", "our", "they", "their",
-            "các", "có", "được", "một", "như", "khi", "sẽ", "đã", "đang", "về",
+            "và",
+            "hoặc",
+            "của",
+            "cho",
+            "trong",
+            "ngoài",
+            "là",
+            "bởi",
+            "tại",
+            "với",
+            "the",
+            "and",
+            "of",
+            "to",
+            "in",
+            "for",
+            "with",
+            "on",
+            "at",
+            "by",
+            "an",
+            "is",
+            "this",
+            "that",
+            "these",
+            "those",
+            "it",
+            "its",
+            "we",
+            "our",
+            "they",
+            "their",
+            "các",
+            "có",
+            "được",
+            "một",
+            "như",
+            "khi",
+            "sẽ",
+            "đã",
+            "đang",
+            "về",
         }
         keywords = {w.lower() for w in re.findall(r"\w+", query) if len(w) > 1 and w.lower() not in stop_words}
         if not keywords:
             return content
 
         # Score-based sentence selection
-        sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', content) if len(s.strip()) > 10]
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", content) if len(s.strip()) > 10]
         if len(sentences) <= 3:
             return content
 
@@ -461,7 +547,7 @@ class Retriever:
         # Always keep first sentence if it's short (< 30 words) — likely abstract/intro
         first_words = len(sentences[0].split())
         if first_words < 30 and sentences[0] not in [s for s, _, _ in selected]:
-            selected = [(sentences[0], 0.0, 0)] + selected[:max_sentences - 1]
+            selected = [(sentences[0], 0.0, 0)] + selected[: max_sentences - 1]
 
         # Re-sort selected sentences back to original order for readability
         original_indices = {s: i for i, s in enumerate(sentences)}
@@ -485,7 +571,7 @@ class Retriever:
             logger.debug(
                 f"COMPRESS_RATIO poor_compression "
                 f"len_before={len(content)} len_after={len(result_trunc)} "
-                f"saved={100 - len(result_trunc)*100//max(len(content),1)}% "
+                f"saved={100 - len(result_trunc) * 100 // max(len(content), 1)}% "
                 f"keywords={len(keywords)}"
             )
             return result_trunc

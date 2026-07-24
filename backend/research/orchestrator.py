@@ -25,6 +25,7 @@ from research.planner import (
 @dataclass
 class DeepResearchResult:
     """Result of deep research including plan metadata."""
+
     content: str
     model_used: str
     finish_reason: str
@@ -62,12 +63,13 @@ def deep_research(
     # Step 2: Research each sub-question
     findings: list[str] = []
     for i, sub_q in enumerate(sub_qs):
-        logger.info(f"Researching sub-question {i+1}/{len(sub_qs)}: {sub_q}")
+        logger.info(f"Researching sub-question {i + 1}/{len(sub_qs)}: {sub_q}")
         try:
             retrieval = retriever.retrieve(sub_q, paper_ids=paper_ids, top_k=top_k_per_question)
             ctx = retrieval.context_text
             if ctx.strip():
                 from academic.governance import get_academic_governance
+
                 result = generator.generate_direct(
                     user_prompt=get_academic_governance().sub_question_request(ctx, sub_q),
                     system_prompt=get_academic_governance().task_contract("report_writing"),

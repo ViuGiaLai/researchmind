@@ -44,10 +44,7 @@ async def global_search(
     reports = reports[:max_reports]
 
     if generator is None:
-        summaries = "\n".join(
-            f"- Community {r.community_id}: {r.summary or '(no summary)'}"
-            for r in reports
-        )
+        summaries = "\n".join(f"- Community {r.community_id}: {r.summary or '(no summary)'}" for r in reports)
         return f"Global context (no LLM):\n{summaries}"
 
     # MAP: Generate partial answers per community
@@ -70,9 +67,7 @@ async def global_search(
                 task_type="research",
             )
             if response and response.strip():
-                partial_answers.append(
-                    f"### Community {i+1}: {report.community_id}\n{response.strip()}"
-                )
+                partial_answers.append(f"### Community {i + 1}: {report.community_id}\n{response.strip()}")
         except Exception as e:
             logger.error(f"Global search map failed for community {report.community_id}: {e}")
 

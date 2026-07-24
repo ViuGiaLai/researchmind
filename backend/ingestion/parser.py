@@ -29,8 +29,21 @@ from .metadata_quality import (
 _ocr_lock = threading.Lock()
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".doc", ".txt", ".md", ".html", ".htm", ".epub",
-    ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff",
+    ".pdf",
+    ".docx",
+    ".doc",
+    ".txt",
+    ".md",
+    ".html",
+    ".htm",
+    ".epub",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".bmp",
+    ".tif",
+    ".tiff",
 }
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 
@@ -128,7 +141,9 @@ def extract_pdf(file_path: str) -> ExtractedDocument | None:
     return _extract_pdf(file_path)
 
 
-def _process_single_page(file_path: str, page_num: int, collect_layout: bool = False, include_image_ocr: bool = False) -> tuple[int, str, bool, bool, dict | None]:
+def _process_single_page(
+    file_path: str, page_num: int, collect_layout: bool = False, include_image_ocr: bool = False
+) -> tuple[int, str, bool, bool, dict | None]:
     import re
 
     import fitz
@@ -148,7 +163,9 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
             if reordered != text:
                 if collect_layout:
                     layout = detect_layout_stats(page)
-                    logger.info(f"Page {page_num+1}: detected {layout.get('columns', '?')}-column layout, reordered text")
+                    logger.info(
+                        f"Page {page_num + 1}: detected {layout.get('columns', '?')}-column layout, reordered text"
+                    )
                 text = reordered
 
         # Detect text with corrupted character encoding (control chars in wrong ranges)
@@ -157,7 +174,7 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
         if is_garbled and len(text.strip()) > 0:
             text_html = page.get_text("html")
             if text_html:
-                html_text = re.sub(r'<[^>]+>', ' ', text_html)
+                html_text = re.sub(r"<[^>]+>", " ", text_html)
                 html_bad = sum(1 for c in html_text if ord(c) < 0x09 or 0x0E <= ord(c) < 0x20 or 0x80 <= ord(c) < 0xA0)
                 if html_bad < bad_chars:
                     text = html_text
@@ -178,7 +195,9 @@ def _process_single_page(file_path: str, page_num: int, collect_layout: bool = F
             ocr_attempted = True
             try:
                 ocr_engine = get_ocr_engine()
-                logger.info(f"Page {page_num + 1} appears to be a scanned page (text length: {len(text.strip())}). Running OCR...")
+                logger.info(
+                    f"Page {page_num + 1} appears to be a scanned page (text length: {len(text.strip())}). Running OCR..."
+                )
                 pix = page.get_pixmap(dpi=150)
                 img_bytes = pix.tobytes("png")
 
@@ -234,6 +253,7 @@ def _clean_metadata_string(text: str) -> str:
 
 def _serialize_authors(authors_list: list) -> str:
     import json
+
     return json.dumps(authors_list, ensure_ascii=False)
 
 
@@ -509,7 +529,7 @@ def _extract_markdown(file_path: str) -> ExtractedDocument | None:
         end = text.find("---", 3)
         if end != -1:
             front = text[3:end].strip()
-            text = text[end + 3:].strip()
+            text = text[end + 3 :].strip()
             for line in front.splitlines():
                 if ":" in line:
                     key, val = line.split(":", 1)
@@ -521,15 +541,15 @@ def _extract_markdown(file_path: str) -> ExtractedDocument | None:
                         authors_list = [a.strip() for a in val.split(",") if a.strip()]
 
     # Remove markdown syntax for clean plain text; keep image alt text
-    clean = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'[Image: \1]', text)
-    clean = re.sub(r'\[([^\]]*)\]\([^)]+\)', r'\1', clean)
-    clean = re.sub(r'#{1,6}\s+', '', clean)
-    clean = re.sub(r'[*_~`]', '', clean)
-    clean = re.sub(r'^\s*[-*+]\s+', '', clean, flags=re.MULTILINE)
-    clean = re.sub(r'^\s*\d+\.\s+', '', clean, flags=re.MULTILINE)
+    clean = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"[Image: \1]", text)
+    clean = re.sub(r"\[([^\]]*)\]\([^)]+\)", r"\1", clean)
+    clean = re.sub(r"#{1,6}\s+", "", clean)
+    clean = re.sub(r"[*_~`]", "", clean)
+    clean = re.sub(r"^\s*[-*+]\s+", "", clean, flags=re.MULTILINE)
+    clean = re.sub(r"^\s*\d+\.\s+", "", clean, flags=re.MULTILINE)
 
     # OCR local images referenced in markdown (same folder as the .md file)
-    md_images = re.findall(r'!\[([^\]]*)\]\(([^)]+)\)', text)
+    md_images = re.findall(r"!\[([^\]]*)\]\(([^)]+)\)", text)
     image_ocr_parts: list[str] = []
     for alt, src in md_images:
         src = src.strip().split()[0]  # drop optional title after space
@@ -582,6 +602,7 @@ def _extract_html(file_path: str) -> ExtractedDocument | None:
     path = Path(file_path)
     try:
         from lxml import html
+
         raw = path.read_bytes()
         doc = html.fromstring(raw)
     except Exception as e:
@@ -623,10 +644,12 @@ def _extract_html(file_path: str) -> ExtractedDocument | None:
         return None
 
     if image_notes:
-        full_text = (full_text.rstrip() + "\n\n" + "\n".join(image_notes)).strip() if full_text else "\n".join(image_notes)
+        full_text = (
+            (full_text.rstrip() + "\n\n" + "\n".join(image_notes)).strip() if full_text else "\n".join(image_notes)
+        )
 
     # Collapse whitespace
-    full_text = re.sub(r'\s+', '\n', full_text).strip()
+    full_text = re.sub(r"\s+", "\n", full_text).strip()
 
     language = _detect_language(full_text[:2000])
 
@@ -685,8 +708,8 @@ def _extract_epub(file_path: str) -> ExtractedDocument | None:
                 if content:
                     text = content.decode("utf-8", errors="replace")
                     # Strip HTML tags
-                    text = re.sub(r'<[^>]+>', ' ', text)
-                    text = re.sub(r'\s+', ' ', text).strip()
+                    text = re.sub(r"<[^>]+>", " ", text)
+                    text = re.sub(r"\s+", " ", text).strip()
                     if text:
                         text_parts.append(text)
             except Exception:
@@ -731,10 +754,7 @@ def _extract_image(file_path: str) -> ExtractedDocument | None:
     ocr_failed = 0
     if not ocr_text:
         logger.warning(f"No OCR text extracted from image: {file_path}")
-        ocr_text = (
-            f"[Image: {path.name}]\n"
-            "(Could not extract text automatically. Use \"Re-run OCR\" in the library.)"
-        )
+        ocr_text = f'[Image: {path.name}]\n(Could not extract text automatically. Use "Re-run OCR" in the library.)'
         ocr_failed = 1
     else:
         ocr_text = normalize_ocr_page_text(ocr_text)

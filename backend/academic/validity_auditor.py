@@ -6,6 +6,7 @@ Categories:
 3. Construct Validity (Accuracy of measurement instruments)
 4. Statistical Conclusion Validity (Sample size, statistical power)
 """
+
 from __future__ import annotations
 
 import re
@@ -17,7 +18,7 @@ from typing import Any
 class ValidityThreat:
     threat_category: str  # 'internal' | 'external' | 'construct' | 'statistical'
     threat_name: str
-    severity: str        # 'high' | 'medium' | 'low'
+    severity: str  # 'high' | 'medium' | 'low'
     description: str
     mitigation_recommendation: str
 
@@ -25,50 +26,65 @@ class ValidityThreat:
 class ValidityAuditor:
     """Audits scientific papers for methodological threats to validity."""
 
-    def audit_threats_to_validity(self, text_content: str, metadata: dict[str, Any] | None = None) -> list[ValidityThreat]:
+    def audit_threats_to_validity(
+        self, text_content: str, metadata: dict[str, Any] | None = None
+    ) -> list[ValidityThreat]:
         threats: list[ValidityThreat] = []
         text_lower = text_content.lower()
 
         # 1. Internal Validity: check random seeds / baseline fairness
         if "seed" not in text_lower:
-            threats.append(ValidityThreat(
-                threat_category="internal",
-                threat_name="Unfixed Random Seeds",
-                severity="medium",
-                description="Stochastic variance was not controlled by fixing random seeds across runs.",
-                mitigation_recommendation="Report mean ± SD across at least 5 fixed random seeds."
-            ))
+            threats.append(
+                ValidityThreat(
+                    threat_category="internal",
+                    threat_name="Unfixed Random Seeds",
+                    severity="medium",
+                    description="Stochastic variance was not controlled by fixing random seeds across runs.",
+                    mitigation_recommendation="Report mean ± SD across at least 5 fixed random seeds.",
+                )
+            )
 
         # 2. External Validity: check multiple datasets
         dataset_matches = len(re.findall(r"(?i)\b(dataset|benchmark|corpus)\b", text_content))
         if dataset_matches < 2:
-            threats.append(ValidityThreat(
-                threat_category="external",
-                threat_name="Single-Dataset Evaluation",
-                severity="high",
-                description="Results are evaluated on a single benchmark dataset, limiting generalizability.",
-                mitigation_recommendation="Evaluate model performance across at least 3 distinct benchmark datasets."
-            ))
+            threats.append(
+                ValidityThreat(
+                    threat_category="external",
+                    threat_name="Single-Dataset Evaluation",
+                    severity="high",
+                    description="Results are evaluated on a single benchmark dataset, limiting generalizability.",
+                    mitigation_recommendation="Evaluate model performance across at least 3 distinct benchmark datasets.",
+                )
+            )
 
         # 3. Statistical Conclusion Validity: check p-value or confidence interval
         if not re.search(r"p\s*<|std|standard deviation|confidence interval|95%", text_lower):
-            threats.append(ValidityThreat(
-                threat_category="statistical",
-                threat_name="Missing Statistical Significance Test",
-                severity="high",
-                description="No statistical significance test or error bounds (p-value, SD, CI) reported.",
-                mitigation_recommendation="Perform paired t-test or Wilcoxon signed-rank test and report p-values."
-            ))
+            threats.append(
+                ValidityThreat(
+                    threat_category="statistical",
+                    threat_name="Missing Statistical Significance Test",
+                    severity="high",
+                    description="No statistical significance test or error bounds (p-value, SD, CI) reported.",
+                    mitigation_recommendation="Perform paired t-test or Wilcoxon signed-rank test and report p-values.",
+                )
+            )
 
         # 4. Construct Validity: check metric definitions
-        if "metric" not in text_lower and "accuracy" not in text_lower and "bleu" not in text_lower and "f1" not in text_lower:
-            threats.append(ValidityThreat(
-                threat_category="construct",
-                threat_name="Undefined Measurement Metric",
-                severity="medium",
-                description="Evaluation metrics are not formally defined in the text.",
-                mitigation_recommendation="Provide explicit mathematical definitions for all evaluation metrics."
-            ))
+        if (
+            "metric" not in text_lower
+            and "accuracy" not in text_lower
+            and "bleu" not in text_lower
+            and "f1" not in text_lower
+        ):
+            threats.append(
+                ValidityThreat(
+                    threat_category="construct",
+                    threat_name="Undefined Measurement Metric",
+                    severity="medium",
+                    description="Evaluation metrics are not formally defined in the text.",
+                    mitigation_recommendation="Provide explicit mathematical definitions for all evaluation metrics.",
+                )
+            )
 
         return threats
 

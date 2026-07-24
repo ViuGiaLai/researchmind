@@ -58,6 +58,7 @@ class EntityResponse(BaseModel):
 
 # ─── Graph store accessor ─────────────────────────────────────────
 
+
 def _get_graph_store() -> GraphStore:
     """Get the graph store from app state (initialized in main.py lifespan)."""
     store = getattr(state, "_graph_store", None)
@@ -67,6 +68,7 @@ def _get_graph_store() -> GraphStore:
 
 
 # ─── Endpoints ───────────────────────────────────────────────────
+
 
 async def _run_graph_build(
     chunk_dicts: list[dict[str, Any]],
@@ -276,7 +278,7 @@ async def list_entities(limit: int = 50, offset: int = 0):
 
     entity_list = list(store.graph.entities.values())
     entity_list.sort(key=lambda e: e.rank or 0, reverse=True)
-    page = entity_list[offset:offset + limit]
+    page = entity_list[offset : offset + limit]
 
     return [
         EntityResponse(
@@ -334,7 +336,8 @@ async def list_communities():
             "level": c.level,
             "size": c.size,
             "report": store.graph.community_reports.get(c.id).summary
-            if c.id in store.graph.community_reports else None,
+            if c.id in store.graph.community_reports
+            else None,
         }
         for c in store.graph.communities.values()
     ]

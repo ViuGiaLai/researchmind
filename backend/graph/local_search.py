@@ -44,7 +44,7 @@ def _score_entities_keyword(
             score += 5.0
         if query_lower in type_lower:
             score += 2.0
-        score *= (entity.rank or 1.0)
+        score *= entity.rank or 1.0
 
         if score > 0:
             scored.append((entity, score))
@@ -149,7 +149,9 @@ def build_local_context(
     4. Include original text units
     """
     top_entities = _hybrid_entity_score(
-        query, graph, top_k_entities,
+        query,
+        graph,
+        top_k_entities,
         embedder=embedder,
         keyword_weight=keyword_weight,
         embedding_weight=embedding_weight,
@@ -171,7 +173,8 @@ def build_local_context(
     # Collect relationships for top entities
     entity_titles = {e.title.upper() for e, _ in top_entities}
     matched_relationships = [
-        r for r in graph.relationships.values()
+        r
+        for r in graph.relationships.values()
         if r.source.upper() in entity_titles or r.target.upper() in entity_titles
     ]
     matched_relationships.sort(key=lambda r: r.weight, reverse=True)
@@ -182,10 +185,7 @@ def build_local_context(
     for entity, _ in top_entities:
         if entity.text_unit_ids:
             text_unit_ids.update(entity.text_unit_ids)
-    matched_text_units = [
-        tu for tu in graph.text_units.values()
-        if tu.id in text_unit_ids
-    ]
+    matched_text_units = [tu for tu in graph.text_units.values() if tu.id in text_unit_ids]
 
     # Collect community reports
     community_reports_text = ""
@@ -194,10 +194,7 @@ def build_local_context(
         for entity, _ in top_entities:
             if entity.community_ids:
                 entity_community_ids.update(entity.community_ids)
-        reports = [
-            cr for cid, cr in graph.community_reports.items()
-            if cid in entity_community_ids
-        ]
+        reports = [cr for cid, cr in graph.community_reports.items() if cid in entity_community_ids]
         if reports:
             report_lines = []
             for r in reports:
@@ -213,8 +210,7 @@ def build_local_context(
         entity_lines = ["### Related Entities"]
         for entity, score_val in top_entities:
             entity_lines.append(
-                f"- {entity.title} ({entity.type or 'concept'}, score={score_val:.3f}): "
-                f"{entity.description or ''}"
+                f"- {entity.title} ({entity.type or 'concept'}, score={score_val:.3f}): {entity.description or ''}"
             )
         parts.append("\n".join(entity_lines))
 

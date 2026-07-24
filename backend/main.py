@@ -77,6 +77,7 @@ from zotero_import import router as zotero_import_router  # noqa: E402
 
 # ─── Lifespan ────────────────────────────────────────────────────
 
+
 def load_persisted_settings():
     """Load settings from SQLite database on startup.
 
@@ -85,10 +86,20 @@ def load_persisted_settings():
     Deployment-only connection settings continue to come from environment.
     """
     env_only_keys = {
-        "researchmind_cloud_token", "researchmind_cloud_url",
-        "llama_server_url", "local_model", "claude_model", "deepseek_model", "gemini_model",
-        "groq_model", "github_model", "freemodel_model",
-        "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
+        "researchmind_cloud_token",
+        "researchmind_cloud_url",
+        "llama_server_url",
+        "local_model",
+        "claude_model",
+        "deepseek_model",
+        "gemini_model",
+        "groq_model",
+        "github_model",
+        "freemodel_model",
+        "openrouter_model",
+        "cohere_model",
+        "cloudflare_model",
+        "cerebras_model",
     }
 
     session = get_session(state.engine)
@@ -142,6 +153,7 @@ def load_persisted_settings():
 def _migrate_auto_summary(engine):
     """Add paper columns introduced after the initial SQLite schema."""
     from sqlalchemy import text
+
     try:
         with engine.connect() as conn:
             result = conn.execute(text("PRAGMA table_info(papers)"))
@@ -175,6 +187,7 @@ def _migrate_auto_summary(engine):
 def _migrate_review_draft_versions(engine):
     """Add versions column to review_drafts table if missing."""
     from sqlalchemy import text
+
     try:
         with engine.connect() as conn:
             result = conn.execute(text("PRAGMA table_info(review_drafts)"))
@@ -192,6 +205,7 @@ def _generate_missing_thumbnails():
     import fitz
 
     from db.database import get_session
+
     thumb_dir = settings.data_dir / "thumbs"
     thumb_dir.mkdir(parents=True, exist_ok=True)
     session = get_session(state.engine)
@@ -246,6 +260,7 @@ async def lifespan(app: FastAPI):
             recovery_dir.mkdir(parents=True, exist_ok=True)
             recovery = recovery_dir / f"pre-restore-{int(time.time())}.db"
             import shutil
+
             shutil.copy2(settings.db_path, recovery)
         os.replace(pending_restore, settings.db_path)
         logger.info("Queued database restore applied")
@@ -339,7 +354,11 @@ async def lifespan(app: FastAPI):
                 cohere_url=getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1"),
                 cloudflare_api_key=settings.cloudflare_api_key,
                 cloudflare_model=settings.cloudflare_model,
-                cloudflare_url=getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1"),
+                cloudflare_url=getattr(
+                    settings,
+                    "cloudflare_url",
+                    "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1",
+                ),
                 cerebras_api_key=settings.cerebras_api_key,
                 cerebras_model=settings.cerebras_model,
                 cerebras_url=getattr(settings, "cerebras_url", "https://api.cerebras.net/v1"),
@@ -354,6 +373,7 @@ async def lifespan(app: FastAPI):
             )
 
             from graph.storage import GraphStore
+
             graph_path = settings.data_dir / "graph" / "knowledge_graph.json"
             state._graph_store = GraphStore(path=graph_path)
             state._graph_store.load()
@@ -368,6 +388,7 @@ async def lifespan(app: FastAPI):
             logger.info(f"PYTHON_STARTUP_TIMING ready_for_health={time.time() - startup_t0:.2f}s")
 
             import httpx
+
             try:
                 resp = httpx.get(f"{settings.llama_server_url}/health", timeout=3.0)
                 if resp.status_code == 200:
@@ -460,10 +481,12 @@ if frontend_dist.exists():
         if file_path.is_file():
             return FileResponse(str(file_path))
         return FileResponse(str(frontend_dist / "index.html"))
+
     logger.info("Frontend SPA mounted — share web ready")
 
 
 # ─── Global Exception Handler ────────────────────────────────────
+
 
 @app.middleware("http")
 async def request_token_context_middleware(request: Request, call_next):
@@ -475,6 +498,7 @@ async def request_token_context_middleware(request: Request, call_next):
         return await call_next(request)
     finally:
         reset_request_bearer_token(context_marker)
+
 
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):
@@ -515,7 +539,12 @@ async def firebase_auth_middleware(request: Request, call_next):
     """Require Firebase tokens for every hosted API endpoint except health checks."""
     public_paths = {"/api/ping", "/api/health"}
     is_desktop_oauth = request.url.path.startswith("/api/auth/desktop/google/")
-    if not settings.firebase_auth_enabled or not request.url.path.startswith("/api") or request.url.path in public_paths or is_desktop_oauth:
+    if (
+        not settings.firebase_auth_enabled
+        or not request.url.path.startswith("/api")
+        or request.url.path in public_paths
+        or is_desktop_oauth
+    ):
         return await call_next(request)
 
     authorization = request.headers.get("Authorization", "")
@@ -528,9 +557,7 @@ async def firebase_auth_middleware(request: Request, call_next):
         return JSONResponse(status_code=401, content={"detail": "Firebase authentication required."})
 
     try:
-        request.state.firebase_claims = await asyncio.to_thread(
-            verify_id_token, token
-        )
+        request.state.firebase_claims = await asyncio.to_thread(verify_id_token, token)
     except FirebaseAuthError as exc:
         return JSONResponse(status_code=401, content={"detail": str(exc)})
     if not settings.hosted_research_enabled and not request.url.path.startswith("/api/auth/"):
@@ -552,12 +579,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled exception occurred: {exc}")
     lang = getattr(request.state, "lang", "vi")
     from starlette.responses import Response
+
     return Response(
         status_code=500,
-        content=json.dumps({
-            "detail": t("error.unknown", lang, error=str(exc)),
-            "type": exc.__class__.__name__,
-        }),
+        content=json.dumps(
+            {
+                "detail": t("error.unknown", lang, error=str(exc)),
+                "type": exc.__class__.__name__,
+            }
+        ),
         media_type="application/json",
     )
 
@@ -568,6 +598,7 @@ if __name__ == "__main__":
     import sys
 
     import uvicorn
+
     # Khi chạy bằng PyInstaller (.exe), sys.frozen = True
     is_frozen = getattr(sys, "frozen", False)
     if is_frozen:

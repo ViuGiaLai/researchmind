@@ -27,6 +27,7 @@ from research.persona_generator import (
 @dataclass
 class ResearchPlan:
     """A plan for deep research."""
+
     original_query: str
     sub_questions: list[str] = field(default_factory=list)
     brief: str = ""
@@ -50,7 +51,9 @@ def _workflow_prompt(task: str, **values: str) -> str:
     else:
         rules = governance.rules(("evidence_grounding", "citation_integrity", "uncertainty_reporting"))
         knowledge = governance.retrieve_knowledge(values["query"], limit=2)
-        body = f"Research question: {values['query']}\nCollected evidence:\n{values['findings']}\nWrite a grounded report."
+        body = (
+            f"Research question: {values['query']}\nCollected evidence:\n{values['findings']}\nWrite a grounded report."
+        )
     guidance = "\n".join(f"- {item.content} ({item.provenance})" for item in knowledge)
     return "\n".join([body, "Policy:", *[f"- {rule}" for rule in rules], "Relevant guidance:", guidance])
 
@@ -71,6 +74,7 @@ def decompose_query(query: str) -> ResearchPlan:
         return ResearchPlan(original_query=query, sub_questions=[query], brief=msg)
 
     from research.workflow_engine import build_workflow
+
     workflow = build_workflow()
 
     # Step 1: Generate diverse perspectives (STORM-inspired)
@@ -97,6 +101,7 @@ def decompose_query(query: str) -> ResearchPlan:
                 task_type="research",
             )
             import json
+
             data = json.loads(result)
             all_questions = data.get("sub_questions", [query])
             brief_parts.append(data.get("brief", ""))
@@ -152,6 +157,7 @@ def decompose_query_simple(query: str) -> ResearchPlan:
             task_type="research",
         )
         import json
+
         data = json.loads(result)
         brief = data.get("brief", "")
         sub_questions = data.get("sub_questions", [query])

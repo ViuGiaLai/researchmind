@@ -11,7 +11,6 @@ Key ideas:
 - Final sort: left-to-right by column, top-to-bottom within column
 """
 
-
 import fitz
 import numpy as np
 from loguru import logger
@@ -53,10 +52,7 @@ def _assign_columns(
     width = float(np.max(x1 if x1 is not None else x0) - min_x0)
     indent_tol = max(width * indent_tol_ratio, 0.01)
 
-    x0s = np.array([
-        [min_x0] if abs(x - min_x0) < indent_tol else [x]
-        for x in x0
-    ], dtype=float)
+    x0s = np.array([[min_x0] if abs(x - min_x0) < indent_tol else [x] for x in x0], dtype=float)
 
     # Filter out wide blocks (spanning blocks) for clustering.
     # Spanning blocks like titles or full-width tables start at the left margin but span both columns.
@@ -110,6 +106,7 @@ def _assign_columns(
     # Remap column indices left-to-right by mean x0
     if best_k > 1:
         from sklearn.cluster import KMeans
+
         km = KMeans(n_clusters=best_k, random_state=0, n_init="auto")
         km.fit(x0s_narrow)
 

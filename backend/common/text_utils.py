@@ -46,7 +46,7 @@ def extract_thinking_content(content: str) -> tuple[str, str]:
 
     # Unclosed <think> tag
     idx = content.index("<think>")
-    thinking = content[idx + 7:].strip()
+    thinking = content[idx + 7 :].strip()
     before = content[:idx].strip()
     return thinking, before
 
@@ -60,6 +60,7 @@ def count_tokens(text: str, model: str = "gpt-4o") -> int:
     """
     try:
         import tiktoken
+
         encoding = tiktoken.encoding_for_model(model)
         return len(encoding.encode(text))
     except (ImportError, KeyError):
@@ -67,6 +68,7 @@ def count_tokens(text: str, model: str = "gpt-4o") -> int:
 
     try:
         import tiktoken
+
         encoding = tiktoken.get_encoding("o200k_base")
         return len(encoding.encode(text))
     except ImportError:
@@ -111,4 +113,4 @@ _API_KEY_IN_URL = re.compile(r'(key=|api[_-]?key=)[^&\s"\']+')
 
 def redact_api_key(text: str) -> str:
     """Remove API keys from URLs/error messages."""
-    return _API_KEY_IN_URL.sub(r'\1[REDACTED]', text)
+    return _API_KEY_IN_URL.sub(r"\1[REDACTED]", text)

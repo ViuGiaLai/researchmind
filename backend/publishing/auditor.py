@@ -42,7 +42,9 @@ class AuditReport:
         if category == "Figures":
             category = "Formatting"
 
-        score_val = 100 if severity == "pass" else (20 if severity == "critical" else (60 if severity == "warning" else 85))
+        score_val = (
+            100 if severity == "pass" else (20 if severity == "critical" else (60 if severity == "warning" else 85))
+        )
         if category in self.category_scores:
             self.category_scores[category].append(score_val)
         else:
@@ -59,24 +61,28 @@ class AuditReport:
 
         provenance = self.template.get("provenance", f"{self.template['name']} Guidelines")
 
-        self.checks.append({
-            "name": name,
-            "category": category,
-            "severity": severity,
-            "priority": priority,  # required | recommended | optional
-            "message": message,
-            "why": why,
-            "provenance": provenance,
-            "location": location,
-            "auto_fix": auto_fix,
-        })
+        self.checks.append(
+            {
+                "name": name,
+                "category": category,
+                "severity": severity,
+                "priority": priority,  # required | recommended | optional
+                "message": message,
+                "why": why,
+                "provenance": provenance,
+                "location": location,
+                "auto_fix": auto_fix,
+            }
+        )
 
     def to_dict(self) -> dict[str, Any]:
         cat_averages = {}
         for cat, vals in self.category_scores.items():
             cat_averages[cat] = round(sum(vals) / len(vals)) if vals else 100
 
-        overall_score = max(0, 100 - (self.critical_count * 25) - (self.warning_count * 10) - (self.suggestion_count * 3))
+        overall_score = max(
+            0, 100 - (self.critical_count * 25) - (self.warning_count * 10) - (self.suggestion_count * 3)
+        )
 
         return {
             "template": self.template,
@@ -165,7 +171,11 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
 
     max_abs = constraints.get("max_abstract_words", 250)
     if abstract_line:
-        abstract_text = text_content[text_content.lower().find("abstract"):text_content.lower().find("introduction")] if "introduction" in text_content.lower() else text_content
+        abstract_text = (
+            text_content[text_content.lower().find("abstract") : text_content.lower().find("introduction")]
+            if "introduction" in text_content.lower()
+            else text_content
+        )
         abstract_words = len(re.findall(r"\b\w+\b", abstract_text[:1000]))
         if abstract_words <= max_abs:
             report.add_check(
@@ -413,7 +423,9 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
 
     # ─── 7. REFERENCES: Citations & Supported Styles ────────────────────────
     styles_str = ", ".join(tmpl.get("supported_citation_styles", ["Standard Citation Style"]))
-    citation_lines = [idx for idx, line in enumerate(lines, 1) if re.search(r"\[\d+\]|\[[A-Za-z]+\s*et\s*al\.\,?\s*\d{4}\]", line)]
+    citation_lines = [
+        idx for idx, line in enumerate(lines, 1) if re.search(r"\[\d+\]|\[[A-Za-z]+\s*et\s*al\.\,?\s*\d{4}\]", line)
+    ]
 
     if citation_lines:
         report.add_check(

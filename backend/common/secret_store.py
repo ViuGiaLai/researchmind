@@ -10,6 +10,7 @@ class SecretStorageError(RuntimeError):
 def get_secret(name: str) -> str:
     try:
         import keyring
+
         return keyring.get_password(SERVICE_NAME, name) or ""
     except Exception as exc:
         raise SecretStorageError("The operating-system credential store is unavailable.") from exc
@@ -18,6 +19,7 @@ def get_secret(name: str) -> str:
 def set_secret(name: str, value: str) -> None:
     try:
         import keyring
+
         if value:
             keyring.set_password(SERVICE_NAME, name, value)
         else:

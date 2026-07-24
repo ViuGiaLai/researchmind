@@ -6,6 +6,7 @@ DELETE /api/academic/cache/{doi} → xoá cache cho DOI cụ thể
 GET  /api/academic/pdf-proxy    → proxy PDF từ URL ngoài để xem trong iframe
 POST /api/academic/translate    → translate all papers in results list via Gemini
 """
+
 import asyncio
 import ipaddress
 import json
@@ -62,26 +63,33 @@ async def lookup_doi(doi: str = Query(..., description="DOI string, e.g. 10.1234
         return {"source": "cache", "data": cached}
     result = await cr_get(doi)
     if result:
-        cache_set(f"cr:{doi}", "crossref", {
-            "doi": result.doi,
-            "title": result.title,
-            "authors": result.authors,
-            "journal": result.journal,
-            "year": result.year,
-            "publisher": result.publisher,
-            "citation_count": result.citation_count,
-            "is_valid": result.is_valid,
-        })
-        return {"source": "crossref", "data": {
-            "doi": result.doi,
-            "title": result.title,
-            "authors": result.authors,
-            "journal": result.journal,
-            "year": result.year,
-            "publisher": result.publisher,
-            "citation_count": result.citation_count,
-            "is_valid": result.is_valid,
-        }}
+        cache_set(
+            f"cr:{doi}",
+            "crossref",
+            {
+                "doi": result.doi,
+                "title": result.title,
+                "authors": result.authors,
+                "journal": result.journal,
+                "year": result.year,
+                "publisher": result.publisher,
+                "citation_count": result.citation_count,
+                "is_valid": result.is_valid,
+            },
+        )
+        return {
+            "source": "crossref",
+            "data": {
+                "doi": result.doi,
+                "title": result.title,
+                "authors": result.authors,
+                "journal": result.journal,
+                "year": result.year,
+                "publisher": result.publisher,
+                "citation_count": result.citation_count,
+                "is_valid": result.is_valid,
+            },
+        }
     return {"source": "not_found", "data": None}
 
 
@@ -138,35 +146,39 @@ async def discover_papers(body: dict = Body(...)):
         # Get PDF URL from OpenAlex open_access
         oa_access = r.get("open_access") or {}
         oa_pdf_url = oa_access.get("oa_url", "") if oa_access.get("is_oa") else ""
-        results.append({
-            "source": "openalex",
-            "doi": (r.get("doi") or "").replace("https://doi.org/", "").lower(),
-            "title": r.get("title", ""),
-            "authors": authors,
-            "year": r.get("publication_year"),
-            "citation_count": r.get("cited_by_count", 0),
-            "journal": source.get("display_name", ""),
-            "abstract": abstract_text,
-            "openalex_id": r.get("id", ""),
-            "pdf_url": oa_pdf_url,
-        })
+        results.append(
+            {
+                "source": "openalex",
+                "doi": (r.get("doi") or "").replace("https://doi.org/", "").lower(),
+                "title": r.get("title", ""),
+                "authors": authors,
+                "year": r.get("publication_year"),
+                "citation_count": r.get("cited_by_count", 0),
+                "journal": source.get("display_name", ""),
+                "abstract": abstract_text,
+                "openalex_id": r.get("id", ""),
+                "pdf_url": oa_pdf_url,
+            }
+        )
 
     for p in s2_results:
         doi = ""
         if p.external_ids:
             doi = (p.external_ids.get("DOI") or "").lower()
-        results.append({
-            "source": "semantic_scholar",
-            "doi": doi,
-            "title": p.title,
-            "authors": p.authors,
-            "year": p.year,
-            "citation_count": p.citation_count,
-            "journal": p.venue or "",
-            "abstract": p.abstract or "",
-            "s2_paper_id": p.paper_id,
-            "pdf_url": p.open_access_pdf_url or "",
-        })
+        results.append(
+            {
+                "source": "semantic_scholar",
+                "doi": doi,
+                "title": p.title,
+                "authors": p.authors,
+                "year": p.year,
+                "citation_count": p.citation_count,
+                "journal": p.venue or "",
+                "abstract": p.abstract or "",
+                "s2_paper_id": p.paper_id,
+                "pdf_url": p.open_access_pdf_url or "",
+            }
+        )
 
     # Interleave sources, then merge duplicates by normalized DOI or title.
     oa_only = [r for r in results if r["source"] == "openalex"]
@@ -286,11 +298,13 @@ async def translate_papers(request: Request, body: dict = Body(...)):
         model_candidates.append(fallback_model)
 
     def _chunk_papers(items: list[dict], size: int) -> list[list[dict]]:
-        return [items[i:i + size] for i in range(0, len(items), size)]
+        return [items[i : i + size] for i in range(0, len(items), size)]
 
     def _build_batch_payload(batch: list[dict], model_name: str) -> tuple[str, dict]:
         prompt = json.dumps(batch, ensure_ascii=False)
-        user_prompt = f"Translate only the title and abstract values in this JSON into {target_language_name}:\n\n{prompt}"
+        user_prompt = (
+            f"Translate only the title and abstract values in this JSON into {target_language_name}:\n\n{prompt}"
+        )
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         payload = {
             "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
@@ -316,6 +330,7 @@ async def translate_papers(request: Request, body: dict = Body(...)):
         for chunk in _chunk_papers(batch, 6):
             if gateway_url:
                 from common.request_context import get_request_bearer_token
+
                 shared = getattr(settings, "researchmind_cloud_token", "")
                 user_token = get_request_bearer_token()
                 if shared:
@@ -350,13 +365,17 @@ async def translate_papers(request: Request, body: dict = Body(...)):
                         raise HTTPException(status_code=502, detail="Hosted translation returned invalid JSON") from exc
                     for index, _paper in enumerate(chunk):
                         translated = translations[index] if index < len(translations) else {}
-                        result.append({
-                            "title_vi": translated.get("title_vi") or translated.get("title") or "",
-                            "abstract_vi": translated.get("abstract_vi") or translated.get("abstract") or "",
-                        })
+                        result.append(
+                            {
+                                "title_vi": translated.get("title_vi") or translated.get("title") or "",
+                                "abstract_vi": translated.get("abstract_vi") or translated.get("abstract") or "",
+                            }
+                        )
                     continue
                 except httpx.HTTPStatusError as gateway_err:
-                    logger.warning(f"Gateway translation failed ({gateway_err.response.status_code}), falling back to Gemini API")
+                    logger.warning(
+                        f"Gateway translation failed ({gateway_err.response.status_code}), falling back to Gemini API"
+                    )
                 except Exception as gateway_err:
                     logger.warning(f"Gateway translation error: {gateway_err}, falling back to Gemini API")
 
@@ -410,10 +429,12 @@ async def translate_papers(request: Request, body: dict = Body(...)):
 
             for i, _paper in enumerate(chunk):
                 t = translations[i] if i < len(translations) else {}
-                result.append({
-                    "title_vi": t.get("title_vi") or t.get("title") or "",
-                    "abstract_vi": t.get("abstract_vi") or t.get("abstract") or "",
-                })
+                result.append(
+                    {
+                        "title_vi": t.get("title_vi") or t.get("title") or "",
+                        "abstract_vi": t.get("abstract_vi") or t.get("abstract") or "",
+                    }
+                )
 
     return {"translations": result}
 
@@ -430,6 +451,7 @@ async def invalidate_cache(doi: str):
 async def get_academic_knowledge(title: str = Query(...), doi: str | None = Query(None)):
     """Fetch Knowledge Engine SOTA benchmark and citation metrics footprint."""
     from academic.knowledge_engine import knowledge_engine
+
     return await knowledge_engine.get_paper_knowledge(title=title, doi=doi)
 
 
@@ -437,14 +459,17 @@ async def get_academic_knowledge(title: str = Query(...), doi: str | None = Quer
 async def get_sota_benchmarks(query: str = Query(...)):
     """Search SOTA benchmarks and task leaderboards from PapersWithCode."""
     from academic.paperswithcode import get_task_benchmarks, search_tasks
+
     tasks = search_tasks(query, page=1, items_per_page=5)
     out = []
     for t_item in tasks:
         tid = t_item.get("id")
         if tid:
             benchmarks = get_task_benchmarks(tid)
-            out.append({
-                "task": t_item,
-                "benchmarks": benchmarks,
-            })
+            out.append(
+                {
+                    "task": t_item,
+                    "benchmarks": benchmarks,
+                }
+            )
     return {"query": query, "results": out}

@@ -1,4 +1,5 @@
 """Citation Checker tool — validates DOIs and citation formats against Crossref."""
+
 from __future__ import annotations
 
 import re
@@ -13,14 +14,15 @@ class CitationCheckerTool(BaseTool):
     Does NOT call an LLM. Applies mechanical pattern rules backed by
     academic_governance.json:citation_integrity rule pack.
     """
+
     name = "citation_checker"
 
     # Regex for DOI pattern
-    _DOI_RE = re.compile(r'\b(10\.\d{4,}(?:\.\d+)*\/\S+)\b', re.IGNORECASE)
+    _DOI_RE = re.compile(r"\b(10\.\d{4,}(?:\.\d+)*\/\S+)\b", re.IGNORECASE)
     # Common citation format detectors
-    _IEEE_RE = re.compile(r'^\[\d+\]|^\d+\.')
-    _APA_RE  = re.compile(r'\(\d{4}\)')
-    _ACM_RE  = re.compile(r'\d{4}\. .+?\. In ')
+    _IEEE_RE = re.compile(r"^\[\d+\]|^\d+\.")
+    _APA_RE = re.compile(r"\(\d{4}\)")
+    _ACM_RE = re.compile(r"\d{4}\. .+?\. In ")
 
     def _run(self, citations: list[str], venue_id: str = "ieee_trans") -> ToolResult:  # type: ignore[override]
         from academic.governance import get_academic_governance

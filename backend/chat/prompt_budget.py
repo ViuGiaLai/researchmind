@@ -28,12 +28,8 @@ PROVIDER_INPUT_BUDGET: dict[str, int] = {
 
 OVERHEAD_TOKENS = 256
 
-CONTEXT_BLOCK_RE = re.compile(
-    r"(?s)^(## Document context:\n)(.*?)(\n\n## Question:\n.*)$"
-)
-SNIPPET_BLOCK_RE = re.compile(
-    r"(?s)^(.*?)(\nExcerpt:\n)(.*)$"
-)
+CONTEXT_BLOCK_RE = re.compile(r"(?s)^(## Document context:\n)(.*?)(\n\n## Question:\n.*)$")
+SNIPPET_BLOCK_RE = re.compile(r"(?s)^(.*?)(\nExcerpt:\n)(.*)$")
 
 
 def get_provider_input_budget(provider: str) -> int:
@@ -106,11 +102,7 @@ def fit_prompt_for_provider(
         suffix_tokens = count_tokens(prefix + suffix, model)
         context_budget = max(allowed - suffix_tokens, 256)
         trimmed = truncate_to_token_limit(context, context_budget, model)
-        fitted = (
-            f"{prefix}{trimmed}\n\n"
-            f"[...(context truncated for {provider})...]"
-            f"{suffix}"
-        )
+        fitted = f"{prefix}{trimmed}\n\n[...(context truncated for {provider})...]{suffix}"
         logger.info(
             f"prompt_budget: {provider} context {count_tokens(context, model)}→"
             f"{count_tokens(trimmed, model)} tokens (user budget={allowed})"
@@ -123,16 +115,10 @@ def fit_prompt_for_provider(
         prefix_tokens = count_tokens(prefix + marker, model)
         context_budget = max(allowed - prefix_tokens, 256)
         trimmed = truncate_to_token_limit(context, context_budget, model)
-        fitted = (
-            f"{prefix}{marker}{trimmed}\n\n"
-            f"[...(excerpt truncated for {provider})...]"
-        )
+        fitted = f"{prefix}{marker}{trimmed}\n\n[...(excerpt truncated for {provider})...]"
         logger.info(f"prompt_budget: {provider} snippet truncated (user budget={allowed})")
         return fitted, True
 
     trimmed = truncate_to_token_limit(user_prompt, allowed, model)
-    logger.info(
-        f"prompt_budget: {provider} whole prompt {user_tokens}→"
-        f"{count_tokens(trimmed, model)} tokens"
-    )
+    logger.info(f"prompt_budget: {provider} whole prompt {user_tokens}→{count_tokens(trimmed, model)} tokens")
     return trimmed, True

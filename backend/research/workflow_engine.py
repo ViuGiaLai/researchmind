@@ -1,4 +1,5 @@
 """Deterministic workflow manifests for research operations."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -11,7 +12,7 @@ from academic.governance import get_academic_governance
 class WorkflowStep:
     id: str
     kind: str
-    tool: str                          # tool name from academic_governance.json
+    tool: str  # tool name from academic_governance.json
     requires: tuple[str, ...]
     produces: tuple[str, ...]
 
@@ -26,9 +27,9 @@ class WorkflowPlan:
         available_set = set(available)
         return next(
             (
-                step for step in self.steps
-                if set(step.requires).issubset(available_set)
-                and not set(step.produces).issubset(available_set)
+                step
+                for step in self.steps
+                if set(step.requires).issubset(available_set) and not set(step.produces).issubset(available_set)
             ),
             None,
         )

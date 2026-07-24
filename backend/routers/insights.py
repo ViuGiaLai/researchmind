@@ -254,7 +254,7 @@ async def compare_papers(request: Request, body: dict = Body(...)):
             "model_used": "",
             "papers_used": [],
             "chunks_used": 0,
-            "matrix": {"columns": [], "rows": []}
+            "matrix": {"columns": [], "rows": []},
         }
 
     preflight = _insight_preflight(paper_ids)
@@ -265,6 +265,7 @@ async def compare_papers(request: Request, body: dict = Body(...)):
     # Fetch paper titles from DB
     from db.database import get_session
     from db.models import Paper
+
     session = get_session(state.engine)
     try:
         papers_db = session.query(Paper).filter(Paper.id.in_(paper_ids)).all()
@@ -289,9 +290,9 @@ async def compare_papers(request: Request, body: dict = Body(...)):
                     "methodology": t("insights.no_text_data_methodology", lang),
                     "dataset": t("insights.no_text_data_dataset", lang),
                     "findings": t("insights.no_text_data_findings", lang),
-                    "limitations": t("insights.no_text_data_limitations", lang)
+                    "limitations": t("insights.no_text_data_limitations", lang),
                 },
-                "model_used": "none"
+                "model_used": "none",
             }
 
         prompt = f"""Extract a concise, evidence-grounded summary from the supplied excerpts of "{title}". Use 1-3 sentences per field.
@@ -340,12 +341,7 @@ Paper excerpts:\n{retrieval.context_text}"""
             if key not in data or not str(data[key]).strip():
                 data[key] = t("insights.extract_failed", lang)
 
-        return {
-            "id": paper_id,
-            "title": title,
-            "data": data,
-            "model_used": generation.model_used
-        }
+        return {"id": paper_id, "title": title, "data": data, "model_used": generation.model_used}
 
     # Extract paper info concurrently
     tasks = []
@@ -365,7 +361,7 @@ Paper excerpts:\n{retrieval.context_text}"""
         [t("review.extract_title_methodology", lang), *[res["data"]["methodology"] for res in results]],
         [t("review.matrix_label_dataset", lang), *[res["data"]["dataset"] for res in results]],
         [t("review.extract_title_findings", lang), *[res["data"]["findings"] for res in results]],
-        [t("review.extract_title_limitations", lang), *[res["data"]["limitations"] for res in results]]
+        [t("review.extract_title_limitations", lang), *[res["data"]["limitations"] for res in results]],
     ]
 
     # Build markdown table for synthesis/exporting
@@ -384,8 +380,5 @@ Paper excerpts:\n{retrieval.context_text}"""
         "model_used": model_used or "hybrid",
         "papers_used": paper_ids,
         "chunks_used": len(paper_ids) * 8,
-        "matrix": {
-            "columns": columns,
-            "rows": rows
-        }
+        "matrix": {"columns": columns, "rows": rows},
     }

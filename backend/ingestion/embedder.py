@@ -25,6 +25,7 @@ class Embedder:
             return
         try:
             from sentence_transformers import SentenceTransformer
+
             local_name = getattr(settings, "embedding_model", "BAAI/bge-m3")
             self._local_model = SentenceTransformer(local_name, device="cpu")
             dim = self._local_model.get_sentence_embedding_dimension()
@@ -41,6 +42,7 @@ class Embedder:
     def _embed_local(self, texts: list[str]) -> list[list[float]]:
         self._ensure_local_model()
         import numpy as np
+
         embeddings = self._local_model.encode(texts, show_progress_bar=False, normalize_embeddings=True)
         if isinstance(embeddings, np.ndarray):
             return embeddings.tolist()
@@ -101,10 +103,7 @@ class Embedder:
                         cached_embeddings[h] = emb
                         exists = session.query(EmbeddingCache).filter(EmbeddingCache.key_hash == h).first()
                         if not exists:
-                            session.add(EmbeddingCache(
-                                key_hash=h,
-                                vector=json.dumps(emb)
-                            ))
+                            session.add(EmbeddingCache(key_hash=h, vector=json.dumps(emb)))
                     session.commit()
                 except Exception as save_err:
                     session.rollback()
@@ -140,7 +139,8 @@ class Embedder:
         else:
             headers = {}
         response = httpx.post(
-            f"{gateway_url}/v1/embeddings", headers=headers,
+            f"{gateway_url}/v1/embeddings",
+            headers=headers,
             json={"texts": texts, "model": self.model_name},
             timeout=getattr(settings, "researchmind_cloud_timeout", 120.0),
         )
@@ -152,6 +152,7 @@ class Embedder:
 
     def _call_gateway_with_retry(self, gateway_url: str, texts: list[str], max_retries: int = 3) -> list[list[float]]:
         import httpx
+
         for attempt in range(max_retries):
             try:
                 return self._call_gateway(gateway_url, texts)

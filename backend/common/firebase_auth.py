@@ -43,9 +43,7 @@ def get_firebase_app():
         except json.JSONDecodeError as exc:
             raise FirebaseAuthError("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON.") from exc
     else:
-        raise FirebaseAuthError(
-            "Firebase is enabled but no service-account credential was configured."
-        )
+        raise FirebaseAuthError("Firebase is enabled but no service-account credential was configured.")
 
     options: dict[str, str] = {}
     if settings.firebase_project_id.strip():

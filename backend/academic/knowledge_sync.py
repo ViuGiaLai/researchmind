@@ -1,5 +1,5 @@
-"""Continuous Academic Knowledge Sync — multi-source sync engine across OpenAlex, Crossref, Semantic Scholar, Venue Guidelines, and Taxonomy.
-"""
+"""Continuous Academic Knowledge Sync — multi-source sync engine across OpenAlex, Crossref, Semantic Scholar, Venue Guidelines, and Taxonomy."""
+
 from __future__ import annotations
 
 import time

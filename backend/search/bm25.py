@@ -56,9 +56,7 @@ class BM25Search:
             # table tracks documents actually present in the FTS index.
             source_count = db.execute(text("SELECT COUNT(*) FROM chunks")).scalar() or 0
             try:
-                indexed_count = (
-                    db.execute(text("SELECT COUNT(*) FROM chunks_fts_docsize")).scalar() or 0
-                )
+                indexed_count = db.execute(text("SELECT COUNT(*) FROM chunks_fts_docsize")).scalar() or 0
             except Exception:
                 indexed_count = -1
             if indexed_count != source_count:

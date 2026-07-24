@@ -37,16 +37,8 @@ def test_bm25_uses_isolated_sessions_across_threads(tmp_path):
                 """
             )
         )
-        connection.execute(
-            text(
-                "INSERT INTO papers VALUES ('paper-1', 'Thread safety', 'paper.pdf', 'indexed')"
-            )
-        )
-        connection.execute(
-            text(
-                "INSERT INTO chunks VALUES (1, 'paper-1', 0, 'concurrent retrieval works', 1)"
-            )
-        )
+        connection.execute(text("INSERT INTO papers VALUES ('paper-1', 'Thread safety', 'paper.pdf', 'indexed')"))
+        connection.execute(text("INSERT INTO chunks VALUES (1, 'paper-1', 0, 'concurrent retrieval works', 1)"))
 
     search = BM25Search(Session(engine))
     search.ensure_fts_table()

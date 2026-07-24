@@ -18,10 +18,10 @@ from enum import StrEnum
 
 
 class ResponseMode(StrEnum):
-    COMPACT = "compact"           # default — best balance
+    COMPACT = "compact"  # default — best balance
     REFINE = "refine"
     TREE_SUMMARIZE = "tree_summarize"
-    SIMPLE = "simple"             # stuff all chunks into one prompt
+    SIMPLE = "simple"  # stuff all chunks into one prompt
 
 
 class ResponseSynthesizer:
@@ -101,7 +101,7 @@ class ResponseSynthesizer:
             batch_size = max(1, len(current) // 4)
             next_level = []
             for i in range(0, len(current), batch_size):
-                batch = current[i:i + batch_size]
+                batch = current[i : i + batch_size]
                 combined = "\n\n".join(batch)
                 prompt = self._build_prompt(query, combined)
                 summary = self._predict(prompt)
@@ -174,7 +174,7 @@ Update the current answer only where the additional evidence supports a correcti
             batch_size = max(1, len(current) // 4)
             tasks = []
             for i in range(0, len(current), batch_size):
-                batch = current[i:i + batch_size]
+                batch = current[i : i + batch_size]
                 combined = "\n\n".join(batch)
                 prompt = self._build_prompt(query, combined)
                 tasks.append(self._predict_async(prompt))

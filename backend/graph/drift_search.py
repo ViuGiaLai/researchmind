@@ -96,8 +96,7 @@ async def drift_search(
         new_entities = [
             name.upper()
             for name in new_entities
-            if name.upper() not in explored_entities
-            and graph.get_entity_by_title(name) is not None
+            if name.upper() not in explored_entities and graph.get_entity_by_title(name) is not None
         ]
 
         if not new_entities:

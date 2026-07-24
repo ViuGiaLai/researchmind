@@ -3,6 +3,7 @@ SQLite-based cache cho external API calls.
 TTL: 24h cho OpenAlex, 7 ngày cho Crossref (metadata ít thay đổi).
 Không dùng Redis để giữ local-first.
 """
+
 import json
 import sqlite3
 import time
@@ -43,10 +44,7 @@ def _get_conn() -> sqlite3.Connection:
 
 def cache_get(key: str, ttl: int) -> dict | None:
     conn = _get_conn()
-    row = conn.execute(
-        "SELECT data, created_at FROM academic_cache WHERE cache_key = ?",
-        (key,)
-    ).fetchone()
+    row = conn.execute("SELECT data, created_at FROM academic_cache WHERE cache_key = ?", (key,)).fetchone()
     conn.close()
 
     if not row:
@@ -62,7 +60,7 @@ def cache_set(key: str, source: str, data: dict) -> None:
     conn.execute(
         """INSERT OR REPLACE INTO academic_cache
            (cache_key, source, data, created_at) VALUES (?, ?, ?, ?)""",
-        (key, source, json.dumps(data, ensure_ascii=False), int(time.time()))
+        (key, source, json.dumps(data, ensure_ascii=False), int(time.time())),
     )
     conn.commit()
     conn.close()
@@ -70,9 +68,6 @@ def cache_set(key: str, source: str, data: dict) -> None:
 
 def cache_invalidate_doi(doi: str) -> None:
     conn = _get_conn()
-    conn.execute(
-        "DELETE FROM academic_cache WHERE cache_key LIKE ?",
-        (f"%{doi}%",)
-    )
+    conn.execute("DELETE FROM academic_cache WHERE cache_key LIKE ?", (f"%{doi}%",))
     conn.commit()
     conn.close()

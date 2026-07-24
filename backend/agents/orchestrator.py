@@ -3,6 +3,7 @@
 Each workflow step declared in academic_governance.json maps to an agent.
 Pipeline runs are logged to audit_trail.jsonl and automatically evaluated.
 """
+
 from __future__ import annotations
 
 import time
@@ -24,21 +25,22 @@ from .writing_agent import WritingAgent
 
 # Step → Agent mapping (data-driven)
 _STEP_AGENT_MAP: dict[str, type[BaseAgent]] = {
-    "parse":       ResearchAgent,
-    "retrieve":    ResearchAgent,
-    "analyze":     ResearchAgent,
-    "audit":       AuditAgent,
-    "verify":      ResearchAgent,
-    "auto_fix":    AuditAgent,
-    "synthesize":  WritingAgent,
-    "review":      ReviewAgent,
-    "export":      PublishingAgent,
+    "parse": ResearchAgent,
+    "retrieve": ResearchAgent,
+    "analyze": ResearchAgent,
+    "audit": AuditAgent,
+    "verify": ResearchAgent,
+    "auto_fix": AuditAgent,
+    "synthesize": WritingAgent,
+    "review": ReviewAgent,
+    "export": PublishingAgent,
 }
 
 
 @dataclass
 class PipelineResult:
     """Result of a full pipeline run."""
+
     query: str
     venue_id: str
     governance_version: str
@@ -122,16 +124,18 @@ async def run_pipeline(
         pipeline_result.steps.append(result)
 
         # Log audit trail for observability
-        audit_trail_logger.log(AuditTrailRecord(
-            trace_id=trace_id,
-            step_id=step.id,
-            agent_name=agent.name,
-            rules_applied=getattr(agent, "allowed_tools", []),
-            tools_called=list(getattr(agent, "allowed_tools", ())),
-            docs_retrieved=ctx.paper_ids,
-            status="success" if result.success else "failure",
-            duration_ms=duration_ms,
-        ))
+        audit_trail_logger.log(
+            AuditTrailRecord(
+                trace_id=trace_id,
+                step_id=step.id,
+                agent_name=agent.name,
+                rules_applied=getattr(agent, "allowed_tools", []),
+                tools_called=list(getattr(agent, "allowed_tools", ())),
+                docs_retrieved=ctx.paper_ids,
+                status="success" if result.success else "failure",
+                duration_ms=duration_ms,
+            )
+        )
 
         if result.success:
             if isinstance(result.output, dict):
@@ -149,9 +153,7 @@ async def run_pipeline(
         step = workflow.next_step(ctx.produced)
 
     # Final Output & Quality Evaluation
-    pipeline_result.final_output = (
-        next((s.output for s in reversed(pipeline_result.steps) if s.success), None)
-    )
+    pipeline_result.final_output = next((s.output for s in reversed(pipeline_result.steps) if s.success), None)
     pipeline_result.success = any(s.step in ("synthesize", "export") and s.success for s in pipeline_result.steps)
     pipeline_result.evaluation = evaluate_pipeline_result(pipeline_result)
 

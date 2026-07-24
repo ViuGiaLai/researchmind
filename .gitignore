@@ -9,8 +9,6 @@ dist/
 build/
 out/
 
-
-
 # Vite
 .vite/
 
@@ -73,3 +71,87 @@ __pycache__/
 # nhật ký
 nhat-ky-thuc-tap
 tham_khao
+
+# ===========================
+# BỔ SUNG
+# ===========================
+
+# Python cache
+*.pyo
+*.pyd
+*$py.class
+
+# Python tooling cache
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Node cache
+.npm/
+.pnpm-store/
+.yarn/
+.parcel-cache/
+
+# Build cache
+.cache/
+
+# Temporary files
+*.tmp
+*.temp
+__tmp_*
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# ChromaDB
+chroma/
+chroma_db/
+backend/chroma/
+backend/chroma_db/
+
+# Vector index
+*.faiss
+*.index
+
+# Model cache
+models/
+huggingface/
+
+# AI outputs
+outputs/
+
+# Local executables
+*.exe
+
+# Certificates
+*.key
+*.crt
+*.p12
+*.pfx
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+Desktop.ini
+
+# Editor swap
+*.swp
+*.swo
+*.bak
+*.orig

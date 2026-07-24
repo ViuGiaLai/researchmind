@@ -18,10 +18,12 @@ def test_accept_language_selects_supported_language_by_preference():
 
 
 def test_x_language_overrides_accept_language_for_legacy_clients():
-    request = _request([
-        (b"x-language", b"vi"),
-        (b"accept-language", b"en-US,en;q=0.9"),
-    ])
+    request = _request(
+        [
+            (b"x-language", b"vi"),
+            (b"accept-language", b"en-US,en;q=0.9"),
+        ]
+    )
     assert get_language(request) == "vi"
 
 

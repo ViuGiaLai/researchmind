@@ -1,4 +1,5 @@
 """Exporter tool — formats and exports manuscripts to PDF or LaTeX formats."""
+
 from __future__ import annotations
 
 from .base import BaseTool, ToolResult
@@ -8,6 +9,7 @@ class ExporterTool(BaseTool):
     """Formats and exports manuscript drafts into PDF or LaTeX templates.
     Wraps existing export engines with a standardized ToolResult interface.
     """
+
     name = "exporter"
 
     def _run(  # type: ignore[override]

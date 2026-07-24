@@ -14,7 +14,13 @@ def test_grounded_answer_scores_better_than_uncited_answer():
 def test_multilingual_and_model_aggregation():
     rows = [
         SimpleNamespace(role="user", session_id="s", content="Kết quả chính là gì?", citations="[]", model_used=""),
-        SimpleNamespace(role="assistant", session_id="s", content="Kết quả tăng rõ rệt [Bài báo, trang 2].", citations='[{"paper_id":"p","verification_status":"verified","page_valid":true}]', model_used="model-a"),
+        SimpleNamespace(
+            role="assistant",
+            session_id="s",
+            content="Kết quả tăng rõ rệt [Bài báo, trang 2].",
+            citations='[{"paper_id":"p","verification_status":"verified","page_valid":true}]',
+            model_used="model-a",
+        ),
     ]
     report = aggregate_history(rows)
     assert report["language_consistency"] == 1.0

@@ -1,4 +1,5 @@
 """DOI Lookup tool — unified resolver across Crossref, OpenAlex, Semantic Scholar."""
+
 from __future__ import annotations
 
 import asyncio
@@ -13,6 +14,7 @@ class DOILookupTool(BaseTool):
     Priority chain: Crossref → OpenAlex → Semantic Scholar.
     Does not call an LLM.
     """
+
     name = "doi_lookup"
 
     def _run(self, doi: str, timeout: float = 5.0) -> ToolResult:  # type: ignore[override]

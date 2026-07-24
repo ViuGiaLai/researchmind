@@ -36,18 +36,13 @@ async def summarize_community(
 
     entity_titles = {e.title.upper() for e in entities}
     relationships = [
-        r for r in graph.relationships.values()
+        r
+        for r in graph.relationships.values()
         if r.source.upper() in entity_titles and r.target.upper() in entity_titles
     ]
 
-    entity_lines = "\n".join(
-        f"- {e.title} ({e.type or 'N/A'}): {e.description or 'No description'}"
-        for e in entities
-    )
-    rel_lines = "\n".join(
-        f"- {r.source} → {r.target} ({r.weight:.1f}): {r.description or ''}"
-        for r in relationships
-    )
+    entity_lines = "\n".join(f"- {e.title} ({e.type or 'N/A'}): {e.description or 'No description'}" for e in entities)
+    rel_lines = "\n".join(f"- {r.source} → {r.target} ({r.weight:.1f}): {r.description or ''}" for r in relationships)
 
     prompt = get_academic_governance().graph_prompt(
         "community_report",
@@ -57,6 +52,7 @@ async def summarize_community(
 
     try:
         from app_state import state
+
         if state.build_cancelled:
             raise GraphBuildCancelledError("Build cancelled by user")
         response = await generator.generate_direct_async(

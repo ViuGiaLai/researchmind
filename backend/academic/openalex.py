@@ -2,6 +2,7 @@
 OpenAlex API client — không cần API key, rate limit 100k/ngày.
 Polite pool: thêm email vào header để tăng rate limit.
 """
+
 from dataclasses import dataclass
 
 import httpx
@@ -9,9 +10,7 @@ import httpx
 OPENALEX_BASE = "https://api.openalex.org"
 POLITE_EMAIL = "worksor.78@gmail.com"
 
-HEADERS = {
-    "User-Agent": f"ResearchMindVN/0.3 (mailto:{POLITE_EMAIL})"
-}
+HEADERS = {"User-Agent": f"ResearchMindVN/0.3 (mailto:{POLITE_EMAIL})"}
 
 
 @dataclass
@@ -29,6 +28,7 @@ class OpenAlexWork:
 @dataclass
 class OpenAlexResult:
     """Lightweight result for search_openalex — used by KnowledgeEngine & LiteratureEngine."""
+
     id: str
     doi: str | None
     title: str
@@ -46,10 +46,7 @@ async def get_work_by_doi(doi: str, timeout: float = 5.0) -> OpenAlexWork | None
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            resp = await client.get(
-                f"{OPENALEX_BASE}/works/doi:{doi_clean}",
-                headers=HEADERS
-            )
+            resp = await client.get(f"{OPENALEX_BASE}/works/doi:{doi_clean}", headers=HEADERS)
             if resp.status_code != 200:
                 return None
             data = resp.json()
@@ -63,12 +60,8 @@ async def get_work_by_title(title: str, timeout: float = 5.0) -> OpenAlexWork | 
         try:
             resp = await client.get(
                 f"{OPENALEX_BASE}/works",
-                params={
-                    "filter": f"title.search:{title}",
-                    "per_page": 1,
-                    "sort": "relevance_score:desc"
-                },
-                headers=HEADERS
+                params={"filter": f"title.search:{title}", "per_page": 1, "sort": "relevance_score:desc"},
+                headers=HEADERS,
             )
             if resp.status_code != 200:
                 return None
@@ -80,11 +73,7 @@ async def get_work_by_title(title: str, timeout: float = 5.0) -> OpenAlexWork | 
             return None
 
 
-async def search_works(
-    query: str,
-    limit: int = 5,
-    timeout: float = 5.0
-) -> list[dict]:
+async def search_works(query: str, limit: int = 5, timeout: float = 5.0) -> list[dict]:
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             resp = await client.get(
@@ -92,9 +81,9 @@ async def search_works(
                 params={
                     "search": query,
                     "per_page": limit,
-                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index,relevance_score,open_access,fwci,concepts"
+                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index,relevance_score,open_access,fwci,concepts",
                 },
-                headers=HEADERS
+                headers=HEADERS,
             )
             if resp.status_code != 200:
                 return []
@@ -104,10 +93,7 @@ async def search_works(
 
 
 async def get_recent_citing_works(
-    openalex_id: str,
-    since_year: int = 2022,
-    limit: int = 5,
-    timeout: float = 5.0
+    openalex_id: str, since_year: int = 2022, limit: int = 5, timeout: float = 5.0
 ) -> list[dict]:
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
@@ -117,9 +103,9 @@ async def get_recent_citing_works(
                     "filter": f"cites:{openalex_id},publication_year:>{since_year}",
                     "per_page": limit,
                     "sort": "publication_date:desc",
-                    "select": "id,doi,title,publication_year,authorships,primary_location"
+                    "select": "id,doi,title,publication_year,authorships,primary_location",
                 },
-                headers=HEADERS
+                headers=HEADERS,
             )
             if resp.status_code != 200:
                 return []
@@ -155,9 +141,9 @@ def search_openalex(query: str, limit: int = 5) -> list[OpenAlexResult]:
                 params={
                     "search": query,
                     "per_page": limit,
-                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index,open_access,fwci,concepts"
+                    "select": "id,doi,title,publication_year,cited_by_count,authorships,primary_location,abstract_inverted_index,open_access,fwci,concepts",
                 },
-                headers=HEADERS
+                headers=HEADERS,
             )
             if resp.status_code != 200:
                 return []
@@ -174,18 +160,20 @@ def search_openalex(query: str, limit: int = 5) -> list[OpenAlexResult]:
                 if primary_loc and isinstance(primary_loc, dict):
                     url = primary_loc.get("landing_page_url") or primary_loc.get("pdf_url")
                 doi = item.get("doi")
-                parsed.append(OpenAlexResult(
-                    id=item.get("id", ""),
-                    doi=doi,
-                    title=item.get("title", ""),
-                    abstract=_decode_abstract(item.get("abstract_inverted_index")),
-                    authors=authors,
-                    year=item.get("publication_year"),
-                    primary_url=url,
-                    cited_by_count=item.get("cited_by_count", 0),
-                    fwci=item.get("fwci"),
-                    concepts=item.get("concepts", []),
-                ))
+                parsed.append(
+                    OpenAlexResult(
+                        id=item.get("id", ""),
+                        doi=doi,
+                        title=item.get("title", ""),
+                        abstract=_decode_abstract(item.get("abstract_inverted_index")),
+                        authors=authors,
+                        year=item.get("publication_year"),
+                        primary_url=url,
+                        cited_by_count=item.get("cited_by_count", 0),
+                        fwci=item.get("fwci"),
+                        concepts=item.get("concepts", []),
+                    )
+                )
             return parsed
     except httpx.RequestError:
         return []
@@ -200,5 +188,5 @@ def _parse_work(data: dict) -> OpenAlexWork:
         citation_count=data.get("cited_by_count", 0),
         related_work_ids=data.get("related_works", []),
         referenced_work_ids=data.get("referenced_works", []),
-        recent_citing_works=[]
+        recent_citing_works=[],
     )

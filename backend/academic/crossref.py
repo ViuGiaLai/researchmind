@@ -2,6 +2,7 @@
 Crossref API client — miễn phí, polite pool với email.
 Dùng để: validate DOI, lấy metadata chuẩn (author, journal, year).
 """
+
 from dataclasses import dataclass
 
 import httpx
@@ -9,9 +10,7 @@ import httpx
 CROSSREF_BASE = "https://api.crossref.org"
 POLITE_EMAIL = "worksor.78@gmail.com"
 
-HEADERS = {
-    "User-Agent": f"ResearchMindVN/0.3 (mailto:{POLITE_EMAIL})"
-}
+HEADERS = {"User-Agent": f"ResearchMindVN/0.3 (mailto:{POLITE_EMAIL})"}
 
 
 @dataclass
@@ -31,14 +30,17 @@ async def get_work_by_doi(doi: str, timeout: float = 5.0) -> CrossrefWork | None
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            resp = await client.get(
-                f"{CROSSREF_BASE}/works/{doi_clean}",
-                headers=HEADERS
-            )
+            resp = await client.get(f"{CROSSREF_BASE}/works/{doi_clean}", headers=HEADERS)
             if resp.status_code == 404:
                 return CrossrefWork(
-                    doi=doi_clean, title="", authors=[], journal=None,
-                    year=None, publisher=None, citation_count=0, is_valid=False
+                    doi=doi_clean,
+                    title="",
+                    authors=[],
+                    journal=None,
+                    year=None,
+                    publisher=None,
+                    citation_count=0,
+                    is_valid=False,
                 )
             if resp.status_code != 200:
                 return None
@@ -59,7 +61,7 @@ async def find_doi_by_title(title: str, authors: list[str] = None, timeout: floa
             resp = await client.get(
                 f"{CROSSREF_BASE}/works",
                 params={"query": query, "rows": 1, "select": "DOI,score,title"},
-                headers=HEADERS
+                headers=HEADERS,
             )
             if resp.status_code != 200:
                 return None
@@ -104,5 +106,5 @@ def _parse_item(item: dict) -> CrossrefWork:
         year=year,
         publisher=item.get("publisher"),
         citation_count=item.get("is-referenced-by-count", 0),
-        is_valid=True
+        is_valid=True,
     )

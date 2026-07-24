@@ -5,6 +5,7 @@ Tests for Architecture Evolution components:
 - Knowledge Graph Linker (graph/linker.py)
 - Agent Orchestrator (agents/)
 """
+
 import pytest
 
 from academic.tools import ToolResult, get_tool
@@ -43,9 +44,9 @@ def test_tool_layer_citation_checker():
     res: ToolResult = tool.run(
         citations=[
             "[1] Vaswani et al. Attention is all you need. NeurIPS 2017. https://doi.org/10.5555/3295222.3295349",
-            "Short invalid cit"
+            "Short invalid cit",
         ],
-        venue_id="ieee_trans"
+        venue_id="ieee_trans",
     )
     assert res.success is True
     assert res.data["total"] == 2
@@ -57,7 +58,7 @@ def test_tool_layer_format_auditor():
     res: ToolResult = tool.run(
         title="Test Paper Title",
         text_content="## Abstract\nShort abstract text.\n\n## Introduction\nIntro text.\n\n## Method\nMethod text.\n\n## Results\nResults text.\n\n## Conclusion\nConclusion.\n\n## References\n[1] Ref 1.",
-        venue_id="ieee_trans"
+        venue_id="ieee_trans",
     )
     assert isinstance(res.data, dict)
     assert "overall_score" in res.data
@@ -68,7 +69,7 @@ def test_tool_layer_metadata_checker():
     res: ToolResult = tool.run(
         text_content="## Abstract\nShort abstract.\n\n## Keywords\nAI, Deep Learning",
         venue_id="ieee_trans",
-        metadata={"keywords": ["AI", "Deep Learning"], "orcids": ["0000-0001-2345-6789"]}
+        metadata={"keywords": ["AI", "Deep Learning"], "orcids": ["0000-0001-2345-6789"]},
     )
     assert "keywords" in res.data["passed_fields"]
     assert "orcid" in res.data["passed_fields"]
@@ -77,10 +78,7 @@ def test_tool_layer_metadata_checker():
 def test_tool_layer_exporter():
     tool = get_tool("exporter")
     res: ToolResult = tool.run(
-        content="## Abstract\nPaper text.",
-        export_format="latex",
-        venue_id="ieee_trans",
-        title="Sample Paper"
+        content="## Abstract\nPaper text.", export_format="latex", venue_id="ieee_trans", title="Sample Paper"
     )
     assert res.success is True
     assert "zip_bytes_len" in res.data
@@ -141,9 +139,7 @@ async def test_agent_orchestrator_dry_run():
 @pytest.mark.asyncio
 async def test_agent_orchestrator_full_8_step_pipeline():
     res = await run_pipeline(
-        query="What are the latest advances in transformer architectures?",
-        venue_id="ieee_trans",
-        language="en"
+        query="What are the latest advances in transformer architectures?", venue_id="ieee_trans", language="en"
     )
     assert res.query == "What are the latest advances in transformer architectures?"
     assert res.governance_version == "1.2.0"
@@ -152,4 +148,3 @@ async def test_agent_orchestrator_full_8_step_pipeline():
     executed_steps = [s.step for s in res.steps]
     assert executed_steps == ["parse", "retrieve", "analyze", "audit", "verify", "auto_fix", "synthesize", "export"]
     assert all(s.success for s in res.steps)
-

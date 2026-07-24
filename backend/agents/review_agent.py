@@ -1,4 +1,5 @@
 """Review Agent — scientific peer review simulation using governance standards."""
+
 from __future__ import annotations
 
 from loguru import logger
@@ -12,11 +13,13 @@ class ReviewAgent(BaseAgent):
     Tools: format_auditor, reference_validator
     Rule set: peer_review_standards + writing_quality
     """
+
     name = "review_agent"
     allowed_tools = ("format_auditor", "reference_validator")
 
     async def run(self, ctx: AgentContext) -> AgentResult:
         from academic.governance import get_academic_governance
+
         gov = get_academic_governance()
         rules = gov.rules(("peer_review_standards", "writing_quality"))
 
@@ -58,6 +61,4 @@ class ReviewAgent(BaseAgent):
             )
         except Exception as exc:
             logger.error(f"ReviewAgent error: {exc}")
-            return AgentResult(
-                agent=self.name, step="review", success=False, errors=[str(exc)]
-            )
+            return AgentResult(agent=self.name, step="review", success=False, errors=[str(exc)])

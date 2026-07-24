@@ -1,4 +1,5 @@
 """Evaluation Framework — automated quality benchmarks for accuracy, citation correctness, hallucination, and compliance."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,11 +9,12 @@ from typing import Any
 @dataclass
 class EvaluationMetrics:
     """Quantitative quality metrics for a pipeline execution."""
-    citation_correctness: float    # 0.0 to 1.0
-    hallucination_score: float     # 0.0 (no hallucination) to 1.0 (high)
+
+    citation_correctness: float  # 0.0 to 1.0
+    hallucination_score: float  # 0.0 (no hallucination) to 1.0 (high)
     venue_compliance_score: float  # 0.0 to 1.0 (based on format audit score)
-    relevance_score: float         # 0.0 to 1.0
-    overall_quality: float         # weighted average
+    relevance_score: float  # 0.0 to 1.0
+    overall_quality: float  # weighted average
 
     def to_dict(self) -> dict[str, float]:
         return {
@@ -64,10 +66,10 @@ def evaluate_pipeline_result(pipeline_result: Any) -> EvaluationMetrics:
 
     # Overall weighted quality score
     overall_quality = (
-        0.35 * citation_correctness +
-        0.35 * venue_compliance_score +
-        0.20 * relevance_score +
-        0.10 * (1.0 - hallucination_score)
+        0.35 * citation_correctness
+        + 0.35 * venue_compliance_score
+        + 0.20 * relevance_score
+        + 0.10 * (1.0 - hallucination_score)
     )
 
     return EvaluationMetrics(

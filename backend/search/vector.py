@@ -165,15 +165,17 @@ class VectorSearch:
             distance = results["distances"][0][i]
             similarity = 1.0 - distance
 
-            vector_results.append(VectorResult(
-                chunk_id=chunk_id,
-                paper_id=metadata.get("paper_id", ""),
-                paper_title=metadata.get("paper_title", ""),
-                chunk_index=int(metadata.get("chunk_index", 0)),
-                content=document,
-                page_number=metadata.get("page_number"),
-                score=similarity,
-            ))
+            vector_results.append(
+                VectorResult(
+                    chunk_id=chunk_id,
+                    paper_id=metadata.get("paper_id", ""),
+                    paper_title=metadata.get("paper_title", ""),
+                    chunk_index=int(metadata.get("chunk_index", 0)),
+                    content=document,
+                    page_number=metadata.get("page_number"),
+                    score=similarity,
+                )
+            )
 
         if mmr_lambda is not None and len(vector_results) > 0:
             vector_results = self._mmr_rerank(vector_results, query_embedding, mmr_lambda)

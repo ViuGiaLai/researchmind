@@ -32,6 +32,7 @@ router = APIRouter(prefix="/api/papers/import", tags=["Zotero Import"])
 
 # ─── Dependency ─────────────────────────────────────────────────
 
+
 def _get_db(request: Request):
     engine = request.app.state.engine
     session = get_session(engine)
@@ -113,18 +114,10 @@ def _find_existing(session: Session, title: str, doi: str) -> Paper | None:
         # Use ilike to narrow candidates first
         first_words = title.strip().split()[:5]
         like_pattern = "%".join(first_words)
-        candidates = (
-            session.query(Paper)
-            .filter(Paper.title.ilike(f"%{like_pattern}%"))
-            .limit(20)
-            .all()
-        )
+        candidates = session.query(Paper).filter(Paper.title.ilike(f"%{like_pattern}%")).limit(20).all()
         for p in candidates:
             p_norm = re.sub(r"[^a-z0-9]", "", p.title.strip().lower())
-            if p_norm == norm_title or (
-                len(norm_title) > 30
-                and (norm_title in p_norm or p_norm in norm_title)
-            ):
+            if p_norm == norm_title or (len(norm_title) > 30 and (norm_title in p_norm or p_norm in norm_title)):
                 return p
     return None
 
@@ -181,6 +174,7 @@ def _create_paper(
 
 # ─── BibTeX Parser ──────────────────────────────────────────────
 
+
 def _extract_braced_value(text: str, start: int) -> tuple[str, int]:
     """Extract a brace-delimited value starting at position `start` (the '{' character).
     Handles nested braces correctly.
@@ -230,9 +224,7 @@ def _parse_bibtex(content: str) -> list[dict]:
 
         # Parse fields: field = {value} or field = "value"
         fields = {}
-        field_pattern = re.compile(
-            r"(\w+)\s*=", re.DOTALL
-        )
+        field_pattern = re.compile(r"(\w+)\s*=", re.DOTALL)
         for fm in field_pattern.finditer(body_text):
             key = fm.group(1).lower()
             # Find the value after =
@@ -249,7 +241,7 @@ def _parse_bibtex(content: str) -> list[dict]:
                 end = body_text.find('"', val_start + 1)
                 if end == -1:
                     end = len(body_text)
-                value = body_text[val_start + 1:end]
+                value = body_text[val_start + 1 : end]
             else:
                 # Unquoted value until comma or end
                 end = val_start
@@ -297,19 +289,21 @@ def _parse_bibtex(content: str) -> list[dict]:
         # Language detection
         lang = _detect_language(f"{title} {abstract}")
 
-        papers.append({
-            "title": title,
-            "authors": authors_json,
-            "year": year,
-            "doi": doi,
-            "abstract": abstract,
-            "journal": journal,
-            "pages": pages,
-            "language": lang,
-            "tags": json.dumps(tags_list, ensure_ascii=False),
-            "source": "bibtex",
-            "cite_key": cite_key,
-        })
+        papers.append(
+            {
+                "title": title,
+                "authors": authors_json,
+                "year": year,
+                "doi": doi,
+                "abstract": abstract,
+                "journal": journal,
+                "pages": pages,
+                "language": lang,
+                "tags": json.dumps(tags_list, ensure_ascii=False),
+                "source": "bibtex",
+                "cite_key": cite_key,
+            }
+        )
 
     return papers
 
@@ -375,9 +369,7 @@ def _parse_zotero_csv(content: str) -> list[dict]:
         authors_list = _parse_authors(author_raw)
         authors_json = json.dumps(authors_list, ensure_ascii=False)
 
-        year = _parse_year(
-            row.get("Publication Year", row.get("publication year", ""))
-        )
+        year = _parse_year(row.get("Publication Year", row.get("publication year", "")))
         doi = row.get("DOI", row.get("doi", ""))
         abstract = row.get("Abstract Note", row.get("abstract note", ""))
         pages_str = row.get("Pages", row.get("pages", ""))
@@ -396,9 +388,7 @@ def _parse_zotero_csv(content: str) -> list[dict]:
         auto_tags = row.get("Automatic Tags", row.get("automatic tags", ""))
         for tag_str in [manual_tags, auto_tags]:
             if tag_str:
-                tags_list.extend(
-                    [t.strip() for t in tag_str.split(";") if t.strip()]
-                )
+                tags_list.extend([t.strip() for t in tag_str.split(";") if t.strip()])
         tags_json = json.dumps(tags_list, ensure_ascii=False)
 
         # Language
@@ -406,24 +396,27 @@ def _parse_zotero_csv(content: str) -> list[dict]:
         if not lang:
             lang = _detect_language(f"{title} {abstract}")
 
-        papers.append({
-            "title": title,
-            "authors": authors_json,
-            "year": year,
-            "doi": doi,
-            "abstract": abstract,
-            "journal": row.get("Publication Title", row.get("publication title", "")),
-            "pages": pages,
-            "language": lang,
-            "tags": tags_json,
-            "source": "zotero_csv",
-            "file_attachments": row.get("File Attachments", row.get("file attachments", "")),
-        })
+        papers.append(
+            {
+                "title": title,
+                "authors": authors_json,
+                "year": year,
+                "doi": doi,
+                "abstract": abstract,
+                "journal": row.get("Publication Title", row.get("publication title", "")),
+                "pages": pages,
+                "language": lang,
+                "tags": tags_json,
+                "source": "zotero_csv",
+                "file_attachments": row.get("File Attachments", row.get("file attachments", "")),
+            }
+        )
 
     return papers
 
 
 # ─── PDF Finder from Zotero Storage ─────────────────────────────
+
 
 def _parse_zotero_attachment_path(attachment_str: str) -> list[dict]:
     r"""
@@ -595,11 +588,13 @@ def _copy_and_index_pdf(
         logger.warning(f"Could not parse PDF: {pdf_path}")
         session = _get_db_session(state.engine)  # noqa: F821 — state from main.py
         try:
-            session.query(Paper).filter(Paper.id == paper_id).update({
-                "file_path": str(dest),
-                "file_size": src.stat().st_size,
-                "status": "pending",
-            })
+            session.query(Paper).filter(Paper.id == paper_id).update(
+                {
+                    "file_path": str(dest),
+                    "file_size": src.stat().st_size,
+                    "status": "pending",
+                }
+            )
             session.commit()
         except Exception:
             session.rollback()
@@ -610,13 +605,15 @@ def _copy_and_index_pdf(
     # Update paper with extracted data
     session = _get_db_session(state.engine)  # noqa: F821
     try:
-        session.query(Paper).filter(Paper.id == paper_id).update({
-            "file_path": str(dest),
-            "file_size": doc.file_size or src.stat().st_size,
-            "page_count": doc.page_count,
-            "language": doc.language,
-            "status": "indexing",
-        })
+        session.query(Paper).filter(Paper.id == paper_id).update(
+            {
+                "file_path": str(dest),
+                "file_size": doc.file_size or src.stat().st_size,
+                "page_count": doc.page_count,
+                "language": doc.language,
+                "status": "indexing",
+            }
+        )
         session.commit()
     except Exception as e:
         session.rollback()
@@ -713,6 +710,7 @@ def _index_paper_from_zotero(file_id: str, title: str, doc):
 
 # ─── Endpoints ──────────────────────────────────────────────────
 
+
 @router.post("/bibtex")
 async def import_bibtex(
     request: Request,
@@ -760,19 +758,23 @@ async def import_bibtex(
         )
         if paper:
             status = "imported" if is_new else "duplicate"
-            results.append({
-                "filename": f"{p['cite_key']}.bib",
-                "status": status,
-                "paper_id": paper.id,
-                "title": p["title"],
-            })
+            results.append(
+                {
+                    "filename": f"{p['cite_key']}.bib",
+                    "status": status,
+                    "paper_id": paper.id,
+                    "title": p["title"],
+                }
+            )
         else:
-            results.append({
-                "filename": f"{p['cite_key']}.bib",
-                "status": "error",
-                "error": t("import.db_save_error", lang),
-                "title": p["title"],
-            })
+            results.append(
+                {
+                    "filename": f"{p['cite_key']}.bib",
+                    "status": "error",
+                    "error": t("import.db_save_error", lang),
+                    "title": p["title"],
+                }
+            )
 
     imported_count = len([r for r in results if r["status"] == "imported"])
     duplicate_count = len([r for r in results if r["status"] == "duplicate"])
@@ -834,19 +836,23 @@ async def import_zotero_csv(
         )
         if paper:
             status = "imported" if is_new else "duplicate"
-            results.append({
-                "filename": p.get("title", "unknown")[:50],
-                "status": status,
-                "paper_id": paper.id,
-                "title": p["title"],
-            })
+            results.append(
+                {
+                    "filename": p.get("title", "unknown")[:50],
+                    "status": status,
+                    "paper_id": paper.id,
+                    "title": p["title"],
+                }
+            )
         else:
-            results.append({
-                "filename": p.get("title", "unknown")[:50],
-                "status": "error",
-                "error": t("import.db_save_error", lang),
-                "title": p["title"],
-            })
+            results.append(
+                {
+                    "filename": p.get("title", "unknown")[:50],
+                    "status": "error",
+                    "error": t("import.db_save_error", lang),
+                    "title": p["title"],
+                }
+            )
 
     imported_count = len([r for r in results if r["status"] == "imported"])
     duplicate_count = len([r for r in results if r["status"] == "duplicate"])
@@ -926,12 +932,14 @@ async def import_zotero_csv_with_pdfs(
         )
 
         if not paper:
-            results.append({
-                "filename": p.get("title", "unknown")[:50],
-                "status": "error",
-                "error": t("import.db_save_error", lang),
-                "title": p["title"],
-            })
+            results.append(
+                {
+                    "filename": p.get("title", "unknown")[:50],
+                    "status": "error",
+                    "error": t("import.db_save_error", lang),
+                    "title": p["title"],
+                }
+            )
             continue
 
         result = {
@@ -1097,11 +1105,7 @@ async def import_zotero_sqlite_sync(
             existing = _find_existing(db, title, doi or "")
             if existing:
                 duplicate_count += 1
-                results.append({
-                    "title": title,
-                    "status": "duplicate",
-                    "paper_id": existing.id
-                })
+                results.append({"title": title, "status": "duplicate", "paper_id": existing.id})
                 continue
 
             # Create paper entry
@@ -1120,19 +1124,10 @@ async def import_zotero_sqlite_sync(
 
             if not paper:
                 error_count += 1
-                results.append({
-                    "title": title,
-                    "status": "error",
-                    "error": t("import.db_save_error", lang)
-                })
+                results.append({"title": title, "status": "error", "error": t("import.db_save_error", lang)})
                 continue
 
-            result = {
-                "title": title,
-                "paper_id": paper.id,
-                "status": "imported",
-                "pdf_status": "none"
-            }
+            result = {"title": title, "paper_id": paper.id, "status": "imported", "pdf_status": "none"}
 
             # Try to copy PDF if exists
             pdf_found = False
@@ -1142,11 +1137,7 @@ async def import_zotero_sqlite_sync(
                     storage_hash = storage_match.group(1).strip()
                     filename = storage_match.group(2).strip()
                     if filename.lower().endswith(".pdf"):
-                        att = {
-                            "storage_hash": storage_hash,
-                            "filename": filename,
-                            "is_pdf": True
-                        }
+                        att = {"storage_hash": storage_hash, "filename": filename, "is_pdf": True}
                         pdf_path = _locate_pdf_from_attachment(att, str(zotero_dir))
                         if pdf_path:
                             pdf_result = _copy_and_index_pdf(
@@ -1178,11 +1169,8 @@ async def import_zotero_sqlite_sync(
             "duplicates": duplicate_count,
             "errors": error_count,
             "pdf_imported": pdf_imported,
-            "results": results[:100]
+            "results": results[:100],
         }
     except Exception as e:
         logger.error(f"Zotero SQLite sync failed: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=t("import.zotero_sync_fail", lang, error=str(e))
-        )
+        raise HTTPException(status_code=500, detail=t("import.zotero_sync_fail", lang, error=str(e)))

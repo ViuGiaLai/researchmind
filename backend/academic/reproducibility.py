@@ -8,6 +8,7 @@ Checklist:
 5. Fixation of random seeds
 6. Execution pseudocode / algorithm flow
 """
+
 from __future__ import annotations
 
 import re

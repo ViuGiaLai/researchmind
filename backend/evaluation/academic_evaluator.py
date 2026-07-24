@@ -7,6 +7,7 @@ Metrics:
 4. Compliance Score
 5. Writing Quality
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,11 +16,11 @@ from typing import Any
 
 @dataclass
 class AcademicBenchmarkMetrics:
-    citation_accuracy: float    # 0.0 to 1.0
-    factual_accuracy: float     # 0.0 to 1.0
-    hallucination_rate: float   # 0.0 (no hallucination) to 1.0 (high)
-    compliance_score: float     # 0.0 to 1.0
-    writing_quality: float      # 0.0 to 1.0
+    citation_accuracy: float  # 0.0 to 1.0
+    factual_accuracy: float  # 0.0 to 1.0
+    hallucination_rate: float  # 0.0 (no hallucination) to 1.0 (high)
+    compliance_score: float  # 0.0 to 1.0
+    writing_quality: float  # 0.0 to 1.0
     overall_academic_score: float
 
     def to_dict(self) -> dict[str, float]:
@@ -69,11 +70,11 @@ def evaluate_academic_benchmark(
         writing_quality = 0.75
 
     overall_academic_score = (
-        0.30 * citation_accuracy +
-        0.25 * factual_accuracy +
-        0.20 * compliance_score +
-        0.15 * writing_quality +
-        0.10 * (1.0 - hallucination_rate)
+        0.30 * citation_accuracy
+        + 0.25 * factual_accuracy
+        + 0.20 * compliance_score
+        + 0.15 * writing_quality
+        + 0.10 * (1.0 - hallucination_rate)
     )
 
     return AcademicBenchmarkMetrics(

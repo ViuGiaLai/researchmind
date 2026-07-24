@@ -9,6 +9,7 @@ Covers:
 5. Edge cases: empty ontology, tied values, single experiment
 6. Error handling patterns (isolated, not requiring full app state)
 """
+
 import pytest
 
 from academic.ontology import (
@@ -25,6 +26,7 @@ from academic.reasoning_engine import AcademicReasoningEngine, DeductedFact
 # ─────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def empty_ontology() -> AcademicOntologyGraph:
@@ -49,19 +51,28 @@ def sota_ontology() -> AcademicOntologyGraph:
 
     # Experiments — EfficientNet wins
     ont.experiments["exp_1"] = ExperimentEntity(
-        id="exp_1", paper_id="paper_a",
-        method_name="ResNet-50", dataset_name="ImageNet",
-        metric_name="Top-1 Accuracy", value=76.0,
+        id="exp_1",
+        paper_id="paper_a",
+        method_name="ResNet-50",
+        dataset_name="ImageNet",
+        metric_name="Top-1 Accuracy",
+        value=76.0,
     )
     ont.experiments["exp_2"] = ExperimentEntity(
-        id="exp_2", paper_id="paper_b",
-        method_name="VGG-16", dataset_name="ImageNet",
-        metric_name="Top-1 Accuracy", value=71.5,
+        id="exp_2",
+        paper_id="paper_b",
+        method_name="VGG-16",
+        dataset_name="ImageNet",
+        metric_name="Top-1 Accuracy",
+        value=71.5,
     )
     ont.experiments["exp_3"] = ExperimentEntity(
-        id="exp_3", paper_id="paper_c",
-        method_name="EfficientNet", dataset_name="ImageNet",
-        metric_name="Top-1 Accuracy", value=84.0,
+        id="exp_3",
+        paper_id="paper_c",
+        method_name="EfficientNet",
+        dataset_name="ImageNet",
+        metric_name="Top-1 Accuracy",
+        value=84.0,
     )
 
     return ont
@@ -73,25 +84,33 @@ def conflict_ontology() -> AcademicOntologyGraph:
     ont = AcademicOntologyGraph()
 
     ont.claims["claim_1"] = ClaimEntity(
-        id="claim_1", paper_id="paper_a",
+        id="claim_1",
+        paper_id="paper_a",
         statement="Our method significantly improves classification accuracy over prior work.",
-        claim_type="empirical", supported=True,
+        claim_type="empirical",
+        supported=True,
     )
     ont.claims["claim_2"] = ClaimEntity(
-        id="claim_2", paper_id="paper_b",
+        id="claim_2",
+        paper_id="paper_b",
         statement="Our replication shows the prior method degrades under fair evaluation.",
-        claim_type="empirical", supported=True,
+        claim_type="empirical",
+        supported=True,
     )
 
     ont.evidence["ev_1"] = EvidenceEntity(
-        id="ev_1", paper_id="paper_a",
+        id="ev_1",
+        paper_id="paper_a",
         passage="Our method achieves 84% accuracy, improving 8% over baseline.",
-        section="Results", confidence=0.95,
+        section="Results",
+        confidence=0.95,
     )
     ont.evidence["ev_2"] = EvidenceEntity(
-        id="ev_2", paper_id="paper_b",
+        id="ev_2",
+        paper_id="paper_b",
         passage="Under controlled settings, the prior method achieves only 72% accuracy.",
-        section="Results", confidence=0.92,
+        section="Results",
+        confidence=0.92,
     )
 
     return ont
@@ -111,31 +130,40 @@ def mixed_ontology() -> AcademicOntologyGraph:
 
     # Experiments
     ont.experiments["exp_1"] = ExperimentEntity(
-        id="exp_1", paper_id="paper_a",
-        method_name="Transformer", dataset_name="SQuAD",
-        metric_name="F1", value=91.2,
+        id="exp_1",
+        paper_id="paper_a",
+        method_name="Transformer",
+        dataset_name="SQuAD",
+        metric_name="F1",
+        value=91.2,
     )
     ont.experiments["exp_2"] = ExperimentEntity(
-        id="exp_2", paper_id="paper_b",
-        method_name="LSTM", dataset_name="SQuAD",
-        metric_name="F1", value=82.5,
+        id="exp_2",
+        paper_id="paper_b",
+        method_name="LSTM",
+        dataset_name="SQuAD",
+        metric_name="F1",
+        value=82.5,
     )
 
     # Claims (one supported, one unsupported)
     ont.claims["claim_1"] = ClaimEntity(
-        id="claim_1", paper_id="paper_a",
+        id="claim_1",
+        paper_id="paper_a",
         statement="Transformer achieves SOTA on SQuAD.",
         supported=True,
     )
     ont.claims["claim_2"] = ClaimEntity(
-        id="claim_2", paper_id="paper_c",
+        id="claim_2",
+        paper_id="paper_c",
         statement="Our novel method outperforms all baselines.",
         supported=False,  # No evidence → unsupported
     )
 
     # Evidence only for claim_1
     ont.evidence["ev_1"] = EvidenceEntity(
-        id="ev_1", paper_id="paper_a",
+        id="ev_1",
+        paper_id="paper_a",
         passage="Transformer achieves 91.2 F1 on SQuAD, surpassing all prior work.",
         confidence=0.98,
     )
@@ -154,14 +182,20 @@ def tied_ontology() -> AcademicOntologyGraph:
     ont.metrics["acc"] = MetricEntity(name="Accuracy")
 
     ont.experiments["exp_1"] = ExperimentEntity(
-        id="exp_1", paper_id="p1",
-        method_name="Method-A", dataset_name="DS",
-        metric_name="Accuracy", value=95.0,
+        id="exp_1",
+        paper_id="p1",
+        method_name="Method-A",
+        dataset_name="DS",
+        metric_name="Accuracy",
+        value=95.0,
     )
     ont.experiments["exp_2"] = ExperimentEntity(
-        id="exp_2", paper_id="p2",
-        method_name="Method-B", dataset_name="DS",
-        metric_name="Accuracy", value=95.0,  # same value — tied
+        id="exp_2",
+        paper_id="p2",
+        method_name="Method-B",
+        dataset_name="DS",
+        metric_name="Accuracy",
+        value=95.0,  # same value — tied
     )
 
     return ont
@@ -170,6 +204,7 @@ def tied_ontology() -> AcademicOntologyGraph:
 # ─────────────────────────────────────────────────────────────
 # Tests: SOTA Claim Deduction
 # ─────────────────────────────────────────────────────────────
+
 
 class TestSOTADeduction:
     def test_deduce_sota_claims_finds_winner(self, sota_ontology):
@@ -208,9 +243,12 @@ class TestSOTADeduction:
         empty_ontology.metrics["acc"] = MetricEntity(name="Accuracy")
 
         empty_ontology.experiments["exp"] = ExperimentEntity(
-            id="exp", paper_id="p1",
-            method_name="M", dataset_name="DS",
-            metric_name="Accuracy", value=88.0,
+            id="exp",
+            paper_id="p1",
+            method_name="M",
+            dataset_name="DS",
+            metric_name="Accuracy",
+            value=88.0,
         )
 
         engine = AcademicReasoningEngine(ontology=empty_ontology)
@@ -224,6 +262,7 @@ class TestSOTADeduction:
 # ─────────────────────────────────────────────────────────────
 # Tests: Evidence Conflict Detection
 # ─────────────────────────────────────────────────────────────
+
 
 class TestConflictDetection:
     def test_detect_conflicts(self, conflict_ontology):
@@ -244,11 +283,13 @@ class TestConflictDetection:
     def test_detect_conflicts_same_paper(self, empty_ontology):
         """Claims from the same paper should NOT trigger a conflict."""
         empty_ontology.claims["c1"] = ClaimEntity(
-            id="c1", paper_id="paper_x",
+            id="c1",
+            paper_id="paper_x",
             statement="Our method improves accuracy by 5%.",
         )
         empty_ontology.claims["c2"] = ClaimEntity(
-            id="c2", paper_id="paper_x",
+            id="c2",
+            paper_id="paper_x",
             statement="Our method degrades by 2% compared to baseline.",
         )
 
@@ -261,11 +302,13 @@ class TestConflictDetection:
     def test_detect_conflicts_no_contradiction(self, empty_ontology):
         """Similar claims without contradictory terms should not trigger."""
         empty_ontology.claims["c1"] = ClaimEntity(
-            id="c1", paper_id="paper_a",
+            id="c1",
+            paper_id="paper_a",
             statement="Model A achieves 95% accuracy on Task X.",
         )
         empty_ontology.claims["c2"] = ClaimEntity(
-            id="c2", paper_id="paper_b",
+            id="c2",
+            paper_id="paper_b",
             statement="Model B achieves 94% accuracy on Task X.",
         )
 
@@ -278,6 +321,7 @@ class TestConflictDetection:
 # ─────────────────────────────────────────────────────────────
 # Tests: Unsupported Assertions
 # ─────────────────────────────────────────────────────────────
+
 
 class TestUnsupportedAssertions:
     def test_identify_unsupported(self, mixed_ontology):
@@ -304,7 +348,8 @@ class TestUnsupportedAssertions:
     def test_unsupported_claim_without_evidence(self, empty_ontology):
         """A claim with no evidence at all should be flagged."""
         empty_ontology.claims["c"] = ClaimEntity(
-            id="c", paper_id="p1",
+            id="c",
+            paper_id="p1",
             statement="This claim lacks any supporting evidence.",
         )
         engine = AcademicReasoningEngine(ontology=empty_ontology)
@@ -315,6 +360,7 @@ class TestUnsupportedAssertions:
 # ─────────────────────────────────────────────────────────────
 # Tests: Full Reasoning Cycle
 # ─────────────────────────────────────────────────────────────
+
 
 class TestFullReasoningCycle:
     def test_full_cycle_returns_all_keys(self, mixed_ontology):
@@ -347,6 +393,7 @@ class TestFullReasoningCycle:
 # Tests: DeductedFact Data Class
 # ─────────────────────────────────────────────────────────────
 
+
 class TestDeductedFact:
     def test_deducted_fact_creation(self):
         fact = DeductedFact(
@@ -376,6 +423,7 @@ class TestDeductedFact:
 # Tests: Error Handling Patterns (simulating try/except)
 # ─────────────────────────────────────────────────────────────
 
+
 class TestErrorHandling:
     def test_reasoning_engine_handles_invalid_ontology(self):
         """Engine should not crash when ontology has corrupted data."""
@@ -395,9 +443,12 @@ class TestErrorHandling:
     def test_sota_deduction_with_invalid_experiments(self, sota_ontology):
         """Invalid experiment values should be handled gracefully."""
         sota_ontology.experiments["bad_exp"] = ExperimentEntity(
-            id="bad_exp", paper_id="p_bad",
-            method_name="BadMethod", dataset_name="ImageNet",
-            metric_name="Top-1 Accuracy", value=float("nan"),
+            id="bad_exp",
+            paper_id="p_bad",
+            method_name="BadMethod",
+            dataset_name="ImageNet",
+            metric_name="Top-1 Accuracy",
+            value=float("nan"),
         )
         engine = AcademicReasoningEngine(ontology=sota_ontology)
         # Should not crash; max() with NaN may still work but result should be valid
@@ -407,7 +458,8 @@ class TestErrorHandling:
     def test_conflict_detection_single_claim(self, empty_ontology):
         """Only one claim → no conflicts possible (needs at least 2 for comparison)."""
         empty_ontology.claims["c1"] = ClaimEntity(
-            id="c1", paper_id="p1",
+            id="c1",
+            paper_id="p1",
             statement="Method A improves results.",
         )
         engine = AcademicReasoningEngine(ontology=empty_ontology)
@@ -419,9 +471,12 @@ class TestErrorHandling:
         empty_ontology.datasets["ds"] = DatasetEntity(name="DS")
         empty_ontology.metrics["m"] = MetricEntity(name="M")
         empty_ontology.experiments["e"] = ExperimentEntity(
-            id="e", paper_id="p1",
-            method_name="UnknownMethod", dataset_name="DS",
-            metric_name="M", value=90.0,
+            id="e",
+            paper_id="p1",
+            method_name="UnknownMethod",
+            dataset_name="DS",
+            metric_name="M",
+            value=90.0,
         )
         engine = AcademicReasoningEngine(ontology=empty_ontology)
         results = engine.deduce_sota_claims()

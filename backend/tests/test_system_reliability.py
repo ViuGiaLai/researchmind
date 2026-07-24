@@ -12,22 +12,28 @@ def test_reliability_snapshot_reports_operational_quality():
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine)()
     try:
-        session.add_all([
-            Paper(id="paper-1", filename="paper.pdf", file_path="paper.pdf", title="Paper", status="indexed"),
-            Chunk(paper_id="paper-1", chunk_index=0, content="Evidence", page_number=1),
-            ImportJob(filename="paper.pdf", status="ready", stage="ready", progress=100),
-            AITrace(trace_id="trace-1", operation="chat", elapsed_ms=250, status="success"),
-            ChatHistory(
-                session_id="session-1",
-                role="assistant",
-                content="Answer",
-                citations=json.dumps([{
-                    "paper_id": "paper-1",
-                    "page_valid": True,
-                    "verification_status": "verified",
-                }]),
-            ),
-        ])
+        session.add_all(
+            [
+                Paper(id="paper-1", filename="paper.pdf", file_path="paper.pdf", title="Paper", status="indexed"),
+                Chunk(paper_id="paper-1", chunk_index=0, content="Evidence", page_number=1),
+                ImportJob(filename="paper.pdf", status="ready", stage="ready", progress=100),
+                AITrace(trace_id="trace-1", operation="chat", elapsed_ms=250, status="success"),
+                ChatHistory(
+                    session_id="session-1",
+                    role="assistant",
+                    content="Answer",
+                    citations=json.dumps(
+                        [
+                            {
+                                "paper_id": "paper-1",
+                                "page_valid": True,
+                                "verification_status": "verified",
+                            }
+                        ]
+                    ),
+                ),
+            ]
+        )
         session.commit()
 
         snapshot = _reliability_snapshot(session, total_chunks=1, vector_chunks=1)
