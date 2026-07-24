@@ -1,4 +1,5 @@
 """Research Agent — RAG retrieval, query parsing, claim analysis, and citation verification."""
+
 from __future__ import annotations
 
 from loguru import logger
@@ -12,6 +13,7 @@ class ResearchAgent(BaseAgent):
     Tools: citation_checker, doi_lookup
     Workflow steps supported: parse, retrieve, analyze, verify
     """
+
     name = "research_agent"
     allowed_tools = ("citation_checker", "doi_lookup")
 
@@ -44,13 +46,9 @@ class ResearchAgent(BaseAgent):
                     context_text = f"[Evidence Context for: {ctx.query}]"
                     source_labels = ["Paper A, page 1"]
                 else:
-                    retrieval = retriever.retrieve(
-                        ctx.query, paper_ids=ctx.paper_ids or None, top_k=8
-                    )
+                    retrieval = retriever.retrieve(ctx.query, paper_ids=ctx.paper_ids or None, top_k=8)
                     context_text = retrieval.context_text
-                    source_labels = [
-                        c.get("label", "") for c in getattr(retrieval, "citations", [])
-                    ]
+                    source_labels = [c.get("label", "") for c in getattr(retrieval, "citations", [])]
 
                 return AgentResult(
                     agent=self.name,
@@ -67,7 +65,9 @@ class ResearchAgent(BaseAgent):
                 source_labels = evidence.get("source_labels", []) if isinstance(evidence, dict) else []
 
                 # Extract claims (bullet lines or sentences)
-                claims = [line.strip() for line in evidence_text.splitlines() if line.strip() and not line.startswith("#")]
+                claims = [
+                    line.strip() for line in evidence_text.splitlines() if line.strip() and not line.startswith("#")
+                ]
                 return AgentResult(
                     agent=self.name,
                     step="analyze",
@@ -105,6 +105,4 @@ class ResearchAgent(BaseAgent):
 
         except Exception as exc:
             logger.error(f"ResearchAgent error on step '{step}': {exc}")
-            return AgentResult(
-                agent=self.name, step=step, success=False, errors=[str(exc)]
-            )
+            return AgentResult(agent=self.name, step=step, success=False, errors=[str(exc)])

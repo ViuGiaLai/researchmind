@@ -58,7 +58,7 @@ def test_prompt_registry_snapshot_and_version():
 
 
 def test_structured_output_repairs_fence_and_validates_required_fields():
-    parsed = parse_structured_output("before {\"answer\": 1} after", required=("answer",))
+    parsed = parse_structured_output('before {"answer": 1} after', required=("answer",))
     assert parsed == {"answer": 1}
     with pytest.raises(StructuredOutputError):
         parse_structured_output("{}", required=("answer",))

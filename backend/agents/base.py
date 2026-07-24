@@ -1,4 +1,5 @@
 """Base agent infrastructure — role-driven, tool-constrained, governance-backed."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -9,6 +10,7 @@ from typing import Any
 @dataclass
 class AgentContext:
     """Shared context passed through the pipeline."""
+
     query: str
     paper_ids: list[str] = field(default_factory=list)
     venue_id: str = "ieee_trans"
@@ -38,6 +40,7 @@ class AgentContext:
 @dataclass
 class AgentResult:
     """Output from a single agent run."""
+
     agent: str
     step: str
     success: bool
@@ -58,6 +61,7 @@ class AgentResult:
 
 class BaseAgent(ABC):
     """Abstract agent — each agent has a fixed role, allowed tools, and governance contract."""
+
     name: str = "base"
     allowed_tools: tuple[str, ...] = ()
 
@@ -65,6 +69,7 @@ class BaseAgent(ABC):
     def system_contract(self) -> str:
         """Role-only system prompt from governance task_contracts."""
         from academic.governance import get_academic_governance
+
         try:
             return get_academic_governance().task_contract(self.name)
         except KeyError:
@@ -72,10 +77,10 @@ class BaseAgent(ABC):
 
     def get_tool(self, tool_name: str):
         from academic.tools import get_tool
+
         if tool_name not in self.allowed_tools:
             raise PermissionError(f"Agent '{self.name}' is not allowed to use tool '{tool_name}'")
         return get_tool(tool_name)
 
     @abstractmethod
-    async def run(self, ctx: AgentContext) -> AgentResult:
-        ...
+    async def run(self, ctx: AgentContext) -> AgentResult: ...

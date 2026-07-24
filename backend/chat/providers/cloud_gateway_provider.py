@@ -43,7 +43,10 @@ class CloudGatewayProviderMixin:
             reason = str(data.get("fallback_reason", "")).strip()
             return f"{routing_key}: {primary} -> {selected} (fallback: {reason})"
         return f"{routing_key}: {selected} (primary)" if routing_key else ""
-    def _generate_cloud_gateway(self, prompt: str, max_tokens: int = 1024, system_prompt_override: str | None = None) -> GenerationResult:
+
+    def _generate_cloud_gateway(
+        self, prompt: str, max_tokens: int = 1024, system_prompt_override: str | None = None
+    ) -> GenerationResult:
         try:
             response = self.http_client.post(
                 f"{self.researchmind_cloud_url}/v1/generate",
@@ -73,13 +76,17 @@ class CloudGatewayProviderMixin:
             if status == 429:
                 return GenerationResult(
                     content="free_30_limit",
-                    citations=[], model_used="researchmind_cloud/error", finish_reason="error",
+                    citations=[],
+                    model_used="researchmind_cloud/error",
+                    finish_reason="error",
                 )
         except Exception as exc:
             logger.warning("ResearchMind gateway failed: {}", exc)
         return GenerationResult(
             content="The hosted AI service is temporarily unavailable.",
-            citations=[], model_used="researchmind_cloud/error", finish_reason="error",
+            citations=[],
+            model_used="researchmind_cloud/error",
+            finish_reason="error",
         )
 
     def _stream_cloud_gateway(self, prompt: str, max_tokens: int = 1024):
@@ -98,7 +105,9 @@ class CloudGatewayProviderMixin:
                         event = json.loads(line)
                         event_type = event.get("type")
                         if event_type == "meta":
-                            self._set_model(f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}")
+                            self._set_model(
+                                f"researchmind_cloud/{event.get('provider', 'unknown')}/{event.get('model', 'unknown')}"
+                            )
                             routing_reason = self._gateway_routing_reason(event)
                             self._local.current_router_reason = routing_reason
                             self.current_router_reason = routing_reason
@@ -112,4 +121,3 @@ class CloudGatewayProviderMixin:
                 gateway_error = "free_30_limit" if status == 429 else "cloud_unavailable"
                 self._local.stream_gateway_error = gateway_error
                 self._stream_gateway_error = gateway_error
-

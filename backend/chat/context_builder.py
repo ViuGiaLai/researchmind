@@ -68,17 +68,18 @@ class ContextBuilder:
         """Add a content item to the context."""
         if not content or not content.strip():
             return
-        self.items.append(ContextItem(
-            content=content.strip(),
-            priority=max(0.0, min(1.0, priority)),
-            source_type=source_type,
-            metadata=metadata or {},
-        ))
+        self.items.append(
+            ContextItem(
+                content=content.strip(),
+                priority=max(0.0, min(1.0, priority)),
+                source_type=source_type,
+                metadata=metadata or {},
+            )
+        )
 
     def add_source(self, content: str, title: str = "", page: int | None = None) -> None:
         """Add a source document chunk with high priority."""
-        self.add(content, priority=1.0, source_type="source",
-                 metadata={"title": title, "page": page})
+        self.add(content, priority=1.0, source_type="source", metadata={"title": title, "page": page})
 
     def add_search_results(self, chunks: list[dict], max_chunks: int = 5) -> None:
         """Add search result chunks with medium-high priority."""
@@ -87,15 +88,14 @@ class ContextBuilder:
             page = chunk.get("page_number")
             label = f"[{title}]" + (f" (page {page})" if page else "")
             content = f"{label}\n{chunk.get('content', chunk.get('text', ''))}"
-            self.add(content, priority=0.8, source_type="search",
-                     metadata={"title": title, "page": page})
+            self.add(content, priority=0.8, source_type="search", metadata={"title": title, "page": page})
 
     def add_history(self, messages: list[dict], max_pairs: int = 5) -> None:
         """
         Add chat history.
         messages: list of {"role": "...", "content": "..."}
         """
-        recent = messages[-(max_pairs * 2):]  # limit pairs
+        recent = messages[-(max_pairs * 2) :]  # limit pairs
         parts = []
         for msg in recent:
             role = "User" if msg.get("role") == "user" else "Assistant"
@@ -106,8 +106,7 @@ class ContextBuilder:
     def add_insight(self, content: str, label: str = "") -> None:
         """Add an analysis insight with medium priority."""
         text = f"[Analysis: {label}]\n{content}" if label else content
-        self.add(text, priority=0.5, source_type="insight",
-                 metadata={"label": label})
+        self.add(text, priority=0.5, source_type="insight", metadata={"label": label})
 
     def add_note(self, content: str) -> None:
         """Add a note with lower priority."""

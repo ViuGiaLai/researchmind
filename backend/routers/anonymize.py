@@ -27,6 +27,7 @@ _engine = AnonymizationEngine()
 
 # ─── Schemas ──────────────────────────────────────────────────────
 
+
 class AnonymizationStatus(BaseModel):
     paper_id: str
     is_active: bool
@@ -56,14 +57,10 @@ class TextRequest(BaseModel):
 
 # ─── Helpers ──────────────────────────────────────────────────────
 
+
 def _get_paper_full_text(paper_id: str, session) -> str:
     """Ghép toàn bộ chunks của paper thành một đoạn text liên tục."""
-    chunks = (
-        session.query(Chunk)
-        .filter(Chunk.paper_id == paper_id)
-        .order_by(Chunk.chunk_index)
-        .all()
-    )
+    chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index).all()
     if not chunks:
         return ""
     return "\n\n".join(c.content for c in chunks)
@@ -84,6 +81,7 @@ def _compute_stats(entity_map_json: str) -> dict[str, int]:
 
 # ─── Endpoints ────────────────────────────────────────────────────
 
+
 @router.post("/{paper_id}", response_model=AnonymizationStatus)
 async def run_anonymization(paper_id: str, req: AnonymizeRequest = None):
     """
@@ -99,9 +97,7 @@ async def run_anonymization(paper_id: str, req: AnonymizeRequest = None):
         if not paper:
             raise HTTPException(status_code=404, detail="Paper not found")
 
-        existing = session.query(AnonymizationMap).filter(
-            AnonymizationMap.paper_id == paper_id
-        ).first()
+        existing = session.query(AnonymizationMap).filter(AnonymizationMap.paper_id == paper_id).first()
 
         if existing and not req.force_refresh:
             # Map đã có, chỉ kích hoạt
@@ -162,10 +158,7 @@ async def run_anonymization(paper_id: str, req: AnonymizeRequest = None):
 
         session.commit()
 
-        logger.info(
-            f"Anonymized paper {paper_id}: {total_entities} entities "
-            f"({result.stats})"
-        )
+        logger.info(f"Anonymized paper {paper_id}: {total_entities} entities ({result.stats})")
 
         return AnonymizationStatus(
             paper_id=paper_id,
@@ -184,9 +177,7 @@ async def get_anonymization_status(paper_id: str):
     """Lấy trạng thái anonymization của paper."""
     session = get_session(state.engine)
     try:
-        existing = session.query(AnonymizationMap).filter(
-            AnonymizationMap.paper_id == paper_id
-        ).first()
+        existing = session.query(AnonymizationMap).filter(AnonymizationMap.paper_id == paper_id).first()
         if not existing:
             return AnonymizationStatus(
                 paper_id=paper_id,
@@ -215,9 +206,7 @@ async def toggle_anonymization(paper_id: str):
     """
     session = get_session(state.engine)
     try:
-        existing = session.query(AnonymizationMap).filter(
-            AnonymizationMap.paper_id == paper_id
-        ).first()
+        existing = session.query(AnonymizationMap).filter(AnonymizationMap.paper_id == paper_id).first()
 
         if not existing:
             # Chưa có map → tự động chạy lần đầu
@@ -245,9 +234,7 @@ async def remove_anonymization(paper_id: str):
     """Xóa toàn bộ anonymization map của paper. Không thể hoàn tác."""
     session = get_session(state.engine)
     try:
-        existing = session.query(AnonymizationMap).filter(
-            AnonymizationMap.paper_id == paper_id
-        ).first()
+        existing = session.query(AnonymizationMap).filter(AnonymizationMap.paper_id == paper_id).first()
         if not existing:
             raise HTTPException(status_code=404, detail="No anonymization map found for this paper")
         session.delete(existing)
@@ -266,9 +253,7 @@ async def get_entity_map(paper_id: str):
     """
     session = get_session(state.engine)
     try:
-        existing = session.query(AnonymizationMap).filter(
-            AnonymizationMap.paper_id == paper_id
-        ).first()
+        existing = session.query(AnonymizationMap).filter(AnonymizationMap.paper_id == paper_id).first()
         if not existing:
             raise HTTPException(status_code=404, detail="No anonymization map found")
 
@@ -298,14 +283,13 @@ async def anonymize_text_snippet(paper_id: str, req: TextRequest):
     """
     session = get_session(state.engine)
     try:
-        existing = session.query(AnonymizationMap).filter(
-            AnonymizationMap.paper_id == paper_id
-        ).first()
+        existing = session.query(AnonymizationMap).filter(AnonymizationMap.paper_id == paper_id).first()
         if not existing or not existing.is_active:
             return {"text": req.raw_text, "anonymized": False}
 
         try:
             from anonymization.engine import EntityEntry
+
             entity_data = json.loads(existing.entity_map_json)
             entity_map = {
                 orig: EntityEntry(

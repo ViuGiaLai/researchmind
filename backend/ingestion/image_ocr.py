@@ -32,6 +32,7 @@ def get_ocr_engine():
         if _global_ocr_engine is None:
             try:
                 from rapidocr_onnxruntime import RapidOCR
+
                 _global_ocr_engine = RapidOCR()
             except ImportError:
                 logger.warning("OCR engine not available (install rapidocr-onnxruntime + opencv-python)")
@@ -109,15 +110,12 @@ def ocr_image_bytes(
             results, _ = engine(prepared)
         if not results:
             return None
-        lines = [
-            str(res[1]).strip()
-            for res in results
-            if res and len(res) > 1 and str(res[1]).strip()
-        ]
+        lines = [str(res[1]).strip() for res in results if res and len(res) > 1 and str(res[1]).strip()]
         text = "\n".join(lines).strip()
         if text:
             try:
                 from .metadata_quality import normalize_ocr_page_text
+
                 text = normalize_ocr_page_text(text)
             except Exception:
                 pass
@@ -174,9 +172,7 @@ def extract_pdf_page_image_text(
     return snippets
 
 
-DOCX_IMAGE_RELTYPE = (
-    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
-)
+DOCX_IMAGE_RELTYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
 
 
 def extract_docx_image_text(doc, max_images: int = MAX_IMAGES_PER_DOC) -> list[str]:

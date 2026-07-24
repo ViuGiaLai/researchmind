@@ -45,11 +45,7 @@ def main():
     result = run(args.dataset)
     print(json.dumps(result, indent=2))
     raise SystemExit(
-        0
-        if result["cases"] > 0
-        and result["recall_at_k"] >= args.min_recall
-        and result["mrr"] >= args.min_mrr
-        else 1
+        0 if result["cases"] > 0 and result["recall_at_k"] >= args.min_recall and result["mrr"] >= args.min_mrr else 1
     )
 
 

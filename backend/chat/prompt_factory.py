@@ -1,4 +1,5 @@
 """Small prompt adapters over versioned academic governance."""
+
 from academic.governance import get_academic_governance
 from common.i18n import get_output_language_name
 

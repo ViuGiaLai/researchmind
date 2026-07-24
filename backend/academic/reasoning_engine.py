@@ -5,6 +5,7 @@ Performs logic deduction without relying solely on LLMs:
 - Conflict & contradiction detection between paper claims.
 - Evidence gap & unverified assertion identification.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -42,16 +43,20 @@ class AcademicReasoningEngine:
             # Assume higher value is better
             best_exp = max(exp_list, key=lambda e: e.value)
             best_exp.is_sota = True
-            deductions.append(DeductedFact(
-                fact_type="sota_claim",
-                statement=(f"Method '{best_exp.method_name}' achieves SOTA on '{best_exp.dataset_name}' under '{best_exp.metric_name}' with value {best_exp.value}."),
-                paper_ids=[best_exp.paper_id],
-                confidence=0.95,
-                reasoning_chain=[
-                    f"Compared {len(exp_list)} experiments on dataset '{ds}' using metric '{metric}'.",
-                    f"Method '{best_exp.method_name}' achieved highest value {best_exp.value}."
-                ]
-            ))
+            deductions.append(
+                DeductedFact(
+                    fact_type="sota_claim",
+                    statement=(
+                        f"Method '{best_exp.method_name}' achieves SOTA on '{best_exp.dataset_name}' under '{best_exp.metric_name}' with value {best_exp.value}."
+                    ),
+                    paper_ids=[best_exp.paper_id],
+                    confidence=0.95,
+                    reasoning_chain=[
+                        f"Compared {len(exp_list)} experiments on dataset '{ds}' using metric '{metric}'.",
+                        f"Method '{best_exp.method_name}' achieved highest value {best_exp.value}.",
+                    ],
+                )
+            )
         return deductions
 
     def detect_evidence_conflicts(self) -> list[DeductedFact]:
@@ -71,18 +76,23 @@ class AcademicReasoningEngine:
                 words2 = set(c2.statement.lower().split())
                 common = words1.intersection(words2)
 
-                if len(common) >= 3 and (("improves" in words1 and "degrades" in words2) or ("outperforms" in words1 and "underperforms" in words2)):
-                    conflicts.append(DeductedFact(
-                        fact_type="evidence_conflict",
-                        statement=f"Contradiction detected between Claim in Paper [{c1.paper_id}] and Claim in Paper [{c2.paper_id}].",
-                        paper_ids=[c1.paper_id, c2.paper_id],
-                        confidence=0.88,
-                        reasoning_chain=[
-                            f"Claim 1: '{c1.statement}'",
-                            f"Claim 2: '{c2.statement}'",
-                            "Directly opposing statements found on shared topics."
-                        ]
-                    ))
+                if len(common) >= 3 and (
+                    ("improves" in words1 and "degrades" in words2)
+                    or ("outperforms" in words1 and "underperforms" in words2)
+                ):
+                    conflicts.append(
+                        DeductedFact(
+                            fact_type="evidence_conflict",
+                            statement=f"Contradiction detected between Claim in Paper [{c1.paper_id}] and Claim in Paper [{c2.paper_id}].",
+                            paper_ids=[c1.paper_id, c2.paper_id],
+                            confidence=0.88,
+                            reasoning_chain=[
+                                f"Claim 1: '{c1.statement}'",
+                                f"Claim 2: '{c2.statement}'",
+                                "Directly opposing statements found on shared topics.",
+                            ],
+                        )
+                    )
         return conflicts
 
     def identify_unsupported_assertions(self) -> list[DeductedFact]:
@@ -92,16 +102,18 @@ class AcademicReasoningEngine:
 
         for claim in self.ontology.claims.values():
             if not claim.supported or claim.paper_id not in evidence_paper_ids:
-                unsupported.append(DeductedFact(
-                    fact_type="unsupported_assertion",
-                    statement=f"Claim '{claim.statement}' in Paper [{claim.paper_id}] lacks supporting evidence passage.",
-                    paper_ids=[claim.paper_id],
-                    confidence=0.90,
-                    reasoning_chain=[
-                        f"Inspected evidence records for paper '{claim.paper_id}'.",
-                        "No corresponding passage found supporting this claim."
-                    ]
-                ))
+                unsupported.append(
+                    DeductedFact(
+                        fact_type="unsupported_assertion",
+                        statement=f"Claim '{claim.statement}' in Paper [{claim.paper_id}] lacks supporting evidence passage.",
+                        paper_ids=[claim.paper_id],
+                        confidence=0.90,
+                        reasoning_chain=[
+                            f"Inspected evidence records for paper '{claim.paper_id}'.",
+                            "No corresponding passage found supporting this claim.",
+                        ],
+                    )
+                )
         return unsupported
 
     def run_full_reasoning_cycle(self) -> dict[str, list[DeductedFact]]:

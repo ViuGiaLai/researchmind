@@ -4,21 +4,19 @@ DOI Extraction với fallback chain 4 bước.
 
 DOI đã có trong PDF metadata (PyMuPDF) — đây là happy path chính.
 """
+
 import re
 
 from .crossref import find_doi_by_title
 
-DOI_PATTERN = re.compile(
-    r'\b(10\.\d{4,}(?:\.\d+)*\/(?:(?!["&\'<>])\S)+)\b',
-    re.IGNORECASE
-)
+DOI_PATTERN = re.compile(r'\b(10\.\d{4,}(?:\.\d+)*\/(?:(?!["&\'<>])\S)+)\b', re.IGNORECASE)
 
 
 async def extract_doi_from_paper(
     pdf_path: str | None = None,
     title: str | None = None,
     authors: list[str] | None = None,
-    context_text: str | None = None
+    context_text: str | None = None,
 ) -> str | None:
     if pdf_path:
         doi = _extract_from_pdf_metadata(pdf_path)
@@ -45,6 +43,7 @@ async def extract_doi_from_paper(
 def _extract_from_pdf_metadata(pdf_path: str) -> str | None:
     try:
         import fitz
+
         doc = fitz.open(pdf_path)
         meta = doc.metadata or {}
         doc.close()
@@ -64,6 +63,7 @@ def _extract_from_pdf_metadata(pdf_path: str) -> str | None:
 def _extract_from_pdf_text(pdf_path: str) -> str | None:
     try:
         import fitz
+
         doc = fitz.open(pdf_path)
         text = ""
         for page in doc.pages(0, min(3, len(doc))):
@@ -89,15 +89,16 @@ def _extract_from_text(text: str) -> str | None:
 def _clean_title(title: str) -> str:
     """Remove UUID prefix, URL encoding, and leading garbage from paper titles."""
     import re as _re
-    cleaned = _re.sub(r'^[0-9a-f-]{36}_', '', title)
-    cleaned = cleaned.replace('+', ' ')
-    cleaned = _re.sub(r'%[0-9a-fA-F]{2}', '', cleaned)
+
+    cleaned = _re.sub(r"^[0-9a-f-]{36}_", "", title)
+    cleaned = cleaned.replace("+", " ")
+    cleaned = _re.sub(r"%[0-9a-fA-F]{2}", "", cleaned)
     return cleaned.strip()
 
 
 def _clean_doi(doi: str) -> str:
     doi = doi.strip()
-    doi = re.sub(r'^https?://doi\.org/', '', doi)
+    doi = re.sub(r"^https?://doi\.org/", "", doi)
     return doi.lower()
 
 

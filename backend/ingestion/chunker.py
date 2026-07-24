@@ -65,14 +65,10 @@ class SentenceSplitter:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
-    def __call__(
-        self, text_by_page: dict[int, str]
-    ) -> list[Chunk]:
+    def __call__(self, text_by_page: dict[int, str]) -> list[Chunk]:
         return self.chunk_text(text_by_page)
 
-    def chunk_text(
-        self, text_by_page: dict[int, str]
-    ) -> list[Chunk]:
+    def chunk_text(self, text_by_page: dict[int, str]) -> list[Chunk]:
         chunks: list[Chunk] = []
         overlap_chars = self.chunk_overlap * 4
         self.chunk_size * 4
@@ -84,6 +80,7 @@ class SentenceSplitter:
             page_text = text_by_page[page_num] or ""
             try:
                 from ingestion.metadata_quality import normalize_ocr_page_text
+
                 page_text = normalize_ocr_page_text(page_text)
             except Exception:
                 pass
@@ -96,13 +93,15 @@ class SentenceSplitter:
 
                 if _is_image_block(para):
                     fig_header = para.split("\n", 1)[0][:120]
-                    chunks.append(Chunk(
-                        index=len(chunks),
-                        text=para,
-                        page_number=page_num,
-                        section_header=fig_header or "Figure/Diagram",
-                        token_count=count_tokens(para),
-                    ))
+                    chunks.append(
+                        Chunk(
+                            index=len(chunks),
+                            text=para,
+                            page_number=page_num,
+                            section_header=fig_header or "Figure/Diagram",
+                            token_count=count_tokens(para),
+                        )
+                    )
                     continue
 
                 section = _detect_section_header(para)
@@ -112,17 +111,16 @@ class SentenceSplitter:
                     current_page = page_num
                 else:
                     combined = buffer + "\n\n" + para
-                    if (
-                        count_tokens(combined) > self.chunk_size
-                        and count_tokens(buffer) > self.chunk_size // 2
-                    ):
-                        chunks.append(Chunk(
-                            index=len(chunks),
-                            text=buffer.strip(),
-                            page_number=current_page,
-                            section_header=section or "",
-                            token_count=count_tokens(buffer),
-                        ))
+                    if count_tokens(combined) > self.chunk_size and count_tokens(buffer) > self.chunk_size // 2:
+                        chunks.append(
+                            Chunk(
+                                index=len(chunks),
+                                text=buffer.strip(),
+                                page_number=current_page,
+                                section_header=section or "",
+                                token_count=count_tokens(buffer),
+                            )
+                        )
                         buffer = (
                             self._take_overlap(buffer, overlap_chars) + "\n\n" + para
                             if self.chunk_overlap > 0 and len(buffer) > overlap_chars
@@ -135,28 +133,28 @@ class SentenceSplitter:
                         buffer = combined
 
             if count_tokens(buffer) >= self.chunk_size:
-                chunks.append(Chunk(
+                chunks.append(
+                    Chunk(
+                        index=len(chunks),
+                        text=buffer.strip(),
+                        page_number=current_page,
+                        section_header="",
+                        token_count=count_tokens(buffer),
+                    )
+                )
+                buffer = self._take_overlap(buffer, overlap_chars) if self.chunk_overlap > 0 else ""
+                current_page = page_num
+
+        if buffer.strip() and count_tokens(buffer) > self.chunk_size // 4:
+            chunks.append(
+                Chunk(
                     index=len(chunks),
                     text=buffer.strip(),
                     page_number=current_page,
                     section_header="",
                     token_count=count_tokens(buffer),
-                ))
-                buffer = (
-                    self._take_overlap(buffer, overlap_chars)
-                    if self.chunk_overlap > 0
-                    else ""
                 )
-                current_page = page_num
-
-        if buffer.strip() and count_tokens(buffer) > self.chunk_size // 4:
-            chunks.append(Chunk(
-                index=len(chunks),
-                text=buffer.strip(),
-                page_number=current_page,
-                section_header="",
-                token_count=count_tokens(buffer),
-            ))
+            )
 
         return chunks
 
@@ -177,7 +175,7 @@ class SentenceSplitter:
         for sep in ["\n\n", ". ", ".\n", "! ", "? "]:
             idx = tail.find(sep)
             if idx != -1:
-                return tail[idx + len(sep):].strip()
+                return tail[idx + len(sep) :].strip()
         return tail.strip()
 
 
@@ -185,11 +183,7 @@ def _detect_section_header(paragraph: str) -> str:
     cleaned = paragraph.strip()
     if not cleaned:
         return ""
-    if len(cleaned) < 100 and (
-        cleaned.startswith("#")
-        or cleaned.isupper()
-        or re.match(r"^\d+(\.\d+)*\s", cleaned)
-    ):
+    if len(cleaned) < 100 and (cleaned.startswith("#") or cleaned.isupper() or re.match(r"^\d+(\.\d+)*\s", cleaned)):
         return cleaned[:100]
     return ""
 

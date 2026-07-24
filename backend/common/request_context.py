@@ -15,4 +15,3 @@ def reset_request_bearer_token(marker) -> None:
 
 def get_request_bearer_token() -> str:
     return _bearer_token.get()
-

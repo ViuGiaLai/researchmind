@@ -18,8 +18,7 @@ from typing import Any
 
 class BaseNodePostprocessor(ABC):
     @abstractmethod
-    def __call__(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        ...
+    def __call__(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]: ...
 
 
 class SimilarityPostprocessor(BaseNodePostprocessor):
@@ -35,10 +34,7 @@ class SimilarityPostprocessor(BaseNodePostprocessor):
     def __call__(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if self.similarity_cutoff <= 0.0:
             return chunks
-        return [
-            c for c in chunks
-            if c.get("score") is None or c["score"] >= self.similarity_cutoff
-        ]
+        return [c for c in chunks if c.get("score") is None or c["score"] >= self.similarity_cutoff]
 
 
 class LongContextReorder(BaseNodePostprocessor):

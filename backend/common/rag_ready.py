@@ -1,4 +1,5 @@
 """Shared guards for RAG pipeline readiness."""
+
 from app_state import state
 from common.i18n import t
 

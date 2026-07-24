@@ -47,6 +47,7 @@ async def api_deep_research(body: dict = Body(...)):
         raise HTTPException(status_code=503, detail="Generator not initialized.")
 
     from chat.retriever import Retriever
+
     retriever = Retriever(state.hybrid)
 
     try:
@@ -157,7 +158,9 @@ async def api_run_pipeline(body: dict = Body(...)):
                 "overall_quality": result.evaluation.overall_quality if result.evaluation else None,
                 "citation_accuracy": result.evaluation.citation_accuracy if result.evaluation else None,
                 "factual_consistency": result.evaluation.factual_consistency if result.evaluation else None,
-            } if result.evaluation else None,
+            }
+            if result.evaluation
+            else None,
         }
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}")

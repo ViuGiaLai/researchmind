@@ -1,4 +1,5 @@
 """Audit Agent — format compliance, metadata check, reference validation, and auto-fix."""
+
 from __future__ import annotations
 
 from loguru import logger
@@ -12,11 +13,13 @@ class AuditAgent(BaseAgent):
     Tools: format_auditor, metadata_checker, reference_validator, auto_fixer
     Workflow steps supported: audit, auto_fix
     """
+
     name = "audit_agent"
     allowed_tools = ("format_auditor", "metadata_checker", "reference_validator", "auto_fixer")
 
     async def run(self, ctx: AgentContext) -> AgentResult:
         from academic.governance import get_academic_governance
+
         gov = get_academic_governance()
         step = ctx.workflow_step or "audit"
 
@@ -59,7 +62,9 @@ class AuditAgent(BaseAgent):
                     text = ctx.available_artifacts["evidence"].get("context", "")
 
                 fixer = self.get_tool("auto_fixer")
-                fix_result = fixer.run(text=str(text), audit_data=audit_report if isinstance(audit_report, dict) else {})
+                fix_result = fixer.run(
+                    text=str(text), audit_data=audit_report if isinstance(audit_report, dict) else {}
+                )
 
                 return AgentResult(
                     agent=self.name,
@@ -82,6 +87,4 @@ class AuditAgent(BaseAgent):
 
         except Exception as exc:
             logger.error(f"AuditAgent error on step '{step}': {exc}")
-            return AgentResult(
-                agent=self.name, step=step, success=False, errors=[str(exc)]
-            )
+            return AgentResult(agent=self.name, step=step, success=False, errors=[str(exc)])

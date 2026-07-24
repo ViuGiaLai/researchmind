@@ -1,4 +1,5 @@
 """Lightweight, local-first tracing and aggregate AI metrics."""
+
 import json
 import random
 import time
@@ -11,8 +12,12 @@ from loguru import logger
 
 _trace_id: ContextVar[str] = ContextVar("ai_trace_id", default="")
 _metrics = Counter()
+
+
 def current_trace_id() -> str:
     return _trace_id.get()
+
+
 @contextmanager
 def trace(operation: str, **fields):
     trace_id = current_trace_id() or uuid.uuid4().hex[:16]
@@ -34,8 +39,14 @@ def trace(operation: str, **fields):
         logger.info(f"AI_TRACE trace_id={trace_id} operation={operation} elapsed_ms={elapsed_ms} {details}".rstrip())
         persist_trace(trace_id, operation, elapsed_ms, status, fields)
         _trace_id.reset(token)
-def increment(metric: str, value: int = 1) -> None: _metrics[metric] += value
-def snapshot() -> dict[str, int]: return dict(_metrics)
+
+
+def increment(metric: str, value: int = 1) -> None:
+    _metrics[metric] += value
+
+
+def snapshot() -> dict[str, int]:
+    return dict(_metrics)
 
 
 def persist_trace(trace_id: str, operation: str, elapsed_ms: int, status: str, fields: dict) -> None:
@@ -43,13 +54,23 @@ def persist_trace(trace_id: str, operation: str, elapsed_ms: int, status: str, f
     try:
         from app_state import state
         from config.settings import settings
+
         if state.engine is None or random.random() > float(getattr(settings, "ai_trace_sampling_rate", 0.1)):
             return
         from db.database import get_session
         from db.models import AITrace
+
         session = get_session(state.engine)
         try:
-            session.add(AITrace(trace_id=trace_id, operation=operation, elapsed_ms=elapsed_ms, status=status, metadata_json=json.dumps(fields, default=str)))
+            session.add(
+                AITrace(
+                    trace_id=trace_id,
+                    operation=operation,
+                    elapsed_ms=elapsed_ms,
+                    status=status,
+                    metadata_json=json.dumps(fields, default=str),
+                )
+            )
             session.commit()
         finally:
             session.close()

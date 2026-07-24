@@ -28,6 +28,7 @@ router = APIRouter(prefix="/api/papers", tags=["Export"])
 
 # ─── Dependency ─────────────────────────────────────────────────
 
+
 def _get_db(request: Request):
     """Get a DB session from the FastAPI app state engine, with auto-cleanup."""
     engine = request.app.state.engine
@@ -39,6 +40,7 @@ def _get_db(request: Request):
 
 
 # ─── Helpers ────────────────────────────────────────────────────
+
 
 def _parse_authors(authors_str: str) -> list[str]:
     if not authors_str:
@@ -60,6 +62,7 @@ def _parse_authors(authors_str: str) -> list[str]:
     cleaned = re.sub(r"[\[\]'\"#]", "", authors_str)
     return clean_authors([a.strip() for a in cleaned.split(",") if a.strip()])
 
+
 def _get_paper_data(paper_id: str, session: Session) -> dict | None:
     """Fetch paper metadata + chunks from DB."""
     paper = session.query(Paper).filter(Paper.id == paper_id).first()
@@ -75,12 +78,7 @@ def _get_paper_data(paper_id: str, session: Session) -> dict | None:
         tags_list = []
 
     # Get chunks ordered by index
-    chunks = (
-        session.query(Chunk)
-        .filter(Chunk.paper_id == paper_id)
-        .order_by(Chunk.chunk_index.asc())
-        .all()
-    )
+    chunks = session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).all()
 
     # Group chunks by page for cleaner display
     chunks_by_page: dict[int, list[str]] = {}
@@ -125,6 +123,7 @@ def _escape_html(text: str) -> str:
 # ═══════════════════════════════════════════════════════════════
 # SHARED MARKDOWN PARSER — yields (event_type, data) tuples
 # ═══════════════════════════════════════════════════════════════
+
 
 def _parse_md_events(content: str):
     """
@@ -227,14 +226,18 @@ def _parse_md_events(content: str):
 
         # ── Paragraph (collects consecutive non-special lines) ──
         para_lines = []
-        while i < n and lines[i].strip() and not lines[i].strip().startswith("#") \
-                and not lines[i].strip().startswith("```") \
-                and not lines[i].strip().startswith("|") \
-                and not lines[i].strip().startswith("---") \
-                and not lines[i].strip().startswith("> ") \
-                and not lines[i].strip().startswith("- ") \
-                and not lines[i].strip().startswith("* ") \
-                and not re.match(r"^\d+\.\s+", lines[i].strip()):
+        while (
+            i < n
+            and lines[i].strip()
+            and not lines[i].strip().startswith("#")
+            and not lines[i].strip().startswith("```")
+            and not lines[i].strip().startswith("|")
+            and not lines[i].strip().startswith("---")
+            and not lines[i].strip().startswith("> ")
+            and not lines[i].strip().startswith("- ")
+            and not lines[i].strip().startswith("* ")
+            and not re.match(r"^\d+\.\s+", lines[i].strip())
+        ):
             para_lines.append(lines[i].strip())
             i += 1
         if para_lines:
@@ -258,7 +261,7 @@ def _md_to_html(md_text: str) -> str:
             code_lines, lang = data
             content = "\n".join(code_lines)
             escaped = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-            lang_attr = f' class="language-{lang}"' if lang else ''
+            lang_attr = f' class="language-{lang}"' if lang else ""
             html_parts.append(f"<pre><code{lang_attr}>{escaped}</code></pre>")
         elif event == "table":
             rows = data[0]
@@ -297,6 +300,7 @@ def _md_to_html(md_text: str) -> str:
 
 
 # ─── HTML Export ────────────────────────────────────────────────
+
 
 @router.get("/{paper_id}/export/html")
 async def export_paper_html(paper_id: str, db: Session = Depends(_get_db)):
@@ -357,7 +361,7 @@ async def export_paper_html(paper_id: str, db: Session = Depends(_get_db)):
         cite_author = "Unknown"
     citation = f"{cite_author} ({year_str}). <em>{_escape_html(data['title'])}</em>."
     if doi_str:
-        citation += f" <a href=\"https://doi.org/{doi_str}\">https://doi.org/{doi_str}</a>"
+        citation += f' <a href="https://doi.org/{doi_str}">https://doi.org/{doi_str}</a>'
 
     today = datetime.now().strftime("%Y-%m-%d %H:%M")
     starred_badge = "⭐ Starred" if data["starred"] else ""
@@ -410,7 +414,7 @@ async def export_paper_html(paper_id: str, db: Session = Depends(_get_db)):
     <span><span class="meta-label">Year:</span> {year_str}</span>
     <span><span class="meta-label">Language:</span> <span class="badge badge-lang">{lang}</span></span>
     <span><span class="meta-label">Pages:</span> {pages}</span>
-    {f'<span class="badge badge-starred">{starred_badge}</span>' if data["starred"] else ''}
+    {f'<span class="badge badge-starred">{starred_badge}</span>' if data["starred"] else ""}
     <span><span class="meta-label">Tags:</span> {_escape_html(tags_str)}</span>
     <span><span class="meta-label">Status:</span> <span class="badge badge-status">{data["status"]}</span></span>
   </div>
@@ -445,6 +449,7 @@ async def export_paper_html(paper_id: str, db: Session = Depends(_get_db)):
 
 
 # ─── DOCX Export ────────────────────────────────────────────────
+
 
 @router.get("/{paper_id}/export/docx")
 async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db), request: Request = None):
@@ -552,9 +557,7 @@ async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db), reque
     doc.add_paragraph()
     footer_para = doc.add_paragraph()
     footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    footer_run = footer_para.add_run(
-        f"Exported from ResearchMind VN on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-    )
+    footer_run = footer_para.add_run(f"Exported from ResearchMind VN on {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     footer_run.font.size = Pt(9)
     footer_run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 
@@ -588,6 +591,7 @@ class SynthesisExportRequest(BaseModel):
     title: str
     content: str
     format: str  # "docx" or "html" or "markdown"
+
 
 @router.post("/export/synthesis")
 async def export_synthesis(
@@ -813,7 +817,7 @@ async def export_synthesis(
         <h1>{_escape_html(title)}</h1>
         {html_body}
         <div class="footer">
-            Exported from ResearchMind VN on {datetime.now().strftime('%Y-%m-%d %H:%M')}
+            Exported from ResearchMind VN on {datetime.now().strftime("%Y-%m-%d %H:%M")}
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -1132,7 +1136,7 @@ async def export_synthesis(
                 lp = doc.add_paragraph()
                 lr = lp.add_run(lang)
                 lr.font.size = Pt(8)
-                lr.font.color.rgb = RGBColor(0x94, 0xa3, 0xb8)
+                lr.font.color.rgb = RGBColor(0x94, 0xA3, 0xB8)
                 lr.italic = True
                 lp.paragraph_format.space_after = Pt(2)
                 lp.paragraph_format.space_before = Pt(4)
@@ -1144,9 +1148,9 @@ async def export_synthesis(
                 cp.paragraph_format.space_after = Pt(0)
                 cp.paragraph_format.space_before = Pt(0)
                 cp.paragraph_format.line_spacing = 1.15
-                shd = OxmlElement('w:shd')
-                shd.set(qn('w:fill'), 'f1f5f9')
-                shd.set(qn('w:val'), 'clear')
+                shd = OxmlElement("w:shd")
+                shd.set(qn("w:fill"), "f1f5f9")
+                shd.set(qn("w:val"), "clear")
                 cp.paragraph_format.element.get_or_add_pPr().append(shd)
 
         def _docx_table(rows: list[list[str]]):
@@ -1157,7 +1161,7 @@ async def export_synthesis(
             if not header_row:
                 return
             table = doc.add_table(rows=1 + len(data_rows), cols=len(header_row))
-            table.style = 'Table Grid'
+            table.style = "Table Grid"
             for ci, hcell in enumerate(header_row):
                 cell = table.rows[0].cells[ci]
                 cell.text = hcell.strip()
@@ -1167,11 +1171,11 @@ async def export_synthesis(
                         run.bold = True
                         run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
                         run.font.size = Pt(10)
-                shd = OxmlElement('w:shd')
-                shd.set(qn('w:fill'), '6366f1')
-                shd.set(qn('w:val'), 'clear')
+                shd = OxmlElement("w:shd")
+                shd.set(qn("w:fill"), "6366f1")
+                shd.set(qn("w:val"), "clear")
                 cell._tc.get_or_add_tcPr().append(shd)
-            alt = ['f8fafc', 'ffffff']
+            alt = ["f8fafc", "ffffff"]
             for ri, row in enumerate(data_rows):
                 for ci, dcell in enumerate(row):
                     cell = table.rows[ri + 1].cells[ci]
@@ -1180,9 +1184,9 @@ async def export_synthesis(
                         para.alignment = WD_ALIGN_PARAGRAPH.CENTER
                         for run in para.runs:
                             run.font.size = Pt(10)
-                    shd = OxmlElement('w:shd')
-                    shd.set(qn('w:fill'), alt[ri % 2])
-                    shd.set(qn('w:val'), 'clear')
+                    shd = OxmlElement("w:shd")
+                    shd.set(qn("w:fill"), alt[ri % 2])
+                    shd.set(qn("w:val"), "clear")
                     cell._tc.get_or_add_tcPr().append(shd)
             doc.add_paragraph()
 
@@ -1200,25 +1204,25 @@ async def export_synthesis(
             elif event == "hr":
                 p = doc.add_paragraph()
                 ppr_elem = p.paragraph_format.element.get_or_add_pPr()
-                pbdr_elem = OxmlElement('w:pBdr')
-                bottom = OxmlElement('w:bottom')
-                bottom.set(qn('w:val'), 'single')
-                bottom.set(qn('w:sz'), '6')
-                bottom.set(qn('w:space'), '4')
-                bottom.set(qn('w:color'), 'cbd5e1')
+                pbdr_elem = OxmlElement("w:pBdr")
+                bottom = OxmlElement("w:bottom")
+                bottom.set(qn("w:val"), "single")
+                bottom.set(qn("w:sz"), "6")
+                bottom.set(qn("w:space"), "4")
+                bottom.set(qn("w:color"), "cbd5e1")
                 pbdr_elem.append(bottom)
                 ppr_elem.append(pbdr_elem)
             elif event == "bullet_list":
                 for item in data[0]:
-                    p = doc.add_paragraph(style='List Bullet')
+                    p = doc.add_paragraph(style="List Bullet")
                     _add_formatted_text(p, item)
             elif event == "numbered_list":
                 for item in data[0]:
-                    p = doc.add_paragraph(style='List Number')
+                    p = doc.add_paragraph(style="List Number")
                     _add_formatted_text(p, item)
             elif event == "blockquote":
                 for line in data[0]:
-                    p = doc.add_paragraph(style='Quote')
+                    p = doc.add_paragraph(style="Quote")
                     _add_formatted_text(p, line)
             elif event == "paragraph":
                 for line in data[0]:

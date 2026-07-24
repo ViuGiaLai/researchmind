@@ -3,6 +3,7 @@
 Enforces Popperian falsifiability: every scientific claim must have a testable Null Hypothesis (H0)
 and Alternative Hypothesis (H1) with explicit Independent/Dependent variables.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

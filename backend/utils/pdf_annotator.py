@@ -43,16 +43,13 @@ def add_highlights_to_pdf(
             total_skipped += 1
             continue
 
-        annot = page.add_highlight_annotation(rects)
+        annot = page.add_highlight_annot(rects)
         annot.set_colors(stroke=fitz.utils.getColor("yellow"))
         annot.set_opacity(0.3)
         annot.update()
         total_added += 1
 
-    logger.info(
-        f"PDF highlight: {total_added} added, {total_skipped} skipped "
-        f"(out of {len(highlights)} requested)"
-    )
+    logger.info(f"PDF highlight: {total_added} added, {total_skipped} skipped (out of {len(highlights)} requested)")
 
     buf = io.BytesIO()
     doc.save(buf, garbage=4, deflate=True)

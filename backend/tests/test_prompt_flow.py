@@ -32,9 +32,7 @@ def test_direct_generation_uses_and_restores_task_system_prompt(monkeypatch):
     generator._local.system_prompt_override = "previous"
 
     def fake_generate(*_args, **_kwargs):
-        return GenerationResult(
-            content=generator._get_system_prompt(), citations=[], model_used="test"
-        )
+        return GenerationResult(content=generator._get_system_prompt(), citations=[], model_used="test")
 
     monkeypatch.setattr(generator, "_generate_uncached", fake_generate)
     result = generator.generate_direct("task", system_prompt="entity-only")
@@ -58,10 +56,13 @@ def test_stream_verify_uses_and_restores_verify_prompt(monkeypatch):
 def test_patched_stream_respects_provider_budget(monkeypatch):
     generator = PatchedGenerator()
     calls = []
-    monkeypatch.setattr(generator, "_fit_prompt", lambda prompt, provider, limit: calls.append((provider, limit)) or prompt)
+    monkeypatch.setattr(
+        generator, "_fit_prompt", lambda prompt, provider, limit: calls.append((provider, limit)) or prompt
+    )
 
     assert list(generator._stream_provider("github", "prompt", 321)) == []
     assert calls == [("github", 321)]
+
 
 def test_verify_resets_stale_routing_context(monkeypatch):
     generator = Generator()
@@ -112,9 +113,7 @@ def test_cache_fingerprint_is_stable_and_separates_reasoning_modes(monkeypatch):
     monkeypatch.setattr(
         generator,
         "_generate_uncached",
-        lambda *_args, **_kwargs: GenerationResult(
-            content="answer", citations=[], model_used="test/model"
-        ),
+        lambda *_args, **_kwargs: GenerationResult(content="answer", citations=[], model_used="test/model"),
     )
 
     generator.generate("q", "", task_type="chat", reasoning_mode="fast", use_cache=False)

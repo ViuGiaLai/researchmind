@@ -5,6 +5,7 @@
 4. Open Science & Reproducibility Evaluator (academic/reproducibility.py)
 5. Adversarial Refutation Engine (academic/refutation_engine.py)
 """
+
 import pytest
 
 from academic.hypothesis_engine import AcademicHypothesisEngine
@@ -36,7 +37,7 @@ def test_hypothesis_falsifiability_engine():
         claim_statement="ResNet-50 outperforms VGG-16 on ImageNet.",
         method_name="ResNet-50",
         baseline_name="VGG-16",
-        metric_name="Top-1 Accuracy"
+        metric_name="Top-1 Accuracy",
     )
     assert hyp.is_falsifiable is True
     assert "p < 0.05" in hyp.alt_hypothesis_h1
@@ -70,8 +71,7 @@ def test_reproducibility_evaluator():
 def test_adversarial_refutation_engine():
     refuter = AdversarialRefutationEngine()
     counters = refuter.generate_counter_arguments(
-        claim_statement="Our Transformer model outperforms SOTA baselines on BLEU benchmark.",
-        method_name="Transformer"
+        claim_statement="Our Transformer model outperforms SOTA baselines on BLEU benchmark.", method_name="Transformer"
     )
     assert len(counters) >= 2
     refutation_types = [c.refutation_angle for c in counters]

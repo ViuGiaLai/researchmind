@@ -9,15 +9,9 @@ from routers.chat import _build_chunk_map, _chat_cache_key, _process_citations
 def test_chat_cache_key_isolated_by_language_and_modes():
     base = _chat_cache_key("same question", ["b", "a"], "current", None)
     assert base == _chat_cache_key("same question", ["a", "b"], "current", None)
-    assert base != _chat_cache_key(
-        "same question", ["a", "b"], "current", None, language="vi"
-    )
-    assert base != _chat_cache_key(
-        "same question", ["a", "b"], "current", None, reasoning_mode="deep"
-    )
-    assert base != _chat_cache_key(
-        "same question", ["a", "b"], "current", None, strict_evidence=True
-    )
+    assert base != _chat_cache_key("same question", ["a", "b"], "current", None, language="vi")
+    assert base != _chat_cache_key("same question", ["a", "b"], "current", None, reasoning_mode="deep")
+    assert base != _chat_cache_key("same question", ["a", "b"], "current", None, strict_evidence=True)
 
 
 def test_retriever_interleaves_papers_and_keeps_chunk_order():
@@ -29,22 +23,22 @@ def test_retriever_interleaves_papers_and_keeps_chunk_order():
         {"paper_id": "b", "chunk_index": 3},
     ]
     result = retriever._interleave_by_paper(chunks)
-    assert [(c["paper_id"], c["chunk_index"]) for c in result] == [
-        ("a", 1), ("b", 3), ("a", 2), ("b", 4)
-    ]
+    assert [(c["paper_id"], c["chunk_index"]) for c in result] == [("a", 1), ("b", 3), ("a", 2), ("b", 4)]
 
 
 def test_retriever_context_uses_canonical_citation_provenance():
     retriever = object.__new__(Retriever)
     retriever._compress_chunk_text = lambda content, query: content
-    text = retriever._build_context([
-        {
-            "paper_id": "p1",
-            "paper_title": "Reliable Study",
-            "page_number": 7,
-            "content": "Supported finding.",
-        }
-    ])
+    text = retriever._build_context(
+        [
+            {
+                "paper_id": "p1",
+                "paper_title": "Reliable Study",
+                "page_number": 7,
+                "content": "Supported finding.",
+            }
+        ]
+    )
     assert "[Reliable Study, page 7]" in text
     parsed = _build_chunk_map(text)
     assert ("Reliable Study", 7) in parsed

@@ -80,19 +80,20 @@ PROJECT_PATTERNS = [
 
 # ─── Data classes ─────────────────────────────────────────────────
 
+
 @dataclass
 class EntityEntry:
     original: str
-    label: str          # e.g. "[AUTHOR_1]"
-    entity_type: str    # AUTHOR | INSTITUTION | EMAIL | ...
-    count: int = 0      # How many times replaced
+    label: str  # e.g. "[AUTHOR_1]"
+    entity_type: str  # AUTHOR | INSTITUTION | EMAIL | ...
+    count: int = 0  # How many times replaced
 
 
 @dataclass
 class AnonymizationResult:
     anonymized_text: str
-    entity_map: dict[str, EntityEntry]   # original → entry
-    label_map: dict[str, str]            # label → original (for deanonymization)
+    entity_map: dict[str, EntityEntry]  # original → entry
+    label_map: dict[str, str]  # label → original (for deanonymization)
     stats: dict[str, int] = field(default_factory=dict)
 
     def to_json(self) -> str:
@@ -130,6 +131,7 @@ class AnonymizationResult:
 
 
 # ─── Engine ───────────────────────────────────────────────────────
+
 
 class AnonymizationEngine:
     """
@@ -217,15 +219,9 @@ class AnonymizationEngine:
         processed = self._detect_and_replace_authors(processed, _register)
 
         # Count stats
-        stats = {
-            etype: sum(1 for e in entity_map.values() if e.entity_type == etype)
-            for etype in ENTITY_TYPES
-        }
+        stats = {etype: sum(1 for e in entity_map.values() if e.entity_type == etype) for etype in ENTITY_TYPES}
 
-        logger.debug(
-            f"Anonymization complete: {sum(stats.values())} entities found "
-            f"({stats})"
-        )
+        logger.debug(f"Anonymization complete: {sum(stats.values())} entities found ({stats})")
 
         return AnonymizationResult(
             anonymized_text=processed,
@@ -301,6 +297,7 @@ class AnonymizationEngine:
         group: int = 0,
     ) -> str:
         """Replace all matches of a compiled pattern."""
+
         def replacer(m: re.Match) -> str:
             matched = m.group(group)
             label = register_fn(matched, entity_type)
@@ -314,6 +311,7 @@ class AnonymizationEngine:
             rel_end = end - m.start()
             full = m.group(0)
             return full[:rel_start] + label + full[rel_end:]
+
         return pattern.sub(replacer, text)
 
     def _replace_by_match(
@@ -324,6 +322,7 @@ class AnonymizationEngine:
         register_fn,
     ) -> str:
         """Replace first capture group (group 1) in pattern, keep rest."""
+
         def replacer(m: re.Match) -> str:
             try:
                 matched = m.group(1)
@@ -335,6 +334,7 @@ class AnonymizationEngine:
             label = register_fn(matched, entity_type)
             full = m.group(0)
             return full.replace(matched, label, 1)
+
         return pattern.sub(replacer, text)
 
     def _detect_and_replace_authors(self, text: str, register_fn) -> str:

@@ -1,4 +1,5 @@
 """Deterministic methodology and validation for evidence-prioritized reviews."""
+
 from __future__ import annotations
 
 import re
@@ -8,10 +9,33 @@ _KEY_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 _NUMBERED_CITATION_RE = re.compile(r"\[(\d+)\]")
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+|\n+")
 _CLAIM_MARKERS = (
-    "significant", "increase", "decrease", "improve", "outperform", "result", "found",
-    "accuracy", "effect", "association", "correlation", "causal", "demonstrate", "show",
-    "đáng kể", "tăng", "giảm", "cải thiện", "vượt trội", "kết quả", "cho thấy",
-    "độ chính xác", "hiệu quả", "tác động", "liên quan", "tương quan", "nguyên nhân",
+    "significant",
+    "increase",
+    "decrease",
+    "improve",
+    "outperform",
+    "result",
+    "found",
+    "accuracy",
+    "effect",
+    "association",
+    "correlation",
+    "causal",
+    "demonstrate",
+    "show",
+    "đáng kể",
+    "tăng",
+    "giảm",
+    "cải thiện",
+    "vượt trội",
+    "kết quả",
+    "cho thấy",
+    "độ chính xác",
+    "hiệu quả",
+    "tác động",
+    "liên quan",
+    "tương quan",
+    "nguyên nhân",
 )
 _SYNTHESIS_KEYS = {"methodology_comparison", "findings", "comparative_synthesis", "study_characteristics"}
 
@@ -19,24 +43,88 @@ _SYNTHESIS_KEYS = {"methodology_comparison", "findings", "comparative_synthesis"
 def academic_fallback_outline(lang: str = "vi") -> list[dict]:
     localized = {
         "vi": [
-            ("review_scope", "1. Phạm vi và câu hỏi đánh giá", "Xác định mục tiêu, phạm vi, câu hỏi và giới hạn của tập tài liệu được chọn."),
-            ("conceptual_background", "2. Nền tảng khái niệm", "Trình bày khái niệm và bối cảnh cần thiết để diễn giải bằng chứng."),
-            ("study_characteristics", "3. Đặc điểm các nghiên cứu", "Mô tả thiết kế, đối tượng, dữ liệu, bối cảnh và mục tiêu của từng nghiên cứu."),
-            ("methodology_comparison", "4. Thẩm định phương pháp", "So sánh thiết kế, phép đo, quy trình phân tích, độ tin cậy và nguy cơ sai lệch."),
-            ("comparative_synthesis", "5. Tổng hợp và so sánh kết quả", "Tổng hợp điểm đồng thuận, khác biệt và mức độ được bằng chứng hỗ trợ giữa các nghiên cứu."),
-            ("limitations", "6. Hạn chế và nguy cơ sai lệch", "Phân tích hạn chế của từng nghiên cứu và giới hạn của chính bài đánh giá."),
-            ("research_gaps", "7. Khoảng trống và hướng nghiên cứu", "Suy ra khoảng trống trực tiếp từ bằng chứng còn thiếu, mâu thuẫn hoặc chưa chắc chắn."),
-            ("conclusion", "8. Kết luận", "Trả lời câu hỏi đánh giá, nêu mức độ chắc chắn và tránh khái quát vượt quá bằng chứng."),
+            (
+                "review_scope",
+                "1. Phạm vi và câu hỏi đánh giá",
+                "Xác định mục tiêu, phạm vi, câu hỏi và giới hạn của tập tài liệu được chọn.",
+            ),
+            (
+                "conceptual_background",
+                "2. Nền tảng khái niệm",
+                "Trình bày khái niệm và bối cảnh cần thiết để diễn giải bằng chứng.",
+            ),
+            (
+                "study_characteristics",
+                "3. Đặc điểm các nghiên cứu",
+                "Mô tả thiết kế, đối tượng, dữ liệu, bối cảnh và mục tiêu của từng nghiên cứu.",
+            ),
+            (
+                "methodology_comparison",
+                "4. Thẩm định phương pháp",
+                "So sánh thiết kế, phép đo, quy trình phân tích, độ tin cậy và nguy cơ sai lệch.",
+            ),
+            (
+                "comparative_synthesis",
+                "5. Tổng hợp và so sánh kết quả",
+                "Tổng hợp điểm đồng thuận, khác biệt và mức độ được bằng chứng hỗ trợ giữa các nghiên cứu.",
+            ),
+            (
+                "limitations",
+                "6. Hạn chế và nguy cơ sai lệch",
+                "Phân tích hạn chế của từng nghiên cứu và giới hạn của chính bài đánh giá.",
+            ),
+            (
+                "research_gaps",
+                "7. Khoảng trống và hướng nghiên cứu",
+                "Suy ra khoảng trống trực tiếp từ bằng chứng còn thiếu, mâu thuẫn hoặc chưa chắc chắn.",
+            ),
+            (
+                "conclusion",
+                "8. Kết luận",
+                "Trả lời câu hỏi đánh giá, nêu mức độ chắc chắn và tránh khái quát vượt quá bằng chứng.",
+            ),
         ],
         "en": [
-            ("review_scope", "1. Review scope and questions", "Define the objective, scope, questions, and limits of the selected evidence set."),
-            ("conceptual_background", "2. Conceptual background", "Present concepts and context required to interpret the evidence."),
-            ("study_characteristics", "3. Study characteristics", "Describe each study's design, population, data, setting, and objective."),
-            ("methodology_comparison", "4. Methodological appraisal", "Compare design, measurement, analysis, reliability, and risk of bias."),
-            ("comparative_synthesis", "5. Comparative synthesis of findings", "Synthesize agreement, disagreement, and strength of support across studies."),
-            ("limitations", "6. Limitations and risk of bias", "Assess study-level limitations and limitations of this review."),
-            ("research_gaps", "7. Evidence gaps and future research", "Derive gaps from missing, conflicting, or uncertain evidence."),
-            ("conclusion", "8. Conclusion", "Answer the review questions, state certainty, and avoid overgeneralization."),
+            (
+                "review_scope",
+                "1. Review scope and questions",
+                "Define the objective, scope, questions, and limits of the selected evidence set.",
+            ),
+            (
+                "conceptual_background",
+                "2. Conceptual background",
+                "Present concepts and context required to interpret the evidence.",
+            ),
+            (
+                "study_characteristics",
+                "3. Study characteristics",
+                "Describe each study's design, population, data, setting, and objective.",
+            ),
+            (
+                "methodology_comparison",
+                "4. Methodological appraisal",
+                "Compare design, measurement, analysis, reliability, and risk of bias.",
+            ),
+            (
+                "comparative_synthesis",
+                "5. Comparative synthesis of findings",
+                "Synthesize agreement, disagreement, and strength of support across studies.",
+            ),
+            (
+                "limitations",
+                "6. Limitations and risk of bias",
+                "Assess study-level limitations and limitations of this review.",
+            ),
+            (
+                "research_gaps",
+                "7. Evidence gaps and future research",
+                "Derive gaps from missing, conflicting, or uncertain evidence.",
+            ),
+            (
+                "conclusion",
+                "8. Conclusion",
+                "Answer the review questions, state certainty, and avoid overgeneralization.",
+            ),
         ],
     }
     rows = localized.get(lang, localized["en"])
@@ -70,8 +158,7 @@ def normalize_outline(sections: object, lang: str = "vi") -> list[dict]:
     if not 4 <= len(non_bibliography) <= 8:
         return []
     semantic_text = " ".join(
-        f"{item['key']} {item['title']} {item['description']}".lower()
-        for item in non_bibliography
+        f"{item['key']} {item['title']} {item['description']}".lower() for item in non_bibliography
     )
     required_roles = (
         ("scope", "question", "phạm vi", "câu hỏi", "objective"),
@@ -91,13 +178,21 @@ def normalize_outline(sections: object, lang: str = "vi") -> list[dict]:
 
 
 def section_retrieval_query(section: str, title: str, description: str) -> str:
-    return " ".join(filter(None, [
-        title, description,
-        "research objective study design population sample dataset methodology measurement analysis results effect size limitations bias uncertainty",
-    ]))
+    return " ".join(
+        filter(
+            None,
+            [
+                title,
+                description,
+                "research objective study design population sample dataset methodology measurement analysis results effect size limitations bias uncertainty",
+            ],
+        )
+    )
 
 
-def custom_section_request(section: str, title: str, description: str, paper_titles: Iterable[str], rules: Iterable[str]) -> str:
+def custom_section_request(
+    section: str, title: str, description: str, paper_titles: Iterable[str], rules: Iterable[str]
+) -> str:
     sources = "\n".join(f"- {name}" for name in paper_titles)
     policy = "\n".join(f"- {rule}" for rule in rules)
     return f"""Write the academic review section defined by this structured specification.
@@ -151,8 +246,10 @@ def deterministic_quality_issues(
     }.get(lang)
     if not labels:
         labels = {
-            "missing": "Required section has no content.", "citation": "Section has content but no verifiable citation.",
-            "invalid_ref": "A citation marker does not map to a section source.", "foreign": "A citation references a paper outside the selected evidence set.",
+            "missing": "Required section has no content.",
+            "citation": "Section has content but no verifiable citation.",
+            "invalid_ref": "A citation marker does not map to a section source.",
+            "foreign": "A citation references a paper outside the selected evidence set.",
             "diversity": "Synthesis section does not compare evidence from at least two studies.",
             "claim": "Citation coverage for empirical claims is low ({coverage}%).",
         }
@@ -181,7 +278,11 @@ def deterministic_quality_issues(
         cited_papers.update(section_papers)
         if selected and section_papers - selected:
             issues.append(_issue("high", key, "citation_outside_scope", labels["foreign"], "regenerate"))
-        if len(selected) >= 2 and (key in _SYNTHESIS_KEYS or "compar" in key or "synth" in key) and len(section_papers) < 2:
+        if (
+            len(selected) >= 2
+            and (key in _SYNTHESIS_KEYS or "compar" in key or "synth" in key)
+            and len(section_papers) < 2
+        ):
             issues.append(_issue("medium", key, "insufficient_synthesis", labels["diversity"], "regenerate"))
         for sentence in _SENTENCE_RE.split(content):
             lower = sentence.lower()
@@ -193,7 +294,9 @@ def deterministic_quality_issues(
                 cited_claims += 1
     coverage = round((cited_claims / total_claims) * 100) if total_claims else 100
     if total_claims >= 2 and coverage < 60:
-        issues.append(_issue("high", "global", "low_claim_citation_coverage", labels["claim"].format(coverage=coverage), "none"))
+        issues.append(
+            _issue("high", "global", "low_claim_citation_coverage", labels["claim"].format(coverage=coverage), "none")
+        )
     metrics = {
         "required_sections": len([s for s in outline if s.get("key") != "bibliography"]),
         "completed_sections": checked,

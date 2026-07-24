@@ -11,6 +11,7 @@ Tests:
 7. populate_verify_ontology with external data
 8. Edge cases: empty text, no matches, malformed lines
 """
+
 from academic.ontology import AcademicOntologyGraph
 from academic.ontology_populator import (
     _extract_claims,
@@ -25,6 +26,7 @@ from academic.ontology_populator import (
 # ─────────────────────────────────────────────────────────────
 # Tests: _extract_methods
 # ─────────────────────────────────────────────────────────────
+
 
 class TestExtractMethods:
     def test_detects_common_methods(self):
@@ -57,6 +59,7 @@ class TestExtractMethods:
 # Tests: _extract_datasets
 # ─────────────────────────────────────────────────────────────
 
+
 class TestExtractDatasets:
     def test_detects_common_datasets(self):
         text = "We evaluated on CIFAR-10 and ImageNet."
@@ -81,6 +84,7 @@ class TestExtractDatasets:
 # Tests: _extract_metrics
 # ─────────────────────────────────────────────────────────────
 
+
 class TestExtractMetrics:
     def test_detects_common_metrics(self):
         text = "Our model achieves 95% accuracy and 0.91 F1 score."
@@ -104,6 +108,7 @@ class TestExtractMetrics:
 # ─────────────────────────────────────────────────────────────
 # Tests: _extract_claims
 # ─────────────────────────────────────────────────────────────
+
 
 class TestExtractClaims:
     def test_detects_claim_keyword(self):
@@ -139,6 +144,7 @@ class TestExtractClaims:
 # ─────────────────────────────────────────────────────────────
 # Tests: _extract_experiments
 # ─────────────────────────────────────────────────────────────
+
 
 class TestExtractExperiments:
     def test_detects_key_value_pairs(self):
@@ -187,6 +193,7 @@ class TestExtractExperiments:
 # ─────────────────────────────────────────────────────────────
 # Tests: populate_ontology_from_context (full pipeline)
 # ─────────────────────────────────────────────────────────────
+
 
 class TestPopulateOntologyFromContext:
     def test_populates_all_entity_types(self):
@@ -245,6 +252,7 @@ class TestPopulateOntologyFromContext:
 # Tests: populate_verify_ontology (with external data)
 # ─────────────────────────────────────────────────────────────
 
+
 class TestPopulateVerifyOntology:
     def test_with_external_data(self):
         ont = AcademicOntologyGraph()
@@ -279,6 +287,7 @@ class TestPopulateVerifyOntology:
 # ─────────────────────────────────────────────────────────────
 # Tests: ReasoningEngine integration patterns
 # ─────────────────────────────────────────────────────────────
+
 
 class TestReasoningEngineIntegration:
     def test_populate_then_reasoning_cycle(self):

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class GenerationResult:
     """Result of LLM generation."""
+
     content: str
     citations: list[dict]
     model_used: str

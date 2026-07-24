@@ -49,12 +49,7 @@ async def list_collections():
             .order_by(Collection.created_at.asc())
             .all()
         )
-        return {
-            "collections": [
-                _collection_to_dict(collection, int(paper_count))
-                for collection, paper_count in rows
-            ]
-        }
+        return {"collections": [_collection_to_dict(collection, int(paper_count)) for collection, paper_count in rows]}
     finally:
         session.close()
 
@@ -123,9 +118,9 @@ async def delete_collection(collection_id: str):
         collection = session.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
             raise HTTPException(status_code=404, detail="Collection not found")
-        session.query(CollectionPaper).filter(
-            CollectionPaper.collection_id == collection_id
-        ).delete(synchronize_session=False)
+        session.query(CollectionPaper).filter(CollectionPaper.collection_id == collection_id).delete(
+            synchronize_session=False
+        )
         session.delete(collection)
         session.commit()
         return {"status": "deleted", "collection_id": collection_id}
@@ -140,9 +135,7 @@ async def delete_collection(collection_id: str):
 async def list_collection_papers(collection_id: str):
     session = get_session(state.engine)
     try:
-        exists = (
-            session.query(Collection.id).filter(Collection.id == collection_id).scalar()
-        )
+        exists = session.query(Collection.id).filter(Collection.id == collection_id).scalar()
         if not exists:
             raise HTTPException(status_code=404, detail="Collection not found")
         paper_ids = [
@@ -164,11 +157,7 @@ async def add_papers_to_collection(collection_id: str, body: dict = Body(...)):
     if not isinstance(raw_ids, list):
         raise HTTPException(status_code=400, detail="paper_ids must be a list")
     paper_ids = list(
-        dict.fromkeys(
-            paper_id.strip()
-            for paper_id in raw_ids
-            if isinstance(paper_id, str) and paper_id.strip()
-        )
+        dict.fromkeys(paper_id.strip() for paper_id in raw_ids if isinstance(paper_id, str) and paper_id.strip())
     )
     if not paper_ids:
         raise HTTPException(status_code=400, detail="paper_ids is required")
@@ -180,16 +169,11 @@ async def add_papers_to_collection(collection_id: str, body: dict = Body(...)):
 
     session = get_session(state.engine)
     try:
-        exists = (
-            session.query(Collection.id).filter(Collection.id == collection_id).scalar()
-        )
+        exists = session.query(Collection.id).filter(Collection.id == collection_id).scalar()
         if not exists:
             raise HTTPException(status_code=404, detail="Collection not found")
 
-        existing_paper_ids = {
-            paper_id
-            for (paper_id,) in session.query(Paper.id).filter(Paper.id.in_(paper_ids)).all()
-        }
+        existing_paper_ids = {paper_id for (paper_id,) in session.query(Paper.id).filter(Paper.id.in_(paper_ids)).all()}
         if not existing_paper_ids:
             raise HTTPException(status_code=404, detail="No matching papers found")
 
@@ -203,12 +187,7 @@ async def add_papers_to_collection(collection_id: str, body: dict = Body(...)):
             .all()
         }
         to_add = existing_paper_ids - already
-        session.add_all(
-            [
-                CollectionPaper(collection_id=collection_id, paper_id=paper_id)
-                for paper_id in to_add
-            ]
-        )
+        session.add_all([CollectionPaper(collection_id=collection_id, paper_id=paper_id) for paper_id in to_add])
         session.commit()
         return {"status": "ok", "added": len(to_add), "collection_id": collection_id}
     except Exception:
@@ -280,11 +259,7 @@ async def create_saved_search(body: dict = Body(...)):
 async def delete_saved_search(saved_search_id: str):
     session = get_session(state.engine)
     try:
-        deleted = (
-            session.query(SavedSearch)
-            .filter(SavedSearch.id == saved_search_id)
-            .delete(synchronize_session=False)
-        )
+        deleted = session.query(SavedSearch).filter(SavedSearch.id == saved_search_id).delete(synchronize_session=False)
         if not deleted:
             raise HTTPException(status_code=404, detail="Saved search not found")
         session.commit()

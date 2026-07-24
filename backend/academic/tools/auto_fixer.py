@@ -1,4 +1,5 @@
 """Auto Fixer tool — applies mechanical, rule-safe fixes from an audit report."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ class AutoFixerTool(BaseTool):
     - Every fix is logged in the FixEntry diff log.
     - Stops and returns success=False when ambiguity is detected.
     """
+
     name = "auto_fixer"
 
     def _run(  # type: ignore[override]
@@ -33,6 +35,7 @@ class AutoFixerTool(BaseTool):
         audit_data: dict[str, Any],
     ) -> ToolResult:
         from academic.governance import get_academic_governance
+
         gov = get_academic_governance()
         policy = gov.rules(("auto_fix_policy",))
 
@@ -53,13 +56,15 @@ class AutoFixerTool(BaseTool):
                 if snippet and snippet.strip() not in current_text:
                     original = current_text[:50]
                     current_text = snippet + "\n\n" + current_text
-                    fixes.append(FixEntry(
-                        rule=rule,
-                        location="top",
-                        change="insert_snippet",
-                        original=original,
-                        fixed=snippet[:80],
-                    ))
+                    fixes.append(
+                        FixEntry(
+                            rule=rule,
+                            location="top",
+                            change="insert_snippet",
+                            original=original,
+                            fixed=snippet[:80],
+                        )
+                    )
             elif fix_type == "trim_suggestion":
                 # Trim suggestion is informational only; cannot auto-apply
                 ambiguous.append(f"Trim required for '{rule}' — needs human review")
@@ -71,15 +76,17 @@ class AutoFixerTool(BaseTool):
                     if count > 1:
                         ambiguous.append(f"Ambiguous replace for '{rule}': {count} occurrences")
                     else:
-                        original_snippet = current_text[current_text.index(old):current_text.index(old)+len(old)]
+                        original_snippet = current_text[current_text.index(old) : current_text.index(old) + len(old)]
                         current_text = current_text.replace(old, new, 1)
-                        fixes.append(FixEntry(
-                            rule=rule,
-                            location=check.get("location", "unknown"),
-                            change="replace",
-                            original=original_snippet[:80],
-                            fixed=new[:80],
-                        ))
+                        fixes.append(
+                            FixEntry(
+                                rule=rule,
+                                location=check.get("location", "unknown"),
+                                change="replace",
+                                original=original_snippet[:80],
+                                fixed=new[:80],
+                            )
+                        )
 
         return ToolResult(
             tool=self.name,

@@ -72,8 +72,16 @@ def get_output_language_name(lang: str) -> str:
 
 
 def infer_language(text: str, default: str = _DEFAULT_LANG) -> str:
-    stripped = re.sub(r'[\U0001F000-\U0010FFFF\u2600-\u27BF]', '', text)
-    return "ja" if any(0x3040 <= ord(char) <= 0x9FFF for char in stripped) else ("vi" if any(ord(char) > 127 for char in stripped) else ("en" if re.search(r"[A-Za-z]", stripped) else default))
+    stripped = re.sub(r"[\U0001F000-\U0010FFFF\u2600-\u27BF]", "", text)
+    return (
+        "ja"
+        if any(0x3040 <= ord(char) <= 0x9FFF for char in stripped)
+        else (
+            "vi"
+            if any(ord(char) > 127 for char in stripped)
+            else ("en" if re.search(r"[A-Za-z]", stripped) else default)
+        )
+    )
 
 
 def get_prompt_language(user_text: str = "", requested_language: str = "") -> str:
@@ -85,6 +93,7 @@ def get_prompt_language(user_text: str = "", requested_language: str = "") -> st
         return request_language
     try:
         from config.settings import settings
+
         configured = str(getattr(settings, "output_language", "auto") or "auto")
     except Exception:
         configured = "auto"
@@ -97,7 +106,13 @@ def get_prompt_language(user_text: str = "", requested_language: str = "") -> st
 
 def get_language_instruction(user_text: str = "", requested_language: str = "") -> str:
     language = get_prompt_language(user_text, requested_language)
-    return '## OUTPUT LANGUAGE' + chr(10) + 'Write the complete response in ' + get_output_language_name(language) + '. Keep proper nouns, citations, identifiers, code, and quoted source text unchanged.'
+    return (
+        "## OUTPUT LANGUAGE"
+        + chr(10)
+        + "Write the complete response in "
+        + get_output_language_name(language)
+        + ". Keep proper nouns, citations, identifiers, code, and quoted source text unchanged."
+    )
 
 
 def reload_locales() -> None:

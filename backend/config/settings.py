@@ -16,18 +16,22 @@ def resolve_env_files() -> tuple[str, ...]:
 
     if getattr(sys, "frozen", False):
         exe_dir = Path(sys.executable).parent
-        candidates.extend([
-            exe_dir / ".env",
-            exe_dir / "resources" / ".env",
-        ])
+        candidates.extend(
+            [
+                exe_dir / ".env",
+                exe_dir / "resources" / ".env",
+            ]
+        )
         resource_dir = os.environ.get("RESEARCHMIND_RESOURCE_DIR")
         if resource_dir:
             candidates.append(Path(resource_dir) / ".env")
 
-    candidates.extend([
-        Path(".env"),
-        Path(__file__).resolve().parent.parent / ".env",
-    ])
+    candidates.extend(
+        [
+            Path(".env"),
+            Path(__file__).resolve().parent.parent / ".env",
+        ]
+    )
 
     seen: set[str] = set()
     files: list[str] = []
@@ -105,6 +109,7 @@ def get_public_gateway_url() -> str:
         except (OSError, ValueError, AttributeError):
             continue
     return ""
+
 
 class Settings(BaseSettings):
     # Backend
@@ -310,7 +315,9 @@ class Settings(BaseSettings):
 
     # Ultimate fallback chain (comma-separated): tried in order when primary + fallback both fail
     # Factory default: "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
-    task_ultimate_fallback_chain: str = "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
+    task_ultimate_fallback_chain: str = (
+        "cerebras,groq,nvidia,nvidia_deepseek,github,github_deepseek_v3,cohere,cloudflare,openrouter,local"
+    )
 
     # Onboarding setup completed state
     setup_completed: bool = False

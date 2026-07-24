@@ -21,6 +21,7 @@ _daily_cache: dict = {"data": None, "date": ""}
 
 # ─── Personalized Knowledge Brain ────────────────────────────────
 
+
 @router.get("/brain")
 async def get_personal_brain(request: Request):
     """
@@ -64,23 +65,140 @@ async def get_personal_brain(request: Request):
         top_topics = tag_counts.most_common(10)
 
         title_words = []
-        stop_words = set(['the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'is', 'are', 'was', 'were', 'by', 'with', 'from', 'that', 'this', 'it', 'its', 'as', 'not', 'but', 'can', 'has', 'have', 'been', 'we', 'our', 'their', 'they', 'he', 'she', 'than', 'if', 'when', 'which', 'what', 'how', 'all', 'each', 'every', 'more', 'most', 'no', 'other', 'some', 'such', 'than', 'too', 'very', 'may', 'will', 'also', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'under', 'again', 'then', 'once', 'here', 'there', 'why', 'both', 'few', 'own', 'same', 'so', 'while', 'only', 'now', 'over', 'such', 'just', 'any', 'new', 'one', 'two', 'first', 'based', 'using', 'approach', 'method', 'model', 'using', 'via', 'study', 'paper', 'analysis', 'using', 'data', 'method', 'methods', 'approach', 'approaches', 'performance', 'result', 'results', 'present', 'propose', 'proposed', 'introduce', 'introduced', 'develop', 'developed', 'providing', 'provide'])
+        stop_words = set(
+            [
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "of",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "is",
+                "are",
+                "was",
+                "were",
+                "by",
+                "with",
+                "from",
+                "that",
+                "this",
+                "it",
+                "its",
+                "as",
+                "not",
+                "but",
+                "can",
+                "has",
+                "have",
+                "been",
+                "we",
+                "our",
+                "their",
+                "they",
+                "he",
+                "she",
+                "than",
+                "if",
+                "when",
+                "which",
+                "what",
+                "how",
+                "all",
+                "each",
+                "every",
+                "more",
+                "most",
+                "no",
+                "other",
+                "some",
+                "such",
+                "than",
+                "too",
+                "very",
+                "may",
+                "will",
+                "also",
+                "about",
+                "into",
+                "through",
+                "during",
+                "before",
+                "after",
+                "above",
+                "below",
+                "between",
+                "under",
+                "again",
+                "then",
+                "once",
+                "here",
+                "there",
+                "why",
+                "both",
+                "few",
+                "own",
+                "same",
+                "so",
+                "while",
+                "only",
+                "now",
+                "over",
+                "such",
+                "just",
+                "any",
+                "new",
+                "one",
+                "two",
+                "first",
+                "based",
+                "using",
+                "approach",
+                "method",
+                "model",
+                "using",
+                "via",
+                "study",
+                "paper",
+                "analysis",
+                "using",
+                "data",
+                "method",
+                "methods",
+                "approach",
+                "approaches",
+                "performance",
+                "result",
+                "results",
+                "present",
+                "propose",
+                "proposed",
+                "introduce",
+                "introduced",
+                "develop",
+                "developed",
+                "providing",
+                "provide",
+            ]
+        )
 
         for p in all_papers:
             if p.title:
-                words = re.findall(r'[a-zA-Z]{3,}', p.title.lower())
+                words = re.findall(r"[a-zA-Z]{3,}", p.title.lower())
                 title_words.extend([w for w in words if w not in stop_words and len(w) > 3])
 
         word_counts = Counter(title_words)
         top_keywords = word_counts.most_common(15)
 
-        user_queries = session.query(ChatHistory.content).filter(
-            ChatHistory.role == "user"
-        ).limit(100).all()
+        user_queries = session.query(ChatHistory.content).filter(ChatHistory.role == "user").limit(100).all()
 
         query_words = []
         for (content,) in user_queries:
-            words = re.findall(r'[a-zA-ZÀ-ỹ]{3,}', content.lower())
+            words = re.findall(r"[a-zA-ZÀ-ỹ]{3,}", content.lower())
             query_words.extend([w for w in words if w not in stop_words and len(w) > 3])
 
         query_word_counts = Counter(query_words)
@@ -118,35 +236,45 @@ async def get_personal_brain(request: Request):
         for month in sorted(month_counts.keys(), reverse=True)[:6]:
             timeline.append({"month": month, "count": month_counts[month]})
 
-        recent_chats = session.query(ChatHistory).filter(
-            ChatHistory.role == "user"
-        ).order_by(ChatHistory.created_at.desc()).limit(10).all()
+        recent_chats = (
+            session.query(ChatHistory)
+            .filter(ChatHistory.role == "user")
+            .order_by(ChatHistory.created_at.desc())
+            .limit(10)
+            .all()
+        )
 
         recent_activity = []
         for ch in recent_chats:
-            recent_activity.append({
-                "type": "chat",
-                "content": ch.content[:100],
-                "date": str(ch.created_at) if ch.created_at else None,
-            })
+            recent_activity.append(
+                {
+                    "type": "chat",
+                    "content": ch.content[:100],
+                    "date": str(ch.created_at) if ch.created_at else None,
+                }
+            )
 
         insights = []
 
         if total_papers == 0:
-            insights.append({
-                "type": "info",
-                "title": t("personal.start_title", lang),
-                "description": t("personal.start_desc", lang),
-                "action": t("personal.action_import_pdf", lang),
-            })
+            insights.append(
+                {
+                    "type": "info",
+                    "title": t("personal.start_title", lang),
+                    "description": t("personal.start_desc", lang),
+                    "action": t("personal.action_import_pdf", lang),
+                }
+            )
         else:
             if len(unread_papers) > 0:
-                insights.append({
-                    "type": "action",
-                    "title": t("personal.unread_papers_title", lang, count=len(unread_papers)),
-                    "description": t("personal.unread_papers_desc", lang, count=len(unread_papers)),
-                    "action": t("personal.action_view_library", lang),
-                })
+                insights.append(
+                    {
+                        "type": "action",
+                        "title": t("personal.unread_papers_title", lang, count=len(unread_papers)),
+                        "description": t("personal.unread_papers_desc", lang, count=len(unread_papers)),
+                        "action": t("personal.action_view_library", lang),
+                    }
+                )
 
             if len(read_papers) > 0 and total_papers > 0:
                 pct = round(len(read_papers) / total_papers * 100)
@@ -156,43 +284,63 @@ async def get_personal_brain(request: Request):
                     motivation = t("personal.motivation_keep_going", lang)
                 else:
                     motivation = t("personal.motivation_read_more", lang)
-                insights.append({
-                    "type": "progress",
-                    "title": t("personal.reading_progress_title", lang, pct=pct),
-                    "description": t("personal.reading_progress_desc", lang, read_count=len(read_papers), total=total_papers, motivation=motivation),
-                })
+                insights.append(
+                    {
+                        "type": "progress",
+                        "title": t("personal.reading_progress_title", lang, pct=pct),
+                        "description": t(
+                            "personal.reading_progress_desc",
+                            lang,
+                            read_count=len(read_papers),
+                            total=total_papers,
+                            motivation=motivation,
+                        ),
+                    }
+                )
 
             if top_topics:
                 top_topic = top_topics[0][0]
-                insights.append({
-                    "type": "insight",
-                    "title": t("personal.top_topic_title", lang, topic=top_topic),
-                    "description": t("personal.top_topic_desc", lang, topic=top_topic),
-                })
+                insights.append(
+                    {
+                        "type": "insight",
+                        "title": t("personal.top_topic_title", lang, topic=top_topic),
+                        "description": t("personal.top_topic_desc", lang, topic=top_topic),
+                    }
+                )
 
             if len(languages) > 1:
                 langs = ", ".join([f"{lang}: {count}" for lang, count in languages.most_common(3)])
-                insights.append({
-                    "type": "info",
-                    "title": t("personal.multi_lang_title", lang),
-                    "description": t("personal.multi_lang_desc", lang, langs=langs),
-                })
+                insights.append(
+                    {
+                        "type": "info",
+                        "title": t("personal.multi_lang_title", lang),
+                        "description": t("personal.multi_lang_desc", lang, langs=langs),
+                    }
+                )
 
             if len(starred_papers) > 0:
                 starred_titles = [display_title(p.title, p.filename) for p in starred_papers[:3]]
-                insights.append({
-                    "type": "insight",
-                    "title": t("personal.starred_title", lang, count=len(starred_papers)),
-                    "description": t("personal.starred_desc", lang, titles=", ".join(starred_titles[:2]) + ("..." if len(starred_titles) > 2 else "")),
-                })
+                insights.append(
+                    {
+                        "type": "insight",
+                        "title": t("personal.starred_title", lang, count=len(starred_papers)),
+                        "description": t(
+                            "personal.starred_desc",
+                            lang,
+                            titles=", ".join(starred_titles[:2]) + ("..." if len(starred_titles) > 2 else ""),
+                        ),
+                    }
+                )
 
             if total_papers >= 3 and len(read_papers) < total_papers // 2:
-                insights.append({
-                    "type": "action",
-                    "title": t("personal.review_title", lang),
-                    "description": t("personal.review_desc", lang),
-                    "action": t("personal.action_create_review", lang),
-                })
+                insights.append(
+                    {
+                        "type": "action",
+                        "title": t("personal.review_title", lang),
+                        "description": t("personal.review_desc", lang),
+                        "action": t("personal.action_create_review", lang),
+                    }
+                )
 
         return {
             "reading_stats": reading_stats,
@@ -207,6 +355,7 @@ async def get_personal_brain(request: Request):
 
 
 # ─── Daily AI Reader ─────────────────────────────────────────────
+
 
 @router.get("/daily-reader")
 async def get_daily_reader(request: Request):
@@ -234,9 +383,13 @@ async def get_daily_reader(request: Request):
         tag_counts = Counter(all_tags)
         top_interests = [t for t, c in tag_counts.most_common(5)]
 
-        recent_queries = session.query(ChatHistory.content).filter(
-            ChatHistory.role == "user"
-        ).order_by(ChatHistory.created_at.desc()).limit(20).all()
+        recent_queries = (
+            session.query(ChatHistory.content)
+            .filter(ChatHistory.role == "user")
+            .order_by(ChatHistory.created_at.desc())
+            .limit(20)
+            .all()
+        )
 
         query_text = " ".join([q[0] for q in recent_queries]) if recent_queries else ""
 
@@ -311,14 +464,13 @@ Use Markdown headings and write in the user's language."""
 
                 if daily_suggestion is None:
                     fallback_titles = [
-                        display_title(p.title, p.filename)
-                        for p in (unread_papers or reading_papers or all_papers)[:3]
+                        display_title(p.title, p.filename) for p in (unread_papers or reading_papers or all_papers)[:3]
                     ]
                     if fallback_titles:
                         daily_suggestion = {
-                            "suggestion": t("personal.suggestion_header", lang) + "\n\n" + "\n".join(
-                                f"- {title}" for title in fallback_titles
-                            ),
+                            "suggestion": t("personal.suggestion_header", lang)
+                            + "\n\n"
+                            + "\n".join(f"- {title}" for title in fallback_titles),
                             "model_used": "local-fallback",
                         }
 
@@ -377,10 +529,12 @@ Use Markdown headings and write in the user's language."""
             check_date = today - timedelta(days=days_back)
             day_start = datetime.combine(check_date, datetime.min.time())
             day_end = datetime.combine(check_date, datetime.max.time())
-            has_activity = session.query(ChatHistory).filter(
-                ChatHistory.created_at >= day_start,
-                ChatHistory.created_at <= day_end
-            ).count() > 0
+            has_activity = (
+                session.query(ChatHistory)
+                .filter(ChatHistory.created_at >= day_start, ChatHistory.created_at <= day_end)
+                .count()
+                > 0
+            )
             if has_activity:
                 if days_back == streak:
                     streak += 1

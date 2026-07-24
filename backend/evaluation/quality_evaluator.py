@@ -1,4 +1,5 @@
 """Deterministic quality metrics for stored AI answers."""
+
 import json
 import re
 from collections import defaultdict
@@ -63,21 +64,28 @@ def aggregate_history(messages: list) -> dict:
         "hallucination_risk": average("hallucination_risk", scores),
         "language_consistency": round(language_matches / len(scores), 4) if scores else 1.0,
         "invalid_pages": sum(score["invalid_pages"] for score in scores),
-        "models": [{
-            "model": model, "answers": len(rows),
-            "citation_verification": average("citation_verification", rows),
-            "hallucination_risk": average("hallucination_risk", rows),
-        } for model, rows in sorted(model_scores.items(), key=lambda item: -len(item[1]))],
+        "models": [
+            {
+                "model": model,
+                "answers": len(rows),
+                "citation_verification": average("citation_verification", rows),
+                "hallucination_risk": average("hallucination_risk", rows),
+            }
+            for model, rows in sorted(model_scores.items(), key=lambda item: -len(item[1]))
+        ],
     }
 
 
 def prompt_regression_snapshot() -> dict:
     from chat.prompt_registry import get
+
     spec = get("rag.answer")
     required = {"{context}", "{query}"}
     missing = sorted(token for token in required if token not in spec.template)
     rendered = spec.render(context="SOURCE", query="QUESTION")
     return {
-        "name": spec.name, "version": spec.version, "passed": not missing and "SOURCE" in rendered and "QUESTION" in rendered,
+        "name": spec.name,
+        "version": spec.version,
+        "passed": not missing and "SOURCE" in rendered and "QUESTION" in rendered,
         "missing_variables": missing,
     }

@@ -71,6 +71,7 @@ def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
 @router.post("")
 async def verify_research(http_request: Request, body: VerifyRequest = Body(...)):
     import time as time_mod
+
     t0 = time_mod.time()
     lang = get_language(http_request)
 
@@ -86,11 +87,27 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
 
     rag_error = rag_unavailable_message(lang)
     if rag_error:
-        return {"answer": rag_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0, "external_sources": [], "verify_status": "local_only"}
+        return {
+            "answer": rag_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+            "external_sources": [],
+            "verify_status": "local_only",
+        }
 
     paper_error = check_papers_ready(paper_ids, lang)
     if paper_error:
-        return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0, "external_sources": [], "verify_status": "local_only"}
+        return {
+            "answer": paper_error,
+            "citations": [],
+            "model_used": "",
+            "papers_used": [],
+            "chunks_used": 0,
+            "external_sources": [],
+            "verify_status": "local_only",
+        }
 
     t_retrieve = time_mod.time()
     retrieval = await asyncio.to_thread(
@@ -112,7 +129,7 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
             pdf_path=paper.get("file_path"),
             title=paper.get("title"),
             authors=paper.get("authors", []),
-            context_text=retrieval.context_text
+            context_text=retrieval.context_text,
         )
         if doi:
             dois_to_lookup.append((doi, paper.get("title", "")))
@@ -146,10 +163,7 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
                 external_data.append(result)
 
         if external_data:
-            has_full_meta = any(
-                ep.openalex is not None and ep.crossref is not None
-                for ep in external_data
-            )
+            has_full_meta = any(ep.openalex is not None and ep.crossref is not None for ep in external_data)
             has_any = any(
                 ep.openalex is not None or ep.crossref is not None or ep.semantic_scholar is not None
                 for ep in external_data
@@ -183,7 +197,9 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
                 verif_engine.verify_manuscript,
                 text_content=retrieval.context_text or "",
                 title=first.get("title", "Untitled"),
-                venue_id=venue_audit.get("venue_info", {}).get("venue_code", "ieee_trans") if venue_audit else "ieee_trans",
+                venue_id=venue_audit.get("venue_info", {}).get("venue_code", "ieee_trans")
+                if venue_audit
+                else "ieee_trans",
                 citations=None,
                 doi=first.get("doi", "") or "",
             )
@@ -197,13 +213,15 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
                 "errors": v_result.errors[:5],
                 "warnings": v_result.warnings[:5],
             }
-            logger.info(f"VERIFY_5POINT is_valid={v_result.is_valid} "
-                        f"citations={v_result.citation_correctness} "
-                        f"grounding={v_result.grounding_valid} "
-                        f"doi={v_result.doi_valid} "
-                        f"references={v_result.reference_exists} "
-                        f"venue={v_result.venue_compliant} "
-                        f"elapsed={time_mod.time()-t_verif:.2f}s")
+            logger.info(
+                f"VERIFY_5POINT is_valid={v_result.is_valid} "
+                f"citations={v_result.citation_correctness} "
+                f"grounding={v_result.grounding_valid} "
+                f"doi={v_result.doi_valid} "
+                f"references={v_result.reference_exists} "
+                f"venue={v_result.venue_compliant} "
+                f"elapsed={time_mod.time() - t_verif:.2f}s"
+            )
         except Exception as e:
             logger.warning(f"AcademicVerificationEngine failed: {e}")
 
@@ -251,18 +269,26 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
 
     session = get_session(state.engine)
     try:
-        session.add(ChatHistory(
-            session_id=session_id, role="user",
-            content=query, context_papers=json.dumps(paper_ids),
-            citations="[]", model_used="",
-        ))
-        session.add(ChatHistory(
-            session_id=session_id, role="assistant",
-            content=generation.content,
-            context_papers=json.dumps(retrieval.papers_used),
-            citations=json.dumps(generation.citations),
-            model_used=generation.model_used,
-        ))
+        session.add(
+            ChatHistory(
+                session_id=session_id,
+                role="user",
+                content=query,
+                context_papers=json.dumps(paper_ids),
+                citations="[]",
+                model_used="",
+            )
+        )
+        session.add(
+            ChatHistory(
+                session_id=session_id,
+                role="assistant",
+                content=generation.content,
+                context_papers=json.dumps(retrieval.papers_used),
+                citations=json.dumps(generation.citations),
+                model_used=generation.model_used,
+            )
+        )
         session.commit()
     except Exception as e:
         session.rollback()
@@ -271,7 +297,9 @@ async def verify_research(http_request: Request, body: VerifyRequest = Body(...)
         session.close()
 
     t_total = time_mod.time() - t0
-    logger.info(f"VERIFY_TIMING retrieve={t_retrieve:.2f}s doi_extract={t_doi:.2f}s lookup={t_lookup:.2f}s generate={t_generate:.2f}s total={t_total:.2f}s status={verify_status}")
+    logger.info(
+        f"VERIFY_TIMING retrieve={t_retrieve:.2f}s doi_extract={t_doi:.2f}s lookup={t_lookup:.2f}s generate={t_generate:.2f}s total={t_total:.2f}s status={verify_status}"
+    )
 
     # --- Build structured VerifyReport ---
     verify_report = _build_verify_report(
@@ -320,7 +348,7 @@ def _build_verify_report(
 
         # Build ontology reasoning if we have enough context
         try:
-            if hasattr(state, 'retriever') and state.retriever:
+            if hasattr(state, "retriever") and state.retriever:
                 ontology = AcademicOntologyGraph()
                 populate_verify_ontology(ontology, local_context, query, _verify_reasoning_engine, external_data)
                 reasoning = _verify_reasoning_engine.run_full_reasoning_cycle()
@@ -342,7 +370,11 @@ def _build_verify_report(
     except Exception as e:
         logger.warning(f"VerifyReportBuilder failed: {e}")
         return {
-            "academic_verdict": {"verdict": "inconclusive", "reason": "Report builder failed", "determined_by": "error"},
+            "academic_verdict": {
+                "verdict": "inconclusive",
+                "reason": "Report builder failed",
+                "determined_by": "error",
+            },
             "academic_basis": {"rules_applied": [], "verification_methods": [], "standards_used": []},
             "evidence": [],
             "limitations": {"unverifiable_items": [], "missing_data": ["Report builder error"], "assumptions": []},
@@ -368,7 +400,9 @@ def _build_academic_context(
             ]
             sections.append("=== PAPERS UNDER ANALYSIS ===\n" + "\n".join(meta_lines))
         return "\n\n".join(sections)
-    return _build_clean_academic_context(local_context, external_data, papers_meta, venue_audit, verification_result, query)
+    return _build_clean_academic_context(
+        local_context, external_data, papers_meta, venue_audit, verification_result, query
+    )
 
 
 async def _build_clean_academic_context(
@@ -495,10 +529,7 @@ async def _build_clean_academic_context(
                 embedder=None,
             )
             if graph_context and graph_context.strip():
-                sections.append(
-                    "=== KNOWLEDGE GRAPH CONTEXT (Entity Relationships) ===\n"
-                    + graph_context
-                )
+                sections.append("=== KNOWLEDGE GRAPH CONTEXT (Entity Relationships) ===\n" + graph_context)
     except Exception as e:
         logger.warning(f"Verify KnowledgeGraph failed: {e}")
 
@@ -508,19 +539,23 @@ async def _build_clean_academic_context(
 
         # Extract claim-like sentences from the user query and local context
         import re as _re
+
         all_text = f"{query}\n{local_context}"
         # Heuristic: sentences containing claim indicators (avoid 'best'/'first' — too many false positives)
-        claim_indicators = r'\b(outperforms|improves|achieves|sota|state-of-the-art|superior|highest|novel|outperform|our method|we propose|we demonstrate|we show|results demonstrate|significantly better)\b'
+        claim_indicators = r"\b(outperforms|improves|achieves|sota|state-of-the-art|superior|highest|novel|outperform|our method|we propose|we demonstrate|we show|results demonstrate|significantly better)\b"
         found_claims = []
         # Split on sentence boundaries, but avoid splitting after decimal numbers (e.g., "95.0")
-        for sent in _re.split(r'(?<!\d)[.!?]\s+', all_text[:3000]):
+        for sent in _re.split(r"(?<!\d)[.!?]\s+", all_text[:3000]):
             sent = sent.strip()
             if len(sent) > 20 and _re.search(claim_indicators, sent, _re.I):
                 found_claims.append(sent[:200])
 
         if found_claims:
             for claim in found_claims[:5]:
-                method_match = _re.search(r'\b([A-Z][A-Za-z0-9_-]*(?:Net|Former|GAN|BERT|Transformer|CNN|RNN|LSTM|ViT|GPT|Diffusion))\b', claim)
+                method_match = _re.search(
+                    r"\b([A-Z][A-Za-z0-9_-]*(?:Net|Former|GAN|BERT|Transformer|CNN|RNN|LSTM|ViT|GPT|Diffusion))\b",
+                    claim,
+                )
                 method_name = method_match.group(1) if method_match else "Proposed Method"
 
                 counters = _refutation_engine.generate_counter_arguments(
@@ -528,7 +563,7 @@ async def _build_clean_academic_context(
                     method_name=method_name,
                 )
 
-                refutation_lines.append(f"\nClaim: \"{claim}\"")
+                refutation_lines.append(f'\nClaim: "{claim}"')
                 for c in counters:
                     icon = {"critical": "🔴", "moderate": "🟡", "minor": "🟢"}.get(c.severity, "⚪")
                     refutation_lines.append(
@@ -557,8 +592,7 @@ async def _build_clean_academic_context(
     external_sections = [section for section in external_sections if section]
     if external_sections:
         sections.append(
-            "=== EXTERNAL ACADEMIC DATA (OpenAlex + Crossref + Semantic Scholar) ===\n"
-            + "\n\n".join(external_sections)
+            "=== EXTERNAL ACADEMIC DATA (OpenAlex + Crossref + Semantic Scholar) ===\n" + "\n\n".join(external_sections)
         )
     else:
         sections.append(
@@ -604,8 +638,11 @@ def _format_clean_external(ep: ExternalPaperData) -> str:
     if ep.s2_recommendations:
         lines.append("\nRecommended similar papers:")
         for index, recommendation in enumerate(ep.s2_recommendations[:3], 1):
-            lines.append(f"  {index}. {recommendation.title} ({recommendation.year or '?'}) -- {recommendation.citation_count} citations")
+            lines.append(
+                f"  {index}. {recommendation.title} ({recommendation.year or '?'}) -- {recommendation.citation_count} citations"
+            )
     return "\n".join(lines)
+
 
 def _format_rich_external(ep: ExternalPaperData) -> str:
     return _format_clean_external(ep)
@@ -704,26 +741,34 @@ async def _full_lookup(doi: str, fallback_title: str) -> ExternalPaperData:
 
     # Cache
     if oa_result:
-        cache_set(f"oa:{doi}", "openalex", {
-            "openalex_id": oa_result.openalex_id,
-            "doi": oa_result.doi,
-            "title": oa_result.title,
-            "publication_year": oa_result.publication_year,
-            "citation_count": oa_result.citation_count,
-            "related_work_ids": oa_result.related_work_ids,
-            "referenced_work_ids": oa_result.referenced_work_ids,
-        })
+        cache_set(
+            f"oa:{doi}",
+            "openalex",
+            {
+                "openalex_id": oa_result.openalex_id,
+                "doi": oa_result.doi,
+                "title": oa_result.title,
+                "publication_year": oa_result.publication_year,
+                "citation_count": oa_result.citation_count,
+                "related_work_ids": oa_result.related_work_ids,
+                "referenced_work_ids": oa_result.referenced_work_ids,
+            },
+        )
     if cr_result:
-        cache_set(f"cr:{doi}", "crossref", {
-            "doi": cr_result.doi,
-            "title": cr_result.title,
-            "authors": cr_result.authors,
-            "journal": cr_result.journal,
-            "year": cr_result.year,
-            "publisher": cr_result.publisher,
-            "citation_count": cr_result.citation_count,
-            "is_valid": cr_result.is_valid,
-        })
+        cache_set(
+            f"cr:{doi}",
+            "crossref",
+            {
+                "doi": cr_result.doi,
+                "title": cr_result.title,
+                "authors": cr_result.authors,
+                "journal": cr_result.journal,
+                "year": cr_result.year,
+                "publisher": cr_result.publisher,
+                "citation_count": cr_result.citation_count,
+                "is_valid": cr_result.is_valid,
+            },
+        )
 
     title = (cr_result.title if cr_result else None) or fallback_title or doi
 
@@ -815,19 +860,28 @@ def _serialize_external(ep: ExternalPaperData) -> dict:
         }
     if ep.s2_citations:
         result["s2_citations"] = [
-            {"title": c.title, "year": c.year, "citation_count": c.citation_count}
-            for c in ep.s2_citations[:5]
+            {"title": c.title, "year": c.year, "citation_count": c.citation_count} for c in ep.s2_citations[:5]
         ]
     if ep.s2_recommendations:
         result["s2_recommendations"] = [
-            {"title": r.title, "year": r.year, "citation_count": r.citation_count}
-            for r in ep.s2_recommendations[:3]
+            {"title": r.title, "year": r.year, "citation_count": r.citation_count} for r in ep.s2_recommendations[:3]
         ]
     return result
 
 
-async def _stream_verify_response(query, combined_context, external_sources_json, verify_status, papers_used, session_id, venue_audit=None, lang="vi", timing=None):
+async def _stream_verify_response(
+    query,
+    combined_context,
+    external_sources_json,
+    verify_status,
+    papers_used,
+    session_id,
+    venue_audit=None,
+    lang="vi",
+    timing=None,
+):
     import time as time_mod
+
     t_stream = time_mod.time()
     timing = timing or {}
     full_response = ""
@@ -840,9 +894,7 @@ async def _stream_verify_response(query, combined_context, external_sources_json
         yield f"data: {json.dumps({'type': 'venue_audit', 'data': venue_audit})}\n\n"
 
     stream_iterator = AsyncThreadIterator(
-        lambda: state.generator.stream_generate_verify(
-            query, combined_context, task_type="verify", lang=lang
-        ),
+        lambda: state.generator.stream_generate_verify(query, combined_context, task_type="verify", lang=lang),
         on_complete=state.generator.get_stream_metadata,
     )
     try:
@@ -856,28 +908,38 @@ async def _stream_verify_response(query, combined_context, external_sources_json
     model_used = str(stream_metadata.get("model_used", ""))
 
     citations = []
-    pattern = r'\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]'
+    pattern = r"\[([^\]]+?)(?:,\s*trang\s*(\d+))?\]"
     for match in re.finditer(pattern, full_response):
-        citations.append({
-            "source": match.group(1).strip(),
-            "page": int(match.group(2)) if match.group(2) else None,
-            "text": match.group(0),
-        })
+        citations.append(
+            {
+                "source": match.group(1).strip(),
+                "page": int(match.group(2)) if match.group(2) else None,
+                "text": match.group(0),
+            }
+        )
 
     db = get_session(state.engine)
     try:
-        db.add(ChatHistory(
-            session_id=session_id, role="user",
-            content=query, context_papers=json.dumps(papers_used),
-            citations="[]", model_used="",
-        ))
-        db.add(ChatHistory(
-            session_id=session_id, role="assistant",
-            content=full_response,
-            context_papers=json.dumps(papers_used),
-            citations=json.dumps(citations),
-            model_used=model_used,
-        ))
+        db.add(
+            ChatHistory(
+                session_id=session_id,
+                role="user",
+                content=query,
+                context_papers=json.dumps(papers_used),
+                citations="[]",
+                model_used="",
+            )
+        )
+        db.add(
+            ChatHistory(
+                session_id=session_id,
+                role="assistant",
+                content=full_response,
+                context_papers=json.dumps(papers_used),
+                citations=json.dumps(citations),
+                model_used=model_used,
+            )
+        )
         db.commit()
     except Exception as e:
         db.rollback()

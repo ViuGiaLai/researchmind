@@ -88,8 +88,9 @@ def _deduplicate_relationships_into_graph(
 
         existing_rel = None
         for rel in graph.relationships.values():
-            if (rel.source == nr.source and rel.target == nr.target) or \
-               (rel.source == nr.target and rel.target == nr.source):
+            if (rel.source == nr.source and rel.target == nr.target) or (
+                rel.source == nr.target and rel.target == nr.source
+            ):
                 existing_rel = rel
                 break
 
@@ -114,9 +115,15 @@ async def build_graph_from_chunks(
     """Build knowledge graph from paper chunks."""
     if entity_types is None:
         entity_types = [
-            "CONCEPT", "METHOD", "DATASET", "METRIC",
-            "MODEL", "ALGORITHM", "ARCHITECTURE",
-            "TASK", "DOMAIN",
+            "CONCEPT",
+            "METHOD",
+            "DATASET",
+            "METRIC",
+            "MODEL",
+            "ALGORITHM",
+            "ARCHITECTURE",
+            "TASK",
+            "DOMAIN",
         ]
 
     graph = graph_store.graph
@@ -147,14 +154,16 @@ async def build_graph_from_chunks(
         _deduplicate_entities_into_graph(graph, entities)
         _deduplicate_relationships_into_graph(graph, relationships)
 
-        graph.add_text_unit(GraphTextUnit(
-            id=chunk_id,
-            text=text[:500],
-            entity_ids=[e.id for e in entities],
-            relationship_ids=[r.id for r in relationships],
-            paper_id=paper_id,
-            chunk_index=chunk.get("chunk_index"),
-        ))
+        graph.add_text_unit(
+            GraphTextUnit(
+                id=chunk_id,
+                text=text[:500],
+                entity_ids=[e.id for e in entities],
+                relationship_ids=[r.id for r in relationships],
+                paper_id=paper_id,
+                chunk_index=chunk.get("chunk_index"),
+            )
+        )
 
     batch_size = 8
     processed = 0
@@ -162,7 +171,7 @@ async def build_graph_from_chunks(
         for i in range(0, total_chunks, batch_size):
             _ensure_not_cancelled()
 
-            batch = chunks[i:i + batch_size]
+            batch = chunks[i : i + batch_size]
             n_end = min(i + batch_size, total_chunks)
             _set_progress(
                 "extract",

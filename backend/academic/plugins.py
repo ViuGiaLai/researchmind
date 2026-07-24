@@ -1,4 +1,5 @@
 """Plugin & Extension System — allows adding new venues, tools, and workflows dynamically."""
+
 from __future__ import annotations
 
 from typing import Any

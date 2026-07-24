@@ -16,10 +16,12 @@ try:
     from loguru import logger
 except ImportError:
     import logging
+
     logger = logging.getLogger("paperswithcode")
 from academic.cache import cache_get, cache_set
 
 PWC_BASE_URL = "https://paperswithcode.com/api/v1"
+
 
 def _fetch_json(endpoint: str, params: dict[str, Any] | None = None, timeout: int = 8) -> dict[str, Any] | None:
     """Helper to execute GET request to PapersWithCode API."""
@@ -69,14 +71,16 @@ def get_task_benchmarks(task_id: str) -> list[dict[str, Any]]:
 
     benchmarks = []
     for item in res["results"]:
-        benchmarks.append({
-            "id": item.get("id"),
-            "name": item.get("name"),
-            "dataset": item.get("dataset", ""),
-            "metric": item.get("metric_name", ""),
-            "sota_value": item.get("sota_result_value"),
-            "paper_title": item.get("sota_result_paper_title"),
-        })
+        benchmarks.append(
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "dataset": item.get("dataset", ""),
+                "metric": item.get("metric_name", ""),
+                "sota_value": item.get("sota_result_value"),
+                "paper_title": item.get("sota_result_paper_title"),
+            }
+        )
     return benchmarks
 
 
@@ -96,17 +100,21 @@ def search_paper_results(paper_title: str) -> list[dict[str, Any]]:
         results_list = []
         if eval_res and "results" in eval_res:
             for r in eval_res["results"]:
-                results_list.append({
-                    "task": r.get("task"),
-                    "dataset": r.get("dataset"),
-                    "metric": r.get("metric_name"),
-                    "value": r.get("metric_value"),
-                    "rank": r.get("rank"),
-                })
-        out.append({
-            "id": paper_id,
-            "title": p.get("title"),
-            "url": p.get("url_abs"),
-            "results": results_list,
-        })
+                results_list.append(
+                    {
+                        "task": r.get("task"),
+                        "dataset": r.get("dataset"),
+                        "metric": r.get("metric_name"),
+                        "value": r.get("metric_value"),
+                        "rank": r.get("rank"),
+                    }
+                )
+        out.append(
+            {
+                "id": paper_id,
+                "title": p.get("title"),
+                "url": p.get("url_abs"),
+                "results": results_list,
+            }
+        )
     return out

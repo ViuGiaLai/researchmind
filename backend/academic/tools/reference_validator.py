@@ -1,4 +1,5 @@
 """Reference Validator tool — checks reference list structure and completeness."""
+
 from __future__ import annotations
 
 import re
@@ -12,6 +13,7 @@ class ReferenceValidatorTool(BaseTool):
 
     Rule specs come from venue_rules.json — no hardcoded style logic.
     """
+
     name = "reference_validator"
 
     def _run(self, references: list[str], venue_id: str = "ieee_trans") -> ToolResult:  # type: ignore[override]
@@ -29,8 +31,8 @@ class ReferenceValidatorTool(BaseTool):
         seen: set[str] = set()
         duplicates: list[int] = []
 
-        doi_re = re.compile(r'10\.\d{4,}/\S+')
-        year_re = re.compile(r'\b(19|20)\d{2}\b')
+        doi_re = re.compile(r"10\.\d{4,}/\S+")
+        year_re = re.compile(r"\b(19|20)\d{2}\b")
 
         for idx, ref in enumerate(references):
             ref = ref.strip()

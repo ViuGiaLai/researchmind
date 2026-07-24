@@ -69,13 +69,16 @@ class HybridSearch:
                     logger.info("Power Saver Mode: Unloading BGE-Reranker model to free RAM")
                     self._cross_encoder = None
                     import gc
+
                     gc.collect()
                     try:
                         import torch
+
                         if torch.cuda.is_available():
                             torch.cuda.empty_cache()
                     except ImportError:
                         pass
+
         t = threading.Thread(target=check_idle, daemon=True)
         t.start()
 
@@ -99,13 +102,14 @@ class HybridSearch:
             List of SearchResult sorted by relevance.
         """
         import time
+
         # Step 1: BM25 search — get many candidates for reranker
         t0 = time.time()
         logger.debug(f"BM25 search: '{query}'")
         bm25_top_k = getattr(settings, "top_k_bm25", 50)
         bm25_results = self.bm25.search(query, paper_ids, top_k=bm25_top_k)
         t1 = time.time()
-        logger.debug(f"BM25 search: {len(bm25_results)} results in {t1-t0:.2f}s")
+        logger.debug(f"BM25 search: {len(bm25_results)} results in {t1 - t0:.2f}s")
 
         # Step 2: Vector search (with optional MMR diversity)
         vector_results = []
@@ -119,7 +123,7 @@ class HybridSearch:
             self.embedding_warning = "⚠️ Vector search unavailable (embedding error). Results are BM25-only."
             logger.warning(f"Vector search failed (embedding error): {embed_err}. Falling back to BM25-only.")
         t2 = time.time()
-        logger.debug(f"Vector search: {len(vector_results)} results in {t2-t1:.2f}s")
+        logger.debug(f"Vector search: {len(vector_results)} results in {t2 - t1:.2f}s")
 
         # Step 3: Reciprocal Rank Fusion
         logger.debug(f"RRF fusion: {len(bm25_results)} BM25 + {len(vector_results)} Vector")
@@ -129,22 +133,24 @@ class HybridSearch:
         if use_reranker and settings.enable_reranker and fused:
             fused = self._rerank(query, fused)
             t3 = time.time()
-            logger.debug(f"Cross-encoder rerank: {len(fused)} results in {t3-t2:.2f}s")
+            logger.debug(f"Cross-encoder rerank: {len(fused)} results in {t3 - t2:.2f}s")
 
         # Step 5: Take top_k
         # Convert to SearchResult
         results = []
         for i, item in enumerate(fused[:top_k]):
-            results.append(SearchResult(
-                chunk_id=item.get("chunk_id", str(i)),
-                paper_id=item.get("paper_id", ""),
-                paper_title=item.get("paper_title", ""),
-                chunk_index=int(item.get("chunk_index", 0)),
-                content=item.get("content", ""),
-                page_number=item.get("page_number"),
-                score=float(item.get("score", 0)),
-                rank_source="hybrid",
-            ))
+            results.append(
+                SearchResult(
+                    chunk_id=item.get("chunk_id", str(i)),
+                    paper_id=item.get("paper_id", ""),
+                    paper_title=item.get("paper_title", ""),
+                    chunk_index=int(item.get("chunk_index", 0)),
+                    content=item.get("content", ""),
+                    page_number=item.get("page_number"),
+                    score=float(item.get("score", 0)),
+                    rank_source="hybrid",
+                )
+            )
 
         return results
 
@@ -261,6 +267,7 @@ class HybridSearch:
         if self._cross_encoder is None:
             try:
                 from sentence_transformers import CrossEncoder
+
                 model_name = getattr(settings, "reranker_model", "BAAI/bge-reranker-v2-m3")
                 self._cross_encoder = CrossEncoder(model_name)
                 logger.info(f"BGE-Reranker model loaded: {model_name}")

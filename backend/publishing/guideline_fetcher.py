@@ -3,6 +3,7 @@
 Fetches, verifies, and continuously syncs venue guidelines against official live sources.
 Tracks changes and records versioned provenance.
 """
+
 import re
 import time
 import urllib.request
@@ -31,10 +32,7 @@ def sync_venue_guideline(venue_id: str) -> dict[str, Any]:
         }
 
     try:
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "ResearchMind-AcademicAuditor/1.0 (Mozilla/5.0)"}
-        )
+        req = urllib.request.Request(url, headers={"User-Agent": "ResearchMind-AcademicAuditor/1.0 (Mozilla/5.0)"})
         with urllib.request.urlopen(req, timeout=5) as response:
             html = response.read().decode("utf-8", errors="ignore")
 

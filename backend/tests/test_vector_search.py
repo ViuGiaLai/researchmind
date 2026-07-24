@@ -18,9 +18,9 @@ def sample_chunks(vector_search: VectorSearch) -> list[str]:
     """Add sample chunks to the vector search index."""
     chunk_ids = [f"chunk_{i}" for i in range(3)]
     embeddings = [
-        [0.1, 0.2, 0.3, 0.4],   # chunk_0: generic
-        [0.9, 0.8, 0.7, 0.6],   # chunk_1: similar to query
-        [0.5, 0.5, 0.0, 0.0],   # chunk_2: different direction
+        [0.1, 0.2, 0.3, 0.4],  # chunk_0: generic
+        [0.9, 0.8, 0.7, 0.6],  # chunk_1: similar to query
+        [0.5, 0.5, 0.0, 0.0],  # chunk_2: different direction
     ]
     metadatas = [
         {"paper_id": "paper_1", "paper_title": "Test Paper", "chunk_index": 0, "page_number": 1},

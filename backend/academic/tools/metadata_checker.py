@@ -1,4 +1,5 @@
 """Metadata Checker tool — validates manuscript metadata fields against venue rules."""
+
 from __future__ import annotations
 
 import re
@@ -11,6 +12,7 @@ class MetadataCheckerTool(BaseTool):
     """Validates required metadata fields (keywords, ORCID, CCS, data availability, ethics, funding)
     against the venue's rules defined in venue_rules.json.
     """
+
     name = "metadata_checker"
 
     def _run(  # type: ignore[override]
@@ -36,7 +38,9 @@ class MetadataCheckerTool(BaseTool):
 
         # 1. Keywords
         if rules_spec.get("requires_keywords", False):
-            has_keywords = bool(meta.get("keywords")) or bool(re.search(r"(?i)\b(keywords|index terms)\b", text_content))
+            has_keywords = bool(meta.get("keywords")) or bool(
+                re.search(r"(?i)\b(keywords|index terms)\b", text_content)
+            )
             if has_keywords:
                 passed_fields.append("keywords")
             else:
@@ -63,7 +67,9 @@ class MetadataCheckerTool(BaseTool):
 
         # 4. Data Availability Statement
         if rules_spec.get("requires_data_availability", False):
-            has_data_stmt = bool(meta.get("data_availability")) or bool(re.search(r"(?i)data\s+availability", text_content))
+            has_data_stmt = bool(meta.get("data_availability")) or bool(
+                re.search(r"(?i)data\s+availability", text_content)
+            )
             if has_data_stmt:
                 passed_fields.append("data_availability")
             else:
@@ -72,7 +78,9 @@ class MetadataCheckerTool(BaseTool):
 
         # 5. Ethics Statement
         if rules_spec.get("requires_ethics_statement", False):
-            has_ethics = bool(meta.get("ethics_statement")) or bool(re.search(r"(?i)ethics\s+(statement|approval)", text_content))
+            has_ethics = bool(meta.get("ethics_statement")) or bool(
+                re.search(r"(?i)ethics\s+(statement|approval)", text_content)
+            )
             if has_ethics:
                 passed_fields.append("ethics_statement")
             else:
@@ -81,7 +89,9 @@ class MetadataCheckerTool(BaseTool):
 
         # 6. Funding Statement
         if rules_spec.get("requires_funding_statement", False):
-            has_funding = bool(meta.get("funding")) or bool(re.search(r"(?i)(funding|acknowledg?ments?|financial\s+support)", text_content))
+            has_funding = bool(meta.get("funding")) or bool(
+                re.search(r"(?i)(funding|acknowledg?ments?|financial\s+support)", text_content)
+            )
             if has_funding:
                 passed_fields.append("funding_statement")
             else:
@@ -90,7 +100,9 @@ class MetadataCheckerTool(BaseTool):
 
         # 7. Author Contributions
         if rules_spec.get("requires_author_contributions", False):
-            has_contrib = bool(meta.get("author_contributions")) or bool(re.search(r"(?i)author\s+contributions", text_content))
+            has_contrib = bool(meta.get("author_contributions")) or bool(
+                re.search(r"(?i)author\s+contributions", text_content)
+            )
             if has_contrib:
                 passed_fields.append("author_contributions")
             else:
@@ -99,7 +111,9 @@ class MetadataCheckerTool(BaseTool):
 
         # 8. Conflict of Interest
         if rules_spec.get("requires_conflict_of_interest", False):
-            has_coi = bool(meta.get("conflict_of_interest")) or bool(re.search(r"(?i)(competing|conflict\s+of)\s+interests?", text_content))
+            has_coi = bool(meta.get("conflict_of_interest")) or bool(
+                re.search(r"(?i)(competing|conflict\s+of)\s+interests?", text_content)
+            )
             if has_coi:
                 passed_fields.append("conflict_of_interest")
             else:

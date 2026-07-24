@@ -15,15 +15,25 @@ from db.models import Setting
 router = APIRouter(prefix="/api", tags=["Settings"])
 
 ENV_ONLY_KEYS = {
-    "researchmind_cloud_token", "researchmind_cloud_url",
+    "researchmind_cloud_token",
+    "researchmind_cloud_url",
     "llama_server_url",
-    "local_model", "claude_model", "deepseek_model", "gemini_model",
-    "groq_model", "github_model", "freemodel_model",
-    "openrouter_model", "cohere_model", "cloudflare_model", "cerebras_model",
+    "local_model",
+    "claude_model",
+    "deepseek_model",
+    "gemini_model",
+    "groq_model",
+    "github_model",
+    "freemodel_model",
+    "openrouter_model",
+    "cohere_model",
+    "cloudflare_model",
+    "cerebras_model",
 }
 
 
 # ─── Settings ────────────────────────────────────────────────────
+
 
 @router.get("/settings")
 async def get_settings():
@@ -75,7 +85,8 @@ async def get_settings():
         "query_instruction": settings.query_instruction or settings.embedding_query_instruction,
         "passage_instruction": settings.passage_instruction or getattr(settings, "embedding_passage_instruction", ""),
         "embedding_query_instruction": settings.embedding_query_instruction or settings.query_instruction,
-        "embedding_passage_instruction": getattr(settings, "embedding_passage_instruction", "") or settings.passage_instruction,
+        "embedding_passage_instruction": getattr(settings, "embedding_passage_instruction", "")
+        or settings.passage_instruction,
         "large_context_threshold": settings.large_context_threshold,
         "large_context_model": settings.large_context_model,
         "large_context_provider": settings.large_context_provider,
@@ -135,6 +146,7 @@ async def update_settings(new_settings: dict = Body(...)):
 
         if "embedding_mode" in new_settings:
             from ingestion.embedder import _embedder
+
             if _embedder is not None:
                 _embedder.embedding_mode = settings.embedding_mode
                 logger.info(f"Embedding mode updated to: {settings.embedding_mode}")
@@ -156,6 +168,7 @@ async def update_settings(new_settings: dict = Body(...)):
 
 # ─── Test Embedding Connection ────────────────────────────────────
 
+
 @router.post("/settings/test-embedding")
 async def test_embedding_connection(request: Request):
     """Test Gemini Embedding API connection."""
@@ -165,6 +178,7 @@ async def test_embedding_connection(request: Request):
         return {"success": False, "error": t("settings.no_gemini_key", lang)}
 
     import httpx
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
@@ -191,6 +205,7 @@ async def test_embedding_connection(request: Request):
 
 
 # ─── Validate API Key ────────────────────────────────────────────
+
 
 @router.post("/settings/validate-key")
 async def validate_api_key(request: Request, body: dict = Body(...)):
@@ -248,7 +263,10 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                         err_msg = res.json().get("error", {}).get("message", res.text)
                     except Exception:
                         err_msg = res.text
-                    return {"valid": False, "error": t("settings.validate_error_gemini", lang, error=redact_api_key(err_msg))}
+                    return {
+                        "valid": False,
+                        "error": t("settings.validate_error_gemini", lang, error=redact_api_key(err_msg)),
+                    }
 
             elif provider == "deepseek":
                 url = "https://api.deepseek.com/chat/completions"
@@ -296,7 +314,10 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_groq", lang, error=err_msg)}
 
             elif provider == "nvidia":
-                url = getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(settings, "nvidia_url", "https://integrate.api.nvidia.com/v1").rstrip("/")
+                    + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "moonshotai/kimi-k2.6"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -311,7 +332,10 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_nvidia", lang, error=err_msg)}
 
             elif provider == "github":
-                url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/")
+                    + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "gpt-4o-mini"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -326,7 +350,10 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_github", lang, error=err_msg)}
 
             elif provider == "github_deepseek_v3":
-                url = getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(settings, "github_url", "https://models.inference.ai.azure.com").rstrip("/")
+                    + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "DeepSeek-V3-0324"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -341,7 +368,9 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_github_qwen", lang, error=err_msg)}
 
             elif provider == "freemodel":
-                url = getattr(settings, "freemodel_url", "https://api.freemodel.dev/v1").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(settings, "freemodel_url", "https://api.freemodel.dev/v1").rstrip("/") + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "gpt-4o-mini"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -356,7 +385,10 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_freemodel", lang, error=err_msg)}
 
             elif provider == "openrouter":
-                url = getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(settings, "openrouter_url", "https://openrouter.ai/api/v1").rstrip("/")
+                    + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "deepseek/deepseek-v4-flash"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -371,7 +403,10 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_openrouter", lang, error=err_msg)}
 
             elif provider == "cohere":
-                url = getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(settings, "cohere_url", "https://api.cohere.ai/compatibility/v1").rstrip("/")
+                    + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "command-r-plus"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -386,7 +421,14 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                     return {"valid": False, "error": t("settings.validate_error_cohere", lang, error=err_msg)}
 
             elif provider == "cloudflare":
-                url = getattr(settings, "cloudflare_url", "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1").rstrip("/") + "/chat/completions"
+                url = (
+                    getattr(
+                        settings,
+                        "cloudflare_url",
+                        "https://api.cloudflare.com/client/v4/accounts/adb9fb90009a849d8bc1635194a7dbd4/ai/v1",
+                    ).rstrip("/")
+                    + "/chat/completions"
+                )
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 model_name = model or "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
                 payload = {"model": model_name, "messages": [{"role": "user", "content": "Say ok"}], "max_tokens": 5}
@@ -425,11 +467,13 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
 
 # ─── Local Model (llama-server) ────────────────────────────────
 
+
 @router.get("/local/status")
 async def get_local_status(request: Request):
     """Check if llama-server is running."""
     lang = get_language(request)
     import httpx
+
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             res = await client.get(f"{settings.llama_server_url}/health")
@@ -457,14 +501,12 @@ async def get_local_status(request: Request):
 async def get_cache_stats():
     """Get number of cached LLM responses and embeddings."""
     from db.models import EmbeddingCache, LLMCache
+
     session = get_session(state.engine)
     try:
         llm_count = session.query(LLMCache).count()
         emb_count = session.query(EmbeddingCache).count()
-        return {
-            "llm_cache_count": llm_count,
-            "embedding_cache_count": emb_count
-        }
+        return {"llm_cache_count": llm_count, "embedding_cache_count": emb_count}
     except Exception as e:
         logger.error(f"Failed to get cache stats: {e}")
         return {"llm_cache_count": 0, "embedding_cache_count": 0}
@@ -477,6 +519,7 @@ async def clear_cache(request: Request):
     """Clear all LLM and embedding caches."""
     lang = get_language(request)
     from db.models import EmbeddingCache, LLMCache
+
     session = get_session(state.engine)
     try:
         session.query(LLMCache).delete()
@@ -496,6 +539,7 @@ async def clear_cache(request: Request):
 async def get_settings_diagnostics():
     """Alias for system diagnostics — used by desktop settings panel."""
     from routers.system import get_diagnostics
+
     return await get_diagnostics()
 
 
@@ -503,6 +547,7 @@ async def get_settings_diagnostics():
 async def rebuild_settings_fts():
     """Alias for FTS rebuild — used by desktop settings panel."""
     from routers.system import rebuild_fts_index
+
     return await rebuild_fts_index()
 
 
@@ -533,13 +578,12 @@ async def get_model_status():
             "loaded": embedder_loaded,
             "last_used": embedder_last_used,
             "idle_seconds": int(embedder_idle_sec),
-            "model_name": getattr(state.embedder, "model_name", "unknown") if hasattr(state, "embedder") else ""
+            "model_name": getattr(state.embedder, "model_name", "unknown") if hasattr(state, "embedder") else "",
         },
         "reranker": {
             "loaded": reranker_loaded,
             "last_used": reranker_last_used,
             "idle_seconds": int(reranker_idle_sec),
-            "model_name": "cross-encoder/ms-marco-MiniLM-L-6-v2"
-        }
+            "model_name": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        },
     }
-

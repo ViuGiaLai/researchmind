@@ -1,4 +1,5 @@
 """Observability & Audit Trail — records complete lineage of AI execution."""
+
 from __future__ import annotations
 
 import json

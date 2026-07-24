@@ -149,7 +149,9 @@ class Generator(
 
         # Per-task provider routing (Phase 1)
         self.task_provider_map: dict[str, str] = {}
-        self._parse_task_provider_map(task_provider_map if task_provider_map is not None else settings.task_provider_map)
+        self._parse_task_provider_map(
+            task_provider_map if task_provider_map is not None else settings.task_provider_map
+        )
 
         # Per-task fallback provider (Phase 4A)
         self.task_fallback_map: dict[str, str] = {}
@@ -157,7 +159,9 @@ class Generator(
 
         # Ultimate fallback chain (Phase 4B) — comma-separated providers from best to worst
         raw_chain = task_ultimate_fallback_chain or getattr(settings, "task_ultimate_fallback_chain", "")
-        self.ultimate_fallback_chain = [p.strip().lower() for p in raw_chain.split(",") if p.strip()] if raw_chain else []
+        self.ultimate_fallback_chain = (
+            [p.strip().lower() for p in raw_chain.split(",") if p.strip()] if raw_chain else []
+        )
 
         self.local_max_tokens = max(64, min(int(local_max_tokens or 160), 1024))
         self.current_model: str = ""
@@ -346,7 +350,9 @@ class Generator(
 
     # ── Non-streaming provider dispatch ────────────────────────
 
-    def _fit_prompt(self, user_prompt: str, provider: str, max_tokens: int, system_prompt_override: str | None = None) -> str:
+    def _fit_prompt(
+        self, user_prompt: str, provider: str, max_tokens: int, system_prompt_override: str | None = None
+    ) -> str:
         sp = system_prompt_override or self._get_system_prompt()
         fitted, _ = fit_prompt_for_provider(user_prompt, sp, provider, max_tokens or 1024)
         return fitted
@@ -401,11 +407,19 @@ class Generator(
             elif provider == "github":
                 if not self.github_api_key:
                     return None
-                return self._generate_github(user_prompt, self.github_api_key, self.github_model, max_tokens, system_prompt_override)
+                return self._generate_github(
+                    user_prompt, self.github_api_key, self.github_model, max_tokens, system_prompt_override
+                )
             elif provider == "github_deepseek_v3":
                 if not self.github_deepseek_v3_api_key:
                     return None
-                return self._generate_github(user_prompt, self.github_deepseek_v3_api_key, self.github_deepseek_v3_model, max_tokens, system_prompt_override)
+                return self._generate_github(
+                    user_prompt,
+                    self.github_deepseek_v3_api_key,
+                    self.github_deepseek_v3_model,
+                    max_tokens,
+                    system_prompt_override,
+                )
             elif provider == "gemini":
                 if not self.gemini_api_key:
                     return None
@@ -413,19 +427,31 @@ class Generator(
             elif provider == "deepseek":
                 if not self.deepseek_api_key:
                     return None
-                return self._generate_deepseek(user_prompt, self.deepseek_api_key, max_tokens, False, system_prompt_override)
+                return self._generate_deepseek(
+                    user_prompt, self.deepseek_api_key, max_tokens, False, system_prompt_override
+                )
             elif provider == "groq":
                 if not self.groq_api_key:
                     return None
-                return self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, max_tokens, system_prompt_override)
+                return self._generate_groq(
+                    user_prompt, self.groq_api_key, self.groq_model, max_tokens, system_prompt_override
+                )
             elif provider == "nvidia":
                 if not self.nvidia_api_key:
                     return None
-                return self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, system_prompt_override)
+                return self._generate_nvidia(
+                    user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, system_prompt_override
+                )
             elif provider == "nvidia_deepseek":
                 if not self.nvidia_deepseek_api_key:
                     return None
-                return self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, system_prompt_override)
+                return self._generate_nvidia(
+                    user_prompt,
+                    self.nvidia_deepseek_api_key,
+                    self.nvidia_deepseek_model,
+                    max_tokens,
+                    system_prompt_override,
+                )
             elif provider == "openrouter_r1":
                 key = self.openrouter_api_deep_key or self.openrouter_api_key
                 model = self.openrouter_deep_model or "deepseek/deepseek-r1"
@@ -435,23 +461,33 @@ class Generator(
             elif provider == "freemodel":
                 if not self.freemodel_api_key:
                     return None
-                return self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model, max_tokens, system_prompt_override)
+                return self._generate_freemodel(
+                    user_prompt, self.freemodel_api_key, self.freemodel_model, max_tokens, system_prompt_override
+                )
             elif provider == "openrouter":
                 if not self.openrouter_api_key:
                     return None
-                return self._generate_openrouter(user_prompt, self.openrouter_api_key, self.openrouter_model, max_tokens, system_prompt_override)
+                return self._generate_openrouter(
+                    user_prompt, self.openrouter_api_key, self.openrouter_model, max_tokens, system_prompt_override
+                )
             elif provider == "cohere":
                 if not self.cohere_api_key:
                     return None
-                return self._generate_cohere(user_prompt, self.cohere_api_key, self.cohere_model, max_tokens, system_prompt_override)
+                return self._generate_cohere(
+                    user_prompt, self.cohere_api_key, self.cohere_model, max_tokens, system_prompt_override
+                )
             elif provider == "cloudflare":
                 if not self.cloudflare_api_key:
                     return None
-                return self._generate_cloudflare(user_prompt, self.cloudflare_api_key, self.cloudflare_model, max_tokens, system_prompt_override)
+                return self._generate_cloudflare(
+                    user_prompt, self.cloudflare_api_key, self.cloudflare_model, max_tokens, system_prompt_override
+                )
             elif provider == "cerebras":
                 if not self.cerebras_api_key:
                     return None
-                return self._generate_cerebras(user_prompt, self.cerebras_api_key, self.cerebras_model, max_tokens, system_prompt_override)
+                return self._generate_cerebras(
+                    user_prompt, self.cerebras_api_key, self.cerebras_model, max_tokens, system_prompt_override
+                )
             elif provider == "claude":
                 if not self.claude_api_key:
                     return None
@@ -484,14 +520,11 @@ class Generator(
             self._local.last_provider_failure = None
             started = time.monotonic()
             with trace("llm.provider", provider=provider, attempt=attempt + 1):
-                result = self._call_provider(
-                    provider, user_prompt, max_tokens, system_prompt_override
-                )
+                result = self._call_provider(provider, user_prompt, max_tokens, system_prompt_override)
             elapsed_ms = int((time.monotonic() - started) * 1000)
             finish = result.finish_reason if result is not None else "unavailable"
             logger.info(
-                f"AI_PROVIDER provider={provider} attempt={attempt + 1} "
-                f"elapsed_ms={elapsed_ms} finish={finish}"
+                f"AI_PROVIDER provider={provider} attempt={attempt + 1} elapsed_ms={elapsed_ms} finish={finish}"
             )
             provider_health.record(
                 provider,
@@ -504,7 +537,7 @@ class Generator(
             if failure is not None and not failure["retryable"]:
                 break
             if attempt < retries:
-                time.sleep(backoff * (2 ** attempt))
+                time.sleep(backoff * (2**attempt))
         return result
 
     def _route_by_task(
@@ -518,9 +551,7 @@ class Generator(
         Tries primary first, then fallback chain, then returns None.
         Returns GenerationResult on success, None if all fail.
         """
-        task_type, _ = self._set_request_routing_context(
-            task_type, getattr(self._local, "reasoning_mode", "fast")
-        )
+        task_type, _ = self._set_request_routing_context(task_type, getattr(self._local, "reasoning_mode", "fast"))
         provider = self._get_provider_for_task(task_type)
         if not provider:
             return None
@@ -560,12 +591,20 @@ class Generator(
             elif provider == "github":
                 if not self.github_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.github_api_key, self.github_model, self.github_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.github_api_key, self.github_model, self.github_url, max_tokens
+                )
                 return
             elif provider == "github_deepseek_v3":
                 if not self.github_deepseek_v3_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.github_deepseek_v3_api_key, self.github_deepseek_v3_model, self.github_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt,
+                    self.github_deepseek_v3_api_key,
+                    self.github_deepseek_v3_model,
+                    self.github_url,
+                    max_tokens,
+                )
                 return
             elif provider == "gemini":
                 if not self.gemini_api_key:
@@ -575,17 +614,23 @@ class Generator(
             elif provider == "groq":
                 if not self.groq_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.groq_api_key, self.groq_model, "https://api.groq.com/openai/v1", max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.groq_api_key, self.groq_model, "https://api.groq.com/openai/v1", max_tokens
+                )
                 return
             elif provider == "nvidia":
                 if not self.nvidia_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.nvidia_api_key, self.nvidia_model, self.nvidia_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.nvidia_api_key, self.nvidia_model, self.nvidia_url, max_tokens
+                )
                 return
             elif provider == "freemodel":
                 if not self.freemodel_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.freemodel_api_key, self.freemodel_model, self.freemodel_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.freemodel_api_key, self.freemodel_model, self.freemodel_url, max_tokens
+                )
                 return
             elif provider == "openrouter_r1":
                 key = self.openrouter_api_deep_key or self.openrouter_api_key
@@ -598,22 +643,30 @@ class Generator(
             elif provider == "openrouter":
                 if not self.openrouter_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.openrouter_api_key, self.openrouter_model, self.openrouter_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.openrouter_api_key, self.openrouter_model, self.openrouter_url, max_tokens
+                )
                 return
             elif provider == "cohere":
                 if not self.cohere_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.cohere_api_key, self.cohere_model, self.cohere_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.cohere_api_key, self.cohere_model, self.cohere_url, max_tokens
+                )
                 return
             elif provider == "cloudflare":
                 if not self.cloudflare_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.cloudflare_api_key, self.cloudflare_model, self.cloudflare_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.cloudflare_api_key, self.cloudflare_model, self.cloudflare_url, max_tokens
+                )
                 return
             elif provider == "cerebras":
                 if not self.cerebras_api_key:
                     return
-                yield from self._stream_openai(user_prompt, self.cerebras_api_key, self.cerebras_model, self.cerebras_url, max_tokens)
+                yield from self._stream_openai(
+                    user_prompt, self.cerebras_api_key, self.cerebras_model, self.cerebras_url, max_tokens
+                )
                 return
             elif provider == "deepseek":
                 if not self.deepseek_api_key:
@@ -624,8 +677,9 @@ class Generator(
                 if not self.claude_api_key:
                     return
                 import anthropic
+
                 client = anthropic.Anthropic(api_key=self.claude_api_key)
-                sp = getattr(self._local, 'system_prompt_override', None) or self._get_system_prompt()
+                sp = getattr(self._local, "system_prompt_override", None) or self._get_system_prompt()
                 with client.messages.stream(
                     model=self.claude_model,
                     max_tokens=max_tokens,
@@ -647,9 +701,7 @@ class Generator(
 
     def _route_by_task_stream(self, task_type: str, user_prompt: str, max_tokens: int = 1024):
         """Stream through the same task-specific fallback chain as non-streaming calls."""
-        task_type, _ = self._set_request_routing_context(
-            task_type, getattr(self._local, "reasoning_mode", "fast")
-        )
+        task_type, _ = self._set_request_routing_context(task_type, getattr(self._local, "reasoning_mode", "fast"))
         primary = self._get_provider_for_task(task_type)
         if not primary:
             return
@@ -661,9 +713,7 @@ class Generator(
                 continue
             attempted.add(provider)
             role = "primary" if provider == primary else "fallback"
-            logger.info(
-                f"task_routing_stream: {task_type} provider={provider} role={role}"
-            )
+            logger.info(f"task_routing_stream: {task_type} provider={provider} role={role}")
             stream_gen = self._stream_provider(provider, user_prompt, max_tokens)
             if stream_gen is None:
                 continue
@@ -673,16 +723,16 @@ class Generator(
                 yield chunk
             if yielded:
                 return
-            logger.warning(
-                f"task_routing_stream: {task_type} provider={provider} failed or returned no content"
-            )
+            logger.warning(f"task_routing_stream: {task_type} provider={provider} failed or returned no content")
 
         logger.info(f"task_routing_stream: {task_type} all task fallbacks failed")
         return
+
     @property
     def http_client(self):
         if self._http_client is None:
             import httpx
+
             self._http_client = httpx.Client(timeout=settings.provider_timeout)
         return self._http_client
 
@@ -698,15 +748,16 @@ class Generator(
             reasoning_mode=getattr(self._local, "reasoning_mode", "fast"),
             strict_evidence=bool(getattr(self._local, "strict_evidence", False)),
         )
+
     def _get_external_system_prompt(self) -> str:
-        if getattr(self._local, 'reasoning_mode', 'fast') == 'fast':
-            return 'You are a knowledgeable AI assistant. Answer directly and concisely from your own knowledge. Do not expose internal reasoning, ask yourself questions, or use think tags. If you do not know, say that you lack enough information.'
-        return 'You are a knowledgeable AI assistant with strong reasoning skills. Give a complete, accurate, detailed answer. Define key concepts, analyze important characteristics, provide practical examples, discuss advantages, disadvantages, and applications when relevant, and use clear Markdown structure.'
+        if getattr(self._local, "reasoning_mode", "fast") == "fast":
+            return "You are a knowledgeable AI assistant. Answer directly and concisely from your own knowledge. Do not expose internal reasoning, ask yourself questions, or use think tags. If you do not know, say that you lack enough information."
+        return "You are a knowledgeable AI assistant with strong reasoning skills. Give a complete, accurate, detailed answer. Define key concepts, analyze important characteristics, provide practical examples, discuss advantages, disadvantages, and applications when relevant, and use clear Markdown structure."
 
     def _get_local_system_prompt(self) -> str:
-        override = getattr(self._local, 'system_prompt_override', None)
+        override = getattr(self._local, "system_prompt_override", None)
         if override:
-            return override + chr(10) * 2 + getattr(self._local, 'language_instruction', '')
+            return override + chr(10) * 2 + getattr(self._local, "language_instruction", "")
         return self._get_system_prompt()
 
     def generate(
@@ -757,7 +808,9 @@ class Generator(
             provider=self.custom_cloud_provider or self.mode,
             prompt=(
                 f"[task={task_type};reasoning={reasoning_mode};strict={int(strict_evidence)}]\n"
-                + system_prompt + "\n\n" + user_prompt
+                + system_prompt
+                + "\n\n"
+                + user_prompt
             ),
             context=context_text,
         )
@@ -776,7 +829,7 @@ class Generator(
                         model_used=cached_data["model_used"] + " (cached)",
                         finish_reason=cached_data.get("finish_reason", "stop"),
                         router_reason=cached_data.get("router_reason", "cache hit"),
-                        router_token_count=cached_data.get("router_token_count", 0)
+                        router_token_count=cached_data.get("router_token_count", 0),
                     )
             except Exception as cache_err:
                 logger.warning(f"Failed to query LLM cache: {cache_err}")
@@ -794,17 +847,13 @@ class Generator(
                     "model_used": result.model_used,
                     "finish_reason": result.finish_reason,
                     "router_reason": result.router_reason,
-                    "router_token_count": result.router_token_count
+                    "router_token_count": result.router_token_count,
                 }
                 existing = session.query(LLMCache).filter(LLMCache.key_hash == key_hash).first()
                 if existing:
                     existing.response = json.dumps(cached_res)
                 else:
-                    session.add(LLMCache(
-                        key_hash=key_hash,
-                        prompt=user_prompt,
-                        response=json.dumps(cached_res)
-                    ))
+                    session.add(LLMCache(key_hash=key_hash, prompt=user_prompt, response=json.dumps(cached_res)))
                 session.commit()
             except Exception as cache_err:
                 session.rollback()
@@ -813,10 +862,13 @@ class Generator(
                 session.close()
 
         if result.finish_reason == "length":
-            logger.warning(f"LLM response truncated (finish_reason=length) for task_type={task_type}, max_tokens={max_tokens}, content_len={len(result.content)}")
+            logger.warning(
+                f"LLM response truncated (finish_reason=length) for task_type={task_type}, max_tokens={max_tokens}, content_len={len(result.content)}"
+            )
 
         if reasoning_mode == "fast" and result.content:
             from common.text_utils import clean_thinking_content
+
             result.content = clean_thinking_content(result.content)
 
         return result
@@ -897,7 +949,9 @@ class Generator(
                 if not self.deepseek_api_key:
                     return GenerationResult(
                         content="⚠️ No DeepSeek API key is configured. Open Settings and add an API key.",
-                        citations=[], model_used="deepseek/no_key", finish_reason="no_key",
+                        citations=[],
+                        model_used="deepseek/no_key",
+                        finish_reason="no_key",
                     )
                 result = self._generate_deepseek(user_prompt, self.deepseek_api_key, max_tokens, is_free=False)
                 if result.finish_reason == "error":
@@ -908,7 +962,9 @@ class Generator(
                 if not self.gemini_api_key:
                     return GenerationResult(
                         content="⚠️ No Gemini API key is configured.",
-                        citations=[], model_used="gemini/no_key", finish_reason="no_key",
+                        citations=[],
+                        model_used="gemini/no_key",
+                        finish_reason="no_key",
                     )
                 result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False)
                 if result.finish_reason == "error":
@@ -919,7 +975,9 @@ class Generator(
                 if not self.claude_api_key:
                     return GenerationResult(
                         content="⚠️ No Claude API key is configured.",
-                        citations=[], model_used="claude/no_key", finish_reason="no_key",
+                        citations=[],
+                        model_used="claude/no_key",
+                        finish_reason="no_key",
                     )
                 result = self._generate_claude(user_prompt, max_tokens)
                 if result.finish_reason == "error":
@@ -930,7 +988,9 @@ class Generator(
                 if not self.groq_api_key:
                     return GenerationResult(
                         content="⚠️ No Groq API key is configured.",
-                        citations=[], model_used="groq/no_key", finish_reason="no_key",
+                        citations=[],
+                        model_used="groq/no_key",
+                        finish_reason="no_key",
                     )
                 result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, max_tokens)
                 if result.finish_reason == "error":
@@ -941,7 +1001,9 @@ class Generator(
                 if not self.nvidia_api_key:
                     return GenerationResult(
                         content="⚠️ No NVIDIA API key is configured.",
-                        citations=[], model_used="nvidia/no_key", finish_reason="no_key",
+                        citations=[],
+                        model_used="nvidia/no_key",
+                        finish_reason="no_key",
                     )
                 result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens)
                 if result.finish_reason == "error":
@@ -952,7 +1014,9 @@ class Generator(
                 if not self.freemodel_api_key:
                     return GenerationResult(
                         content="⚠️ No FreeModel API key is configured.",
-                        citations=[], model_used="freemodel/no_key", finish_reason="no_key",
+                        citations=[],
+                        model_used="freemodel/no_key",
+                        finish_reason="no_key",
                     )
                 result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model, max_tokens)
                 if result.finish_reason == "error":
@@ -972,13 +1036,15 @@ class Generator(
         max_tokens: int = 1024,
         task_type: str = "research",
     ) -> str:
-        saved_override = getattr(self._local, 'system_prompt_override', None)
+        saved_override = getattr(self._local, "system_prompt_override", None)
         base_system_prompt = system_prompt or saved_override or self._get_system_prompt()
         self._local.system_prompt_override = base_system_prompt + "\n\n" + get_language_instruction(user_prompt)
         try:
             result = self._generate_uncached(
-                query=user_prompt, context_text="__EXTERNAL_KNOWLEDGE__",
-                max_tokens=max_tokens, task_type=task_type,
+                query=user_prompt,
+                context_text="__EXTERNAL_KNOWLEDGE__",
+                max_tokens=max_tokens,
+                task_type=task_type,
             )
             return result.content if result else ""
         finally:
@@ -992,8 +1058,13 @@ class Generator(
         task_type: str = "research",
     ) -> str:
         import asyncio
+
         return await asyncio.to_thread(
-            self.generate_direct, user_prompt, system_prompt, max_tokens, task_type,
+            self.generate_direct,
+            user_prompt,
+            system_prompt,
+            max_tokens,
+            task_type,
         )
 
     # ── Verify ─────────────────────────────────────────────────
@@ -1047,14 +1118,14 @@ class Generator(
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         combined_context = context_text
         if external_data_text.strip():
-            combined_context += (
-                f"\n\n## EXTERNAL ACADEMIC DATA (OpenAlex + Crossref)\n{external_data_text}"
-            )
+            combined_context += f"\n\n## EXTERNAL ACADEMIC DATA (OpenAlex + Crossref)\n{external_data_text}"
 
         if not combined_context.strip():
             return GenerationResult(
                 content="No data is available for verification. Select papers or enter a question.",
-                citations=[], model_used="none", finish_reason="no_context",
+                citations=[],
+                model_used="none",
+                finish_reason="no_context",
             )
 
         if combined_context not in ("__EXTERNAL_KNOWLEDGE__", ""):
@@ -1078,23 +1149,45 @@ class Generator(
 
         if mode == "cloud_free":
             if self.github_api_key:
-                result = self._generate_github(user_prompt, self.github_api_key, self.github_model, max_tokens, system_prompt_override=system_prompt)
+                result = self._generate_github(
+                    user_prompt,
+                    self.github_api_key,
+                    self.github_model,
+                    max_tokens,
+                    system_prompt_override=system_prompt,
+                )
                 if result.finish_reason != "error":
                     return result
             if self.gemini_api_key:
-                result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=True, system_prompt_override=system_prompt)
+                result = self._generate_gemini(
+                    user_prompt, self.gemini_api_key, max_tokens, is_free=True, system_prompt_override=system_prompt
+                )
                 if result.finish_reason != "error":
                     return result
             if self.groq_api_key:
-                result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, max_tokens, system_prompt_override=system_prompt)
+                result = self._generate_groq(
+                    user_prompt, self.groq_api_key, self.groq_model, max_tokens, system_prompt_override=system_prompt
+                )
                 if result.finish_reason != "error":
                     return result
             if self.nvidia_api_key:
-                result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens, system_prompt_override=system_prompt)
+                result = self._generate_nvidia(
+                    user_prompt,
+                    self.nvidia_api_key,
+                    self.nvidia_model,
+                    max_tokens,
+                    system_prompt_override=system_prompt,
+                )
                 if result.finish_reason != "error":
                     return result
                 if self.nvidia_deepseek_api_key:
-                    result = self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, system_prompt_override=system_prompt)
+                    result = self._generate_nvidia(
+                        user_prompt,
+                        self.nvidia_deepseek_api_key,
+                        self.nvidia_deepseek_model,
+                        max_tokens,
+                        system_prompt_override=system_prompt,
+                    )
                     if result.finish_reason != "error":
                         return result
             return self._generate_local(user_prompt, system_prompt_override=system_prompt)
@@ -1102,7 +1195,9 @@ class Generator(
         elif mode == "cloud_custom":
             provider = self.custom_cloud_provider
             if provider == "deepseek" and self.deepseek_api_key:
-                result = self._generate_deepseek(user_prompt, self.deepseek_api_key, max_tokens, system_prompt_override=system_prompt)
+                result = self._generate_deepseek(
+                    user_prompt, self.deepseek_api_key, max_tokens, system_prompt_override=system_prompt
+                )
                 if result.finish_reason == "error":
                     logger.warning("Custom DeepSeek failed. Falling back to local model...")
                     return self._generate_local(user_prompt, system_prompt_override=system_prompt)
@@ -1114,7 +1209,9 @@ class Generator(
                     return self._generate_local(user_prompt, system_prompt_override=system_prompt)
                 return result
             if provider == "gemini" and self.gemini_api_key:
-                result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False, system_prompt_override=system_prompt)
+                result = self._generate_gemini(
+                    user_prompt, self.gemini_api_key, max_tokens, is_free=False, system_prompt_override=system_prompt
+                )
                 if result.finish_reason == "error":
                     logger.warning("Custom Gemini failed. Falling back to local model...")
                     return self._generate_local(user_prompt, system_prompt_override=system_prompt)
@@ -1138,27 +1235,31 @@ class Generator(
                     return result
                 last_result = result
                 if attempt < max_retries:
-                    logger.warning(f"Retry {attempt+1}/{max_retries} for {fn.__name__} (finish_reason={result.finish_reason})")
+                    logger.warning(
+                        f"Retry {attempt + 1}/{max_retries} for {fn.__name__} (finish_reason={result.finish_reason})"
+                    )
             except Exception as e:
                 last_result = None
                 if attempt < max_retries:
-                    logger.warning(f"Retry {attempt+1}/{max_retries} for {fn.__name__}: {e}")
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} for {fn.__name__}: {e}")
                 else:
                     raise
         if last_result is not None:
             return last_result
-        raise RuntimeError(f"All {max_retries+1} retries exhausted for {fn.__name__}")
+        raise RuntimeError(f"All {max_retries + 1} retries exhausted for {fn.__name__}")
 
     def _extract_citations(self, content: str) -> list[dict]:
         content = content or ""
         citations = []
-        pattern = r'\[([^\]]+?)(?:,\s*(?:page|trang)\s*(\d+))?\]'
+        pattern = r"\[([^\]]+?)(?:,\s*(?:page|trang)\s*(\d+))?\]"
         for match in re.finditer(pattern, content):
-            citations.append({
-                "source": match.group(1).strip(),
-                "page": int(match.group(2)) if match.group(2) else None,
-                "text": match.group(0),
-            })
+            citations.append(
+                {
+                    "source": match.group(1).strip(),
+                    "page": int(match.group(2)) if match.group(2) else None,
+                    "text": match.group(0),
+                }
+            )
         return citations
 
     def _verify_citations(self, content: str, citations: list[dict]) -> str:
@@ -1260,6 +1361,7 @@ class Generator(
         self.current_token_count = token_count
         try:
             from ai.model_router import ModelRouter
+
             sel = ModelRouter(default_model=model_str)
             sel_result = sel.select_for_content("", task_type="chat")
             self._local.current_router_reason = sel_result.reason
@@ -1272,12 +1374,8 @@ class Generator(
         """Snapshot metadata for the request running on the current thread."""
         return {
             "model_used": getattr(self._local, "current_model", self.current_model),
-            "router_reason": getattr(
-                self._local, "current_router_reason", self.current_router_reason
-            ),
-            "token_count": getattr(
-                self._local, "current_token_count", self.current_token_count
-            ),
+            "router_reason": getattr(self._local, "current_router_reason", self.current_router_reason),
+            "token_count": getattr(self._local, "current_token_count", self.current_token_count),
             "gateway_error": getattr(self._local, "stream_gateway_error", ""),
         }
 
@@ -1361,9 +1459,12 @@ class Generator(
                 self._set_model(f"claude/{self.claude_model}")
                 try:
                     import anthropic
+
                     client = anthropic.Anthropic(api_key=self.claude_api_key)
                     with client.messages.stream(
-                        model=self.claude_model, max_tokens=max_tokens, temperature=0.3,
+                        model=self.claude_model,
+                        max_tokens=max_tokens,
+                        temperature=0.3,
                         system=self._get_system_prompt(),
                         messages=[{"role": "user", "content": user_prompt}],
                     ) as stream:
@@ -1380,7 +1481,9 @@ class Generator(
                     return
                 self._set_model(f"groq/{self.groq_model}")
                 try:
-                    yield from self._stream_openai(user_prompt, self.groq_api_key, self.groq_model, "https://api.groq.com/openai/v1", max_tokens)
+                    yield from self._stream_openai(
+                        user_prompt, self.groq_api_key, self.groq_model, "https://api.groq.com/openai/v1", max_tokens
+                    )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Groq streaming failed: {str(e)}."
@@ -1393,7 +1496,9 @@ class Generator(
                     return
                 self._set_model(f"nvidia/{self.nvidia_model}")
                 try:
-                    yield from self._stream_openai(user_prompt, self.nvidia_api_key, self.nvidia_model, self.nvidia_url, max_tokens)
+                    yield from self._stream_openai(
+                        user_prompt, self.nvidia_api_key, self.nvidia_model, self.nvidia_url, max_tokens
+                    )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ NVIDIA streaming failed: {str(e)}."
@@ -1406,7 +1511,9 @@ class Generator(
                     return
                 self._set_model(f"freemodel/{self.freemodel_model}")
                 try:
-                    yield from self._stream_openai(user_prompt, self.freemodel_api_key, self.freemodel_model, self.freemodel_url, max_tokens)
+                    yield from self._stream_openai(
+                        user_prompt, self.freemodel_api_key, self.freemodel_model, self.freemodel_url, max_tokens
+                    )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ FreeModel streaming failed: {str(e)}."

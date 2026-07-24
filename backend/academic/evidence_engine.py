@@ -3,6 +3,7 @@
 Ensures every claim is grounded with explicit provenance locator (paper title, page/chunk)
 and a calculated confidence score (0.0 to 1.0).
 """
+
 from __future__ import annotations
 
 import re
@@ -53,12 +54,14 @@ class EvidenceEngine:
                 directly_supported = False
                 provenance = "Unverified Assertion / General Model Inference"
 
-            grounded.append(GroundedClaim(
-                claim=claim[:120],
-                provenance=provenance,
-                confidence_score=round(confidence, 2),
-                evidence_passage=evidence_context[:200] if directly_supported else "",
-                is_directly_supported=directly_supported,
-            ))
+            grounded.append(
+                GroundedClaim(
+                    claim=claim[:120],
+                    provenance=provenance,
+                    confidence_score=round(confidence, 2),
+                    evidence_passage=evidence_context[:200] if directly_supported else "",
+                    is_directly_supported=directly_supported,
+                )
+            )
 
         return grounded

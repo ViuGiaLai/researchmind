@@ -24,25 +24,29 @@ class LocalProviderMixin:
     - _apply_chat_template(), _extract_citations(), _verify_citations()
     """
 
-    def _generate_local(self, prompt: str, system_prompt_override: str = None,
-                        max_tokens: int | None = None) -> "GenerationResult":
+    def _generate_local(
+        self, prompt: str, system_prompt_override: str = None, max_tokens: int | None = None
+    ) -> "GenerationResult":
         sp = system_prompt_override or self._get_system_prompt()
         messages = [{"role": "system", "content": sp}, {"role": "user", "content": prompt}]
         content = None
         model_used = f"local/{self.local_model}"
-        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
+        is_fast = getattr(self._local, "reasoning_mode", "fast") == "fast"
         local_ntokens = max_tokens or (self.local_max_tokens if not is_fast else 192)
 
         # Try OpenAI-compatible API first
         try:
             headers = {"Content-Type": "application/json"}
             payload = {
-                "model": "local", "messages": messages,
+                "model": "local",
+                "messages": messages,
                 "temperature": 0.1 if is_fast else 0.3,
-                "max_tokens": local_ntokens, "stream": False,
+                "max_tokens": local_ntokens,
+                "stream": False,
             }
-            resp = self.http_client.post(f"{self.llama_server_url}/v1/chat/completions",
-                                         headers=headers, json=payload, timeout=120.0)
+            resp = self.http_client.post(
+                f"{self.llama_server_url}/v1/chat/completions", headers=headers, json=payload, timeout=120.0
+            )
             resp.raise_for_status()
             data = resp.json()
             choice = data["choices"][0]
@@ -64,10 +68,13 @@ class LocalProviderMixin:
                 response = self.http_client.post(
                     f"{self.llama_server_url}/completion",
                     json={
-                        "prompt": full_prompt, "n_predict": local_ntokens,
+                        "prompt": full_prompt,
+                        "n_predict": local_ntokens,
                         "temperature": 0.1 if is_fast else 0.3,
-                        "top_k": 40, "top_p": 0.1 if is_fast else 0.9,
-                        "stop": completion_stop, "stream": False,
+                        "top_k": 40,
+                        "top_p": 0.1 if is_fast else 0.9,
+                        "stop": completion_stop,
+                        "stream": False,
                     },
                     timeout=120.0,
                 )
@@ -75,21 +82,27 @@ class LocalProviderMixin:
                 data = response.json()
                 content = (data.get("content") or "").strip()
             except httpx.ConnectError:
-                lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
+                lang = getattr(getattr(self, "_local", None), "lang", "vi")
                 logger.error("Cannot connect to llama-server.")
                 return GenerationResult(
                     content=_t("provider.error.llama_connect", lang),
-                    citations=[], model_used="local/error", finish_reason="error")
+                    citations=[],
+                    model_used="local/error",
+                    finish_reason="error",
+                )
             except Exception as e:
-                lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
+                lang = getattr(getattr(self, "_local", None), "lang", "vi")
                 logger.error(f"Local generation failed: {e}")
-                return GenerationResult(content=_t("provider.error.llama", lang, error=str(e)),
-                                        citations=[], model_used="local/error", finish_reason="error")
+                return GenerationResult(
+                    content=_t("provider.error.llama", lang, error=str(e)),
+                    citations=[],
+                    model_used="local/error",
+                    finish_reason="error",
+                )
 
         citations = self._extract_citations(content)
         content = self._verify_citations(content, citations)
-        return GenerationResult(content=content, citations=citations,
-                                model_used=model_used, finish_reason="stop")
+        return GenerationResult(content=content, citations=citations, model_used=model_used, finish_reason="stop")
 
     def _sse_lines(self, response):
         """Read raw bytes from httpx stream and yield complete SSE lines."""
@@ -112,21 +125,26 @@ class LocalProviderMixin:
         sp = self._get_local_system_prompt()
         messages = [{"role": "system", "content": sp}, {"role": "user", "content": prompt}]
         in_thinking = False
-        is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
+        is_fast = getattr(self._local, "reasoning_mode", "fast") == "fast"
 
         # Try OpenAI-compatible API first
         try:
             headers = {"Content-Type": "application/json"}
             payload = {
-                "model": "local", "messages": messages,
+                "model": "local",
+                "messages": messages,
                 "temperature": 0.1 if is_fast else 0.3,
                 "max_tokens": self.local_max_tokens if not is_fast else 192,
                 "stream": True,
             }
             any_content = False
-            with self.http_client.stream("POST", f"{self.llama_server_url}/v1/chat/completions",
-                                         headers=headers, json=payload,
-                                         timeout=60.0 if is_fast else 120.0) as response:
+            with self.http_client.stream(
+                "POST",
+                f"{self.llama_server_url}/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60.0 if is_fast else 120.0,
+            ) as response:
                 response.raise_for_status()
                 for line in self._sse_lines(response):
                     if not line.startswith("data: "):
@@ -164,18 +182,23 @@ class LocalProviderMixin:
         try:
             full_prompt = self._apply_chat_template(sp, prompt)
             completion_stop = ["<|im_end|>", "<|im_start|>"]
-            with self.http_client.stream("POST", f"{self.llama_server_url}/completion",
-                                         json={
-                                             "prompt": full_prompt,
-                                             "n_predict": self.local_max_tokens if not is_fast else 192,
-                                             "temperature": 0.1 if is_fast else 0.3,
-                                             "top_k": 40, "top_p": 0.1 if is_fast else 0.9,
-                                             "stop": completion_stop, "stream": True,
-                                         },
-                                         timeout=60.0 if is_fast else 120.0) as response:
+            with self.http_client.stream(
+                "POST",
+                f"{self.llama_server_url}/completion",
+                json={
+                    "prompt": full_prompt,
+                    "n_predict": self.local_max_tokens if not is_fast else 192,
+                    "temperature": 0.1 if is_fast else 0.3,
+                    "top_k": 40,
+                    "top_p": 0.1 if is_fast else 0.9,
+                    "stop": completion_stop,
+                    "stream": True,
+                },
+                timeout=60.0 if is_fast else 120.0,
+            ) as response:
                 response.raise_for_status()
                 in_thinking = False
-                is_fast = getattr(self._local, 'reasoning_mode', 'fast') == 'fast'
+                is_fast = getattr(self._local, "reasoning_mode", "fast") == "fast"
                 for line in self._sse_lines(response):
                     if not line.startswith("data: "):
                         continue
@@ -198,7 +221,7 @@ class LocalProviderMixin:
                                     before, rest = chunk, ""
                                 else:
                                     before = chunk[:idx]
-                                    rest = chunk[idx + 7:]
+                                    rest = chunk[idx + 7 :]
                                 if before:
                                     yield before
                                 if idx != -1 and not in_thinking:
@@ -214,7 +237,7 @@ class LocalProviderMixin:
                                     chunk = ""
                                 else:
                                     before = chunk[:idx]
-                                    rest = chunk[idx + 8:]
+                                    rest = chunk[idx + 8 :]
                                     if before:
                                         yield before
                                     yield "\n</think>\n"

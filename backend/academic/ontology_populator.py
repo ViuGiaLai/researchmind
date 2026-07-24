@@ -27,39 +27,97 @@ from .ontology import (
 
 # Known ML method suffixes for heuristic detection
 _METHOD_SUFFIXES = (
-    "net", "former", "gan", "bert", "transformer",
-    "cnn", "rnn", "lstm", "vit", "resnet", "densenet",
-    "inception", "yolo", "ssd", "vgg",
+    "net",
+    "former",
+    "gan",
+    "bert",
+    "transformer",
+    "cnn",
+    "rnn",
+    "lstm",
+    "vit",
+    "resnet",
+    "densenet",
+    "inception",
+    "yolo",
+    "ssd",
+    "vgg",
 )
 
 # Common benchmark datasets
 _KNOWN_DATASETS = {
-    "cifar", "cifar10", "cifar100", "imagenet", "mnist",
-    "squad", "squad2", "glue", "superglue", "wmt",
-    "cityscapes", "coco", "pascal", "pascal_voc",
-    "pubmed", "chembl", "wikitext", "bookcorpus",
+    "cifar",
+    "cifar10",
+    "cifar100",
+    "imagenet",
+    "mnist",
+    "squad",
+    "squad2",
+    "glue",
+    "superglue",
+    "wmt",
+    "cityscapes",
+    "coco",
+    "pascal",
+    "pascal_voc",
+    "pubmed",
+    "chembl",
+    "wikitext",
+    "bookcorpus",
 }
 
 # Common evaluation metrics
 _KNOWN_METRICS = {
-    "accuracy", "top1", "top5", "f1", "f1_score",
-    "bleu", "perplexity", "ppl", "precision", "recall",
-    "rouge", "rouge-l", "mse", "mae", "rmse", "mape",
-    "map", "ndcg", "mrr", "hit@1", "hit@5", "auc",
-    "iou", "dice", "psnr", "ssim",
+    "accuracy",
+    "top1",
+    "top5",
+    "f1",
+    "f1_score",
+    "bleu",
+    "perplexity",
+    "ppl",
+    "precision",
+    "recall",
+    "rouge",
+    "rouge-l",
+    "mse",
+    "mae",
+    "rmse",
+    "mape",
+    "map",
+    "ndcg",
+    "mrr",
+    "hit@1",
+    "hit@5",
+    "auc",
+    "iou",
+    "dice",
+    "psnr",
+    "ssim",
 }
 
 # Claim-indicating phrases
 _CLAIM_PATTERNS = {
-    "claim", "argue", "show that", "demonstrate",
-    "we hypothesize", "we propose", "we contend",
-    "our method", "our approach", "we found",
-    "we show", "we demonstrate", "results show",
+    "claim",
+    "argue",
+    "show that",
+    "demonstrate",
+    "we hypothesize",
+    "we propose",
+    "we contend",
+    "our method",
+    "our approach",
+    "we found",
+    "we show",
+    "we demonstrate",
+    "results show",
 }
+
 
 def _extract_methods(line: str) -> list[str]:
     """Detect method names by known suffixes in a line of text."""
     import re as _re
+
     suffixes = "|".join(_METHOD_SUFFIXES)
     pattern = rf"\b([a-z0-9_-]*(?:{suffixes})[a-z0-9_-]*s?)\b"
     methods = set()
@@ -74,6 +132,7 @@ def _extract_methods(line: str) -> list[str]:
 def _extract_datasets(line: str) -> list[str]:
     """Detect known dataset names in a line of text."""
     import re as _re
+
     pattern = r"\b(" + "|".join(sorted(_KNOWN_DATASETS, key=len, reverse=True)) + r")\b"
     return list(set(_re.findall(pattern, line.lower())))
 
@@ -81,6 +140,7 @@ def _extract_datasets(line: str) -> list[str]:
 def _extract_metrics(line: str) -> list[str]:
     """Detect known metric names in a line of text."""
     import re as _re
+
     pattern = r"\b(" + "|".join(sorted(_KNOWN_METRICS, key=len, reverse=True)) + r")\b"
     return list(set(_re.findall(pattern, line.lower())))
 
@@ -88,6 +148,7 @@ def _extract_metrics(line: str) -> list[str]:
 def _extract_claims(line: str, index: int) -> list[tuple[str, str]]:
     """Detect claim-like sentences. Returns list of (claim_id, statement)."""
     import re as _re
+
     for phrase in _CLAIM_PATTERNS:
         if _re.search(r"\b" + phrase.replace(" ", r"\s+") + r"\b", line, _re.I):
             return [(f"claim_{index}", line.strip()[:200])]
@@ -97,6 +158,7 @@ def _extract_claims(line: str, index: int) -> list[tuple[str, str]]:
 def _extract_experiments(line: str, index: int) -> list[ExperimentEntity]:
     """Extract key=value or key:value pairs with numeric values as experiments."""
     import re as _re
+
     experiments: list[ExperimentEntity] = []
     # Skip known non-experiment keys
     skip_keys = {"page", "size", "n", "num", "count", "id", "index", "max", "min"}
@@ -173,9 +235,7 @@ def populate_ontology_from_context(
         # Claims
         for cid, stmt in _extract_claims(line_lower, i):
             if cid not in ontology.claims:
-                ontology.claims[cid] = ClaimEntity(
-                    id=cid, paper_id="local", statement=stmt
-                )
+                ontology.claims[cid] = ClaimEntity(id=cid, paper_id="local", statement=stmt)
 
         # Experiments
         for exp in _extract_experiments(line_lower, i):
@@ -200,9 +260,7 @@ def populate_verify_ontology(
     for additional entity mentions.
     """
     # Parse main context first
-    populate_ontology_from_context(
-        ontology, context_text or "", query, reasoning_engine
-    )
+    populate_ontology_from_context(ontology, context_text or "", query, reasoning_engine)
 
     # Also parse external data sources for entity mentions
     if external_data:
@@ -210,10 +268,6 @@ def populate_verify_ontology(
             title = getattr(ep, "title", "") or ""
             doi = getattr(ep, "doi", "") or ""
             if title:
-                populate_ontology_from_context(
-                    ontology, title, query, reasoning_engine
-                )
+                populate_ontology_from_context(ontology, title, query, reasoning_engine)
             if doi:
-                populate_ontology_from_context(
-                    ontology, doi, query, reasoning_engine
-                )
+                populate_ontology_from_context(ontology, doi, query, reasoning_engine)

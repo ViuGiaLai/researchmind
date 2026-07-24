@@ -2,6 +2,7 @@
 
 Links Paper ↔ Author ↔ Venue ↔ Citation ↔ Dataset ↔ Method ↔ Metric after DOI resolution and entity extraction.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ from loguru import logger
 @dataclass
 class GraphAuthor:
     """Normalized author node for the knowledge graph."""
+
     name: str
     orcid: str | None = None
     affiliation: str | None = None
@@ -26,6 +28,7 @@ class GraphAuthor:
 @dataclass
 class GraphVenue:
     """Normalized venue node for the knowledge graph."""
+
     venue_code: str
     name: str
     publisher: str
@@ -40,6 +43,7 @@ class GraphVenue:
 @dataclass
 class CitationLink:
     """A directed citation edge: source_paper cites target_doi."""
+
     source_paper_id: str
     target_doi: str
     target_title: str | None = None
@@ -49,6 +53,7 @@ class CitationLink:
 @dataclass
 class GraphDataset:
     """Dataset node linked to papers."""
+
     name: str
     url: str | None = None
     paper_ids: list[str] = None
@@ -61,6 +66,7 @@ class GraphDataset:
 @dataclass
 class GraphMethod:
     """Method/Algorithm node linked to papers."""
+
     name: str
     category: str | None = None
     paper_ids: list[str] = None
@@ -73,6 +79,7 @@ class GraphMethod:
 @dataclass
 class GraphMetric:
     """Evaluation metric node linked to papers."""
+
     name: str
     unit: str | None = None
     paper_ids: list[str] = None
@@ -235,17 +242,25 @@ def link_external_metadata(
     """After DOI resolution & entity extraction, update the knowledge graph across all 7 entity types:
     Paper ↔ Author ↔ Venue ↔ Citation ↔ Dataset ↔ Method ↔ Metric.
     """
-    linked_authors = link_paper_authors(paper_id, getattr(crossref_work, 'authors', []), author_store)
+    linked_authors = link_paper_authors(paper_id, getattr(crossref_work, "authors", []), author_store)
     linked_venue = link_paper_venue(
         paper_id,
-        doi=getattr(crossref_work, 'doi', None),
-        journal=getattr(crossref_work, 'journal', None),
+        doi=getattr(crossref_work, "doi", None),
+        journal=getattr(crossref_work, "journal", None),
         venue_store=venue_store,
     )
 
-    linked_datasets = link_paper_datasets(paper_id, extracted_datasets or [], dataset_store or {}) if dataset_store is not None else []
-    linked_methods = link_paper_methods(paper_id, extracted_methods or [], method_store or {}) if method_store is not None else []
-    linked_metrics = link_paper_metrics(paper_id, extracted_metrics or [], metric_store or {}) if metric_store is not None else []
+    linked_datasets = (
+        link_paper_datasets(paper_id, extracted_datasets or [], dataset_store or {})
+        if dataset_store is not None
+        else []
+    )
+    linked_methods = (
+        link_paper_methods(paper_id, extracted_methods or [], method_store or {}) if method_store is not None else []
+    )
+    linked_metrics = (
+        link_paper_metrics(paper_id, extracted_metrics or [], metric_store or {}) if metric_store is not None else []
+    )
 
     logger.info(
         f"Linked paper {paper_id}: {len(linked_authors)} authors, "

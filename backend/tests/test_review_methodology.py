@@ -9,16 +9,21 @@ def test_academic_fallback_has_required_review_functions_and_references():
     outline = academic_fallback_outline("vi")
     keys = [item["key"] for item in outline]
     assert keys == [
-        "review_scope", "conceptual_background", "study_characteristics",
-        "methodology_comparison", "comparative_synthesis", "limitations",
-        "research_gaps", "conclusion", "bibliography",
+        "review_scope",
+        "conceptual_background",
+        "study_characteristics",
+        "methodology_comparison",
+        "comparative_synthesis",
+        "limitations",
+        "research_gaps",
+        "conclusion",
+        "bibliography",
     ]
 
 
 def test_normalize_outline_rejects_generic_outline_without_academic_roles():
     generic = [
-        {"key": f"part_{index}", "title": f"Part {index}", "description": "General discussion"}
-        for index in range(1, 6)
+        {"key": f"part_{index}", "title": f"Part {index}", "description": "General discussion"} for index in range(1, 6)
     ]
     assert normalize_outline(generic, "en") == []
 

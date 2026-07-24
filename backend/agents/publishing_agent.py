@@ -1,4 +1,5 @@
 """Publishing Agent — venue compliance check and export."""
+
 from __future__ import annotations
 
 from loguru import logger
@@ -12,11 +13,13 @@ class PublishingAgent(BaseAgent):
     Tools: format_auditor, exporter
     Rule set: format_compliance + peer_review_standards
     """
+
     name = "publishing_agent"
     allowed_tools = ("format_auditor", "exporter")
 
     async def run(self, ctx: AgentContext) -> AgentResult:
         from academic.governance import get_academic_governance
+
         gov = get_academic_governance()
         rules = gov.rules(("format_compliance", "peer_review_standards"))
 
@@ -60,6 +63,4 @@ class PublishingAgent(BaseAgent):
             )
         except Exception as exc:
             logger.error(f"PublishingAgent error: {exc}")
-            return AgentResult(
-                agent=self.name, step="export", success=False, errors=[str(exc)]
-            )
+            return AgentResult(agent=self.name, step="export", success=False, errors=[str(exc)])

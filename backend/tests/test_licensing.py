@@ -25,13 +25,15 @@ def _token(payload: dict) -> tuple[str, str]:
 
 
 def test_valid_signed_license():
-    token, public_key = _token({
-        "license_id": "lic_2026_001",
-        "plan": "pro",
-        "email": "researcher@example.com",
-        "expires_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
-        "features": ["priority_support"],
-    })
+    token, public_key = _token(
+        {
+            "license_id": "lic_2026_001",
+            "plan": "pro",
+            "email": "researcher@example.com",
+            "expires_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+            "features": ["priority_support"],
+        }
+    )
     claims = verify_license_token(token, public_key)
     assert claims.plan == "pro"
     assert claims.license_id == "lic_2026_001"
@@ -47,10 +49,12 @@ def test_tampered_license_is_rejected():
 
 
 def test_expired_license_is_rejected():
-    token, public_key = _token({
-        "license_id": "lic_expired",
-        "plan": "pro",
-        "expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
-    })
+    token, public_key = _token(
+        {
+            "license_id": "lic_expired",
+            "plan": "pro",
+            "expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+        }
+    )
     with pytest.raises(LicenseError, match="expired"):
         verify_license_token(token, public_key)

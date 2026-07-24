@@ -1,4 +1,5 @@
 """Format Auditor tool — thin wrapper on publishing.auditor with ToolResult interface."""
+
 from __future__ import annotations
 
 from .base import BaseTool, ToolResult
@@ -10,6 +11,7 @@ class FormatAuditorTool(BaseTool):
     All audit checks are driven by venue_rules.json via publishing.auditor.
     No LLM is involved.
     """
+
     name = "format_auditor"
 
     def _run(  # type: ignore[override]

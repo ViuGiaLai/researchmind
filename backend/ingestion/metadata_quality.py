@@ -62,10 +62,7 @@ AUTHOR_IGNORED = {
 }
 
 # Vietnamese syllables with tone often get split before final 1–2 letters by OCR
-_VN_TONE_CHARS = (
-    "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩị"
-    "òóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ"
-)
+_VN_TONE_CHARS = "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ"
 _VN_SPLIT_RE = re.compile(
     rf"([A-Za-zĐđÀ-ỹ]*[{_VN_TONE_CHARS}])\s+([a-zđ]{{1,2}})(?=[\s.,;:!?\)\]\"']|$)",
     re.UNICODE,

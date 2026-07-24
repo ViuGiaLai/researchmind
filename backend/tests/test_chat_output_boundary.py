@@ -22,14 +22,20 @@ def test_cache_key_contains_pipeline_version():
 
 
 def test_claim_audit_separates_coverage_from_semantic_support():
-    result = asyncio.run(analyze_claims({
-        "text": "A meaningful result is reported [1]. This second claim has no source.",
-        "citations": [{
-            "paper_id": "paper-1",
-            "entailment_status": "entailed",
-            "entailment_score": 0.82,
-        }],
-    }))
+    result = asyncio.run(
+        analyze_claims(
+            {
+                "text": "A meaningful result is reported [1]. This second claim has no source.",
+                "citations": [
+                    {
+                        "paper_id": "paper-1",
+                        "entailment_status": "entailed",
+                        "entailment_score": 0.82,
+                    }
+                ],
+            }
+        )
+    )
     analysis = result["analysis"]
     assert analysis["citation_coverage_score"] == 50
     assert analysis["supported_claims"] == 1
