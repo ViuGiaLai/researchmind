@@ -161,10 +161,11 @@ async def join_workspace_via_invite(body: dict = Body(...)):
             ws = Workspace(id=workspace_id, name=f"Shared Workspace ({workspace_id[:8]})")
             session.add(ws)
 
-        existing = session.query(WorkspaceMember).filter(
-            WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.identity == identity
-        ).first()
+        existing = (
+            session.query(WorkspaceMember)
+            .filter(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.identity == identity)
+            .first()
+        )
 
         if existing:
             existing.role = role
@@ -190,7 +191,6 @@ async def join_workspace_via_invite(body: dict = Body(...)):
         }
     finally:
         session.close()
-
 
 
 @router.post("/sync/devices")
