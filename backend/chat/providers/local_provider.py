@@ -20,6 +20,7 @@ import httpx
 from loguru import logger
 
 from common.i18n import t as _t
+from common.text_utils import count_tokens
 
 from ..types import GenerationResult
 
@@ -32,13 +33,24 @@ LOCAL_TIMEOUT = httpx.Timeout(connect=5.0, read=90.0, write=10.0, pool=5.0)
 MIN_LOCAL_NTOKENS = 64
 MAX_LOCAL_NTOKENS = 1024
 
+# Default llama-server context limit (2048 tokens default).
+DEFAULT_LOCAL_CTX = 2048
+
 # Hard caps by reasoning mode — CPU decode is ~5–20 tok/s on small models.
 LOCAL_MODE_CAPS: dict[str, int] = {
     "fast": 384,
     "deep": 512,
     "deep_plus": 1024,
     "deep+": 1024,
+    "continue": 768,  # more tokens for Continue button
 }
+
+# Safe limit: how many auto-continue passes to attempt when truncated.
+# Each pass generates up to LOCAL_MODE_CAPS['continue'] tokens.
+# Total tokens per Continue click: (MAX_AUTO_CONTINUES + 1) * 768
+# With ~8 tok/s on CPU, one pass = ~96s; 2 passes = ~192s.
+# Set to 1 so total is 2*768 = 1536 tokens ≈ 3 min max.
+MAX_AUTO_CONTINUES = 1
 
 # Task ceilings. Chat/rag intentionally omit so reasoning-mode caps apply
 # (fast=384, deep=640, deep_plus=896). Short tasks stay tight always.
@@ -66,6 +78,76 @@ REPEAT_PENALTY = 1.12
 COMPLETION_STOP = ["<|im_end|>", "<|im_start|>", "<|endoftext|>"]
 
 
+def _filter_think_tags(chunk: str, in_thinking: bool) -> tuple[str, bool]:
+    """Filter out <think>...</think> blocks from a chunk when reasoning is disabled.
+
+    Returns (filtered_text, new_in_thinking_state).
+    """
+    out = []
+    curr = chunk
+    while curr:
+        if not in_thinking:
+            idx = curr.find("<think>")
+            if idx == -1:
+                out.append(curr)
+                break
+            else:
+                out.append(curr[:idx])
+                curr = curr[idx + 7 :]
+                in_thinking = True
+        else:
+            idx = curr.find("</think>")
+            if idx == -1:
+                break  # remaining text is inside <think>, suppress
+            else:
+                curr = curr[idx + 8 :]
+                in_thinking = False
+    res = "".join(out)
+    if res.startswith("</think>"):
+        res = res.replace("</think>", "", 1).lstrip("\r\n ")
+    return res, in_thinking
+
+
+def _strip_think_tags(content: str) -> str:
+    """Remove <think>...</think> blocks from non-streaming generation content."""
+    while "<think>" in content and "</think>" in content:
+        start = content.find("<think>")
+        end = content.find("</think>", start)
+        if start != -1 and end != -1:
+            content = content[:start] + content[end + 8 :]
+        else:
+            break
+    if content.startswith("</think>"):
+        content = content.replace("</think>", "", 1)
+    return content.strip()
+
+
+def _safe_error_text(err: httpx.HTTPStatusError) -> str:
+    """Safely extract error text from httpx Response, reading streaming content if needed."""
+    try:
+        if hasattr(err.response, "read"):
+            err.response.read()
+        return err.response.text
+    except Exception:
+        return str(err)
+
+
+def _clamp_local_n_predict(prompt_or_len: str | int, requested_n_predict: int, max_ctx: int = DEFAULT_LOCAL_CTX) -> int:
+    """Ensure prompt_tokens + n_predict never exceeds max_ctx (default 2048 for llama-server)."""
+    if isinstance(prompt_or_len, int):
+        raw_tokens = prompt_or_len
+    else:
+        raw_tokens = count_tokens(prompt_or_len)
+
+    # 1.15x multiplier to safely account for Qwen3 BPE tokenizer & ChatML special tokens
+    prompt_tokens = int(raw_tokens * 1.15)
+    safe_headroom = max_ctx - 128  # 1920 tokens safe budget
+    allowed_n = safe_headroom - prompt_tokens
+    if allowed_n < MIN_LOCAL_NTOKENS:
+        allowed_n = MIN_LOCAL_NTOKENS
+    return max(MIN_LOCAL_NTOKENS, min(requested_n_predict, allowed_n))
+
+
 class LocalProviderMixin:
     """Mixin with local llama-server methods.
 
@@ -79,20 +161,18 @@ class LocalProviderMixin:
 
     def _resolve_ntokens(self, max_tokens: int | None) -> int:
         """Resolve a CPU-friendly n_predict / max_tokens for local generation."""
-        reasoning_mode = str(getattr(self._local, "reasoning_mode", "fast") or "fast").lower()
+        raw_mode = str(getattr(self._local, "reasoning_mode", "fast") or "fast").lower()
+        reasoning_mode = raw_mode
         task_type = str(getattr(self._local, "task_type", "") or "").lower()
 
         configured = int(getattr(self, "local_max_tokens", 512) or 512)
         mode_cap = LOCAL_MODE_CAPS.get(reasoning_mode, LOCAL_MODE_CAPS["fast"])
         task_cap = LOCAL_TASK_CAPS.get(task_type, mode_cap)
 
-        # deep_plus needs extra tokens for chain-of-thought + answer.
-        # Override the user-configured ceiling so thinking doesn't eat the whole budget.
-        if reasoning_mode == "deep_plus":
+        if reasoning_mode in ("deep_plus", "deep+", "continue"):
             configured = max(configured, mode_cap)
 
         requested = int(max_tokens) if max_tokens else configured
-        # Never exceed the tightest of: request, configured default, mode, task, hard max.
         n = min(requested, configured, mode_cap, task_cap, MAX_LOCAL_NTOKENS)
         return max(MIN_LOCAL_NTOKENS, n)
 
@@ -108,9 +188,10 @@ class LocalProviderMixin:
         }
 
     def _completion_payload(self, full_prompt: str, n_predict: int, is_fast: bool) -> dict:
+        clamped_n = _clamp_local_n_predict(full_prompt, n_predict)
         payload = {
             "prompt": full_prompt,
-            "n_predict": n_predict,
+            "n_predict": clamped_n,
             "stop": COMPLETION_STOP,
             "stream": True,
             **self._local_sampling(is_fast),
@@ -119,10 +200,11 @@ class LocalProviderMixin:
 
     def _chat_payload(self, messages: list[dict], n_predict: int, is_fast: bool, stream: bool) -> dict:
         # Qwen3 / llama-server: disable thinking when not in deep_plus.
+        clamped_n = _clamp_local_n_predict(json.dumps(messages), n_predict)
         payload = {
             "model": "local",
             "messages": messages,
-            "max_tokens": n_predict,
+            "max_tokens": clamped_n,
             "stream": stream,
             "stop": COMPLETION_STOP,
             "enable_thinking": False,
@@ -144,18 +226,20 @@ class LocalProviderMixin:
                 continue
             role = msg.get("role")
             content = msg.get("content")
-            if role in ("user", "assistant") and content:
+            if role in ("user", "assistant") and isinstance(content, str) and content:
                 messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": current_user})
         return messages
 
     def _generate_local(
-        self, prompt: str, system_prompt_override: str = None, max_tokens: int | None = None
+        self, prompt: str, system_prompt_override: str | None = None, max_tokens: int | None = None
     ) -> "GenerationResult":
-        sp = system_prompt_override or self._get_local_system_prompt()
+        sp = system_prompt_override or getattr(self, "_get_local_system_prompt", lambda: "")()
+        if not sp and hasattr(self, "_get_system_prompt"):
+            sp = self._get_system_prompt()
         model_used = f"local/{getattr(self, 'local_model', 'Qwen3-4B')}"
         reasoning_mode = getattr(self._local, "reasoning_mode", "fast")
-        is_fast = reasoning_mode == "fast"
+        is_fast = reasoning_mode in ("fast", "continue")
         is_deep_plus = reasoning_mode in ("deep+", "deep_plus")
         local_ntokens = self._resolve_ntokens(max_tokens)
         content = None
@@ -174,8 +258,12 @@ class LocalProviderMixin:
                 response.raise_for_status()
                 data = response.json()
                 content = (data.get("content") or "").strip()
-                if content.startswith("</think>"):
-                    content = content.replace("</think>", "", 1).lstrip("\r\n ")
+                content = _strip_think_tags(content)
+            except httpx.HTTPStatusError as err:
+                if err.response.status_code == 400:
+                    logger.warning(f"Local /completion returned 400 ({_safe_error_text(err)}), trying chat API...")
+                else:
+                    logger.error(f"Local LLM HTTP error: {err}")
             except (httpx.ConnectError, httpx.TimeoutException) as err:
                 lang = getattr(getattr(self, "_local", None), "lang", "vi")
                 logger.error(f"Local LLM connection/timeout error: {err}")
@@ -218,7 +306,10 @@ class LocalProviderMixin:
                             break
                         try:
                             data = json.loads(data_str)
-                            delta = data["choices"][0]["delta"]
+                            choices = data.get("choices", [])
+                            if not choices:
+                                continue
+                            delta = choices[0].get("delta", {})
                             if delta.get("reasoning_content"):
                                 reasoning_parts.append(delta["reasoning_content"])
                             if delta.get("content"):
@@ -230,7 +321,7 @@ class LocalProviderMixin:
                 if is_deep_plus and raw_reasoning:
                     content = f"<think>\n{raw_reasoning.strip()}\n</think>\n\n{raw_content}"
                 else:
-                    content = raw_content
+                    content = _strip_think_tags(raw_content) if not is_deep_plus else raw_content
             except (httpx.ConnectError, httpx.TimeoutException) as err:
                 lang = getattr(getattr(self, "_local", None), "lang", "vi")
                 logger.error(f"Local LLM connection/timeout error: {err}")
@@ -280,27 +371,105 @@ class LocalProviderMixin:
         Priority:
         1. Native /completion with think-skip prefill (fast path)
         2. OpenAI-compatible API for deep_plus reasoning_content
+
+        Auto-continue: when reasoning_mode is 'continue' and the model stops
+        with finish_reason='length', it automatically re-generates for more tokens.
         """
-        sp = self._get_local_system_prompt()
+        sp = getattr(self, "_get_local_system_prompt", lambda: "")()
+        if not sp and hasattr(self, "_get_system_prompt"):
+            sp = self._get_system_prompt()
         in_thinking = False
         reasoning_mode = getattr(self._local, "reasoning_mode", "fast")
-        is_fast = reasoning_mode == "fast"
+        is_fast = reasoning_mode in ("fast", "continue")
         is_deep_plus = reasoning_mode in ("deep+", "deep_plus")
-        local_ntokens = self._resolve_ntokens(max_tokens)
 
-        logger.info(
-            f"local_stream: mode={reasoning_mode} task={getattr(self._local, 'task_type', '')} "
-            f"n_predict={local_ntokens} prompt_chars={len(prompt)}"
-        )
+        # Auto-continue: transparently re-call when the model is truncated
+        max_auto_continues = MAX_AUTO_CONTINUES if reasoning_mode == "continue" else 0
+        auto_continue_count = 0
+        all_accumulated: list[str] = []
+        current_prompt = prompt
+        assistant_prefill = ""
 
-        # Fast path: native /completion with empty think prefill
-        if not is_deep_plus:
+        while True:
+            self._local.current_finish_reason = "stop"
+            local_ntokens = self._resolve_ntokens(max_tokens)
+            logger.info(
+                f"local_stream: mode={reasoning_mode} task={getattr(self._local, 'task_type', '')} "
+                f"n_predict={local_ntokens} prompt_chars={len(current_prompt)}"
+            )
+
+            accumulated: list[str] = []
+
+            # Fast path: native /completion with empty think prefill
+            if not is_deep_plus:
+                try:
+                    full_prompt = self._apply_chat_template(sp, current_prompt, assistant_prefill=assistant_prefill)
+                    with self.http_client.stream(
+                        "POST",
+                        f"{self.llama_server_url}/completion",
+                        json=self._completion_payload(full_prompt, local_ntokens, is_fast),
+                        timeout=LOCAL_TIMEOUT,
+                    ) as response:
+                        response.raise_for_status()
+                        for line in self._sse_lines(response):
+                            if not line.startswith("data: "):
+                                continue
+                            data_str = line[6:].strip()
+                            if data_str == "[DONE]":
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                chunk = data.get("content", "")
+                                if data.get("stop") and data.get("truncated"):
+                                    self._local.current_finish_reason = "length"
+                                if chunk:
+                                    filtered_chunk, in_thinking = _filter_think_tags(chunk, in_thinking)
+                                    if filtered_chunk:
+                                        accumulated.append(filtered_chunk)
+                                        all_accumulated.append(filtered_chunk)
+                                        yield filtered_chunk
+                            except Exception:
+                                continue
+
+                        if auto_continue_count >= max_auto_continues:
+                            return
+                        finish_reason = getattr(self._local, "current_finish_reason", "stop")
+                        if finish_reason == "length" and auto_continue_count < max_auto_continues:
+                            auto_continue_count += 1
+                            logger.info(
+                                f"AUTO_CONTINUE: pass {auto_continue_count}/{max_auto_continues} (finish_reason=length)"
+                            )
+                            assistant_prefill = "".join(all_accumulated)
+                            continue
+                        return
+                except httpx.HTTPStatusError as err:
+                    if err.response.status_code == 400:
+                        logger.warning(f"Local /completion returned 400 ({_safe_error_text(err)}), trying chat API...")
+                    else:
+                        logger.error(f"Local stream HTTP error: {err}")
+                except (httpx.ConnectError, httpx.TimeoutException) as err:
+                    logger.error(f"Local LLM stream connection/timeout error: {err}")
+                    yield f"\n⚠️ Connection error: {err}\n"
+                    return
+                except Exception as e:
+                    logger.warning(f"Native /completion on local failed ({e}), falling back to /v1/chat/completions...")
+
+            # deep_plus or fallback: OpenAI chat completions
+            messages = self._build_local_chat_messages(sp, current_prompt)
+            if not is_deep_plus:
+                messages.append({"role": "assistant", "content": "<think>\n</think>\n"})
             try:
-                full_prompt = self._apply_chat_template(sp, prompt)
+                headers = {"Content-Type": "application/json"}
+                payload = self._chat_payload(messages, local_ntokens, is_fast, stream=True)
+                if is_deep_plus:
+                    payload.pop("enable_thinking", None)
+                    payload["chat_template_kwargs"] = {"enable_thinking": True}
+                any_content = False
                 with self.http_client.stream(
                     "POST",
-                    f"{self.llama_server_url}/completion",
-                    json=self._completion_payload(full_prompt, local_ntokens, is_fast),
+                    f"{self.llama_server_url}/v1/chat/completions",
+                    headers=headers,
+                    json=payload,
                     timeout=LOCAL_TIMEOUT,
                 ) as response:
                     response.raise_for_status()
@@ -312,168 +481,162 @@ class LocalProviderMixin:
                             break
                         try:
                             data = json.loads(data_str)
-                            chunk = data.get("content", "")
-                            # Track truncation from /completion SSE
-                            if data.get("stop") and data.get("truncated"):
-                                self._local.current_finish_reason = "length"
-                            if chunk:
-                                if chunk.strip().startswith("</think>"):
-                                    chunk = chunk.replace("</think>", "", 1).lstrip("\r\n ")
-                                if chunk:
-                                    yield chunk
+                            choices = data.get("choices", [])
+                            if choices:
+                                fr = choices[0].get("finish_reason")
+                                if fr in ("length", "truncated"):
+                                    self._local.current_finish_reason = "length"
+                                elif fr == "stop":
+                                    self._local.current_finish_reason = "stop"
+                            delta = choices[0]["delta"] if choices else {}
+                            reasoning_chunk = delta.get("reasoning_content", "")
+                            content_chunk = delta.get("content", "")
+                            if reasoning_chunk:
+                                if is_deep_plus:
+                                    if not in_thinking:
+                                        yield "<think>\n"
+                                        in_thinking = True
+                                    yield reasoning_chunk
+                                any_content = True
+                            if content_chunk:
+                                if is_deep_plus and in_thinking:
+                                    yield "\n</think>\n"
+                                    in_thinking = False
+                                if not is_deep_plus:
+                                    filtered_chunk, in_thinking = _filter_think_tags(content_chunk, in_thinking)
+                                    if not filtered_chunk:
+                                        continue
+                                    content_chunk = filtered_chunk
+                                yield content_chunk
+                                accumulated.append(content_chunk)
+                                all_accumulated.append(content_chunk)
+                                any_content = True
                         except Exception:
                             continue
-                    return
+                    if is_deep_plus and in_thinking:
+                        yield "\n</think>\n"
+                    if any_content:
+                        if auto_continue_count >= max_auto_continues:
+                            return
+                        finish_reason = getattr(self._local, "current_finish_reason", "stop")
+                        if finish_reason == "length" and auto_continue_count < max_auto_continues:
+                            auto_continue_count += 1
+                            logger.info(
+                                f"AUTO_CONTINUE: pass {auto_continue_count}/{max_auto_continues} (finish_reason=length)"
+                            )
+                            full_so_far = "".join(all_accumulated)
+                            current_prompt = (
+                                f"{prompt}\n\n"
+                                f"[Assistant has written so far:\n{full_so_far}\n]\n"
+                                "Continue from where it stopped. Do not repeat. Do not restart. Continue only."
+                            )
+                            continue
+                        return
             except (httpx.ConnectError, httpx.TimeoutException) as err:
-                logger.error(f"Local LLM stream connection/timeout error: {err}")
-                yield f"\n⚠️ Connection error: {err}\n"
+                if auto_continue_count == 0:
+                    logger.error(f"Local LLM stream connection/timeout error: {err}")
+                    yield f"\n⚠️ Connection error: {err}\n"
                 return
             except Exception as e:
-                logger.warning(f"Native /completion on local failed ({e}), falling back to /v1/chat/completions...")
-
-        # deep_plus or fallback: OpenAI chat completions
-        messages = self._build_local_chat_messages(sp, prompt)
-        if not is_deep_plus:
-            messages.append({"role": "assistant", "content": "<think>\n</think>\n"})
-        try:
-            headers = {"Content-Type": "application/json"}
-            payload = self._chat_payload(messages, local_ntokens, is_fast, stream=True)
-            if is_deep_plus:
-                payload.pop("enable_thinking", None)
-                payload["chat_template_kwargs"] = {"enable_thinking": True}
-            any_content = False
-            with self.http_client.stream(
-                "POST",
-                f"{self.llama_server_url}/v1/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=LOCAL_TIMEOUT,
-            ) as response:
-                response.raise_for_status()
-                for line in self._sse_lines(response):
-                    if not line.startswith("data: "):
-                        continue
-                    data_str = line[6:].strip()
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        choices = data.get("choices", [])
-                        if choices:
-                            # Track finish_reason for truncation detection
-                            fr = choices[0].get("finish_reason")
-                            if fr in ("length", "truncated"):
-                                self._local.current_finish_reason = "length"
-                            elif fr == "stop":
-                                self._local.current_finish_reason = "stop"
-                        delta = choices[0]["delta"]
-                        reasoning_chunk = delta.get("reasoning_content", "")
-                        content_chunk = delta.get("content", "")
-                        if reasoning_chunk:
-                            if is_deep_plus:
-                                if not in_thinking:
-                                    yield "<think>\n"
-                                    in_thinking = True
-                                yield reasoning_chunk
-                            any_content = True
-                        if content_chunk:
-                            if is_deep_plus and in_thinking:
-                                yield "\n</think>\n"
-                                in_thinking = False
-                            if not is_deep_plus:
-                                if "<think>" in content_chunk:
-                                    in_thinking = True
-                                    before = content_chunk.split("<think>")[0]
-                                    if before:
-                                        yield before
-                                    continue
-                                if "</think>" in content_chunk:
-                                    in_thinking = False
-                                    after = content_chunk.split("</think>")[-1]
-                                    if after:
-                                        yield after
-                                    continue
-                                if in_thinking:
-                                    continue
-                            yield content_chunk
-                            any_content = True
-                    except Exception:
-                        continue
-                if is_deep_plus and in_thinking:
-                    yield "\n</think>\n"
-                if any_content:
+                if auto_continue_count == 0:
+                    logger.warning(f"OpenAI API on local failed ({e}), falling back to /completion...")
+                else:
                     return
-        except (httpx.ConnectError, httpx.TimeoutException) as err:
-            logger.error(f"Local LLM stream connection/timeout error: {err}")
-            yield f"\n⚠️ Connection error: {err}\n"
-            return
-        except Exception as e:
-            logger.warning(f"OpenAI API on local failed ({e}), falling back to /completion...")
 
-        # Last resort: native /completion without think skip (deep_plus template)
-        try:
-            full_prompt = self._apply_chat_template(sp, prompt)
-            with self.http_client.stream(
-                "POST",
-                f"{self.llama_server_url}/completion",
-                json=self._completion_payload(full_prompt, local_ntokens, is_fast),
-                timeout=LOCAL_TIMEOUT,
-            ) as response:
-                response.raise_for_status()
-                in_thinking = False
-                for line in self._sse_lines(response):
-                    if not line.startswith("data: "):
-                        continue
-                    data_str = line[6:].strip()
-                    if data_str == "[DONE]":
-                        break
-                    try:
-                        data = json.loads(data_str)
-                        # Track truncation from /completion SSE (last resort)
-                        if data.get("stop") and data.get("truncated"):
-                            self._local.current_finish_reason = "length"
-                        chunk = data.get("content", "")
-                        if not chunk:
+            # Last resort: native /completion without think skip (deep_plus template)
+            try:
+                full_prompt = self._apply_chat_template(sp, current_prompt)
+                with self.http_client.stream(
+                    "POST",
+                    f"{self.llama_server_url}/completion",
+                    json=self._completion_payload(full_prompt, local_ntokens, is_fast),
+                    timeout=LOCAL_TIMEOUT,
+                ) as response:
+                    response.raise_for_status()
+                    in_thinking = False
+                    for line in self._sse_lines(response):
+                        if not line.startswith("data: "):
                             continue
-                        while chunk:
-                            if not in_thinking:
-                                idx = chunk.find("<think>")
-                                if idx == -1:
-                                    before, rest = chunk, ""
-                                else:
-                                    before = chunk[:idx]
-                                    rest = chunk[idx + 7 :]
-                                if before:
-                                    yield before
-                                if idx != -1:
-                                    in_thinking = True
-                                    if is_deep_plus:
-                                        yield "<think>\n"
-                                    chunk = rest
-                                    continue
-                                chunk = rest
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            data = json.loads(data_str)
+                            if data.get("stop") and data.get("truncated"):
+                                self._local.current_finish_reason = "length"
+                            chunk = data.get("content", "")
+                            if not chunk:
+                                continue
+                            if not is_deep_plus:
+                                filtered_chunk, in_thinking = _filter_think_tags(chunk, in_thinking)
+                                if filtered_chunk:
+                                    yield filtered_chunk
+                                    accumulated.append(filtered_chunk)
+                                    all_accumulated.append(filtered_chunk)
                             else:
-                                idx = chunk.find("</think>")
-                                if idx == -1:
-                                    if is_deep_plus:
-                                        yield chunk
-                                    chunk = ""
-                                else:
-                                    before = chunk[:idx]
-                                    rest = chunk[idx + 8 :]
-                                    if before and is_deep_plus:
-                                        yield before
-                                    if is_deep_plus:
-                                        yield "\n</think>\n"
-                                    in_thinking = False
-                                    chunk = rest
-                    except Exception:
+                                while chunk:
+                                    if not in_thinking:
+                                        idx = chunk.find("<think>")
+                                        if idx == -1:
+                                            before, rest = chunk, ""
+                                        else:
+                                            before = chunk[:idx]
+                                            rest = chunk[idx + 7 :]
+                                        if before:
+                                            yield before
+                                            accumulated.append(before)
+                                            all_accumulated.append(before)
+                                        if idx != -1:
+                                            in_thinking = True
+                                            yield "<think>\n"
+                                            chunk = rest
+                                            continue
+                                        chunk = rest
+                                    else:
+                                        idx = chunk.find("</think>")
+                                        if idx == -1:
+                                            yield chunk
+                                            accumulated.append(chunk)
+                                            all_accumulated.append(chunk)
+                                            chunk = ""
+                                        else:
+                                            before = chunk[:idx]
+                                            rest = chunk[idx + 8 :]
+                                            if before:
+                                                yield before
+                                                accumulated.append(before)
+                                                all_accumulated.append(before)
+                                            yield "\n</think>\n"
+                                            in_thinking = False
+                                            chunk = rest
+                        except Exception:
+                            continue
+                    if is_deep_plus and in_thinking:
+                        yield "\n</think>\n"
+
+                    if auto_continue_count >= max_auto_continues:
+                        return
+                    finish_reason = getattr(self._local, "current_finish_reason", "stop")
+                    if finish_reason == "length" and auto_continue_count < max_auto_continues:
+                        auto_continue_count += 1
+                        logger.info(
+                            f"AUTO_CONTINUE: pass {auto_continue_count}/{max_auto_continues} (finish_reason=length, last_resort)"
+                        )
+                        full_so_far = "".join(all_accumulated)
+                        current_prompt = (
+                            f"{prompt}\n\n"
+                            f"[Assistant has written so far:\n{full_so_far}\n]\n"
+                            "Continue from where it stopped. Do not repeat. Do not restart. Continue only."
+                        )
                         continue
-                if is_deep_plus and in_thinking:
-                    yield "\n</think>\n"
-        except httpx.ConnectError as err:
-            logger.error(f"Local stream last-resort connection error: {err}")
-            yield f"\n⚠️ Cannot connect to llama-server: {err}\n"
-        except Exception as e:
-            logger.error(f"Local stream last-resort failed: {e}")
-            yield f"\n⚠️ Local model error: {e}\n"
+                    return
+            except httpx.ConnectError as err:
+                if auto_continue_count == 0:
+                    logger.error(f"Local stream last-resort connection error: {err}")
+                    yield f"\n⚠️ Cannot connect to llama-server: {err}\n"
+                return
+            except Exception as e:
+                if auto_continue_count == 0:
+                    logger.error(f"Local stream last-resort failed: {e}")
+                    yield f"\n⚠️ Local model error: {e}\n"
+                return

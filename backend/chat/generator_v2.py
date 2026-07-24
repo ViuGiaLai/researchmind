@@ -200,16 +200,18 @@ class Generator(
 
         mode = (reasoning_mode or getattr(self._local, "reasoning_mode", "fast") or "fast").lower()
         task = (task_type or getattr(self._local, "task_type", "") or "").lower()
-        mode_cap = LOCAL_MODE_CAPS.get(mode, LOCAL_MODE_CAPS["fast"])
-        task_cap = LOCAL_TASK_CAPS.get(task, mode_cap)
+        # Determine the effective cap for the actual mode (including 'continue')
+        effective_cap = LOCAL_MODE_CAPS.get(mode, LOCAL_MODE_CAPS["fast"])
+        task_cap = LOCAL_TASK_CAPS.get(task, effective_cap)
         configured = int(getattr(self, "local_max_tokens", 512) or 512)
+        # 'continue' mode (768) should not be clamped by local_max_tokens (512 default)
+        if mode == "continue":
+            configured = max(configured, effective_cap)
         # deep_plus needs extra tokens for chain-of-thought + answer.
-        # Override the user-configured local_max_tokens ceiling so thinking
-        # doesn't eat the whole budget and leave no room for the response.
         if mode == "deep_plus":
-            configured = max(configured, mode_cap)
+            configured = max(configured, effective_cap)
         n = int(max_tokens or configured)
-        return max(MIN_LOCAL_NTOKENS, min(n, configured, mode_cap, task_cap, MAX_LOCAL_NTOKENS))
+        return max(MIN_LOCAL_NTOKENS, min(n, configured, effective_cap, task_cap, MAX_LOCAL_NTOKENS))
 
     # ── Routing helpers ────────────────────────────────────────
 
@@ -223,7 +225,7 @@ class Generator(
         mode = (reasoning_mode or "fast").strip().lower()
         if mode in {"deep+", "deep_plus"}:
             mode = "deep_plus"
-        elif mode not in {"fast", "deep"}:
+        elif mode not in {"fast", "deep", "continue"}:
             mode = "fast"
         self._local.task_type = task
         self._local.reasoning_mode = mode
@@ -846,6 +848,7 @@ class Generator(
                 "Provide a direct, concise, and clear definition first (~100-150 words). "
                 "Add a brief example or key takeaway only if helpful. "
                 "Do not use rigid templates, forced headings, or artificial filler for simple questions. "
+                "Use Markdown (bold key terms, bullets) for readability. "
                 "Prioritize clarity, accuracy, and natural tone.\n\n" + lang_instruction
             )
         elif mode == "deep":
@@ -889,7 +892,7 @@ class Generator(
                 sp = f"{sp}\n{language}"
 
         if mode == "fast" and "<think>" not in sp:
-            sp += "\nNo <think> tags. Be brief and clear."
+            sp += "\nNo <think> tags. Be brief. Use Markdown (bold key terms, bullets) for readability."
         elif mode == "deep" and "<think>" not in sp:
             sp += "\nNo <think> tags. Structured answer with key distinctions."
         return sp
@@ -908,7 +911,14 @@ class Generator(
         task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
         self._local.strict_evidence = strict_evidence
-        chat_history = normalize_history(history, exclude_last_user=query)
+        
+        is_local = self._is_local_runtime()
+        if is_local:
+            pairs = 1 if reasoning_mode in ("fast", "continue") else 2
+            chat_history = normalize_history(history, max_pairs=pairs, exclude_last_user=query)
+        else:
+            chat_history = normalize_history(history, exclude_last_user=query)
+            
         self._local.chat_history = chat_history
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
             context_text, detected = neutralize_untrusted_text(context_text)
@@ -1338,30 +1348,49 @@ class Generator(
 
     # ── Helpers ────────────────────────────────────────────────
 
-    def _apply_chat_template(self, system: str, user: str) -> str:
+    def _apply_chat_template(self, system: str, user: str, assistant_prefill: str = "") -> str:
         """Build ChatML prompt. Prefer native multi-turn when history is available.
 
         When ``self._local.chat_history`` is set, prior turns are emitted as
         proper user/assistant ChatML messages and the history text block is
         stripped from the final user payload to avoid double-including context.
+        Supports assistant_prefill for fast, seamless continuation without prompt bloat.
         """
         reasoning_mode = getattr(self._local, "reasoning_mode", "fast")
         is_deep_plus = reasoning_mode in ("deep+", "deep_plus")
+        is_continue = reasoning_mode == "continue"
         history = getattr(self._local, "chat_history", None) or []
         current_user = self._strip_history_block(user) if history else user
 
+        last_assistant = ""
+        if history and isinstance(history[-1], dict) and history[-1].get("role") == "assistant":
+            last_assistant = history[-1].get("content", "")
+
+        prefill_text = assistant_prefill or (last_assistant if is_continue else "")
+        use_prefill_history = bool(prefill_text and history and history[-1].get("role") == "assistant")
+
         parts = [f"<|im_start|>system\n{system}<|im_end|>\n"]
-        for msg in history:
+        hist_items = history[:-1] if use_prefill_history else history
+        for msg in hist_items:
             role = msg.get("role") if isinstance(msg, dict) else None
             content = msg.get("content") if isinstance(msg, dict) else None
             if role not in ("user", "assistant") or not content:
                 continue
             parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
-        parts.append(f"<|im_start|>user\n{current_user}<|im_end|>\n")
-        if not is_deep_plus:
-            parts.append("<|im_start|>assistant\n<think>\n</think>\n")
+
+        if not use_prefill_history:
+            parts.append(f"<|im_start|>user\n{current_user}<|im_end|>\n")
+
+        if prefill_text:
+            if not is_deep_plus and not prefill_text.startswith("<think>"):
+                parts.append(f"<|im_start|>assistant\n<think>\n</think>\n{prefill_text}")
+            else:
+                parts.append(f"<|im_start|>assistant\n{prefill_text}")
         else:
-            parts.append("<|im_start|>assistant\n")
+            if not is_deep_plus:
+                parts.append("<|im_start|>assistant\n<think>\n</think>\n")
+            else:
+                parts.append("<|im_start|>assistant\n")
         return "".join(parts)
 
     @staticmethod
@@ -1452,12 +1481,20 @@ class Generator(
         task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
         self._local.strict_evidence = strict_evidence
-        chat_history = normalize_history(history, exclude_last_user=query)
+        
+        is_local = self._is_local_runtime()
+        if is_local:
+            # Aggressive history truncation for weak CPUs to minimize prompt prefill latency
+            pairs = 1 if reasoning_mode in ("fast", "continue") else 2
+            chat_history = normalize_history(history, max_pairs=pairs, exclude_last_user=query)
+        else:
+            chat_history = normalize_history(history, exclude_last_user=query)
+            
         self._local.chat_history = chat_history
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
-            max_tokens = 4096 if not self._is_local_runtime() else max_tokens
-        if self._is_local_runtime():
+            max_tokens = 4096 if not is_local else max_tokens
+        if is_local:
             max_tokens = self._cap_local_max_tokens(max_tokens, task_type, reasoning_mode)
 
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
@@ -1474,7 +1511,7 @@ class Generator(
 
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
-            user_prompt = f"Question: {query}\n\nAnswer the question naturally using your existing knowledge."
+            user_prompt = query if is_local else f"Question: {query}\n\nAnswer the question naturally using your existing knowledge."
         elif not context_text.strip() or len(context_text.strip()) < 50:
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query

@@ -766,7 +766,14 @@ async def _stream_chat(
             model_used = "local/error"
 
     yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content, 'warning': gateway_err, 'truncated': truncated})}\n\n"
-    if cache_key:
+    is_error = (
+        bool(gateway_err)
+        or "error" in (model_used or "").lower()
+        or modified_content.startswith("⚠️")
+        or "Local model error" in modified_content
+        or "400 Bad Request" in modified_content
+    )
+    if cache_key and not is_error:
         _put_chat_cache(
             cache_key,
             {
@@ -945,7 +952,8 @@ async def chat(req: Request, request: dict = Body(...)):
         _build_paper_cache_version(paper_ids),
         history_fingerprint(chat_history),
     )
-    cached = _get_chat_cache(cache_key)
+    use_cache = bool(request.get("use_cache", True)) and not bool(request.get("retry", False))
+    cached = _get_chat_cache(cache_key) if use_cache else None
     if cached:
         increment_ai_metric("chat.cache.hit")
         logger.info(f"CHAT_CACHE hit total={time_mod.time() - t0:.3f}s")

@@ -852,7 +852,7 @@
     "error_backend_not_running": "Lỗi: {err}\n\n> Đảm bảo FastAPI backend đang chạy: `cd backend && uvicorn main:app --reload --port 8765`",
     "deep_research_failed": "Deep Research thất bại: {msg}",
     "continue_btn": "Tiếp tục →",
-    "continue_prompt": "Hãy tiếp tục từ đoạn trước, không lặp lại nội dung đã viết.",
+    "continue_prompt": "Tiếp tục câu trả lời trước đó chính xác từ điểm dừng. Không bắt đầu lại. Không lặp lại nội dung đã viết. Chỉ tiếp tục.",
     "continue_tooltip": "Câu trả lời bị cắt ngắn. Nhấn để tiếp tục.",
     "continue_hint": "Câu trả lời bị cắt ngắn",
     "continue_failed": "Tiếp tục thất bại: {msg}"

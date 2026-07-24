@@ -466,7 +466,7 @@
     "error_backend_not_running": "エラー: {err}\n\n> FastAPIバックエンドが実行されていることを確認してください: `cd backend && uvicorn main:app --reload --port 8765`",
     "deep_research_failed": "Deep Researchが失敗しました: {msg}",
     "continue_btn": "続ける →",
-    "continue_prompt": "続けてください。既に書いた内容を繰り返さないでください。",
+    "continue_prompt": "前の回答を中断したところから正確に続けてください。最初からやり直さないでください。既に書いた内容を繰り返さないでください。続行のみ行ってください。",
     "continue_tooltip": "応答が途切れました。クリックして続行。",
     "continue_hint": "応答が途切れました",
     "continue_failed": "続行に失敗しました: {msg}"

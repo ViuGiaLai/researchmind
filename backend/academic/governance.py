@@ -184,12 +184,14 @@ class AcademicGovernance:
         presentation = (
             (
                 "Answer with conclusion, cited evidence, limitations, and next steps. "
-                "Never score confidence; ResearchMind engines do that."
+                "Never score confidence; ResearchMind engines do that. "
+                "Use Markdown (bold key terms, bullets) for readability."
             )
             if strict_evidence
             else (
                 "Answer directly: conclusion first, then cited evidence and limitations. "
-                "Do not assign confidence scores or expose internal engine data."
+                "Do not assign confidence scores or expose internal engine data. "
+                "Use Markdown (bold key terms, bullets) for readability."
             )
         )
         return "\n".join(

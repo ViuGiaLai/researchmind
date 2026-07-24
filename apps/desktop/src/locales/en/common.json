@@ -852,7 +852,7 @@
     "error_backend_not_running": "Error: {err}\n\n> Ensure the FastAPI backend is running: `cd backend && uvicorn main:app --reload --port 8765`",
     "deep_research_failed": "Deep Research failed: {msg}",
     "continue_btn": "Continue →",
-    "continue_prompt": "Please continue from where you left off. Do not repeat what you have already written.",
+    "continue_prompt": "Continue the previous answer exactly where it stopped. Do not restart. Do not repeat previous content. Continue only.",
     "continue_tooltip": "The response was cut off. Click to continue.",
     "continue_hint": "Response was cut off",
     "continue_failed": "Continue failed: {msg}"

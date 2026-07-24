@@ -983,13 +983,18 @@ export const ChatView: React.FC<{
     setLoading(true);
     setIsStreaming(true);
 
+    // Force 'continue' mode for Continue button:
+    // - 768 token cap (vs 384 for fast) gives more room for continuation
+    // - Auto-continue: if still truncated, backend transparently re-generates
+    // - No deep reasoning — just extends the truncated text efficiently
+    const continueReasoningMode = "continue";
     const streamCtrl = api.chatStream(
       continuePrompt,
       effectiveIds,
       scope,
       currentSessionId,
       scope === "collection" ? activeCollectionId : undefined,
-      reasoningMode,
+      continueReasoningMode,
       strictEvidence,
       historyPayload,
     );

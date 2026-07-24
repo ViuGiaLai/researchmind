@@ -23,8 +23,8 @@ PROVIDER_INPUT_BUDGET: dict[str, int] = {
     "cloudflare": 8_000,
     "cerebras": 8_000,
     "claude": 80_000,
-    # Local GGUF on CPU is prefill-bound; keep input short (~1.5–2k tokens).
-    "local": 1_800,
+    # Local GGUF on CPU is prefill-bound and context-constrained (2048 ctx max); keep input <= 1.2k tokens.
+    "local": 1_200,
 }
 
 OVERHEAD_TOKENS = 256
