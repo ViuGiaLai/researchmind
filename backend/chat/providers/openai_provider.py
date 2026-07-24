@@ -557,4 +557,6 @@ class OpenAIProviderMixin:
             lang = getattr(getattr(self, "_local", None), "lang", "vi")
             logger.error(f"DeepSeek stream failed: {e}")
             yield _t("provider.error.deepseek_stream", lang, error=str(e))
-            yield from self._stream_local(prompt)
+            local_tokens = self._cap_local_max_tokens(384)
+            fitted = self._fit_prompt(prompt, "local", local_tokens)
+            yield from self._stream_local(fitted, max_tokens=local_tokens)

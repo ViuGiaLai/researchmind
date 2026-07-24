@@ -28,6 +28,7 @@ from common.ai_observability import trace
 from common.prompt_security import neutralize_untrusted_text, redact_sensitive_text
 
 from .cache_version import cache_fingerprint
+from .conversation_history import apply_history_to_prompt, history_fingerprint, normalize_history
 from .failure_policy import classify_failure
 from .prompt_budget import fit_prompt_for_provider, get_provider_input_budget, trim_context_text
 from .prompt_factory import build_rag_user_prompt, build_system_prompt
@@ -97,7 +98,7 @@ class Generator(
         mode: str = "cloud_free",
         task_provider_map: str | None = None,
         custom_cloud_provider: str = "deepseek",
-        local_max_tokens: int = 160,
+        local_max_tokens: int = 512,
         task_ultimate_fallback_chain: str = "",
         researchmind_cloud_url: str = "",
         researchmind_cloud_token: str = "",
@@ -163,7 +164,8 @@ class Generator(
             [p.strip().lower() for p in raw_chain.split(",") if p.strip()] if raw_chain else []
         )
 
-        self.local_max_tokens = max(64, min(int(local_max_tokens or 160), 1024))
+        # Local GGUF defaults stay modest: CPU decode is the bottleneck.
+        self.local_max_tokens = max(128, min(int(local_max_tokens or 512), 1024))
         self.current_model: str = ""
         self.current_router_reason: str = ""
         self.current_token_count: int = 0
@@ -186,6 +188,29 @@ class Generator(
         "default": 1024,
     }
 
+    def _is_local_runtime(self) -> bool:
+        """True when generation must run on llama-server (local mode or privacy)."""
+        if self.mode == "local":
+            return True
+        return not bool(getattr(settings, "cloud_ai_consent", True))
+
+    def _cap_local_max_tokens(self, max_tokens: int, task_type: str = "", reasoning_mode: str | None = None) -> int:
+        """Clamp cloud-oriented token budgets down for CPU/local GGUF models."""
+        from chat.providers.local_provider import LOCAL_MODE_CAPS, LOCAL_TASK_CAPS, MAX_LOCAL_NTOKENS, MIN_LOCAL_NTOKENS
+
+        mode = (reasoning_mode or getattr(self._local, "reasoning_mode", "fast") or "fast").lower()
+        task = (task_type or getattr(self._local, "task_type", "") or "").lower()
+        mode_cap = LOCAL_MODE_CAPS.get(mode, LOCAL_MODE_CAPS["fast"])
+        task_cap = LOCAL_TASK_CAPS.get(task, mode_cap)
+        configured = int(getattr(self, "local_max_tokens", 512) or 512)
+        # deep_plus needs extra tokens for chain-of-thought + answer.
+        # Override the user-configured local_max_tokens ceiling so thinking
+        # doesn't eat the whole budget and leave no room for the response.
+        if mode == "deep_plus":
+            configured = max(configured, mode_cap)
+        n = int(max_tokens or configured)
+        return max(MIN_LOCAL_NTOKENS, min(n, configured, mode_cap, task_cap, MAX_LOCAL_NTOKENS))
+
     # ── Routing helpers ────────────────────────────────────────
 
     def _set_request_routing_context(
@@ -206,6 +231,7 @@ class Generator(
         self._local.current_router_reason = ""
         self._local.current_token_count = 0
         self._local.stream_gateway_error = ""
+        self._local.current_finish_reason = "stop"
         return task, mode
 
     def _parse_task_provider_map(self, raw: str):
@@ -243,11 +269,13 @@ class Generator(
         if not task_type:
             return None
 
+        if self.mode == "local":
+            return "local"
+
         if self.researchmind_cloud_url and self.mode == "cloud_free":
             return "researchmind_cloud"
 
-        # An explicit per-task route is authoritative. Reasoning-mode routing is
-        # only a default when the task has no configured provider.
+        # An explicit per-task route is authoritative.
         provider = self.task_provider_map.get(task_type)
         if provider:
             return provider
@@ -262,11 +290,6 @@ class Generator(
             elif mode in ("deep_plus", "deep+"):
                 return "openrouter_r1"
 
-        # Respect configured task_provider_map first
-        provider = self.task_provider_map.get(task_type)
-        if provider:
-            return provider
-
         # Fallback hardcoded defaults when no task_provider_map entry
         if task_type in ("critique", "debate", "insight", "gap"):
             if self.groq_api_key:
@@ -277,7 +300,7 @@ class Generator(
                 return "github_deepseek_v3"
             logger.warning(f"No API key and no task_provider_map entry for {task_type}")
 
-        if task_type in ("summary", "review", "quality_check"):
+        if task_type in ("summary", "review", "quality_check", "verify"):
             if self.groq_api_key:
                 return "groq"
             if task_type == "quality_check":
@@ -325,7 +348,7 @@ class Generator(
         """
         chain: list[str] = []
         task_type = task_type.strip().lower() if task_type else ""
-        if not task_type:
+        if not task_type or self.mode == "local":
             return chain
 
         # Start with the configured fallback from task_fallback_map
@@ -493,7 +516,9 @@ class Generator(
                     return None
                 return self._generate_claude(user_prompt, max_tokens, system_prompt_override)
             elif provider == "local":
-                return self._generate_local(user_prompt, system_prompt_override, max_tokens)
+                local_tokens = self._cap_local_max_tokens(max_tokens or 512)
+                fitted = self._fit_prompt(user_prompt, "local", local_tokens, system_prompt_override)
+                return self._generate_local(fitted, system_prompt_override, local_tokens)
             else:
                 logger.warning(f"_call_provider: unknown provider '{provider}'")
                 return None
@@ -540,6 +565,41 @@ class Generator(
                 time.sleep(backoff * (2**attempt))
         return result
 
+    def _call_provider_bounded(
+        self, provider: str, user_prompt: str, max_tokens: int, system_prompt_override: str | None = None
+    ) -> GenerationResult | None:
+        if self.mode == "cloud_free" and provider not in ("local", "researchmind_cloud"):
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
+            local_state = {
+                "task_type": getattr(self._local, "task_type", ""),
+                "reasoning_mode": getattr(self._local, "reasoning_mode", "fast"),
+                "system_prompt_override": system_prompt_override or getattr(self._local, "system_prompt_override", None),
+                "language_instruction": getattr(self._local, "language_instruction", ""),
+                "strict_evidence": getattr(self._local, "strict_evidence", False),
+                "lang": getattr(self._local, "lang", "vi"),
+                "chat_history": list(getattr(self._local, "chat_history", None) or []),
+            }
+
+            def _in_thread():
+                for k, v in local_state.items():
+                    setattr(self._local, k, v)
+                return self._call_provider_with_retry(provider, user_prompt, max_tokens, system_prompt_override)
+
+            pool = ThreadPoolExecutor(max_workers=1)
+            fut = pool.submit(_in_thread)
+            try:
+                res = fut.result(timeout=8.0)
+                return res
+            except TimeoutError:
+                fut.cancel()
+                logger.warning(f"task_routing: {provider} timed out (>8s), skipping to next fallback...")
+                return None
+            finally:
+                pool.shutdown(wait=False, cancel_futures=True)
+        else:
+            return self._call_provider_with_retry(provider, user_prompt, max_tokens, system_prompt_override)
+
     def _route_by_task(
         self,
         task_type: str,
@@ -557,7 +617,7 @@ class Generator(
             return None
 
         logger.info(f"task_routing: {task_type} → {provider} (primary)")
-        result = self._call_provider_with_retry(provider, user_prompt, max_tokens, system_prompt_override)
+        result = self._call_provider_bounded(provider, user_prompt, max_tokens, system_prompt_override)
         if result is not None and result.finish_reason != "error":
             return result
 
@@ -567,7 +627,7 @@ class Generator(
             if fb == provider:
                 continue
             logger.info(f"task_routing: {task_type} primary={provider} failed, trying fallback={fb}")
-            result = self._call_provider_with_retry(fb, user_prompt, max_tokens, system_prompt_override)
+            result = self._call_provider_bounded(fb, user_prompt, max_tokens, system_prompt_override)
             if result is not None and result.finish_reason != "error":
                 return result
             logger.warning(f"task_routing: {task_type} fallback={fb} also failed")
@@ -676,9 +736,7 @@ class Generator(
             elif provider == "claude":
                 if not self.claude_api_key:
                     return
-                import anthropic
-
-                client = anthropic.Anthropic(api_key=self.claude_api_key)
+                client = self._get_anthropic_client()
                 sp = getattr(self._local, "system_prompt_override", None) or self._get_system_prompt()
                 with client.messages.stream(
                     model=self.claude_model,
@@ -690,14 +748,16 @@ class Generator(
                     yield from stream.text_stream
                 return
             elif provider == "local":
-                yield from self._stream_local(user_prompt)
+                local_tokens = self._cap_local_max_tokens(max_tokens)
+                fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                yield from self._stream_local(fitted, max_tokens=local_tokens)
                 return
             else:
                 logger.warning(f"_stream_provider: unknown provider '{provider}'")
                 return
         except Exception as e:
             logger.warning(f"_stream_provider: {provider} failed: {e}")
-            return
+            yield f"\n\n⚠️ [Đã dừng tạo phản hồi do lỗi kết nối: {e}]"
 
     def _route_by_task_stream(self, task_type: str, user_prompt: str, max_tokens: int = 1024):
         """Stream through the same task-specific fallback chain as non-streaming calls."""
@@ -733,8 +793,18 @@ class Generator(
         if self._http_client is None:
             import httpx
 
-            self._http_client = httpx.Client(timeout=settings.provider_timeout)
+            self._http_client = httpx.Client(
+                timeout=settings.provider_timeout,
+                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            )
         return self._http_client
+
+    def _get_anthropic_client(self):
+        if not getattr(self, "_anthropic_client_inst", None):
+            import anthropic
+
+            self._anthropic_client_inst = anthropic.Anthropic(api_key=self.claude_api_key)
+        return self._anthropic_client_inst
 
     # ── System prompts ─────────────────────────────────────────
 
@@ -750,15 +820,79 @@ class Generator(
         )
 
     def _get_external_system_prompt(self) -> str:
-        if getattr(self._local, "reasoning_mode", "fast") == "fast":
-            return "You are a knowledgeable AI assistant. Answer directly and concisely from your own knowledge. Do not expose internal reasoning, ask yourself questions, or use think tags. If you do not know, say that you lack enough information."
-        return "You are a knowledgeable AI assistant with strong reasoning skills. Give a complete, accurate, detailed answer. Define key concepts, analyze important characteristics, provide practical examples, discuss advantages, disadvantages, and applications when relevant, and use clear Markdown structure."
+        mode = getattr(self._local, "reasoning_mode", "fast")
+        lang_instruction = getattr(self._local, "language_instruction", "")
+
+        # Local GGUF: never ask for long essays — word targets dominate decode time.
+        if self._is_local_runtime():
+            if mode == "fast":
+                return (
+                    "You are ResearchMind. Answer briefly and clearly (~80-120 words). "
+                    "No filler, no forced headings.\n" + lang_instruction
+                )
+            if mode == "deep":
+                return (
+                    "You are ResearchMind. Give a structured answer (~150-250 words) "
+                    "with key distinctions. No <think> tags.\n" + lang_instruction
+                )
+            return (
+                "You are ResearchMind. Provide a focused analysis (~250-400 words). "
+                "Cover main ideas and trade-offs; stay concise for a local model.\n" + lang_instruction
+            )
+
+        if mode == "fast":
+            return (
+                "You are ResearchMind, an academic research assistant. "
+                "Provide a direct, concise, and clear definition first (~100-150 words). "
+                "Add a brief example or key takeaway only if helpful. "
+                "Do not use rigid templates, forced headings, or artificial filler for simple questions. "
+                "Prioritize clarity, accuracy, and natural tone.\n\n" + lang_instruction
+            )
+        elif mode == "deep":
+            return (
+                "You are ResearchMind, an academic research assistant. "
+                "Provide a clear, well-structured response (~300-500 words). "
+                "Use Markdown headings and bullet points only when helpful. Include concrete examples and key technical distinctions. "
+                "If applicable, add 3-4 dynamic 'Gợi ý đọc thêm' topics directly related to the user's question.\n\n" + lang_instruction
+            )
+        else:  # deep_plus / deep+
+            return (
+                "You are ResearchMind, an academic research assistant. "
+                "Provide a comprehensive, research-grade analysis (500-1000+ words). "
+                "Break down core mechanics, mathematical or architectural principles, and trade-offs. "
+                "Reference classic literature or authoritative sources (e.g., Goodfellow et al., Vaswani et al., Stanford CS) when relevant. "
+                "Include dynamic 'Gợi ý đọc thêm' topics directly connected to this field.\n\n" + lang_instruction
+            )
 
     def _get_local_system_prompt(self) -> str:
+        """Compact system prompt for local GGUF — every prompt token costs prefill time on CPU."""
         override = getattr(self._local, "system_prompt_override", None)
+        language = getattr(self._local, "language_instruction", "") or ""
+        mode = getattr(self._local, "reasoning_mode", "fast")
+
         if override:
-            return override + chr(10) * 2 + getattr(self._local, "language_instruction", "")
-        return self._get_system_prompt()
+            # Keep overrides but hard-cap length so a verbose verify/review prompt
+            # does not explode local prefill latency.
+            sp = override.strip()
+            if len(sp) > 900:
+                sp = sp[:900].rstrip() + "…"
+            if language:
+                sp = f"{sp}\n\n{language}"
+        else:
+            # Minimal local contract — full governance prompts are too heavy for 4B CPU.
+            sp = (
+                "You are ResearchMind, a concise academic assistant. "
+                "Answer directly with evidence when available. Cite as [Paper, page X]. "
+                "If evidence is insufficient, say so briefly."
+            )
+            if language:
+                sp = f"{sp}\n{language}"
+
+        if mode == "fast" and "<think>" not in sp:
+            sp += "\nNo <think> tags. Be brief and clear."
+        elif mode == "deep" and "<think>" not in sp:
+            sp += "\nNo <think> tags. Structured answer with key distinctions."
+        return sp
 
     def generate(
         self,
@@ -769,10 +903,13 @@ class Generator(
         task_type: str = "chat",
         strict_evidence: bool = False,
         use_cache: bool = True,
+        history: list[dict] | None = None,
     ) -> GenerationResult:
         task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
         self._local.strict_evidence = strict_evidence
+        chat_history = normalize_history(history, exclude_last_user=query)
+        self._local.chat_history = chat_history
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
             context_text, detected = neutralize_untrusted_text(context_text)
             context_text = redact_sensitive_text(
@@ -783,7 +920,10 @@ class Generator(
                 logger.warning("RAG_SECURITY prompt injection pattern neutralized in context")
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
-            max_tokens = 4096
+            # Cloud can afford long answers; local GGUF cannot.
+            max_tokens = 4096 if not self._is_local_runtime() else max_tokens
+        if self._is_local_runtime():
+            max_tokens = self._cap_local_max_tokens(max_tokens, task_type, reasoning_mode)
 
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
             context_text = self._trim_review_context(context_text, query, task_type, max_tokens)
@@ -797,17 +937,19 @@ class Generator(
         else:
             self._local.system_prompt_override = None
             user_prompt = build_rag_user_prompt(context_text, query)
+        user_prompt = apply_history_to_prompt(user_prompt, chat_history)
 
         from app_state import state
         from db.database import get_session
         from db.models import LLMCache
 
         system_prompt = self._get_system_prompt()
+        hist_fp = history_fingerprint(chat_history)
         key_hash = cache_fingerprint(
             model=f"route:{task_type}:{reasoning_mode}",
             provider=self.custom_cloud_provider or self.mode,
             prompt=(
-                f"[task={task_type};reasoning={reasoning_mode};strict={int(strict_evidence)}]\n"
+                f"[task={task_type};reasoning={reasoning_mode};strict={int(strict_evidence)};history={hist_fp}]\n"
                 + system_prompt
                 + "\n\n"
                 + user_prompt
@@ -822,7 +964,6 @@ class Generator(
                 if cached:
                     logger.info("Retrieving LLM response from local cache...")
                     cached_data = json.loads(cached.response)
-                    session.close()
                     return GenerationResult(
                         content=cached_data["content"],
                         citations=cached_data["citations"],
@@ -836,7 +977,9 @@ class Generator(
             finally:
                 session.close()
 
-        result = self._generate_uncached(query, context_text, citations_meta, max_tokens, task_type)
+        result = self._generate_uncached(
+            query, context_text, citations_meta, max_tokens, task_type, history=chat_history
+        )
 
         if result and result.finish_reason != "error" and state.engine:
             session = get_session(state.engine)
@@ -866,7 +1009,7 @@ class Generator(
                 f"LLM response truncated (finish_reason=length) for task_type={task_type}, max_tokens={max_tokens}, content_len={len(result.content)}"
             )
 
-        if reasoning_mode == "fast" and result.content:
+        if reasoning_mode not in ("deep+", "deep_plus") and result.content:
             from common.text_utils import clean_thinking_content
 
             result.content = clean_thinking_content(result.content)
@@ -880,8 +1023,10 @@ class Generator(
         citations_meta: list[dict] | None = None,
         max_tokens: int | None = None,
         task_type: str = "",
+        history: list[dict] | None = None,
     ) -> GenerationResult:
         max_out = max_tokens or 1024
+        chat_history = normalize_history(history if history is not None else getattr(self._local, "chat_history", None))
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", "") and context_text.strip():
             context_text = self._trim_review_context(context_text, query, task_type, max_out)
 
@@ -891,12 +1036,15 @@ class Generator(
             user_prompt = query
         else:
             user_prompt = build_rag_user_prompt(context_text, query)
+        user_prompt = apply_history_to_prompt(user_prompt, chat_history)
 
         import time
 
         if not getattr(settings, "cloud_ai_consent", True):
             logger.info("PRIVACY: cloud AI disabled; forcing local generation")
-            return self._generate_local(user_prompt, max_tokens=max_out)
+            local_tokens = self._cap_local_max_tokens(max_out)
+            fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+            return self._generate_local(fitted, max_tokens=local_tokens)
 
         # Per-task provider routing
         if task_type:
@@ -909,16 +1057,39 @@ class Generator(
         if self.mode == "cloud_free":
             from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
+            # Preserve thread-local context across ThreadPoolExecutor thread boundary
+            local_state = {
+                "task_type": getattr(self._local, "task_type", ""),
+                "reasoning_mode": getattr(self._local, "reasoning_mode", "fast"),
+                "system_prompt_override": getattr(self._local, "system_prompt_override", None),
+                "language_instruction": getattr(self._local, "language_instruction", ""),
+                "strict_evidence": getattr(self._local, "strict_evidence", False),
+                "lang": getattr(self._local, "lang", "vi"),
+                # Multi-turn: local multi-message ChatML needs history on the worker thread.
+                "chat_history": list(getattr(self._local, "chat_history", None) or []),
+            }
+
+            def _call_in_thread(p: str):
+                for k, v in local_state.items():
+                    setattr(self._local, k, v)
+                return self._call_provider_with_retry(
+                    p,
+                    user_prompt,
+                    max_tokens,
+                    system_prompt_override=local_state["system_prompt_override"],
+                )
+
             chain = self.ultimate_fallback_chain or ["github", "gemini", "groq", "nvidia", "nvidia_deepseek", "local"]
             for provider in chain:
                 if provider == "local":
                     logger.warning("All cloud_free providers failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    fitted_local = self._fit_prompt(user_prompt, "local", max_tokens or 1024, local_state["system_prompt_override"])
+                    return self._generate_local(fitted_local, system_prompt_override=local_state["system_prompt_override"], max_tokens=max_tokens)
 
                 logger.info(f"cloud_free: trying {provider}...")
                 t0 = time.time()
                 pool = ThreadPoolExecutor(max_workers=1)
-                fut = pool.submit(self._call_provider_with_retry, provider, user_prompt, max_tokens)
+                fut = pool.submit(_call_in_thread, provider)
                 try:
                     result = fut.result(timeout=8.0)
                 except TimeoutError:
@@ -937,9 +1108,14 @@ class Generator(
                 logger.warning(f"{provider} failed (elapsed={elapsed:.1f}s), trying next...")
 
             logger.warning("All cloud_free providers failed. Falling back to local model...")
+            local_tokens = self._cap_local_max_tokens(max_tokens or 512)
+            fitted_local = self._fit_prompt(
+                user_prompt, "local", local_tokens, local_state["system_prompt_override"]
+            )
             return self._generate_local(
-                self._fit_prompt(user_prompt, "local", max_tokens or 1024),
-                max_tokens=max_tokens,
+                fitted_local,
+                system_prompt_override=local_state["system_prompt_override"],
+                max_tokens=local_tokens,
             )
 
         elif self.mode == "cloud_custom":
@@ -956,7 +1132,7 @@ class Generator(
                 result = self._generate_deepseek(user_prompt, self.deepseek_api_key, max_tokens, is_free=False)
                 if result.finish_reason == "error":
                     logger.warning("Custom DeepSeek failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    return self._local_fallback(user_prompt, max_tokens)
                 return result
             elif provider == "gemini":
                 if not self.gemini_api_key:
@@ -969,7 +1145,7 @@ class Generator(
                 result = self._generate_gemini(user_prompt, self.gemini_api_key, max_tokens, is_free=False)
                 if result.finish_reason == "error":
                     logger.warning("Custom Gemini failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    return self._local_fallback(user_prompt, max_tokens)
                 return result
             elif provider == "claude":
                 if not self.claude_api_key:
@@ -982,7 +1158,7 @@ class Generator(
                 result = self._generate_claude(user_prompt, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom Claude failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    return self._local_fallback(user_prompt, max_tokens)
                 return result
             elif provider == "groq":
                 if not self.groq_api_key:
@@ -995,7 +1171,7 @@ class Generator(
                 result = self._generate_groq(user_prompt, self.groq_api_key, self.groq_model, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom Groq failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    return self._local_fallback(user_prompt, max_tokens)
                 return result
             elif provider == "nvidia":
                 if not self.nvidia_api_key:
@@ -1008,7 +1184,7 @@ class Generator(
                 result = self._generate_nvidia(user_prompt, self.nvidia_api_key, self.nvidia_model, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom Nvidia failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    return self._local_fallback(user_prompt, max_tokens)
                 return result
             elif provider == "freemodel":
                 if not self.freemodel_api_key:
@@ -1021,13 +1197,16 @@ class Generator(
                 result = self._generate_freemodel(user_prompt, self.freemodel_api_key, self.freemodel_model, max_tokens)
                 if result.finish_reason == "error":
                     logger.warning("Custom FreeModel failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, max_tokens=max_tokens)
+                    return self._local_fallback(user_prompt, max_tokens)
                 return result
 
-        return self._generate_local(
-            self._fit_prompt(user_prompt, "local", max_tokens or 1024),
-            max_tokens=max_tokens,
-        )
+        return self._local_fallback(user_prompt, max_tokens)
+
+    def _local_fallback(self, user_prompt: str, max_tokens: int | None = None) -> GenerationResult:
+        """Fit + generate on local llama-server with CPU-safe token caps."""
+        local_tokens = self._cap_local_max_tokens(max_tokens or 512)
+        fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+        return self._generate_local(fitted, max_tokens=local_tokens)
 
     def generate_direct(
         self,
@@ -1145,86 +1324,80 @@ class Generator(
         )
 
         system_prompt = self._get_verify_system_prompt() + "\n\n" + get_language_instruction(query)
-        mode = self.mode
-
-        if mode == "cloud_free":
-            if self.github_api_key:
-                result = self._generate_github(
-                    user_prompt,
-                    self.github_api_key,
-                    self.github_model,
-                    max_tokens,
-                    system_prompt_override=system_prompt,
-                )
-                if result.finish_reason != "error":
-                    return result
-            if self.gemini_api_key:
-                result = self._generate_gemini(
-                    user_prompt, self.gemini_api_key, max_tokens, is_free=True, system_prompt_override=system_prompt
-                )
-                if result.finish_reason != "error":
-                    return result
-            if self.groq_api_key:
-                result = self._generate_groq(
-                    user_prompt, self.groq_api_key, self.groq_model, max_tokens, system_prompt_override=system_prompt
-                )
-                if result.finish_reason != "error":
-                    return result
-            if self.nvidia_api_key:
-                result = self._generate_nvidia(
-                    user_prompt,
-                    self.nvidia_api_key,
-                    self.nvidia_model,
-                    max_tokens,
-                    system_prompt_override=system_prompt,
-                )
-                if result.finish_reason != "error":
-                    return result
-                if self.nvidia_deepseek_api_key:
-                    result = self._generate_nvidia(
-                        user_prompt,
-                        self.nvidia_deepseek_api_key,
-                        self.nvidia_deepseek_model,
-                        max_tokens,
-                        system_prompt_override=system_prompt,
-                    )
-                    if result.finish_reason != "error":
-                        return result
-            return self._generate_local(user_prompt, system_prompt_override=system_prompt)
-
-        elif mode == "cloud_custom":
-            provider = self.custom_cloud_provider
-            if provider == "deepseek" and self.deepseek_api_key:
-                result = self._generate_deepseek(
-                    user_prompt, self.deepseek_api_key, max_tokens, system_prompt_override=system_prompt
-                )
-                if result.finish_reason == "error":
-                    logger.warning("Custom DeepSeek failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, system_prompt_override=system_prompt)
-                return result
-            if provider == "claude" and self.claude_api_key:
-                result = self._generate_claude(user_prompt, max_tokens, system_prompt_override=system_prompt)
-                if result.finish_reason == "error":
-                    logger.warning("Custom Claude failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, system_prompt_override=system_prompt)
-                return result
-            if provider == "gemini" and self.gemini_api_key:
-                result = self._generate_gemini(
-                    user_prompt, self.gemini_api_key, max_tokens, is_free=False, system_prompt_override=system_prompt
-                )
-                if result.finish_reason == "error":
-                    logger.warning("Custom Gemini failed. Falling back to local model...")
-                    return self._generate_local(user_prompt, system_prompt_override=system_prompt)
-                return result
-            return self._generate_local(user_prompt, system_prompt_override=system_prompt)
-
-        return self._generate_local(user_prompt, system_prompt_override=system_prompt)
+        self._local.system_prompt_override = system_prompt
+        try:
+            return self._generate_uncached(
+                query,
+                context_text,
+                citations_meta=citations_meta,
+                max_tokens=max_tokens,
+                task_type="verify",
+            )
+        finally:
+            self._local.system_prompt_override = None
 
     # ── Helpers ────────────────────────────────────────────────
 
+    def _apply_chat_template(self, system: str, user: str) -> str:
+        """Build ChatML prompt. Prefer native multi-turn when history is available.
+
+        When ``self._local.chat_history`` is set, prior turns are emitted as
+        proper user/assistant ChatML messages and the history text block is
+        stripped from the final user payload to avoid double-including context.
+        """
+        reasoning_mode = getattr(self._local, "reasoning_mode", "fast")
+        is_deep_plus = reasoning_mode in ("deep+", "deep_plus")
+        history = getattr(self._local, "chat_history", None) or []
+        current_user = self._strip_history_block(user) if history else user
+
+        parts = [f"<|im_start|>system\n{system}<|im_end|>\n"]
+        for msg in history:
+            role = msg.get("role") if isinstance(msg, dict) else None
+            content = msg.get("content") if isinstance(msg, dict) else None
+            if role not in ("user", "assistant") or not content:
+                continue
+            parts.append(f"<|im_start|>{role}\n{content}<|im_end|>\n")
+        parts.append(f"<|im_start|>user\n{current_user}<|im_end|>\n")
+        if not is_deep_plus:
+            parts.append("<|im_start|>assistant\n<think>\n</think>\n")
+        else:
+            parts.append("<|im_start|>assistant\n")
+        return "".join(parts)
+
     @staticmethod
-    def _apply_chat_template(system: str, user: str) -> str:
-        return f"<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
+    def _strip_history_block(user_prompt: str) -> str:
+        """Remove a leading conversation-history block if present."""
+        text = user_prompt or ""
+        marker = "## Conversation history"
+        if marker not in text:
+            return text
+        # Drop from the history heading through the blank line that ends the block.
+        idx = text.find(marker)
+        rest = text[idx + len(marker) :]
+        # History block ends at a double newline followed by non-history content,
+        # or at "## Document context" / "## Question" / "Question:" / plain query.
+        split_markers = (
+            "\n\n## Document context:",
+            "\n\n## Question:",
+            "\n\nQuestion:",
+            "\n\n## User question:",
+        )
+        cut = None
+        for sm in split_markers:
+            pos = rest.find(sm)
+            if pos != -1 and (cut is None or pos < cut):
+                cut = pos
+        if cut is not None:
+            return rest[cut:].lstrip("\n")
+        # Fallback: after the last "Assistant:"/"User:" paragraph, take trailing content.
+        # If the whole prompt was just history + query, split on final double newline.
+        parts = rest.split("\n\n")
+        if len(parts) >= 2:
+            # First part is history body; remaining may be the current question.
+            tail = "\n\n".join(parts[1:]).strip()
+            if tail and not tail.startswith("User:") and not tail.startswith("Assistant:"):
+                return tail
+        return text
 
     def _call_with_retry(self, fn, *args, max_retries=1, **kwargs):
         last_result = None
@@ -1274,13 +1447,18 @@ class Generator(
         reasoning_mode: str = "fast",
         task_type: str = "chat",
         strict_evidence: bool = False,
+        history: list[dict] | None = None,
     ):
         task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
         self._local.strict_evidence = strict_evidence
+        chat_history = normalize_history(history, exclude_last_user=query)
+        self._local.chat_history = chat_history
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
-            max_tokens = 4096
+            max_tokens = 4096 if not self._is_local_runtime() else max_tokens
+        if self._is_local_runtime():
+            max_tokens = self._cap_local_max_tokens(max_tokens, task_type, reasoning_mode)
 
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
             context_text, detected = neutralize_untrusted_text(context_text)
@@ -1308,10 +1486,14 @@ class Generator(
                 "Answer using the context above when it contains relevant information. "
                 "Cite every context-supported claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]."
             )
+        user_prompt = apply_history_to_prompt(user_prompt, chat_history)
+        if chat_history:
+            logger.info(f"CHAT_HISTORY turns={len(chat_history)} prompt_chars={len(user_prompt)}")
 
         if not getattr(settings, "cloud_ai_consent", True):
             logger.info("PRIVACY: cloud AI disabled; forcing local stream")
-            yield from self._stream_local(user_prompt)
+            fitted = self._fit_prompt(user_prompt, "local", max_tokens)
+            yield from self._stream_local(fitted, max_tokens=max_tokens)
             return
         yield from self._stream_chain(user_prompt, max_tokens, task_type)
 
@@ -1377,6 +1559,7 @@ class Generator(
             "router_reason": getattr(self._local, "current_router_reason", self.current_router_reason),
             "token_count": getattr(self._local, "current_token_count", self.current_token_count),
             "gateway_error": getattr(self._local, "stream_gateway_error", ""),
+            "finish_reason": getattr(self._local, "current_finish_reason", "stop"),
         }
 
     def _stream_chain(self, user_prompt: str, max_tokens: int = 1024, task_type: str = ""):
@@ -1405,8 +1588,9 @@ class Generator(
                     self._set_model(f"local/{self.local_model}")
                     if tried_any:
                         yield "\n⚠️ All free cloud providers failed. Switching to the local model...\n"
-                    fitted = self._fit_prompt(user_prompt, "local", max_tokens)
-                    for chunk in self._stream_local(fitted):
+                    local_tokens = self._cap_local_max_tokens(max_tokens)
+                    fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                    for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                         yield chunk
                     return
 
@@ -1428,8 +1612,9 @@ class Generator(
             # Last resort
             self._set_model(f"local/{self.local_model}")
             yield "\n⚠️ No provider is available. Switching to the local model...\n"
-            fitted = self._fit_prompt(user_prompt, "local", max_tokens)
-            for chunk in self._stream_local(fitted):
+            local_tokens = self._cap_local_max_tokens(max_tokens)
+            fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+            for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                 yield chunk
 
         elif self.mode == "cloud_custom":
@@ -1472,7 +1657,9 @@ class Generator(
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Claude streaming failed: {str(e)}. Switching to the local model..."
-                    for chunk in self._stream_local(user_prompt):
+                    local_tokens = self._cap_local_max_tokens(max_tokens)
+                    fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                    for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                         yield chunk
             elif provider == "groq":
                 if not self.groq_api_key:
@@ -1487,7 +1674,9 @@ class Generator(
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Groq streaming failed: {str(e)}."
-                    for chunk in self._stream_local(user_prompt):
+                    local_tokens = self._cap_local_max_tokens(max_tokens)
+                    fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                    for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                         yield chunk
             elif provider == "nvidia":
                 if not self.nvidia_api_key:
@@ -1502,7 +1691,9 @@ class Generator(
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ NVIDIA streaming failed: {str(e)}."
-                    for chunk in self._stream_local(user_prompt):
+                    local_tokens = self._cap_local_max_tokens(max_tokens)
+                    fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                    for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                         yield chunk
             elif provider == "freemodel":
                 if not self.freemodel_api_key:
@@ -1517,7 +1708,9 @@ class Generator(
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ FreeModel streaming failed: {str(e)}."
-                    for chunk in self._stream_local(user_prompt):
+                    local_tokens = self._cap_local_max_tokens(max_tokens)
+                    fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                    for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                         yield chunk
             else:
                 self._set_model("unknown/invalid")
@@ -1525,6 +1718,7 @@ class Generator(
 
         else:
             self._set_model(f"local/{self.local_model}")
-            fitted = self._fit_prompt(user_prompt, "local", max_tokens)
-            for chunk in self._stream_local(fitted):
+            local_tokens = self._cap_local_max_tokens(max_tokens)
+            fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+            for chunk in self._stream_local(fitted, max_tokens=local_tokens):
                 yield chunk

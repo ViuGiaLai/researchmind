@@ -168,7 +168,9 @@ class PatchedGenerator(
                 return
             elif provider == "local":
                 self._set_model(f"local/{self.local_model}")
-                yield from self._stream_local(user_prompt)
+                local_tokens = self._cap_local_max_tokens(max_tokens)
+                fitted = self._fit_prompt(user_prompt, "local", local_tokens)
+                yield from self._stream_local(fitted, max_tokens=local_tokens)
                 return
             else:
                 logger.warning(f"_stream_provider: unknown provider '{provider}'")

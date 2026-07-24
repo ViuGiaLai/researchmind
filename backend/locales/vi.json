@@ -66,7 +66,9 @@
   "chat.empty_collection": "Collection này chưa có tài liệu để chat.",
   "chat.no_text_analyze": "No text to analyze.",
   "chat.all_free_failed": "\n⚠️ Tất cả cloud_free đều lỗi. Đang chuyển sang Local model...\n",
-  "chat.all_providers_failed": "\n⚠️ Không có provider nào hoạt động. Đang dùng Local model...\n",
+  "chat.all_providers_failed": "⚠️ Không có provider nào hoạt động. Đang dùng Local model...\n",
+  "chat.cloud_gateway_error": "⚠️ Cổng đám mây trả về lỗi. Vui lòng thử lại.",
+  "chat.local_no_response": "⚠️ Local model không trả về phản hồi. Vui lòng kiểm tra llama-server có đang chạy không.",
 
   "insights.insufficient_data": "Không đủ dữ liệu để phân tích. Hãy import thêm paper vào thư viện.",
   "insights.select_min_two": "Vui lòng chọn ít nhất 2 tài liệu để tiến hành so sánh.",

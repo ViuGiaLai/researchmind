@@ -853,8 +853,24 @@ export const api = {
   suggestQuestions: (scope: string, paperIds?: string[], collectionId?: string) =>
     request<{ questions: string[] }>("POST", "/api/chat/suggest-questions", { scope, paper_ids: paperIds, collection_id: collectionId }),
 
-  chat: (message: string, paperIds?: string[], scope?: string, collectionId?: string, reasoningMode?: string) =>
-    request<ChatResponse>("POST", "/api/chat", { message, paper_ids: paperIds, scope, collection_id: collectionId, reasoning_mode: reasoningMode }),
+  chat: (
+    message: string,
+    paperIds: string[] | undefined,
+    scope?: string,
+    sessionId?: string,
+    collectionId?: string,
+    reasoningMode?: string,
+    history?: Array<{ role: "user" | "assistant"; content: string }>,
+  ) =>
+    request<ChatResponse>("POST", "/api/chat", {
+      message,
+      paper_ids: paperIds,
+      scope,
+      session_id: sessionId,
+      collection_id: collectionId,
+      reasoning_mode: reasoningMode,
+      history: history && history.length ? history : undefined,
+    }),
 
   chatCollection: (message: string, collectionId: string) =>
     request<ChatResponse>("POST", "/api/chat", { message, scope: "collection", collection_id: collectionId }),
@@ -867,14 +883,25 @@ export const api = {
     collectionId?: string,
     reasoningMode?: string,
     strictEvidence?: boolean,
+    history?: Array<{ role: "user" | "assistant"; content: string }>,
   ) => {
     const url = `${BASE_URL}/api/chat`;
-    const body = JSON.stringify({ message, paper_ids: paperIds, scope, stream: true, session_id: sessionId, collection_id: collectionId, reasoning_mode: reasoningMode, strict_evidence: strictEvidence });
+    const body = JSON.stringify({
+      message,
+      paper_ids: paperIds,
+      scope,
+      stream: true,
+      session_id: sessionId,
+      collection_id: collectionId,
+      reasoning_mode: reasoningMode,
+      strict_evidence: strictEvidence,
+      history: history && history.length ? history : undefined,
+    });
     const controller = new AbortController();
     const stream: {
       onChunk: ((text: string) => void) | null;
       onStatus: ((text: string) => void) | null;
-      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number, modified_content?: string, warning?: string) => void) | null;
+      onDone: ((model: string, citations: any[], router_reason?: string, token_count?: number, modified_content?: string, warning?: string, truncated?: boolean) => void) | null;
       onError: ((err: string) => void) | null;
       abort: () => void;
     } = { onChunk: null, onStatus: null, onDone: null, onError: null, abort: () => controller.abort() };
@@ -900,7 +927,7 @@ export const api = {
         await consumeJsonSse<any>(res.body, (data) => {
           if (data.done) {
             completed = true;
-            stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "", data.warning || "");
+            stream.onDone?.(data.model_used || "", data.citations || [], data.router_reason || "", data.token_count || 0, data.modified_content || "", data.warning || "", data.truncated || false);
           } else if (data.status !== undefined) {
             stream.onStatus?.(data.status);
           } else if (data.chunk !== undefined) {
@@ -1193,7 +1220,7 @@ export const api = {
   updateSettings: (settings: Record<string, unknown>) =>
     request<{ status: string }>("PUT", "/api/settings", settings),
 
-  // Usage
+  // Usage & History
   getChatUsage: () =>
     request<{
       used: number;
@@ -1201,6 +1228,32 @@ export const api = {
       remaining: number;
       mode: string;
     }>("GET", "/api/chat/usage"),
+
+  getChatHistory: (sessionId?: string, limit: number = 50) =>
+    request<{
+      history: Array<{
+        id: number;
+        role: "user" | "assistant";
+        content: string;
+        citations?: any;
+        model_used?: string;
+        session_id?: string;
+        scope?: string;
+        created_at?: string;
+      }>;
+    }>("GET", `/api/chat/history${sessionId ? `?session_id=${encodeURIComponent(sessionId)}&limit=${limit}` : `?limit=${limit}`}`),
+
+  getChatSessions: () =>
+    request<{
+      sessions: Array<{
+        session_id: string;
+        updated_at: string;
+        title: string;
+      }>;
+    }>("GET", "/api/chat/sessions"),
+
+  clearChatHistory: (sessionId?: string) =>
+    request<{ status: string; session_id?: string }>("DELETE", `/api/chat/history${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}`),
 
   // Embedding
   testEmbedding: () =>

@@ -180,6 +180,7 @@ class AcademicGovernance:
             ]
         else:
             rules = list(self.rules(rule_ids))
+
         presentation = (
             (
                 "Answer with conclusion, cited evidence, limitations, and next steps. "

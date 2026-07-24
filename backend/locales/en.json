@@ -67,6 +67,8 @@
   "chat.no_text_analyze": "No text to analyze.",
   "chat.all_free_failed": "\n⚠️ All cloud_free providers failed. Switching to Local model...\n",
   "chat.all_providers_failed": "\n⚠️ No provider is working. Switching to Local model...\n",
+  "chat.local_no_response": "⚠️ The local model returned an empty response. Please check that llama-server is running and the model is correctly configured.",
+  "chat.cloud_gateway_error": "⚠️ The cloud gateway returned an error. Please try again.",
 
   "insights.insufficient_data": "Insufficient data for analysis. Please import more papers into your library.",
   "insights.select_min_two": "Please select at least 2 documents for comparison.",

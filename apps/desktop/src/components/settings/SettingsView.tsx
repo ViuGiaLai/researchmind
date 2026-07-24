@@ -1501,7 +1501,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
               <aside className="settings-local-panel__guide">
                 <div className="settings-local-panel__guide-title"><IconMonitor size={16} /><span>llama-server</span></div>
                 <p>{t("settings.local_cpu_startup")}</p>
-                <code>llama-server.exe -m path/to/{localModel} --port 8080 -c 4096 -np 1 -t 6</code>
+                <code>llama-server.exe -m path/to/{localModel} --host 127.0.0.1 --port 8080 -c 2048 -n 512 -np 1 -t 8</code>
+                <p style={{ marginTop: 10 }}>{t("settings.local_gpu_startup")}</p>
+                <code>llama-server.exe -m path/to/{localModel} --host 127.0.0.1 --port 8080 -c 2048 -n 512 -np 1 -ngl 99</code>
+                <p className="settings-field-hint" style={{ marginTop: 10 }}>{t("settings.local_perf_hint")}</p>
                 <a href="#" onClick={(e) => { e.preventDefault(); open("https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/tree/main"); }}>
                   {t("settings.download_at")} <span aria-hidden="true">&#8599;</span>
                 </a>

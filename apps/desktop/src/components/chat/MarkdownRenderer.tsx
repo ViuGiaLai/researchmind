@@ -330,9 +330,10 @@ interface MarkdownRendererProps {
   text: string;
   onCitationClick?: (refId: number) => void;
   citations?: CitationTooltip[];
+  reasoningMode?: string;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCitationClick, citations }) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCitationClick, citations, reasoningMode }) => {
   const decodedText = decodeHTMLEntities(text);
   const decodedCitations = citations?.map(c => ({
     ...c,
@@ -344,16 +345,22 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCita
   let mainContent = decodedText;
   let isThinkingActive = false;
 
+  const showThinkingBlock = reasoningMode === "deep+" || reasoningMode === "deep_plus";
+
   const thinkStartIndex = decodedText.indexOf("<think>");
   if (thinkStartIndex !== -1) {
     const thinkEndIndex = decodedText.indexOf("</think>", thinkStartIndex + 7);
     if (thinkEndIndex !== -1) {
-      thinkingContent = decodedText.slice(thinkStartIndex + 7, thinkEndIndex).trim();
+      if (showThinkingBlock) {
+        thinkingContent = decodedText.slice(thinkStartIndex + 7, thinkEndIndex).trim();
+      }
       mainContent = decodedText.slice(0, thinkStartIndex) + decodedText.slice(thinkEndIndex + 8);
     } else {
-      thinkingContent = decodedText.slice(thinkStartIndex + 7).trim();
+      if (showThinkingBlock) {
+        thinkingContent = decodedText.slice(thinkStartIndex + 7).trim();
+        isThinkingActive = true;
+      }
       mainContent = decodedText.slice(0, thinkStartIndex);
-      isThinkingActive = true;
     }
   }
 
