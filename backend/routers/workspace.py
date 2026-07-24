@@ -144,6 +144,55 @@ async def add_workspace_member(workspace_id: str, body: dict = Body(...)):
         session.close()
 
 
+@router.post("/workspaces/join")
+async def join_workspace_via_invite(body: dict = Body(...)):
+    workspace_id = str(body.get("workspace_id") or "").strip()
+    identity = str(body.get("identity") or "").strip().lower()
+    role = str(body.get("role") or "reviewer").strip()
+    display_name = str(body.get("display_name") or "").strip()
+
+    if not workspace_id or not identity:
+        raise HTTPException(status_code=400, detail="workspace_id and identity are required")
+
+    session = get_session(state.engine)
+    try:
+        ws = session.query(Workspace).filter(Workspace.id == workspace_id).first()
+        if not ws:
+            ws = Workspace(id=workspace_id, name=f"Shared Workspace ({workspace_id[:8]})")
+            session.add(ws)
+
+        existing = session.query(WorkspaceMember).filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.identity == identity
+        ).first()
+
+        if existing:
+            existing.role = role
+            if display_name:
+                existing.display_name = display_name
+            member = existing
+        else:
+            member = WorkspaceMember(
+                workspace_id=workspace_id,
+                identity=identity,
+                display_name=display_name,
+                role=role,
+            )
+            session.add(member)
+        session.commit()
+        session.refresh(member)
+        return {
+            "joined": True,
+            "workspace_id": workspace_id,
+            "member_id": member.id,
+            "identity": member.identity,
+            "role": member.role,
+        }
+    finally:
+        session.close()
+
+
+
 @router.post("/sync/devices")
 async def register_sync_device(body: dict = Body(...)):
     device_id = str(body.get("device_id") or "").strip()

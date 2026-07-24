@@ -285,7 +285,7 @@ class Settings(BaseSettings):
     large_context_provider: str = ""
 
     # Free Cloud settings (tries Groq → Gemini → FreeModel → local)
-    free_cloud_daily_limit: int = 10
+    free_cloud_daily_limit: int = 20
 
     # llm_mode: "cloud_free" (Gemini with system/dev key), "cloud_custom" (user API key), "local" (llama-server)
     llm_mode: str = "cloud_free"

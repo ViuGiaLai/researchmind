@@ -118,7 +118,11 @@ export const UserMenu: React.FC<UserMenuProps> = ({
             <div className="account-dropdown-info">
               <div className="account-dropdown-name-row">
                 <strong>{user?.name || (auth.isGuest ? t("auth.guest") : t("auth.optional_sign_in"))}</strong>
-                {auth.isGuest && <span className="guest-badge">{t("auth.guest_badge")}</span>}
+                {user ? (
+                  <span className="guest-badge account-pro-badge">PRO</span>
+                ) : auth.isGuest ? (
+                  <span className="guest-badge">LOCAL</span>
+                ) : null}
               </div>
               <small>{user?.email || (auth.isGuest ? t("auth.guest_hint") : t("auth.optional_sign_in_hint"))}</small>
             </div>

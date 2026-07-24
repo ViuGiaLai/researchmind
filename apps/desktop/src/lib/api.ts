@@ -1098,6 +1098,8 @@ export const api = {
     request<{ members: WorkspaceMember[] }>("GET", `/api/workspaces/${workspaceId}/members`),
   addWorkspaceMember: (workspaceId: string, identity: string, role: WorkspaceMember["role"]) =>
     request<Pick<WorkspaceMember, "id" | "identity" | "role">>("POST", `/api/workspaces/${workspaceId}/members`, { identity, role }),
+  joinWorkspace: (workspaceId: string, identity: string, role?: string, displayName?: string) =>
+    request<{ joined: boolean; workspace_id: string; role: string }>("POST", "/api/workspaces/join", { workspace_id: workspaceId, identity, role, display_name: displayName }),
 
   listBackups: () => request<{ backups: DataBackup[] }>("GET", "/api/backups"),
   createBackup: () => request<{ name: string; size: number }>("POST", "/api/backups"),

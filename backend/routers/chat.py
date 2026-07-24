@@ -806,16 +806,19 @@ async def chat(req: Request, request: dict = Body(...)):
             return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
     if settings.llm_mode == "cloud_free":
-        session = get_session(state.engine)
-        try:
-            used = count_free_queries_today(session)
-            if used >= settings.free_cloud_daily_limit:
-                raise HTTPException(
-                    status_code=429,
-                    detail=t("settings.daily_limit_reached", lang, limit=settings.free_cloud_daily_limit),
-                )
-        finally:
-            session.close()
+        auth_header = req.headers.get("Authorization", "").strip() if req else ""
+        is_authenticated = bool(auth_header)
+        if not is_authenticated:
+            session = get_session(state.engine)
+            try:
+                used = count_free_queries_today(session)
+                if used >= settings.free_cloud_daily_limit:
+                    raise HTTPException(
+                        status_code=429,
+                        detail=t("settings.daily_limit_reached", lang, limit=settings.free_cloud_daily_limit),
+                    )
+            finally:
+                session.close()
 
     scope = request.get("scope", "current")
     collection_id = request.get("collection_id")
@@ -1098,10 +1101,14 @@ async def get_chat_usage(request: Request):
     session = get_session(state.engine)
     try:
         used = count_free_queries_today(session)
+        auth_header = request.headers.get("Authorization", "").strip()
+        is_authenticated = bool(auth_header)
+        limit = 9999 if is_authenticated else settings.free_cloud_daily_limit
         return {
             "used": used,
-            "limit": settings.free_cloud_daily_limit,
-            "remaining": max(0, settings.free_cloud_daily_limit - used),
+            "limit": limit,
+            "remaining": max(0, limit - used) if not is_authenticated else 9999,
+            "is_authenticated": is_authenticated,
             "mode": settings.llm_mode,
         }
     finally:
