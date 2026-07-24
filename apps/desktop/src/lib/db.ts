@@ -90,7 +90,10 @@ class StoreProxy<T extends Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       const transaction = database.transaction(this.storeName, "readwrite");
       transaction.objectStore(this.storeName).put(item);
-      transaction.oncomplete = () => resolve();
+      transaction.oncomplete = () => {
+        window.dispatchEvent(new CustomEvent("researchmind:data-mutated", { detail: { store: this.storeName } }));
+        resolve();
+      };
       transaction.onerror = () =>
         reject(transaction.error ?? new Error(`Failed to update ${this.storeName}`));
       transaction.onabort = () =>
@@ -105,7 +108,10 @@ class StoreProxy<T extends Record<string, unknown>> {
       const transaction = database.transaction(this.storeName, "readwrite");
       const store = transaction.objectStore(this.storeName);
       for (const item of items) store.put(item);
-      transaction.oncomplete = () => resolve();
+      transaction.oncomplete = () => {
+        window.dispatchEvent(new CustomEvent("researchmind:data-mutated", { detail: { store: this.storeName } }));
+        resolve();
+      };
       transaction.onerror = () =>
         reject(transaction.error ?? new Error(`Bulk update failed for ${this.storeName}`));
       transaction.onabort = () =>
@@ -143,16 +149,47 @@ class StoreProxy<T extends Record<string, unknown>> {
     });
   }
 
+  async count(): Promise<number> {
+    const database = await openDb();
+    return new Promise((resolve, reject) => {
+      const request = database
+        .transaction(this.storeName, "readonly")
+        .objectStore(this.storeName)
+        .count();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
   async delete(key: string): Promise<void> {
     const database = await openDb();
     return new Promise((resolve, reject) => {
       const transaction = database.transaction(this.storeName, "readwrite");
       transaction.objectStore(this.storeName).delete(key);
-      transaction.oncomplete = () => resolve();
+      transaction.oncomplete = () => {
+        // Record pending deletion for cloud sync propagation
+        this._recordPendingDeletion(key).catch(() => {});
+        window.dispatchEvent(new CustomEvent("researchmind:data-mutated", { detail: { store: this.storeName } }));
+        resolve();
+      };
       transaction.onerror = () =>
         reject(transaction.error ?? new Error(`Delete failed for ${this.storeName}`));
       transaction.onabort = () =>
         reject(transaction.error ?? new Error(`Delete aborted for ${this.storeName}`));
+    });
+  }
+
+  /**
+   * Records a pending deletion intent in sync_metadata so the sync daemon
+   * can propagate it to the cloud via DELETE HTTP on the next cycle.
+   */
+  private async _recordPendingDeletion(resourceId: string): Promise<void> {
+    await db.sync_metadata.put({
+      id: `del:${this.storeName}/${resourceId}`,
+      store_name: this.storeName,
+      resource_id: resourceId,
+      pending_delete: true,
+      created_at: Date.now(),
     });
   }
 

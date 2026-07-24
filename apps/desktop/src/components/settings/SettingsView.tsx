@@ -9,6 +9,7 @@ import {
 import { LanguageSwitcher } from "../shared/LanguageSwitcher";
 import { LicensePanel } from "./LicensePanel";
 import { PrivacyCenter } from "./PrivacyCenter";
+import { CloudSyncPanel } from "./CloudSyncPanel";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
@@ -51,7 +52,7 @@ import type { HelpSectionId } from "../help/helpContent";
 import { useConfirmDialog } from "../shared/ConfirmDialog";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
 
-export type SettingsSection = "general" | "privacy" | "diagnostics" | "data" | "advanced";
+export type SettingsSection = "general" | "cloud_sync" | "privacy" | "diagnostics" | "data" | "advanced";
 
 interface SettingsViewProps {
   initialSection?: SettingsSection;
@@ -678,6 +679,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
 
   const settingsTabs = [
     { key: "general" as const, label: t("settings.section_general"), icon: IconMonitor },
+    { key: "cloud_sync" as const, label: t("cloud_sync.title"), icon: IconCloud },
     { key: "privacy" as const, label: t("privacy.title"), icon: IconLock },
     { key: "diagnostics" as const, label: t("settings.section_diagnostics"), icon: IconActivity },
     { key: "data" as const, label: t("settings.section_data"), icon: IconFolder },
@@ -687,6 +689,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
   const sectionMeta: Record<SettingsSection, { desc: string }> = {
     general: {
       desc: t("settings.section_general_desc"),
+    },
+    cloud_sync: {
+      desc: t("cloud_sync.description"),
     },
     privacy: {
       desc: t("privacy.description"),
@@ -721,6 +726,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
             </p>
           </div>
           <div className="settings-toolbar-meta">
+            <span className="settings-meta-chip" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2dd4bf" }} />
+              {t("cloud_sync.cloud_connected")}
+            </span>
             {stats && (
               <span className="settings-meta-chip">{t("settings.stats_papers", { count: stats.total_papers })}</span>
             )}
@@ -736,6 +745,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
         />
 
         <div className="settings-content">
+            {activeSection === "cloud_sync" && <CloudSyncPanel />}
             {activeSection === "privacy" && <PrivacyCenter />}
             {activeSection === "general" && (
               <div className="settings-general-grid">
