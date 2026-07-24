@@ -364,8 +364,25 @@
       <!-- Blog Grid -->
       <div class="blog-grid" id="blogGrid">
 
+        <!-- Post 0 - Account Features -->
+        <article class="blog-card reveal reveal-delay-1" data-category="release" onclick="openArticle('signed-in-account')">
+          <div class="blog-card-image">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-blue);"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M6 12h12"/><path d="M4 4l3 3M20 4l-3 3M4 20l3-3M20 20l-3-3"/></svg>
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Account</span>
+            <h3>5 Superpowers You Only Get with a Signed-In Account</h3>
+            <p>Unlock unlimited Turbo AI queue, personalized settings sync across devices, encrypted cloud backup, seamless continuity, and publish &amp; collaboration features.</p>
+            <div class="blog-card-meta">
+              <span>July 24, 2026</span>
+              <span>•</span>
+              <span>7 min read</span>
+            </div>
+          </div>
+        </article>
+
         <!-- Post 1 -->
-        <article class="blog-card reveal reveal-delay-1" data-category="architecture" onclick="openArticle('hybrid-search')">
+        <article class="blog-card reveal reveal-delay-2" data-category="architecture" onclick="openArticle('hybrid-search')">
           <div class="blog-card-image">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-blue);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
           </div>
@@ -382,7 +399,7 @@
         </article>
 
         <!-- Post 2 -->
-        <article class="blog-card reveal reveal-delay-2" data-category="guide" onclick="openArticle('rag-chat-writing')">
+        <article class="blog-card reveal reveal-delay-3" data-category="guide" onclick="openArticle('rag-chat-writing')">
           <div class="blog-card-image">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-teal);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h8M8 14h5"/></svg>
           </div>
@@ -399,7 +416,7 @@
         </article>
 
         <!-- Post 3 -->
-        <article class="blog-card reveal reveal-delay-3" data-category="guide" onclick="openArticle('systematic-reviews')">
+        <article class="blog-card reveal reveal-delay-4" data-category="guide" onclick="openArticle('systematic-reviews')">
           <div class="blog-card-image">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-emerald);"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
           </div>
@@ -416,7 +433,7 @@
         </article>
 
         <!-- Post 4 -->
-        <article class="blog-card reveal reveal-delay-4" data-category="release" onclick="openArticle('v0-5-release')">
+        <article class="blog-card reveal reveal-delay-5" data-category="release" onclick="openArticle('v0-5-release')">
           <div class="blog-card-image">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#d97706;"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 4-9"/></svg>
           </div>
@@ -433,7 +450,7 @@
         </article>
 
         <!-- Post 5 -->
-        <article class="blog-card reveal reveal-delay-5" data-category="philosophy" onclick="openArticle('local-first-ai')">
+        <article class="blog-card reveal reveal-delay-6" data-category="philosophy" onclick="openArticle('local-first-ai')">
           <div class="blog-card-image">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:#e11d48;"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
           </div>
@@ -450,7 +467,7 @@
         </article>
 
         <!-- Post 6 -->
-        <article class="blog-card reveal reveal-delay-6" data-category="release" onclick="openArticle('v0-4-release')">
+        <article class="blog-card reveal reveal-delay-7" data-category="release" onclick="openArticle('v0-4-release')">
           <div class="blog-card-image">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--accent-purple);"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
           </div>
@@ -564,6 +581,107 @@
   <script>
     // Blog Data Store with Full Articles
     const articles = {
+      'signed-in-account': {
+        title: "5 Superpowers You Only Get with a Signed-In Account",
+        category: "Account Features",
+        author: "ResearchMind Team",
+        date: "July 24, 2026",
+        readTime: "7 min read",
+        body: `
+          <p><strong>ResearchMind</strong> is an academic research workspace built to respect your data privacy — your PDFs stay on your machine, and both Local AI & your Private API keys work fully whether you have an account or not.</p>
+          <p>But there is a whole other layer of power that only unlocks when you <strong>Sign In to your Account</strong>. Here are <strong>5 superpowers</strong> that guest users don't get.</p>
+
+          <div class="callout">
+            <strong>TL;DR:</strong> Sign in to unlock unlimited Cloud AI Gateway, automatic AI settings sync across devices, encrypted cloud backup, seamless multi-device continuity, and one-click report publishing &amp; collaboration — all free.
+          </div>
+
+          <h2>1. ⚡ Turbo Speed &amp; Unlimited Cloud AI Gateway</h2>
+          <p><strong>No account:</strong> Capped at 20 queries/day and queued on shared public servers (Standard Latency). When you're in the middle of urgent paper analysis, running out of credits or hitting slow queues can completely break your flow.</p>
+          <p><strong>Signed in:</strong> Exclusive <strong>Unlimited AI Queries</strong> with a dedicated High-Priority Turbo Queue. No interruptions — AI responds instantly, saving you <strong>up to 70% wait time</strong> compared to the standard queue.</p>
+
+          <h2>2. 🧠 Personalized AI Brain &amp; Settings Sync</h2>
+          <p><strong>No account:</strong> Every AI configuration (Provider mapping, advanced Prompts, citation formatting) is stored locally on your current machine. Switch computers and you have to set everything up from scratch — time-consuming and error-prone.</p>
+          <p><strong>Signed in:</strong> Your AI brain remembers your research taste. Every custom Prompt, keyboard shortcut, and Provider configuration syncs instantly across any machine you sign into. Keep your entire "AI Brain" intact when moving to a new computer.</p>
+
+          <h2>3. 🛡️ Absolute Safety with End-to-End Encrypted Cloud Backup</h2>
+          <p><strong>No account:</strong> If your hard drive fails, memory corrupts, or you lose your device, your entire project and citation notes are gone forever unless you manually exported them.</p>
+          <p><strong>Signed in:</strong> Activate <strong>Project Protection</strong> (End-to-End Encrypted Cloud Backup). Your original PDF data stays safely on your machine — ResearchMind never uploads PDFs — but your project configuration, mind maps & citation notes are backed up securely in the cloud. Never lose months of research effort again.</p>
+
+          <h2>4. 🌐 Seamless Multi-Device Continuity</h2>
+          <p><strong>No account:</strong> Your data is isolated to a single device.</p>
+          <p><strong>Signed in:</strong> Working on your desktop at the office or lab? Open your personal laptop at home and pick up exactly where you left off — same reading position, same ongoing AI chat session. Seamless switching between machines with no USB drives or email attachments needed.</p>
+
+          <h2>5. 👥 Publish Reports &amp; Academic Collaboration</h2>
+          <p><strong>No account:</strong> Your reports are locked to your screen only.</p>
+          <p><strong>Signed in:</strong> Exclusive access to <strong>Publish Report Link</strong> &amp; <strong>Live Review</strong> — invite colleagues to review evidence together in real time. Share polished citation reports with your advisor or team with a single click.</p>
+
+          <h2>📊 Feature Comparison Table</h2>
+          <p><em>🌟 Items marked with ⭐ are exclusive advantages only available when signed in.</em></p>
+
+          <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.88rem;margin:16px 0;">
+            <thead>
+              <tr style="background:var(--bg-surface);border-bottom:2px solid var(--border-subtle);">
+                <th style="padding:12px 16px;text-align:left;font-weight:600;">Category</th>
+                <th style="padding:12px 16px;text-align:center;font-weight:600;color:var(--text-tertiary);">👤 No Account (Guest)</th>
+                <th style="padding:12px 16px;text-align:center;font-weight:600;color:var(--accent-blue);">🔐 Signed In ⭐</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Cloud AI Queries</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">⚠️ 20 queries/day limit</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ UNLIMITED</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">AI Processing Speed</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">🐢 Standard Queue</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ ⚡ PRIORITY TURBO QUEUE</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Settings Sync</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">❌ Not supported</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ ✅ AUTO SYNC</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Project Backup &amp; Protection</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">⚠️ Lost if device fails</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ 🛡️ ENCRYPTED CLOUD BACKUP</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Multi-Device Work</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">❌ Single machine only</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ 🌐 SEAMLESS CONTINUITY</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Publish &amp; Share</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">❌ Not supported</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ 🔗 ONE-CLICK REPORT LINK</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Team Collaboration</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--text-tertiary);">❌ Solo only</td>
+                <td style="padding:10px 16px;text-align:center;color:var(--accent-blue);font-weight:600;">⭐ 👥 INVITE COLLABORATORS</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border-subtle);">
+                <td style="padding:10px 16px;font-weight:500;">Local AI &amp; Private Key</td>
+                <td style="padding:10px 16px;text-align:center;">✅ Full access</td>
+                <td style="padding:10px 16px;text-align:center;">✅ Full access</td>
+              </tr>
+              <tr>
+                <td style="padding:10px 16px;font-weight:500;">PDF Data Privacy</td>
+                <td style="padding:10px 16px;text-align:center;">🔒 100% On your machine</td>
+                <td style="padding:10px 16px;text-align:center;">🔒 100% On your machine</td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+
+          <p><em>Your original PDF files are never uploaded to any server in either mode — ResearchMind always puts your academic data privacy first.</em></p>
+
+          <p>Ready to try it? <a href="index.html#download">Download ResearchMind</a> and sign in to unlock the full power.</p>
+        `
+      },
       'v0-6-release': {
         title: "ResearchMind v0.6: Evidence Matrix, Literature Review Builder & Local AI Engine",
         category: "Release Notes",
