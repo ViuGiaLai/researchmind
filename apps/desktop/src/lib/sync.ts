@@ -4,6 +4,11 @@
  * Local data remains authoritative while offline. Cloud changes are merged
  * first, then dirty local records are pushed. Every record is acknowledged
  * individually before its local sync marker is advanced.
+ *
+ * Deletions are propagated via pending-deletion markers stored in
+ * sync_metadata. Every call to store.delete() automatically records a
+ * pending deletion that the sync daemon sends as HTTP DELETE to the cloud.
+ * Cloud-deleted records are removed locally on the next incremental pull.
  */
 import {
   db,
@@ -30,6 +35,7 @@ type SyncStore<T extends SyncRecord> = {
   put(item: T): Promise<void>;
   bulkPut(items: T[]): Promise<void>;
   toArray(): Promise<T[]>;
+  delete(key: string): Promise<void>;
 };
 
 interface CloudList<T> {
@@ -138,11 +144,49 @@ async function pushResource<T extends SyncRecord>(
   });
 }
 
+/**
+ * Pushes pending-deletion markers to the cloud via HTTP DELETE.
+ * Each marker is removed from sync_metadata after successful acknowledgment.
+ * Partial failure is safe — failed deletions are retried next cycle.
+ */
+async function pushDeletions(token: string): Promise<void> {
+  const allMetadata = (await db.sync_metadata.toArray()).filter(
+    (item) => item.pending_delete === true,
+  );
+  if (allMetadata.length === 0) return;
+
+  await mapConcurrent(allMetadata, async (meta) => {
+    const storeName = meta.store_name as string;
+    const resourceId = meta.resource_id as string;
+    try {
+      await requestJson(token, `${storeName}/${resourceId}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      // 404 means the record is already gone on the cloud — treat as success.
+      if (error instanceof Error && error.message.includes("(404)")) {
+        // Remove marker and move on.
+      } else {
+        console.warn(
+          `Cloud deletion of ${storeName}/${resourceId} failed, will retry later:`,
+          error,
+        );
+        return; // keep marker for retry next cycle
+      }
+    }
+    // Remove the pending deletion marker
+    await db.sync_metadata.delete(meta.id as string);
+  });
+}
+
 async function pullResource<T extends SyncRecord>(
   token: string,
   config: ResourceConfig<T>,
+  since: number,
 ): Promise<void> {
-  const response = await requestJson<CloudList<T>>(token, config.endpoint);
+  const endpoint =
+    since > 0 ? `${config.endpoint}?since=${since}` : config.endpoint;
+  const response = await requestJson<CloudList<T>>(token, endpoint);
   if (!response || !Array.isArray(response.data)) {
     throw new Error(`Invalid cloud response for ${config.endpoint}`);
   }
@@ -153,6 +197,25 @@ async function pullResource<T extends SyncRecord>(
     if (!remote || typeof remote.id !== "string" || remote.id.length === 0) {
       continue;
     }
+
+    // Handle cloud-deleted records: remove locally and clear pending deletion
+    if ((remote as unknown as { deleted?: unknown }).deleted) {
+      try {
+        await config.store.delete(remote.id);
+      } catch (e) {
+        console.warn(`Failed to delete local record ${remote.id}:`, e);
+      }
+      // Also remove any pending deletion marker for this record
+      try {
+        await db.sync_metadata.delete(
+          `del:${config.endpoint}/${remote.id}`,
+        );
+      } catch {
+        // ignore if no marker exists
+      }
+      continue;
+    }
+
     const local = await config.store.get(remote.id);
     const remoteUpdatedAt = timestamp(remote.updated_at);
     const localUpdatedAt = timestamp(local?.updated_at);
@@ -175,6 +238,7 @@ async function pullResource<T extends SyncRecord>(
 /**
  * Pushes dirty local records in dependency order. Partial success is safe:
  * acknowledged records stay clean and failed records are retried next time.
+ * Also pushes any pending deletions to the cloud.
  */
 export async function pushSync(token: string): Promise<boolean> {
   try {
@@ -194,6 +258,8 @@ export async function pushSync(token: string): Promise<boolean> {
       endpoint: "notes",
       store: db.encrypted_notes as SyncStore<DbEncryptedNote>,
     });
+    // Propagate local deletions to cloud after records are pushed
+    await pushDeletions(token);
     return true;
   } catch (error) {
     console.error("Cloud push failed", error);
@@ -203,14 +269,73 @@ export async function pushSync(token: string): Promise<boolean> {
 
 /**
  * Pulls and applies cloud records using Last-Write-Wins conflict resolution.
+ * Only fetches records changed since the last sync (incremental).
+ * Removes local records that have been deleted on the cloud side.
  */
 export async function pullSync(
   token: string,
-  _lastSyncedAt: number,
+  lastSyncedAt: number,
 ): Promise<void> {
+  const since = Number.isFinite(lastSyncedAt) ? lastSyncedAt : 0;
   for (const resource of resources) {
-    await pullResource(token, resource);
+    await pullResource(token, resource, since);
   }
+}
+
+/**
+ * Fetches cloud storage statistics for the current user.
+ */
+export async function fetchCloudStats(
+  token: string,
+): Promise<{ projects: number; documents: number; annotations: number; notes: number; last_updated: string | null }> {
+  return requestJson(token, "stats");
+}
+
+/**
+ * Wipes all local IndexedDB stores and performs a full pull from cloud.
+ * Used when the user explicitly wants to restore their workspace from cloud.
+ */
+export async function restoreFromCloud(token: string): Promise<void> {
+  // Clear all local data stores
+  await db.projects.clear();
+  await db.documents.clear();
+  await db.annotations.clear();
+  await db.encrypted_notes.clear();
+  await db.sync_metadata.clear();
+
+  // Full pull (since=0 fetches everything)
+  await pullSync(token, 0);
+
+  // Reset sync timestamp so next incremental sync works correctly
+  localStorage.setItem("rm_last_synced", Date.now().toString());
+}
+
+export type SyncMode = "smart" | "manual" | "local_only";
+
+export function getSyncMode(): SyncMode {
+  const mode = localStorage.getItem("rm_sync_mode");
+  if (mode === "manual" || mode === "local_only") return mode;
+  return "smart";
+}
+
+export function setSyncMode(mode: SyncMode): void {
+  localStorage.setItem("rm_sync_mode", mode);
+  window.dispatchEvent(new CustomEvent("researchmind:sync-mode-changed", { detail: { mode } }));
+}
+
+let debounceTimer: number | null = null;
+
+/**
+ * Triggers a debounced sync operation (e.g. 3s after user finishes editing).
+ */
+export function debouncedTriggerSync(delayMs = 3000): void {
+  if (debounceTimer !== null) {
+    window.clearTimeout(debounceTimer);
+  }
+  debounceTimer = window.setTimeout(() => {
+    debounceTimer = null;
+    window.dispatchEvent(new CustomEvent("researchmind:trigger-sync", { detail: { isForeground: false } }));
+  }, delayMs);
 }
 
 /**
@@ -223,13 +348,36 @@ export class SyncDaemon {
   private listenersAttached = false;
   private inFlight: Promise<void> | null = null;
 
+  get isSyncing(): boolean {
+    return this.inFlight !== null;
+  }
+
   private readonly handleOnline = () => {
     this.isOnline = true;
-    void this.triggerSync();
+    if (getSyncMode() === "smart") {
+      void this.triggerSync(false);
+    }
   };
 
   private readonly handleOffline = () => {
     this.isOnline = false;
+  };
+
+  private readonly handleVisibilityChange = () => {
+    if (getSyncMode() === "smart") {
+      // Re-evaluate timer interval dynamically when tab visibility changes
+      this.clearPeriodicTimer();
+      this.startPeriodicTimer();
+    }
+  };
+
+  private readonly handleModeChanged = (e: Event) => {
+    const detail = (e as CustomEvent<{ mode: SyncMode }>).detail;
+    if (detail.mode === "smart") {
+      this.startPeriodicTimer();
+    } else {
+      this.clearPeriodicTimer();
+    }
   };
 
   constructor(private readonly getToken: () => Promise<string | null>) {}
@@ -238,46 +386,83 @@ export class SyncDaemon {
     if (this.listenersAttached) return;
     window.addEventListener("online", this.handleOnline);
     window.addEventListener("offline", this.handleOffline);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
+    window.addEventListener("researchmind:sync-mode-changed", this.handleModeChanged);
     this.listenersAttached = true;
   }
 
-  start(): void {
+  private startPeriodicTimer(): void {
     if (this.timer !== null) return;
-    this.attachListeners();
-    this.isOnline = navigator.onLine;
+    // Adaptive Polling: 10 minutes when minimized/hidden, 3 minutes when active
+    const intervalMs = document.hidden ? 600_000 : 180_000;
+    
     this.timer = window.setInterval(
-      () => void this.triggerSync(),
-      60_000,
+      () => {
+        if (getSyncMode() === "smart" && !document.hidden) {
+          void this.triggerSync(false); // Silent background poll
+        }
+      },
+      intervalMs,
     );
-    void this.triggerSync();
   }
 
-  stop(): void {
+  private clearPeriodicTimer(): void {
     if (this.timer !== null) {
       window.clearInterval(this.timer);
       this.timer = null;
     }
+  }
+
+  start(): void {
+    this.attachListeners();
+    this.isOnline = navigator.onLine;
+    const mode = getSyncMode();
+
+    if (mode === "local_only" || mode === "manual") {
+      this.clearPeriodicTimer();
+      return;
+    }
+
+    if (mode === "smart") {
+      this.startPeriodicTimer();
+      void this.triggerSync(false); // Initial background check
+    }
+  }
+
+  stop(): void {
+    this.clearPeriodicTimer();
     if (this.listenersAttached) {
       window.removeEventListener("online", this.handleOnline);
       window.removeEventListener("offline", this.handleOffline);
+      document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+      window.removeEventListener("researchmind:sync-mode-changed", this.handleModeChanged);
       this.listenersAttached = false;
     }
   }
 
-  triggerSync(): Promise<void> {
-    if (!this.isOnline) return Promise.resolve();
+  triggerSync(isForeground = true): Promise<void> {
+    const mode = getSyncMode();
+    // Local-only mode: NEVER trigger network requests or cloud calls
+    if (mode === "local_only") return Promise.resolve();
+    // Manual mode: NEVER background poll; only trigger on explicit user action (isForeground = true)
+    if (mode === "manual" && !isForeground) return Promise.resolve();
+    if (!this.isOnline || !navigator.onLine) return Promise.resolve();
     if (this.inFlight) return this.inFlight;
-    this.inFlight = this.runSync().finally(() => {
+    
+    this.inFlight = this.runSync(isForeground).finally(() => {
       this.inFlight = null;
     });
     return this.inFlight;
   }
 
-  private async runSync(): Promise<void> {
+  private async runSync(isForeground: boolean): Promise<void> {
     const token = await this.getToken();
     if (!token) return;
 
-    window.dispatchEvent(new Event("researchmind:sync-start"));
+    if (isForeground) {
+      window.dispatchEvent(new CustomEvent("researchmind:sync-start"));
+    }
+
     try {
       const lastSynced = Number.parseInt(
         localStorage.getItem("rm_last_synced") || "0",
@@ -290,11 +475,16 @@ export class SyncDaemon {
       if (!(await pushSync(token))) {
         throw new Error("One or more local records could not be synchronized");
       }
-      localStorage.setItem("rm_last_synced", Date.now().toString());
+      const syncTime = Date.now();
+      localStorage.setItem("rm_last_synced", syncTime.toString());
+      window.dispatchEvent(new CustomEvent("researchmind:sync-success", { detail: { lastSyncedAt: syncTime, isForeground } }));
     } catch (error) {
       console.error("Cloud synchronization failed", error);
+      window.dispatchEvent(new CustomEvent("researchmind:sync-error", { detail: { error: error instanceof Error ? error.message : String(error) } }));
     } finally {
-      window.dispatchEvent(new Event("researchmind:sync-end"));
+      if (isForeground) {
+        window.dispatchEvent(new Event("researchmind:sync-end"));
+      }
     }
   }
 }

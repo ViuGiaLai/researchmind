@@ -6,10 +6,10 @@ main = "src/index.ts"
 [[d1_databases]]
 binding = "DB"
 database_name = "researchmind_db"
-database_id = "50be493f-b217-4e29-93a9-6ef1c1ebdcac "
+database_id = "50be493f-b217-4e29-93a9-6ef1c1ebdcac"
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:1420,http://tauri.localhost,https://tauri.localhost,tauri://localhost"
+ALLOWED_ORIGINS = "http://localhost:1420,http://tauri.localhost,https://tauri.localhost,tauri://localhost,https://researchmind.pages.dev,https://researchmind-cloud-sync.viuphuthien.workers.dev"
 
 [observability]
 enabled = true

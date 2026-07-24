@@ -14,7 +14,7 @@ import { api, BASE_URL } from "./lib/api";
 import { useAuth } from "./lib/auth-provider";
 import { SyncStatus } from "./components/auth/SyncStatus";
 import { MasterPasswordModal } from "./components/auth/MasterPasswordModal";
-import { SyncDaemon } from "./lib/sync";
+import { debouncedTriggerSync, SyncDaemon } from "./lib/sync";
 import { SettingsView } from "./components/settings/SettingsView";
 
 function lazyImport<T extends React.ComponentType<any>>(importFn: () => Promise<Record<string, T>>, name: string) {
@@ -464,13 +464,33 @@ export function App() {
 
   // Start/stop background sync daemon when auth state changes
   // Note: auth.getToken intentionally omitted from deps — its reference
-  // changes every render but its behavior is stable (reads localStorage).
+  // changes every render but its behavior is stable (reads localStorage).\r
   // Guest mode: skip sync daemon.
   useEffect(() => {
     if (!auth.user || auth.isGuest) return;
     const daemon = new SyncDaemon(auth.getToken);
     daemon.start();
-    return () => daemon.stop();
+
+    // Foreground: user clicked "Sync Now" or "Restore" in CloudSyncPanel
+    const handleTriggerSync = (e: Event) => {
+      const isForeground = (e as CustomEvent<{ isForeground?: boolean }>).detail?.isForeground !== false;
+      void daemon.triggerSync(isForeground);
+    };
+
+    // Background: any IndexedDB mutation (put/delete) fires this event.
+    // Calls debouncedTriggerSync which batches all changes into one sync 3s later.
+    // debouncedTriggerSync internally respects mode (smart-only, never manual/local_only).
+    const handleDataMutated = () => {
+      debouncedTriggerSync();
+    };
+
+    window.addEventListener("researchmind:trigger-sync", handleTriggerSync);
+    window.addEventListener("researchmind:data-mutated", handleDataMutated);
+    return () => {
+      daemon.stop();
+      window.removeEventListener("researchmind:trigger-sync", handleTriggerSync);
+      window.removeEventListener("researchmind:data-mutated", handleDataMutated);
+    };
   }, [auth.user]);
 
   useEffect(() => {

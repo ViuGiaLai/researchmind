@@ -34,6 +34,47 @@ const optionalInteger = (value: unknown): number | null =>
 const conflictResponse = (c: Context<AppEnv>) =>
   c.json({ error: "Resource ID is already owned by another account" }, 409);
 
+const notFoundResponse = (c: Context<AppEnv>) =>
+  c.json({ error: "Resource not found or access denied" }, 404);
+
+/**
+ * Builds a SELECT query that includes recently-deleted records when ?since= is
+ * provided, annotated with a `deleted` boolean column.
+ */
+function buildSelectSql(
+  table: string,
+  extraSelect = "",
+): { sql: (since: number | null) => string } {
+  return {
+    sql: (since) => {
+      if (since && since > 0) {
+        return (
+          `SELECT *, (deleted_at IS NOT NULL) AS deleted${extraSelect} FROM ${table} ` +
+          `WHERE user_id = ? AND (unixepoch(updated_at) > ? OR unixepoch(deleted_at) > ?) ` +
+          `ORDER BY updated_at DESC`
+        );
+      }
+      return (
+        `SELECT *${extraSelect} FROM ${table} ` +
+        `WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC`
+      );
+    },
+  };
+}
+
+/**
+ * Builds a soft-delete SQL statement.
+ */
+function buildDeleteSql(
+  table: string,
+  idColumn = "id",
+): string {
+  return (
+    `UPDATE ${table} SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP ` +
+    `WHERE ${idColumn} = ? AND user_id = ?`
+  );
+}
+
 app.use("*", async (c, next) => {
   const corsMiddleware = cors({
     origin: parseAllowedOrigins(c.env.ALLOWED_ORIGINS || ""),
@@ -99,12 +140,25 @@ app.all("/api/sync", (c) =>
   ),
 );
 
+// ─────────────────────────────────────────────
+//  PROJECTS
+// ─────────────────────────────────────────────
+
+const projectSelect = buildSelectSql("projects");
+
 app.get("/api/projects", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-  )
-    .bind(c.get("userId"))
-    .all();
+  const sinceMs = Number(c.req.query("since")) || 0;
+  // Client sends Date.now() (milliseconds); unixepoch() returns seconds.
+  const sinceSec = sinceMs > 0 ? Math.floor(sinceMs / 1000) : 0;
+  const userId = c.get("userId");
+  const { sql } = projectSelect;
+  let stmt = c.env.DB.prepare(sql(sinceSec));
+  if (sinceSec > 0) {
+    stmt = stmt.bind(userId, sinceSec, sinceSec);
+  } else {
+    stmt = stmt.bind(userId);
+  }
+  const { results } = await stmt.all();
   return c.json({ data: results });
 });
 
@@ -137,12 +191,34 @@ app.post("/api/projects", async (c) => {
   return c.json({ status: "saved" });
 });
 
+app.delete("/api/projects/:id", async (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare(buildDeleteSql("projects"))
+    .bind(id, userId)
+    .run();
+  if (result.meta.changes === 0) return notFoundResponse(c);
+  return c.json({ status: "deleted" });
+});
+
+// ─────────────────────────────────────────────
+//  DOCUMENTS
+// ─────────────────────────────────────────────
+
+const documentSelect = buildSelectSql("documents");
+
 app.get("/api/documents", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM documents WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-  )
-    .bind(c.get("userId"))
-    .all();
+  const sinceMs = Number(c.req.query("since")) || 0;
+  const sinceSec = sinceMs > 0 ? Math.floor(sinceMs / 1000) : 0;
+  const userId = c.get("userId");
+  const { sql } = documentSelect;
+  let stmt = c.env.DB.prepare(sql(sinceSec));
+  if (sinceSec > 0) {
+    stmt = stmt.bind(userId, sinceSec, sinceSec);
+  } else {
+    stmt = stmt.bind(userId);
+  }
+  const { results } = await stmt.all();
   return c.json({ data: results });
 });
 
@@ -194,12 +270,34 @@ app.post("/api/documents", async (c) => {
   return c.json({ status: "saved" });
 });
 
+app.delete("/api/documents/:id", async (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare(buildDeleteSql("documents"))
+    .bind(id, userId)
+    .run();
+  if (result.meta.changes === 0) return notFoundResponse(c);
+  return c.json({ status: "deleted" });
+});
+
+// ─────────────────────────────────────────────
+//  ANNOTATIONS
+// ─────────────────────────────────────────────
+
+const annotationSelect = buildSelectSql("annotations");
+
 app.get("/api/annotations", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM annotations WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-  )
-    .bind(c.get("userId"))
-    .all();
+  const sinceMs = Number(c.req.query("since")) || 0;
+  const sinceSec = sinceMs > 0 ? Math.floor(sinceMs / 1000) : 0;
+  const userId = c.get("userId");
+  const { sql } = annotationSelect;
+  let stmt = c.env.DB.prepare(sql(sinceSec));
+  if (sinceSec > 0) {
+    stmt = stmt.bind(userId, sinceSec, sinceSec);
+  } else {
+    stmt = stmt.bind(userId);
+  }
+  const { results } = await stmt.all();
   return c.json({ data: results });
 });
 
@@ -245,12 +343,34 @@ app.post("/api/annotations", async (c) => {
   return c.json({ status: "saved" });
 });
 
+app.delete("/api/annotations/:id", async (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare(buildDeleteSql("annotations"))
+    .bind(id, userId)
+    .run();
+  if (result.meta.changes === 0) return notFoundResponse(c);
+  return c.json({ status: "deleted" });
+});
+
+// ─────────────────────────────────────────────
+//  ENCRYPTED NOTES
+// ─────────────────────────────────────────────
+
+const noteSelect = buildSelectSql("encrypted_notes");
+
 app.get("/api/notes", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT * FROM encrypted_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-  )
-    .bind(c.get("userId"))
-    .all();
+  const sinceMs = Number(c.req.query("since")) || 0;
+  const sinceSec = sinceMs > 0 ? Math.floor(sinceMs / 1000) : 0;
+  const userId = c.get("userId");
+  const { sql } = noteSelect;
+  let stmt = c.env.DB.prepare(sql(sinceSec));
+  if (sinceSec > 0) {
+    stmt = stmt.bind(userId, sinceSec, sinceSec);
+  } else {
+    stmt = stmt.bind(userId);
+  }
+  const { results } = await stmt.all();
   return c.json({ data: results });
 });
 
@@ -300,6 +420,43 @@ app.post("/api/notes", async (c) => {
     .run();
   if (result.meta.changes === 0) return conflictResponse(c);
   return c.json({ status: "saved" });
+});
+
+app.delete("/api/notes/:id", async (c) => {
+  const userId = c.get("userId");
+  const id = c.req.param("id");
+  const result = await c.env.DB.prepare(buildDeleteSql("encrypted_notes", "id"))
+    .bind(id, userId)
+    .run();
+  if (result.meta.changes === 0) return notFoundResponse(c);
+  return c.json({ status: "deleted" });
+});
+
+app.get("/api/stats", async (c) => {
+  const userId = c.get("userId");
+
+  const results = await c.env.DB.batch([
+    c.env.DB.prepare("SELECT count(*) as c, max(updated_at) as m FROM projects WHERE user_id = ? AND deleted_at IS NULL").bind(userId),
+    c.env.DB.prepare("SELECT count(*) as c, max(updated_at) as m FROM documents WHERE user_id = ? AND deleted_at IS NULL").bind(userId),
+    c.env.DB.prepare("SELECT count(*) as c, max(updated_at) as m FROM annotations WHERE user_id = ? AND deleted_at IS NULL").bind(userId),
+    c.env.DB.prepare("SELECT count(*) as c, max(updated_at) as m FROM encrypted_notes WHERE user_id = ? AND deleted_at IS NULL").bind(userId),
+  ]);
+
+  const projects = (results[0].results[0] as any)?.c || 0;
+  const documents = (results[1].results[0] as any)?.c || 0;
+  const annotations = (results[2].results[0] as any)?.c || 0;
+  const notes = (results[3].results[0] as any)?.c || 0;
+
+  const times = [
+    (results[0].results[0] as any)?.m,
+    (results[1].results[0] as any)?.m,
+    (results[2].results[0] as any)?.m,
+    (results[3].results[0] as any)?.m,
+  ].filter(Boolean) as string[];
+
+  const last_updated = times.length > 0 ? times.sort().reverse()[0] : null;
+
+  return c.json({ projects, documents, annotations, notes, last_updated });
 });
 
 app.onError((error, c) => {
