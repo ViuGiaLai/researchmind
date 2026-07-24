@@ -14,7 +14,7 @@ rapidocr_onnxruntime==1.4.*
 Pillow==12.3.*
 
 # AI / Embedding (cloud via Gemini API; no local model dependencies)
-chromadb==0.6.*
+chromadb==1.5.*
 
 # LLM
 httpx==0.28.*
