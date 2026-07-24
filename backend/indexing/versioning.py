@@ -16,9 +16,15 @@ def stage_manifest(session, manifest_model, paper_id: str, fingerprint: str):
         manifest.previous_fingerprint = manifest.fingerprint
         manifest.fingerprint = fingerprint
         manifest.status = "building"
-    session.commit(); return manifest
+    session.commit()
+    return manifest
 def commit_manifest(session, manifest) -> None:
-    manifest.status = "ready"; manifest.previous_fingerprint = ""; session.commit()
+    manifest.status = "ready"
+    manifest.previous_fingerprint = ""
+    session.commit()
 def rollback_manifest(session, manifest) -> None:
-    if manifest.previous_fingerprint: manifest.fingerprint = manifest.previous_fingerprint
-    manifest.previous_fingerprint = ""; manifest.status = "ready"; session.commit()
+    if manifest.previous_fingerprint:
+        manifest.fingerprint = manifest.previous_fingerprint
+    manifest.previous_fingerprint = ""
+    manifest.status = "ready"
+    session.commit()

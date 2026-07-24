@@ -803,6 +803,9 @@
   "evidence": {
     "title": "Ma trận so sánh",
     "description": "So sánh bằng chứng theo từng paper để xác minh claim, quote và mức độ tin cậy.",
+    "all_papers": "Tất cả ({n})",
+    "project_papers": "Trong dự án ({n})",
+    "search_placeholder": "Tìm kiếm tài liệu...",
     "select_min": "Chọn ít nhất 2 bài báo để so sánh",
     "new_matrix": "Tạo mới",
     "regenerate": "Tạo lại",

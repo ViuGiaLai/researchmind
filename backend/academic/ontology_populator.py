@@ -99,7 +99,7 @@ def _extract_experiments(line: str, index: int) -> list[ExperimentEntity]:
     import re as _re
     experiments: list[ExperimentEntity] = []
     # Skip known non-experiment keys
-    _SKIP_KEYS = {"page", "size", "n", "num", "count", "id", "index", "max", "min"}
+    skip_keys = {"page", "size", "n", "num", "count", "id", "index", "max", "min"}
 
     line_lower = line.lower()
     methods = _extract_methods(line_lower)
@@ -112,7 +112,7 @@ def _extract_experiments(line: str, index: int) -> list[ExperimentEntity]:
         line_lower,
     )
     for metric, val_str in exp_matches:
-        if metric in _SKIP_KEYS:
+        if metric in skip_keys:
             continue
         try:
             val = float(val_str)

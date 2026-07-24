@@ -465,7 +465,7 @@ def _extract_txt(file_path: str) -> ExtractedDocument | None:
     if not full_text.strip():
         return None
 
-    lines = [l.strip() for l in full_text.splitlines() if l.strip()]
+    lines = [line.strip() for line in full_text.splitlines() if line.strip()]
     title = lines[0] if lines else path.stem
 
     language = _detect_language(full_text[:2000])

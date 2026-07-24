@@ -7,12 +7,13 @@
 """
 import pytest
 
-pytestmark = pytest.mark.integration
 from academic.hypothesis_engine import AcademicHypothesisEngine
 from academic.methodology import AcademicMethodologyEngine
 from academic.refutation_engine import AdversarialRefutationEngine
 from academic.reproducibility import ReproducibilityEvaluator
 from academic.validity_auditor import ValidityAuditor
+
+pytestmark = pytest.mark.integration
 
 
 def test_prisma_methodology_flow():

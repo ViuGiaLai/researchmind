@@ -15,6 +15,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from common.i18n import get_language, t
@@ -287,10 +288,10 @@ def _md_to_html(md_text: str) -> str:
             html_parts.append(f"<ol>{items}</ol>")
         elif event == "blockquote":
             lines_data = data[0]
-            content = "<br>".join(_inline_html(l) if l else "" for l in lines_data)
+            content = "<br>".join(_inline_html(line) if line else "" for line in lines_data)
             html_parts.append(f"<blockquote>{content}</blockquote>")
         elif event == "paragraph":
-            content = "<br>".join(_inline_html(l) for l in data[0])
+            content = "<br>".join(_inline_html(line) for line in data[0])
             html_parts.append(f"<p>{content}</p>")
     return "\n".join(html_parts)
 
@@ -456,8 +457,7 @@ async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db), reque
     try:
         from docx import Document
         from docx.enum.text import WD_ALIGN_PARAGRAPH
-        from docx.oxml.ns import qn
-        from docx.shared import Cm, Inches, Pt, RGBColor
+        from docx.shared import Cm, Pt, RGBColor
     except ImportError:
         raise HTTPException(
             status_code=500,
@@ -582,8 +582,6 @@ async def export_paper_docx(paper_id: str, db: Session = Depends(_get_db), reque
 
 
 # ─── Synthesis Export ──────────────────────────────────────────
-
-from pydantic import BaseModel
 
 
 class SynthesisExportRequest(BaseModel):
@@ -1106,7 +1104,7 @@ async def export_synthesis(
             from docx.enum.text import WD_ALIGN_PARAGRAPH
             from docx.oxml import OxmlElement
             from docx.oxml.ns import qn
-            from docx.shared import Cm, Inches, Pt, RGBColor
+            from docx.shared import Cm, Pt, RGBColor
         except ImportError:
             raise HTTPException(
                 status_code=500,
@@ -1201,15 +1199,15 @@ async def export_synthesis(
                 doc.add_heading(data[0], level=3)
             elif event == "hr":
                 p = doc.add_paragraph()
-                pPr = p.paragraph_format.element.get_or_add_pPr()
-                pBdr = OxmlElement('w:pBdr')
+                ppr_elem = p.paragraph_format.element.get_or_add_pPr()
+                pbdr_elem = OxmlElement('w:pBdr')
                 bottom = OxmlElement('w:bottom')
                 bottom.set(qn('w:val'), 'single')
                 bottom.set(qn('w:sz'), '6')
                 bottom.set(qn('w:space'), '4')
                 bottom.set(qn('w:color'), 'cbd5e1')
-                pBdr.append(bottom)
-                pPr.append(pBdr)
+                pbdr_elem.append(bottom)
+                ppr_elem.append(pbdr_elem)
             elif event == "bullet_list":
                 for item in data[0]:
                     p = doc.add_paragraph(style='List Bullet')

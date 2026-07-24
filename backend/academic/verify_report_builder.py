@@ -134,8 +134,8 @@ class VerifyReport:
             ],
             "limitations": {
                 "unverifiable_items": [
-                    {"item": l.item, "detail": l.detail, "impact": l.impact}
-                    for l in self.limitations.unverifiable_items
+                    {"item": item.item, "detail": item.detail, "impact": item.impact}
+                    for item in self.limitations.unverifiable_items
                 ],
                 "missing_data": self.limitations.missing_data,
                 "assumptions": self.limitations.assumptions,

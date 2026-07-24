@@ -617,6 +617,9 @@
   "evidence": {
     "title": "比較マトリックス",
     "description": "各論文のエビデンスを比較して、主張、引用、信頼性を検証します。",
+    "all_papers": "すべて ({n})",
+    "project_papers": "プロジェクト内 ({n})",
+    "search_placeholder": "ドキュメントを検索...",
     "select_min": "比較するには少なくとも2件の論文を選択してください",
     "new_matrix": "新規作成",
     "regenerate": "再生成",

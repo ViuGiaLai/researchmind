@@ -12,6 +12,7 @@ Key ideas:
 """
 
 
+import fitz
 import numpy as np
 from loguru import logger
 
@@ -118,7 +119,7 @@ def _assign_columns(
         means = np.array([x0[narrow_indices][best_labels_narrow == i].mean() for i in range(best_k)])
         order = np.argsort(means)
         remap = {old: new for new, old in enumerate(order)}
-        best_labels = np.array([remap[int(l)] for l in all_labels])
+        best_labels = np.array([remap[int(label)] for label in all_labels])
         return best_k, best_labels
     else:
         return 1, np.zeros(n, dtype=int)

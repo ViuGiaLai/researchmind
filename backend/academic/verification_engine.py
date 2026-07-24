@@ -52,7 +52,7 @@ class AcademicVerificationEngine:
 
         # 2. Citation Checker
         citation_checker = get_tool("citation_checker")
-        cits_to_check = citations or [l for l in text_content.splitlines() if l.strip().startswith("[")]
+        cits_to_check = citations or [line for line in text_content.splitlines() if line.strip().startswith("[")]
         cit_res = citation_checker.run(citations=cits_to_check, venue_id=venue_id)
         citation_correctness = cit_res.success
         details["citation_check"] = cit_res.data

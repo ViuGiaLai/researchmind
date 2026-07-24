@@ -18,7 +18,8 @@ class MultilingualEntailmentVerifier:
         self._pipeline = None
         self._load_attempted = False
     def _load(self):
-        if self._load_attempted: return self._pipeline
+        if self._load_attempted:
+            return self._pipeline
         self._load_attempted = True
         try:
             from transformers import pipeline

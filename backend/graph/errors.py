@@ -1,7 +1,7 @@
 """Graph build errors."""
 
 
-class GraphBuildCancelled(Exception):
+class GraphBuildCancelledError(Exception):
     """Raised when the user cancels an in-progress graph build."""
 
     pass

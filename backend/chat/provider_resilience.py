@@ -6,22 +6,33 @@ from dataclasses import dataclass
 
 @dataclass
 class ProviderState:
-    successes: int = 0; failures: int = 0; consecutive_failures: int = 0
-    opened_until: float = 0.0; latency_ms: int = 0
+    successes: int = 0
+    failures: int = 0
+    consecutive_failures: int = 0
+    opened_until: float = 0.0
+    latency_ms: int = 0
 class ProviderHealth:
     def __init__(self, failure_threshold: int = 3, cooldown_seconds: float = 30.0):
-        self.failure_threshold = failure_threshold; self.cooldown_seconds = cooldown_seconds
-        self._states: dict[str, ProviderState] = {}; self._lock = threading.Lock()
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self._states: dict[str, ProviderState] = {}
+        self._lock = threading.Lock()
     def available(self, provider: str) -> bool:
-        with self._lock: return self._states.setdefault(provider, ProviderState()).opened_until <= time.monotonic()
+        with self._lock:
+            return self._states.setdefault(provider, ProviderState()).opened_until <= time.monotonic()
     def record(self, provider: str, success: bool, latency_ms: int) -> None:
         with self._lock:
-            state = self._states.setdefault(provider, ProviderState()); state.latency_ms = latency_ms
+            state = self._states.setdefault(provider, ProviderState())
+            state.latency_ms = latency_ms
             if success:
-                state.successes += 1; state.consecutive_failures = 0; state.opened_until = 0.0
+                state.successes += 1
+                state.consecutive_failures = 0
+                state.opened_until = 0.0
             else:
-                state.failures += 1; state.consecutive_failures += 1
-                if state.consecutive_failures >= self.failure_threshold: state.opened_until = time.monotonic() + self.cooldown_seconds
+                state.failures += 1
+                state.consecutive_failures += 1
+                if state.consecutive_failures >= self.failure_threshold:
+                    state.opened_until = time.monotonic() + self.cooldown_seconds
     def score(self, provider: str) -> float:
         with self._lock:
             s = self._states.setdefault(provider, ProviderState())

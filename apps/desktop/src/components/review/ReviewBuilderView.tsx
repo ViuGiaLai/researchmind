@@ -276,10 +276,28 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
   const loadPapers = async () => {
     try {
-      const sourcePapers = projectId
-        ? (await api.getProject(projectId)).papers
-        : (await api.listPapers(1, 200)).papers;
-      const next = sourcePapers.map((p) => ({
+      const libData = await api.listPapers(1, 500);
+      let allSourcePapers: any[] = libData.papers || [];
+      let projIds: string[] = [];
+
+      if (projectId) {
+        try {
+          const projData = await api.getProject(projectId);
+          const projPapers = projData.papers || [];
+          projIds = projPapers.map((p: any) => p.id);
+          const existingMap = new Map(allSourcePapers.map((p: any) => [p.id, p]));
+          for (const p of projPapers) {
+            if (!existingMap.has(p.id)) {
+              existingMap.set(p.id, p);
+            }
+          }
+          allSourcePapers = Array.from(existingMap.values());
+        } catch (e) {
+          console.warn("[ReviewBuilder] Failed to load project papers:", e);
+        }
+      }
+
+      const next = allSourcePapers.map((p) => ({
         id: p.id,
         title: paperDisplayTitle(p.title, (p as { filename?: string }).filename),
         authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
@@ -287,9 +305,15 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
         auto_summary: (p as any).auto_summary,
       }));
       setPapers(next);
+
       const available = new Set(next.map((paper) => paper.id));
-      setSelectedIds(initialPaperIds.filter((id) => available.has(id)));
-      setPaperTitles(next.filter((paper) => initialPaperIds.includes(paper.id)).map((paper) => paper.title));
+      const preSelect = new Set([
+        ...initialPaperIds.filter((id) => available.has(id)),
+        ...projIds.filter((id) => available.has(id)),
+      ]);
+      const selectedList = Array.from(preSelect);
+      setSelectedIds(selectedList);
+      setPaperTitles(next.filter((paper) => selectedList.includes(paper.id)).map((paper) => paper.title));
     } catch {
       console.error("Failed to load papers");
     }

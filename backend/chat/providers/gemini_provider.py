@@ -89,5 +89,4 @@ class GeminiProviderMixin:
             lang = getattr(getattr(self, '_local', None), 'lang', 'vi')
             logger.error(f"Gemini stream failed: {e}")
             yield _t("provider.error.gemini_stream", lang, error=redact_api_key(str(e)))
-            for chunk in self._stream_local(prompt):
-                yield chunk
+            yield from self._stream_local(prompt)

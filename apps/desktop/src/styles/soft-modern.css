@@ -264,6 +264,15 @@ html:lang(vi) h4 {
   border-radius: var(--radius-md) !important;
 }
 
+.chat-view-cite-btn:hover:not(:disabled),
+.chat-view-export-btn:hover:not(:disabled),
+.chat-view-clear-btn:hover:not(:disabled) {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary, #ffffff) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
 .rm-btn--chip.active,
 .rm-chip.selected,
 .rm-filter-pill.active,

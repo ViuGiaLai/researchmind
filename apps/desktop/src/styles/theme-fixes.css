@@ -120,6 +120,29 @@ select:focus,
   border-color: var(--color-border-subtle) !important;
 }
 
+.chat-view-cite-btn {
+  background: var(--color-primary-subtle, rgba(99, 102, 241, 0.08)) !important;
+  color: var(--color-primary, #6366f1) !important;
+  border: 1px solid var(--color-primary-muted, rgba(99, 102, 241, 0.25)) !important;
+  border-radius: var(--radius-md, 6px) !important;
+  padding: 3px 9px !important;
+  font-weight: 500 !important;
+  transition: all var(--transition-normal, 0.18s ease) !important;
+}
+
+.chat-view-cite-btn:hover:not(:disabled) {
+  background: var(--color-primary, #6366f1) !important;
+  color: var(--color-on-primary, #ffffff) !important;
+  border-color: var(--color-primary, #6366f1) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.chat-view-cite-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+  box-shadow: none !important;
+}
+
 .chat-view-text pre {
   background: var(--color-inset) !important;
   border: 1px solid var(--color-border-subtle) !important;

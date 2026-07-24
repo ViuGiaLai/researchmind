@@ -712,8 +712,8 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
         for task in asyncio.as_completed(tasks):
             if await req.is_disconnected():
                 logger.info("REVIEW_STREAM client disconnected, cancelling pending tasks")
-                for t in tasks:
-                    t.cancel()
+                for task in tasks:
+                    task.cancel()
                 break
             section, result = await task
             completed.append(result)
@@ -1188,7 +1188,7 @@ async def save_draft(request: Request, body: dict = Body(...)):
     full_text = body.get("full_text", "")
     create_version = body.get("create_version", False)  # manual save → True, auto-save → False
 
-    MAX_VERSIONS = 3
+    max_versions = 3
     session = get_session(state.engine)
     try:
         if draft_id:
@@ -1218,8 +1218,8 @@ async def save_draft(request: Request, body: dict = Body(...)):
                         "full_text": existing.full_text or "",
                         "saved_at": saved_at,
                     })
-                    if len(versions) > MAX_VERSIONS:
-                        versions = versions[-MAX_VERSIONS:]
+                    if len(versions) > max_versions:
+                        versions = versions[-max_versions:]
 
                 existing.title = title
                 existing.paper_ids = json.dumps(paper_ids, ensure_ascii=False)
@@ -1593,15 +1593,15 @@ async def export_review(request: Request, body: dict = Body(...)):
                 doc.add_heading(data[0], level=3)
             elif event == "hr":
                 p = doc.add_paragraph()
-                pPr = p.paragraph_format.element.get_or_add_pPr()
-                pBdr = OxmlElement("w:pBdr")
+                p_pr = p.paragraph_format.element.get_or_add_pPr()
+                p_bdr = OxmlElement("w:pBdr")
                 bottom = OxmlElement("w:bottom")
                 bottom.set(qn("w:val"), "single")
                 bottom.set(qn("w:sz"), "6")
                 bottom.set(qn("w:space"), "4")
                 bottom.set(qn("w:color"), "cbd5e1")
-                pBdr.append(bottom)
-                pPr.append(pBdr)
+                p_bdr.append(bottom)
+                p_pr.append(p_bdr)
             elif event == "bullet_list":
                 for item in data[0]:
                     p = doc.add_paragraph(style="List Bullet")

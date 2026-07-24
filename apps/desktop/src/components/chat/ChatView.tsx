@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
 import { api, getAuthenticatedApiUrl, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
@@ -15,7 +15,6 @@ import {
   IconTrash,
   IconSend,
   IconSpinner,
-  IconBulb,
   IconFileText,
   IconStar,
   IconBook,
@@ -463,7 +462,10 @@ export const ChatView: React.FC<{
           ));
         };
 
+        let hasReceivedChunk = false;
+
         streamCtrl.onStatus = (status) => {
+          if (hasReceivedChunk) return;
           setMessages((prev) => prev.map((m, i) =>
             i === assistantIdx ? { ...m, content: status } : m
           ));
@@ -472,11 +474,11 @@ export const ChatView: React.FC<{
         streamCtrl.onChunk = (chunk) => {
           setMessages((prev) => prev.map((m, i) => {
             if (i !== assistantIdx) return m;
-            const current = m.content;
-            if (current.startsWith("Dang ") || current.includes("Đang")) {
+            if (!hasReceivedChunk) {
+              hasReceivedChunk = true;
               return { ...m, content: chunk };
             }
-            return { ...m, content: current + chunk };
+            return { ...m, content: m.content + chunk };
           }));
         };
 
@@ -1317,8 +1319,9 @@ export const ChatView: React.FC<{
                       setInput(q);
                     }}
                   >
-                    <IconBulb size={14} className="u-mr-8" />
-                    {q}
+                    <span className="suggestion-btn-number">{i + 1}</span>
+                    <span className="suggestion-btn-text">{q}</span>
+                    <IconArrowRight size={14} className="suggestion-btn-icon" />
                   </button>
                 ))}
               </div>

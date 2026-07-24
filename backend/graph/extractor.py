@@ -15,7 +15,7 @@ from loguru import logger
 from academic.governance import get_academic_governance
 from app_state import state
 
-from .errors import GraphBuildCancelled
+from .errors import GraphBuildCancelledError
 from .models import GraphEntity, GraphRelationship
 
 # ── Versioned graph extraction schema ────────────────────────────
@@ -130,7 +130,7 @@ def _deduplicate_relationships(
 
 def _ensure_not_cancelled() -> None:
     if state.build_cancelled:
-        raise GraphBuildCancelled("Build cancelled by user")
+        raise GraphBuildCancelledError("Build cancelled by user")
 
 
 # ── Main Extraction Function ─────────────────────────────────────
@@ -180,7 +180,7 @@ async def extract_entities_and_relationships(
             system_prompt=get_academic_governance().task_contract("entity_extraction"),
             task_type="entity",
         )
-    except GraphBuildCancelled:
+    except GraphBuildCancelledError:
         raise
     except Exception as e:
         logger.error(f"Entity extraction LLM call failed: {e}")
@@ -205,7 +205,7 @@ async def extract_entities_and_relationships(
                     system_prompt=get_academic_governance().task_contract("entity_extraction_continue"),
                     task_type="entity",
                 )
-            except GraphBuildCancelled:
+            except GraphBuildCancelledError:
                 raise
             except Exception:
                 break
@@ -224,7 +224,7 @@ async def extract_entities_and_relationships(
                         system_prompt=get_academic_governance().task_contract("entity_extraction_loop"),
                         task_type="entity",
                     )
-                except GraphBuildCancelled:
+                except GraphBuildCancelledError:
                     raise
                 except Exception:
                     break

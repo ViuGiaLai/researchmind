@@ -15,7 +15,7 @@ from app_state import state
 from common.i18n import t as _t
 
 from .cluster import detect_communities
-from .errors import GraphBuildCancelled
+from .errors import GraphBuildCancelledError
 from .extractor import extract_entities_and_relationships
 from .models import (
     GraphEntity,
@@ -40,7 +40,7 @@ def _set_progress(phase: str, current: int, total: int, message: str, lang: str 
 
 def _ensure_not_cancelled() -> None:
     if state.build_cancelled:
-        raise GraphBuildCancelled("Build cancelled by user")
+        raise GraphBuildCancelledError("Build cancelled by user")
 
 
 async def _cancel_active_tasks() -> None:
@@ -181,18 +181,18 @@ async def build_graph_from_chunks(
                 state.build_tasks = []
 
             for result in results:
-                if isinstance(result, GraphBuildCancelled):
+                if isinstance(result, GraphBuildCancelledError):
                     raise result
                 if isinstance(result, asyncio.CancelledError):
-                    raise GraphBuildCancelled("Build cancelled by user")
+                    raise GraphBuildCancelledError("Build cancelled by user")
                 if isinstance(result, Exception):
                     logger.warning(f"Chunk extraction failed: {result}")
 
             processed = n_end
             if state.build_cancelled:
-                raise GraphBuildCancelled("Build cancelled by user")
+                raise GraphBuildCancelledError("Build cancelled by user")
 
-    except GraphBuildCancelled:
+    except GraphBuildCancelledError:
         await _cancel_active_tasks()
         logger.warning("Graph build cancelled by user")
         _set_progress("cancelled", processed, total_chunks, _t("graph.cancelled", lang), lang=lang)
