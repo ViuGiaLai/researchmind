@@ -153,4 +153,87 @@ document.addEventListener('DOMContentLoaded', function() {
       mainContainer.innerHTML = reportViewerHtml;
     }
   }
+
+  // Live Collaboration Invitation Portal (Cloudflare Pages)
+  const inviteParam = urlParams.get('invite');
+  const workspaceParam = urlParams.get('workspace') || 'Default Workspace';
+  const roleParam = urlParams.get('role') || 'reviewer';
+
+  if (inviteParam) {
+    const roleLabel =
+      roleParam === 'editor' ? '✏️ Editor (Cùng đọc, note và sửa)' :
+      roleParam === 'reviewer' ? '🔍 Reviewer (Soát bằng chứng & Phản biện)' :
+      '👁️ Viewer (Chỉ xem báo cáo)';
+
+    const inviteHtml = `
+      <div id="live-collab-invite" style="max-width: 860px; margin: 40px auto; padding: 36px; background: #0f172a; border: 1px solid rgba(45, 212, 191, 0.4); border-radius: 16px; color: #f8fafc; box-shadow: 0 20px 50px rgba(0,0,0,0.6); position: relative; z-index: 99999;">
+        <!-- Header Badge -->
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 28px;">
+          <span style="font-size: 0.75rem; font-weight: 800; background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); padding: 4px 14px; border-radius: 999px; letter-spacing: 0.05em;">
+            👥 LỜI MỜI CỘNG TÁC NGHIÊN CỨU (TEAM COLLABORATION)
+          </span>
+          <a href="https://researchmind.pages.dev" style="color: #2dd4bf; text-decoration: none; font-size: 0.85rem; font-weight: 700;">← ResearchMind AI</a>
+        </div>
+
+        <h1 style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin-bottom: 12px;">
+          Bạn nhận được lời mời tham gia Dự án Nghiên cứu!
+        </h1>
+        <p style="font-size: 0.95rem; color: #94a3b8; line-height: 1.6; margin-bottom: 28px;">
+          Đồng nghiệp / Giáo viên đã mời bạn cùng đọc tài liệu, kiểm tra trích dẫn và đọc tổng quan bằng chứng khoa học trên hệ thống ResearchMind AI Workspace.
+        </p>
+
+        <!-- Details Grid -->
+        <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 22px; margin-bottom: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px;">
+          <div>
+            <span style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Người mời (UID)</span>
+            <strong style="color: #2dd4bf; font-family: monospace; font-size: 0.95rem;">${inviteParam}</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Dự án / Workspace</span>
+            <strong style="color: #ffffff; font-size: 0.95rem;">${workspaceParam}</strong>
+          </div>
+          <div>
+            <span style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px;">Quyền Hạn Được Gán</span>
+            <span style="color: #10b981; font-weight: 700; font-size: 0.95rem;">${roleLabel}</span>
+          </div>
+        </div>
+
+        <!-- Privacy Assurance Shield -->
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 16px 20px; margin-bottom: 32px; display: flex; align-items: center; gap: 14px;">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <div style="font-size: 0.84rem; color: #cbd5e1; line-height: 1.5;">
+            <strong style="color: #10b981;">Bảo mật 100% Cục bộ:</strong> Bạn sẽ tham gia cộng tác qua mã hóa HTTPS an toàn. Tệp PDF gốc không bao giờ bị upload trái phép lên máy chủ trung gian.
+          </div>
+        </div>
+
+        <!-- Direct Copyable Link / Code Box for Desktop App -->
+        <div style="background: rgba(15, 23, 42, 0.9); border: 1px dashed rgba(45, 212, 191, 0.4); border-radius: 12px; padding: 18px 22px; margin-bottom: 28px;">
+          <label style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">
+            Mã Lời mời Cộng tác (Dán trực tiếp vào ResearchMind Desktop App):
+          </label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" readonly value="${window.location.href}" id="collab-invite-url-box" style="flex: 1; background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(255,255,255,0.15); color: #2dd4bf; padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 0.85rem;" />
+            <button onclick="navigator.clipboard.writeText(document.getElementById('collab-invite-url-box').value); alert('📋 Đã sao chép Link Mời! Hãy dán vào nút [📥 Nhập Link Mời] trên ứng dụng Desktop.')" style="padding: 10px 18px; border-radius: 8px; background: #0d9488; color: #fff; border: none; font-weight: 700; cursor: pointer; font-size: 0.85rem; white-space: nowrap;">
+              📋 Sao chép Link
+            </button>
+          </div>
+        </div>
+
+        <!-- Action CTA Buttons -->
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center;">
+          <button onclick="window.location.href='researchmind://invite?invite=${inviteParam}&workspace=${workspaceParam}&role=${roleParam}'; setTimeout(function(){ alert('🚀 Đã kích hoạt kết nối Desktop App! Bạn cũng có thể mở ResearchMind App -> [Tài khoản] -> [📥 Nhập Link Mời] và dán link này.') }, 800)" style="padding: 12px 24px; border-radius: 8px; background: #0d9488; color: #fff; border: none; font-weight: 700; cursor: pointer; font-size: 0.9rem; box-shadow: 0 4px 14px rgba(13,148,136,0.4);">
+            🚀 Chấp nhận & Mở ResearchMind Desktop App
+          </button>
+          <a href="https://researchmind.pages.dev/docs.html" style="padding: 12px 24px; border-radius: 8px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-weight: 600; text-decoration: none; font-size: 0.9rem;">
+            📖 Xem Hướng dẫn Cộng tác
+          </a>
+        </div>
+      </div>
+    `;
+
+    var mainContainer = document.querySelector('main') || document.querySelector('.container') || document.body;
+    if (mainContainer) {
+      mainContainer.innerHTML = inviteHtml;
+    }
+  }
 });
