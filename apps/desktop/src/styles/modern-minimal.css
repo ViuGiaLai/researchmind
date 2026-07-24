@@ -340,6 +340,13 @@ h1, h2, h3, h4,
   box-shadow: none !important;
 }
 
+.chat-view-cite-btn:hover:not(:disabled),
+.chat-view-export-btn:hover:not(:disabled) {
+  background: var(--color-primary) !important;
+  color: var(--color-on-primary, #ffffff) !important;
+  border-color: var(--color-primary) !important;
+}
+
 /* ══════════════ LIBRARY ══════════════ */
 .library-toolbar,
 .library-header,

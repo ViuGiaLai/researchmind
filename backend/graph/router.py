@@ -16,7 +16,7 @@ from db.models import Chunk
 
 from .builder import build_graph_from_chunks
 from .drift_search import drift_search
-from .errors import GraphBuildCancelled
+from .errors import GraphBuildCancelledError
 from .global_search import global_search
 from .local_search import local_search
 from .storage import GraphStore
@@ -95,7 +95,7 @@ async def _run_graph_build(
                 "message": t("graph.completed", lang),
                 "stats": stats,
             }
-    except GraphBuildCancelled:
+    except GraphBuildCancelledError:
         stats = store.graph.stats()
         state.build_progress = {
             "phase": "cancelled",

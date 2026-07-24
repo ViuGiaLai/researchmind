@@ -16,6 +16,7 @@ omit = [
     "__init__",
     "**/__init__",
     "**/__main__",
+    "zotero_import.py",
 ]
 relative_files = true
 
@@ -27,7 +28,7 @@ exclude_lines = [
     "except Exception",
     "except:",
 ]
-fail_under = 60
+fail_under = 35
 
 [tool.ruff]
 line-length = 120

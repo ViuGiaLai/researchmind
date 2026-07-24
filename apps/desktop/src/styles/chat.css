@@ -144,24 +144,112 @@
 }
 
 .chat-view-suggestion-btn {
+  position: relative;
   display: flex;
   align-items: center;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  gap: 12px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-surface) 98%, var(--color-primary) 2%),
+      var(--color-surface)
+    );
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
-  padding: var(--chat-pad) calc(var(--chat-pad) * 1.25);
+  padding: 14px 16px;
   cursor: pointer;
-  font-size: 0.88em;
+  font-size: 0.85em;
   color: var(--color-text);
-  transition: all var(--transition-fast);
+  transition: all 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1));
   width: 100%;
   min-width: 0;
   text-align: left;
+  line-height: 1.45;
+  overflow: hidden;
+}
+
+.chat-view-suggestion-btn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-primary);
+  opacity: 0.4;
+  transition: opacity 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1)),
+              top 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1)),
+              bottom 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1));
 }
 
 .chat-view-suggestion-btn:hover {
-  border-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-surface) 94%, var(--color-primary) 6%),
+      var(--color-surface-hover)
+    );
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.10);
+}
+
+.chat-view-suggestion-btn:hover::before {
+  opacity: 1;
+  top: 4px;
+  bottom: 4px;
+}
+
+.chat-view-suggestion-btn:active {
+  transform: translateY(0px) scale(0.995);
+}
+
+.suggestion-btn-number {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  font-size: 0.72em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: background 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1)),
+              color 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1));
+}
+
+.chat-view-suggestion-btn:hover .suggestion-btn-number {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  color: var(--color-primary-hover);
+}
+
+.suggestion-btn-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.suggestion-btn-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.5;
+  transition: opacity 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1)),
+              color 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1)),
+              transform 200ms var(--ease-product, cubic-bezier(.2, .8, .2, 1));
+}
+
+.chat-view-suggestion-btn:hover .suggestion-btn-icon {
+  opacity: 0.8;
+  color: var(--color-primary);
+  transform: translateX(2px);
 }
 
 .chat-view-msg {

@@ -46,8 +46,12 @@ export const ScreeningBoard: React.FC<ScreeningBoardProps> = ({ projectId }) => 
   const [stage, setStage] = useState<ScreeningStage>("title_abstract");
 
   const loadScreening = useCallback(() => {
-    setLoading(true);
-    const source = projectId ? api.getProject(projectId).then(data => data.papers) : api.listPapers(1, 500).then(data => data.papers);
+    const source = projectId
+      ? api.getProject(projectId).then(async (data) => {
+          if (data.papers && data.papers.length > 0) return data.papers;
+          return (await api.listPapers(1, 500)).papers;
+        })
+      : api.listPapers(1, 500).then(data => data.papers);
     Promise.all([source, api.listScreeningDecisions(projectId, stage), api.listScreeningDecisions(projectId, "title_abstract"), api.getPrismaCounts(projectId)]).then(([sourcePapers, decisionData, titleData, prismaData]) => {
       const eligible = new Set(titleData.decisions.filter(item => item.decision === "include").map(item => item.paper_id));
       setPapers(sourcePapers.filter(p => stage === "title_abstract" || eligible.has(p.id)).map(p => ({

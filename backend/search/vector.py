@@ -10,6 +10,12 @@ https://github.com/Future-House/paper-qa/blob/main/src/paperqa/llms.py
 import os
 
 # Disable ChromaDB telemetry before importing chromadb
+from dataclasses import dataclass
+from pathlib import Path
+
+import numpy as np
+from loguru import logger
+
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_OTEL_GRANULARITY"] = "none"
 
@@ -18,12 +24,6 @@ import chromadb.telemetry.product.posthog
 
 # Monkey-patch telemetry once at module level (before any client is created)
 chromadb.telemetry.product.posthog.Posthog.capture = lambda self, event: None
-
-from dataclasses import dataclass
-from pathlib import Path
-
-import numpy as np
-from loguru import logger
 
 
 @dataclass

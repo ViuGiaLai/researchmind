@@ -11,11 +11,13 @@ from loguru import logger
 
 _trace_id: ContextVar[str] = ContextVar("ai_trace_id", default="")
 _metrics = Counter()
-def current_trace_id() -> str: return _trace_id.get()
+def current_trace_id() -> str:
+    return _trace_id.get()
 @contextmanager
 def trace(operation: str, **fields):
     trace_id = current_trace_id() or uuid.uuid4().hex[:16]
-    token = _trace_id.set(trace_id); started = time.monotonic()
+    token = _trace_id.set(trace_id)
+    started = time.monotonic()
     _metrics[f"{operation}.calls"] += 1
     status = "success"
     try:

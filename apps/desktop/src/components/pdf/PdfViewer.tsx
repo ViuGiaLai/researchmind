@@ -289,6 +289,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({
                         goToPage(p);
                       }}
                       title={t("pdf.go_to_page")}
+                      style={{ fontSize: 12 }}
                     >
                       {Array.from({ length: totalPages || 1 }, (_, i) => i + 1).map((p) => (
                         <option key={p} value={p}>

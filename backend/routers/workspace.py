@@ -726,8 +726,33 @@ async def export_user_data(include_operational: bool = False):
     finally:
         session.close()
 
+    export_dir = settings.data_dir / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    handle, raw_path = tempfile.mkstemp(prefix="researchmind-data-", suffix=".zip", dir=export_dir)
+    os.close(handle)
+    target = Path(raw_path)
+    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8")
+    manifest = {
+        "format": payload["format"],
+        "version": 1,
+        "created_at": payload["created_at"],
+        "data_sha256": hashlib.sha256(data).hexdigest(),
+        "includes_operational_data": include_operational,
+        "contains_credentials": False,
+    }
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        bundle.writestr("researchmind-data.json", data)
+        bundle.writestr("manifest.json", json.dumps(manifest, indent=2))
+    return FileResponse(
+        target,
+        media_type="application/zip",
+        filename=f"researchmind-data-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip",
+        background=BackgroundTask(target.unlink, missing_ok=True),
+    )
+
 
 @router.get("/projects/{project_id}/artifacts")
+
 async def list_project_artifacts(project_id: str):
     session = get_session(state.engine)
     try:
@@ -847,27 +872,3 @@ async def check_living_review(subscription_id: str):
         return {"subscription_id": item.id, "matches": matches[:100], "count": len(matches)}
     finally:
         session.close()
-
-    export_dir = settings.data_dir / "exports"
-    export_dir.mkdir(parents=True, exist_ok=True)
-    handle, raw_path = tempfile.mkstemp(prefix="researchmind-data-", suffix=".zip", dir=export_dir)
-    os.close(handle)
-    target = Path(raw_path)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8")
-    manifest = {
-        "format": payload["format"],
-        "version": 1,
-        "created_at": payload["created_at"],
-        "data_sha256": hashlib.sha256(data).hexdigest(),
-        "includes_operational_data": include_operational,
-        "contains_credentials": False,
-    }
-    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-        bundle.writestr("researchmind-data.json", data)
-        bundle.writestr("manifest.json", json.dumps(manifest, indent=2))
-    return FileResponse(
-        target,
-        media_type="application/zip",
-        filename=f"researchmind-data-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip",
-        background=BackgroundTask(target.unlink, missing_ok=True),
-    )

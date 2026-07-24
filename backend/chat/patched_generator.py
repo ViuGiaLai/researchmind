@@ -121,8 +121,7 @@ class PatchedGenerator(
                     system=sp,
                     messages=[{"role": "user", "content": user_prompt}],
                 ) as stream:
-                    for text in stream.text_stream:
-                        yield text
+                    yield from stream.text_stream
                 return
             elif provider == "nvidia_deepseek":
                 if not self.nvidia_deepseek_api_key:

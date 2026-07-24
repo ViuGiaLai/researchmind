@@ -73,20 +73,56 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
   const [searchTerm, setSearchTerm] = useState("");
   const toast = useToast();
 
+  const [projectPaperIds, setProjectPaperIds] = useState<string[]>([]);
+  const [scopeFilter, setScopeFilter] = useState<"all" | "project">("all");
+
   useEffect(() => {
-    const source = projectId ? api.getProject(projectId).then(data => data.papers) : api.listPapers(1, 100).then(data => data.papers);
-    source.then((sourcePapers: any[]) => {
-      const next = sourcePapers.map(p => ({
-        id: p.id,
-        title: p.title || "",
-        authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
-        thumbnail_url: (p as any).thumbnail_url,
-        auto_summary: (p as any).auto_summary,
-      }));
-      setPapers(next);
-      const available = new Set(next.map(p => p.id));
-      setSelectedIds(initialPaperIds.filter(id => available.has(id)));
-    }).catch(() => {});
+    async function loadAllPapers() {
+      try {
+        const libData = await api.listPapers(1, 500);
+        let allSourcePapers: any[] = libData.papers || [];
+        let projIds: string[] = [];
+
+        if (projectId) {
+          try {
+            const projData = await api.getProject(projectId);
+            const projPapers = projData.papers || [];
+            projIds = projPapers.map((p: any) => p.id);
+            const existingMap = new Map(allSourcePapers.map((p: any) => [p.id, p]));
+            for (const p of projPapers) {
+              if (!existingMap.has(p.id)) {
+                existingMap.set(p.id, p);
+              }
+            }
+            allSourcePapers = Array.from(existingMap.values());
+          } catch (e) {
+            console.warn("[EvidenceMatrix] Failed to load project papers:", e);
+          }
+        }
+
+        setProjectPaperIds(projIds);
+
+        const next = allSourcePapers.map(p => ({
+          id: p.id,
+          title: p.title || "",
+          authors: Array.isArray(p.authors) ? p.authors.join(", ") : (p.authors || ""),
+          thumbnail_url: (p as any).thumbnail_url,
+          auto_summary: (p as any).auto_summary,
+        }));
+        setPapers(next);
+
+        const available = new Set(next.map(p => p.id));
+        const preSelected = new Set([
+          ...initialPaperIds.filter(id => available.has(id)),
+          ...projIds.filter(id => available.has(id)),
+        ]);
+        setSelectedIds(Array.from(preSelected));
+      } catch (err) {
+        console.error("[EvidenceMatrix] Failed to fetch library papers:", err);
+      }
+    }
+
+    void loadAllPapers();
     loadDraftList();
   }, [projectId, initialPaperIds.join("|")]);
 
@@ -286,10 +322,13 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
     setActivePdf({ paperId, page, quote });
   };
 
-  const filteredPapers = papers.filter(p =>
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.authors.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPapers = papers.filter(p => {
+    const matchesSearch =
+      p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.authors.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesScope = scopeFilter === "project" ? projectPaperIds.includes(p.id) : true;
+    return matchesSearch && matchesScope;
+  });
 
   return (
     <div className="evidence-layout-container">
@@ -416,12 +455,30 @@ export const EvidenceMatrixView: React.FC<EvidenceMatrixViewProps> = ({ projectI
                 <input
                   type="text"
                   className="evidence-search-input"
-                  placeholder="Tìm kiếm tài liệu..."
+                  placeholder={t("evidence.search_placeholder") || "Tìm kiếm tài liệu..."}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="evidence-actions-group">
+                {projectId && projectPaperIds.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className={`rm-btn rm-btn--xs rm-btn--chip ${scopeFilter === "all" ? "active" : ""}`}
+                      onClick={() => setScopeFilter("all")}
+                    >
+                      {t("evidence.all_papers", { n: papers.length })}
+                    </button>
+                    <button
+                      type="button"
+                      className={`rm-btn rm-btn--xs rm-btn--chip ${scopeFilter === "project" ? "active" : ""}`}
+                      onClick={() => setScopeFilter("project")}
+                    >
+                      {t("evidence.project_papers", { n: projectPaperIds.length })}
+                    </button>
+                  </>
+                )}
                 <button type="button" className="rm-btn rm-btn--xs rm-btn--chip" onClick={selectAll}>
                   {t("evidence.select_all") || "Chọn tất cả"}
                 </button>

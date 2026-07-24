@@ -1535,7 +1535,7 @@ async def get_paper_file(paper_id: str):
     """Retrieve the raw document file for a paper (PDF, image, etc.)."""
     from fastapi.responses import FileResponse
 
-    _MEDIA_TYPES = {
+    media_types = {
         ".pdf": "application/pdf",
         ".png": "image/png",
         ".jpg": "image/jpeg",
@@ -1560,7 +1560,7 @@ async def get_paper_file(paper_id: str):
         path = Path(paper.file_path)
         if not path.exists():
             raise HTTPException(status_code=404, detail="File not found on disk")
-        media_type = _MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
+        media_type = media_types.get(path.suffix.lower(), "application/octet-stream")
         return FileResponse(path, media_type=media_type)
     finally:
         session.close()

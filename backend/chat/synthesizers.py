@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from enum import Enum
+from enum import StrEnum
 
 
-class ResponseMode(str, Enum):
+class ResponseMode(StrEnum):
     COMPACT = "compact"           # default — best balance
     REFINE = "refine"
     TREE_SUMMARIZE = "tree_summarize"

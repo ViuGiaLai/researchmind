@@ -12,7 +12,7 @@ Endpoints:
 
 import json
 
-from fastapi import APIRouter, Body, HTTPException, Request, Response
+from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
 try:

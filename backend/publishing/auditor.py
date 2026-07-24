@@ -158,8 +158,8 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
 
     # ─── 2. STRUCTURE: Abstract Check ──────────────────────────────────────
     abstract_line = None
-    for idx, l in enumerate(lines, 1):
-        if re.search(r"(?i)^\s*#*\s*(?:abstract|tóm tắt)", l):
+    for idx, line in enumerate(lines, 1):
+        if re.search(r"(?i)^\s*#*\s*(?:abstract|tóm tắt)", line):
             abstract_line = idx
             break
 
@@ -213,8 +213,8 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
         found_line = None
         matched_synonym = None
         for syn in synonyms:
-            for idx, l in enumerate(lines, 1):
-                if syn.lower() in l.lower():
+            for idx, line in enumerate(lines, 1):
+                if syn.lower() in line.lower():
                     found_line = idx
                     matched_synonym = syn
                     break
@@ -251,7 +251,7 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
 
     # ─── 4. STRUCTURE: Optional Sections (e.g. Related Work) ───────────────
     for opt_sec in struct_rules.get("optional_sections", []):
-        found = any(opt_sec.lower() in l.lower() for l in lines)
+        found = any(opt_sec.lower() in line.lower() for line in lines)
         if not found:
             report.add_check(
                 name=f"Section: {opt_sec}",
@@ -273,7 +273,7 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
     meta_rules = tmpl.get("metadata_rules", {})
 
     if meta_rules.get("requires_ccs"):
-        found_ccs = any("ccs concept" in l.lower() or "ccs concept" in text_content.lower() for l in lines)
+        found_ccs = any("ccs concept" in line.lower() or "ccs concept" in text_content.lower() for line in lines)
         if found_ccs:
             report.add_check(
                 name="ACM CCS Concepts",
@@ -302,7 +302,7 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
             )
 
     if meta_rules.get("requires_keywords"):
-        found_kw = any("keyword" in l.lower() or "từ khóa" in l.lower() for l in lines)
+        found_kw = any("keyword" in line.lower() or "từ khóa" in line.lower() for line in lines)
         if found_kw:
             report.add_check(
                 name="Keywords Section",
@@ -331,7 +331,7 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
             )
 
     if meta_rules.get("requires_data_availability"):
-        found_da = any("data availability" in l.lower() or "availability of data" in l.lower() for l in lines)
+        found_da = any("data availability" in line.lower() or "availability of data" in line.lower() for line in lines)
         if found_da:
             report.add_check(
                 name="Data Availability Statement",
@@ -364,12 +364,12 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
     if policy == "double_blind":
         leak_lines = []
         if author_name:
-            for idx, l in enumerate(lines, 1):
-                if author_name.lower() in l.lower():
+            for idx, line in enumerate(lines, 1):
+                if author_name.lower() in line.lower():
                     leak_lines.append((idx, f"Author name '{author_name}'"))
 
-        for idx, l in enumerate(lines, 1):
-            email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", l)
+        for idx, line in enumerate(lines, 1):
+            email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", line)
             if email_match:
                 leak_lines.append((idx, f"Email '{email_match.group(0)}'"))
 
@@ -413,7 +413,7 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
 
     # ─── 7. REFERENCES: Citations & Supported Styles ────────────────────────
     styles_str = ", ".join(tmpl.get("supported_citation_styles", ["Standard Citation Style"]))
-    citation_lines = [idx for idx, l in enumerate(lines, 1) if re.search(r"\[\d+\]|\[[A-Za-z]+\s*et\s*al\.\,?\s*\d{4}\]", l)]
+    citation_lines = [idx for idx, line in enumerate(lines, 1) if re.search(r"\[\d+\]|\[[A-Za-z]+\s*et\s*al\.\,?\s*\d{4}\]", line)]
 
     if citation_lines:
         report.add_check(
@@ -443,7 +443,7 @@ def audit_manuscript(title: str, text_content: str, template_id: str = "cvpr", a
         )
 
     # ─── 8. FORMATTING: Figures & Tables Captions ──────────────────────────
-    fig_lines = [idx for idx, l in enumerate(lines, 1) if re.search(r"(?i)(?:fig\.|figure|hình)\s*\d+", l)]
+    fig_lines = [idx for idx, line in enumerate(lines, 1) if re.search(r"(?i)(?:fig\.|figure|hình)\s*\d+", line)]
     if fig_lines:
         report.add_check(
             name="Figures & Tables",

@@ -243,7 +243,7 @@ function renderLine(line: string, i: number, onCitationClick?: (refId: number) =
     const inner = parseInline(headingMatch[2]).map((s, j) =>
       renderSegment(s, j, onCitationClick, allCitations)
     );
-    const Tag = `h${level}` as keyof JSX.IntrinsicElements;
+    const Tag = `h${level}` as "h1" | "h2" | "h3";
     return React.createElement(
       Tag,
       {
@@ -529,7 +529,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCita
 
   for (const el of batched) {
     if (React.isValidElement(el) && el.type === "li") {
-      const newType: "ul" | "ol" = el.props.value !== undefined ? "ol" : "ul";
+      const elTyped = el as React.ReactElement<{ value?: unknown }>;
+      const newType: "ul" | "ol" = elTyped.props.value !== undefined ? "ol" : "ul";
       if (listType === null) {
         listType = newType;
       }
@@ -542,7 +543,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ text, onCita
   flushList();
 
   const renderedMain = React.createElement(React.Fragment, null, ...wrapped);
-  if (thinkingContent) {
+  if (thinkingContent || isThinkingActive) {
     return React.createElement(
       React.Fragment,
       null,

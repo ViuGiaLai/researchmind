@@ -850,6 +850,9 @@
   "evidence": {
     "title": "Comparison Matrix",
     "description": "Compare evidence across papers to verify claims, quotes, and confidence levels.",
+    "all_papers": "All ({n})",
+    "project_papers": "In Project ({n})",
+    "search_placeholder": "Search documents...",
     "select_min": "Select at least 2 papers to compare",
     "new_matrix": "New Matrix",
     "regenerate": "Regenerate",

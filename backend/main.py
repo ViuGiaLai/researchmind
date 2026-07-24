@@ -26,55 +26,54 @@ import json
 import sys
 import threading
 import time
-from pathlib import Path
-
-# Add backend directory to path for imports
-backend_dir = Path(__file__).parent
-sys.path.insert(0, str(backend_dir))
-
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from app_state import state
-from chat.patched_generator import PatchedGenerator as Generator
-from chat.retriever import Retriever
-from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token
-from common.i18n import get_language, set_request_language, t
-from common.request_context import reset_request_bearer_token, set_request_bearer_token
-from common.secret_store import SecretStorageError, get_secret, set_secret
-from config.settings import settings
-from db.database import get_engine, get_session
-from db.migrations import run_migrations
-from db.models import Base, Paper, Setting
-from export import router as export_router
-from graph.router import router as graph_router
-from ingestion.embedder import get_embedder
-from routers.academic import router as academic_router
-from routers.anonymize import router as anonymize_router
-from routers.auth import router as auth_router
-from routers.chat import router as chat_router
-from routers.collections import router as collections_router
-from routers.insights import router as insights_router
-from routers.license import get_license_status
-from routers.license import router as license_router
-from routers.papers import jobs_router, recover_interrupted_import_jobs
-from routers.papers import router as papers_router
-from routers.personal import router as personal_router
-from routers.research import router as research_router
-from routers.review import router as review_router
-from routers.search import router as search_router
-from routers.settings import router as settings_router
-from routers.system import router as system_router
-from routers.verify import router as verify_router
-from routers.workspace import router as workspace_router
-from search.bm25 import BM25Search
-from search.hybrid import HybridSearch
-from search.vector import VectorSearch
-from zotero_import import router as zotero_import_router
+# Add backend directory to path for imports
+backend_dir = Path(__file__).parent
+sys.path.insert(0, str(backend_dir))
+
+from app_state import state  # noqa: E402
+from chat.patched_generator import PatchedGenerator as Generator  # noqa: E402
+from chat.retriever import Retriever  # noqa: E402
+from common.firebase_auth import FirebaseAuthError, ensure_firebase_ready, verify_id_token  # noqa: E402
+from common.i18n import get_language, set_request_language, t  # noqa: E402
+from common.request_context import reset_request_bearer_token, set_request_bearer_token  # noqa: E402
+from common.secret_store import SecretStorageError, get_secret, set_secret  # noqa: E402
+from config.settings import settings  # noqa: E402
+from db.database import get_engine, get_session  # noqa: E402
+from db.migrations import run_migrations  # noqa: E402
+from db.models import Base, Paper, Setting  # noqa: E402
+from export import router as export_router  # noqa: E402
+from graph.router import router as graph_router  # noqa: E402
+from ingestion.embedder import get_embedder  # noqa: E402
+from routers.academic import router as academic_router  # noqa: E402
+from routers.anonymize import router as anonymize_router  # noqa: E402
+from routers.auth import router as auth_router  # noqa: E402
+from routers.chat import router as chat_router  # noqa: E402
+from routers.collections import router as collections_router  # noqa: E402
+from routers.insights import router as insights_router  # noqa: E402
+from routers.license import get_license_status  # noqa: E402
+from routers.license import router as license_router  # noqa: E402
+from routers.papers import jobs_router, recover_interrupted_import_jobs  # noqa: E402
+from routers.papers import router as papers_router  # noqa: E402
+from routers.personal import router as personal_router  # noqa: E402
+from routers.research import router as research_router  # noqa: E402
+from routers.review import router as review_router  # noqa: E402
+from routers.search import router as search_router  # noqa: E402
+from routers.settings import router as settings_router  # noqa: E402
+from routers.system import router as system_router  # noqa: E402
+from routers.verify import router as verify_router  # noqa: E402
+from routers.workspace import router as workspace_router  # noqa: E402
+from search.bm25 import BM25Search  # noqa: E402
+from search.hybrid import HybridSearch  # noqa: E402
+from search.vector import VectorSearch  # noqa: E402
+from zotero_import import router as zotero_import_router  # noqa: E402
 
 # ─── Lifespan ────────────────────────────────────────────────────
 
@@ -412,8 +411,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 # The Render disk can be empty when the process is imported. The directory is
 # created in the lifespan hook before any request is served.
@@ -423,7 +422,7 @@ thumbs_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/thumbs", StaticFiles(directory=thumbs_dir, check_dir=False), name="thumbs")
 
 
-from routers.publishing import router as publishing_router
+from routers.publishing import router as publishing_router  # noqa: E402
 
 app.include_router(export_router)
 app.include_router(zotero_import_router)

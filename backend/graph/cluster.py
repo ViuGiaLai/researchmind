@@ -27,25 +27,25 @@ def detect_communities(
         logger.warning("No entities or relationships to cluster")
         return []
 
-    G = nx.Graph()
+    graph = nx.Graph()
 
     for entity in entities.values():
-        G.add_node(entity.title, id=entity.id)
+        graph.add_node(entity.title, id=entity.id)
 
     for rel in relationships.values():
-        G.add_edge(rel.source, rel.target, weight=rel.weight)
+        graph.add_edge(rel.source, rel.target, weight=rel.weight)
 
     # Try leiden algorithm, fall back to louvain
-    communities = _try_leiden(G, entities, relationships, max_cluster_size, seed)
+    communities = _try_leiden(graph, entities, relationships, max_cluster_size, seed)
     if communities is not None:
         return communities
 
     logger.warning("Leiden unavailable — falling back to Louvain")
-    return _fallback_louvain(G, entities, relationships)
+    return _fallback_louvain(graph, entities, relationships)
 
 
 def _try_leiden(
-    G: nx.Graph,
+    graph: nx.Graph,
     entities: dict[str, GraphEntity],
     relationships: dict[str, GraphRelationship],
     max_cluster_size: int,
@@ -55,7 +55,7 @@ def _try_leiden(
     try:
         from graspologic.partition import hierarchical_leiden
         result = hierarchical_leiden(
-            G,
+            graph,
             max_cluster_size=max_cluster_size,
             random_seed=seed,
         )
@@ -64,7 +64,7 @@ def _try_leiden(
         logger.debug(f"graspologic Leiden failed ({e}), trying graspologic.partition.leiden...")
     try:
         from graspologic.partition import leiden
-        result = leiden(G, random_seed=seed)
+        result = leiden(graph, random_seed=seed)
         return _build_communities_flat(result, entities)
     except (ImportError, AttributeError, TypeError, Exception) as e:
         logger.debug(f"graspologic leiden failed ({e})")
@@ -139,17 +139,17 @@ def _build_communities_flat(
 
 
 def _fallback_louvain(
-    G: nx.Graph,
+    graph: nx.Graph,
     entities: dict[str, GraphEntity],
     relationships: dict[str, GraphRelationship],
 ) -> list[GraphCommunity]:
     """Fallback using Louvain from community package."""
     try:
         import community as community_louvain
-        partition = community_louvain.best_partition(G, random_state=42)
+        partition = community_louvain.best_partition(graph, random_state=42)
     except ImportError:
         logger.error("Neither graspologic nor community-louvain available — returning flat communities")
-        return _flat_communities(G, entities)
+        return _flat_communities(graph, entities)
 
     entity_title_to_id = {e.title.upper(): e.id for e in entities.values()}
 
@@ -179,7 +179,7 @@ def _fallback_louvain(
 
 
 def _flat_communities(
-    G: nx.Graph,
+    graph: nx.Graph,
     entities: dict[str, GraphEntity],
 ) -> list[GraphCommunity]:
     """Last resort: one community containing all entities."""

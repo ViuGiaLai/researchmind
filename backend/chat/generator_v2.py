@@ -427,9 +427,11 @@ class Generator(
                     return None
                 return self._generate_nvidia(user_prompt, self.nvidia_deepseek_api_key, self.nvidia_deepseek_model, max_tokens, system_prompt_override)
             elif provider == "openrouter_r1":
-                if not self.openrouter_api_deep_key:
+                key = self.openrouter_api_deep_key or self.openrouter_api_key
+                model = self.openrouter_deep_model or "deepseek/deepseek-r1"
+                if not key:
                     return None
-                return self._generate_openrouter(user_prompt, self.openrouter_api_deep_key, self.openrouter_deep_model, max_tokens, system_prompt_override)
+                return self._generate_openrouter(user_prompt, key, model, max_tokens, system_prompt_override)
             elif provider == "freemodel":
                 if not self.freemodel_api_key:
                     return None
@@ -585,6 +587,14 @@ class Generator(
                     return
                 yield from self._stream_openai(user_prompt, self.freemodel_api_key, self.freemodel_model, self.freemodel_url, max_tokens)
                 return
+            elif provider == "openrouter_r1":
+                key = self.openrouter_api_deep_key or self.openrouter_api_key
+                model = self.openrouter_deep_model or "deepseek/deepseek-r1"
+                url = getattr(self, "openrouter_url_deep", "") or self.openrouter_url
+                if not key:
+                    return
+                yield from self._stream_openai(user_prompt, key, model, url, max_tokens)
+                return
             elif provider == "openrouter":
                 if not self.openrouter_api_key:
                     return
@@ -623,8 +633,7 @@ class Generator(
                     system=sp,
                     messages=[{"role": "user", "content": user_prompt}],
                 ) as stream:
-                    for text in stream.text_stream:
-                        yield text
+                    yield from stream.text_stream
                 return
             elif provider == "local":
                 yield from self._stream_local(user_prompt)
@@ -1358,8 +1367,7 @@ class Generator(
                         system=self._get_system_prompt(),
                         messages=[{"role": "user", "content": user_prompt}],
                     ) as stream:
-                        for text in stream.text_stream:
-                            yield text
+                        yield from stream.text_stream
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Claude streaming failed: {str(e)}. Switching to the local model..."

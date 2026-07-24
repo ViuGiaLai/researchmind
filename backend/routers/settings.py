@@ -183,7 +183,7 @@ async def test_embedding_connection(request: Request):
             else:
                 try:
                     err = resp.json().get("error", {}).get("message", resp.text)
-                except:
+                except Exception:
                     err = resp.text
                 return {"success": False, "error": t("settings.gemini_api_error", lang, error=err)}
     except Exception as e:
@@ -246,7 +246,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_gemini", lang, error=redact_api_key(err_msg))}
 
@@ -261,7 +261,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_deepseek", lang, error=err_msg)}
 
@@ -276,7 +276,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_claude", lang, error=err_msg)}
 
@@ -291,7 +291,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_groq", lang, error=err_msg)}
 
@@ -306,7 +306,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_nvidia", lang, error=err_msg)}
 
@@ -321,7 +321,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_github", lang, error=err_msg)}
 
@@ -336,7 +336,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_github_qwen", lang, error=err_msg)}
 
@@ -351,7 +351,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_freemodel", lang, error=err_msg)}
 
@@ -366,7 +366,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_openrouter", lang, error=err_msg)}
 
@@ -381,7 +381,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_cohere", lang, error=err_msg)}
 
@@ -396,7 +396,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_cloudflare", lang, error=err_msg)}
 
@@ -411,7 +411,7 @@ async def validate_api_key(request: Request, body: dict = Body(...)):
                 else:
                     try:
                         err_msg = res.json().get("error", {}).get("message", res.text)
-                    except:
+                    except Exception:
                         err_msg = res.text
                     return {"valid": False, "error": t("settings.validate_error_cerebras", lang, error=err_msg)}
 
