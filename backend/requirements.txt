@@ -6,7 +6,7 @@ python-multipart==0.0.*
 
 # Database
 sqlalchemy==2.0.*
-aiosqlite==0.20.*
+aiosqlite==0.22.*
 
 # PDF Processing
 PyMuPDF==1.25.*
