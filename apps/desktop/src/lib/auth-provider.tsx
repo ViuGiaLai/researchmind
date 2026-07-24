@@ -49,6 +49,11 @@ export function useAuth() {
 }
 
 function mapClerkUser(cu: any): AuthUser {
+  const isGoogle =
+    cu?.externalAccounts?.some((acc: any) => acc.provider?.includes("google") || acc.verification?.strategy?.includes("google")) ||
+    cu?.primaryEmailAddress?.verification?.strategy?.includes("google");
+  const providerId = isGoogle ? "google.com" : "email";
+
   return {
     id: cu.id,
     uid: cu.id,
@@ -57,7 +62,7 @@ function mapClerkUser(cu: any): AuthUser {
     displayName: cu.fullName || cu.firstName || cu.username || "",
     imageUrl: cu.imageUrl,
     photoURL: cu.imageUrl,
-    providerData: [{ providerId: "clerk" }],
+    providerData: [{ providerId }],
   };
 }
 

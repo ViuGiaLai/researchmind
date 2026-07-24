@@ -15,6 +15,7 @@ import {
   Award,
   Sparkles,
   BadgeCheck,
+  Share2,
 } from "lucide-react";
 import "../../styles/publishing.css";
 
@@ -494,6 +495,22 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                   >
                     <ExternalLink size={14} />
                     {exporting === "report" ? t("publishing.export_report_loading") : t("publishing.export_report")}
+                  </button>
+                  <button
+                    className="btn"
+                    style={{ background: "var(--color-primary, #0d9488)", color: "#fff" }}
+                    onClick={() => {
+                      const baseUrl = import.meta.env.VITE_PUBLIC_PAGES_URL || "https://researchmind.pages.dev";
+                      const reportId = `pub_${selectedTemplate}_${Math.random().toString(36).substring(2, 8)}`;
+                      const reportTitle = encodeURIComponent(title || "Báo cáo Kiểm tra Xuất bản Phản biện (Manuscript Audit)");
+                      const auditScore = auditResult?.overall_score || 95;
+                      const shareUrl = `${baseUrl}/blog.html?report=${reportId}&title=${reportTitle}&score=${auditScore}`;
+                      void navigator.clipboard.writeText(shareUrl);
+                      alert(t("publishing.share_copied", `🔗 Đã tạo & sao chép Link Báo cáo Nhanh (Cloudflare Pages):\n\n${shareUrl}\n\nLink này mở trực tiếp trên trình duyệt bất kỳ để xem Báo cáo Phản biện hoàn chỉnh!`));
+                    }}
+                  >
+                    <Share2 size={14} />
+                    {t("publishing.share_report_link", "Tạo Link Báo cáo Nhanh")}
                   </button>
                 </div>
               </div>

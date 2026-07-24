@@ -127,11 +127,11 @@ const ReviewHub: React.FC<{
   );
 };
 
-function App() {
-  const { addToast } = useToast();
-  const auth = useAuth();
-  const requestSignIn = () => auth.signIn();
+export function App() {
   const { t } = useTranslation();
+  const auth = useAuth();
+  const { addToast } = useToast();
+  const requestSignIn = () => auth.signIn();
   const [commandOpen, setCommandOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     try {
@@ -219,6 +219,25 @@ function App() {
       // ignore storage errors
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const invite = params.get("invite");
+      const workspaceId = params.get("workspace");
+      const role = params.get("role");
+      if (invite && workspaceId) {
+        void api.joinWorkspace(workspaceId, auth.user?.email || invite, role || "reviewer")
+          .then(() => {
+            addToast("success", `👥 Đã tự động chấp nhận Lời mời tham gia Workspace (${workspaceId.slice(0, 8)})!`);
+            setActiveTab("projects");
+          })
+          .catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+  }, [auth.user, addToast]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

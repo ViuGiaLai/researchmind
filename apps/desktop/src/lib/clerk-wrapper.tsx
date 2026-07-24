@@ -34,6 +34,11 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
   const { signUp: clerkSignUp, setActive: setSignUpActive } = useClerkSignUp();
   const [error, setError] = useState<string | null>(null);
 
+  const isGoogle =
+    clerkUser?.externalAccounts?.some((acc: any) => acc.provider?.includes("google") || acc.verification?.strategy?.includes("google")) ||
+    clerkUser?.primaryEmailAddress?.verification?.strategy?.includes("google");
+  const providerId = isGoogle ? "google.com" : "email";
+
   const user: AuthUser | null = isSignedIn && clerkUser
     ? {
         id: clerkUser.id,
@@ -43,7 +48,7 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
         displayName: clerkUser.fullName || clerkUser.firstName || clerkUser.username || "",
         imageUrl: clerkUser.imageUrl,
         photoURL: clerkUser.imageUrl,
-        providerData: [{ providerId: "clerk" }],
+        providerData: [{ providerId }],
       }
     : null;
 
