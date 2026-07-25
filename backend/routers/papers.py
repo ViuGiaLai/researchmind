@@ -13,7 +13,7 @@ from loguru import logger
 from sqlalchemy import or_
 
 from app_state import state
-from common.i18n import t
+from common.i18n import get_prompt_language, t
 from config.settings import settings
 from db.database import get_session
 from db.models import Annotation, Chunk, CollectionPaper, ImportJob, Paper
@@ -1051,18 +1051,33 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
             logger.warning(f"Keyword extraction failed for {doc.filename}: {kw_err}")
 
         try:
+            is_local = settings.llm_mode == "local"
+            chunk_limit = 1 if is_local else 3
+            target_lang = get_prompt_language()
+
             intro_chunks = (
-                session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
+                session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(chunk_limit).all()
             )
             conclusion_chunk = (
                 session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.desc()).first()
             )
 
             summary_context = "\n".join([c.content for c in intro_chunks])
-            if conclusion_chunk and conclusion_chunk.chunk_index > 2:
+            if conclusion_chunk and conclusion_chunk.chunk_index > chunk_limit:
                 summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
 
-            summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
+            if is_local:
+                if target_lang == "vi":
+                    summary_prompt = """Hãy viết một tóm tắt học thuật cực ngắn (2-3 câu) chỉ dựa vào nội dung bài báo đã cho.
+Tập trung duy nhất vào ý tưởng chính và đóng góp cốt lõi. Không sử dụng các thẻ tiêu đề Markdown."""
+                elif target_lang == "ja":
+                    summary_prompt = """提供された論文のコンテキストのみを使用して、非常に短い2〜3文の学術的な要約を書いてください。
+主なアイデアと重要な貢献のみに焦点を当ててください。Markdownの見出しは使用しないでください。"""
+                else:
+                    summary_prompt = """Write a very short 2-3 sentence academic summary using only the supplied paper context.
+Focus only on the main idea and key contribution. Do not use Markdown headings."""
+            else:
+                summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
 Use this Markdown format:
 
 ### ResearchMind Auto Summary:
@@ -1079,7 +1094,10 @@ Do not infer contributions or limitations that are absent from the context. Pres
             )
 
             if result and result.content:
-                session.query(Paper).filter(Paper.id == file_id).update({"auto_summary": result.content})
+                session.query(Paper).filter(Paper.id == file_id).update({
+                    "auto_summary": result.content,
+                    "auto_summary_lang": target_lang
+                })
                 session.commit()
                 logger.info(f"Generated auto-summary for {doc.filename}")
         except Exception as sum_err:
@@ -1589,8 +1607,12 @@ async def regenerate_summary(paper_id: str):
         if not paper:
             raise HTTPException(status_code=404, detail="Paper not found")
 
+        is_local = settings.llm_mode == "local"
+        chunk_limit = 1 if is_local else 3
+        target_lang = get_prompt_language()
+        
         intro_chunks = (
-            session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(3).all()
+            session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(chunk_limit).all()
         )
         conclusion_chunk = (
             session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.desc()).first()
@@ -1600,10 +1622,21 @@ async def regenerate_summary(paper_id: str):
             raise HTTPException(status_code=400, detail="Paper has no indexed chunks yet")
 
         summary_context = "\n".join([c.content for c in intro_chunks])
-        if conclusion_chunk and conclusion_chunk.chunk_index > 2:
+        if conclusion_chunk and conclusion_chunk.chunk_index > chunk_limit:
             summary_context += f"\n\nConclusion:\n{conclusion_chunk.content}"
 
-        summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
+        if is_local:
+            if target_lang == "vi":
+                summary_prompt = """Hãy viết một tóm tắt học thuật cực ngắn (2-3 câu) chỉ dựa vào nội dung bài báo đã cho.
+Tập trung duy nhất vào ý tưởng chính và đóng góp cốt lõi. Không sử dụng các thẻ tiêu đề Markdown."""
+            elif target_lang == "ja":
+                summary_prompt = """提供された論文のコンテキストのみを使用して、非常に短い2〜3文の学術的な要約を書いてください。
+主なアイデアと重要な貢献のみに焦点を当ててください。Markdownの見出しは使用しないでください。"""
+            else:
+                summary_prompt = """Write a very short 2-3 sentence academic summary using only the supplied paper context.
+Focus only on the main idea and key contribution. Do not use Markdown headings."""
+        else:
+            summary_prompt = """Write an extremely concise, evidence-grounded academic summary using only the supplied paper context.
 Use this Markdown format:
 
 ### ResearchMind Auto Summary:
@@ -1626,7 +1659,7 @@ Do not infer contributions or limitations that are absent from the context. Pres
         if result and result.content:
             new_summary = result.content
             paper.auto_summary = new_summary
-            paper.auto_summary_lang = settings.output_language or "auto"
+            paper.auto_summary_lang = target_lang
             session.commit()
             logger.info(f"Regenerated auto-summary for {paper.filename}")
         else:

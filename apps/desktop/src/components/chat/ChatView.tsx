@@ -28,6 +28,9 @@ import {
   IconClose,
   IconArrowRight,
   IconWithText,
+  IconEdit,
+  IconHistory,
+  IconPlus,
 } from "../Icons";
 
 import { useToast } from "../shared/Toast";
@@ -69,6 +72,8 @@ interface Message {
   model_used?: string;
   router_reason?: string;
   token_count?: number;
+  reasoning_mode?: string;
+  truncated?: boolean;
 }
 
 type Scope = "current" | "library" | "collection" | "external";
@@ -164,6 +169,91 @@ export const ChatView: React.FC<{
   const [tempPaperIds, setTempPaperIds] = useState<string[]>([]);
   const paperSearchRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  const [editingMsgIndex, setEditingMsgIndex] = useState<number | null>(null);
+  const [editText, setEditText] = useState<string>("");
+
+  // Chat History state
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => Math.random().toString(36).substring(2, 10));
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [chatSessions, setChatSessions] = useState<Array<{
+    session_id: string;
+    updated_at: string;
+    title: string;
+  }>>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchSessions = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await api.getChatSessions();
+      setChatSessions(res.sessions || []);
+    } catch (err) {
+      console.error("Failed to fetch chat sessions:", err);
+      toast.addToast("error", t("chat.toast_history_error"));
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [t, toast]);
+
+  const handleLoadSession = async (sessionId: string) => {
+    setLoadingHistory(true);
+    try {
+      const res = await api.getChatHistory(sessionId, 100);
+      const loadedMessages: Message[] = (res.history || []).map((h) => ({
+        role: h.role,
+        content: h.content,
+        citations: normalizeCitations(
+          typeof h.citations === "string" && h.citations.trim()
+            ? JSON.parse(h.citations)
+            : Array.isArray(h.citations)
+            ? h.citations
+            : []
+        ),
+        model_used: h.model_used || undefined,
+      }));
+      setMessages(loadedMessages);
+      const sessionScope = (res.history || []).find((h) => h.scope)?.scope;
+      if (sessionScope && ["current", "library", "collection", "external"].includes(sessionScope)) {
+        setScope(sessionScope as Scope);
+      }
+      setCurrentSessionId(sessionId);
+      setShowHistoryModal(false);
+      toast.addToast("success", t("chat.toast_history_loaded"));
+    } catch (err) {
+      console.error("Failed to load session:", err);
+      toast.addToast("error", t("chat.toast_history_error"));
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleClearSession = async (sessionId?: string) => {
+    if (!window.confirm(t("chat.history_clear_confirm"))) return;
+    try {
+      await api.clearChatHistory(sessionId);
+      if (sessionId) {
+        setChatSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+        if (sessionId === currentSessionId) {
+          setMessages([]);
+          setCurrentSessionId(Math.random().toString(36).substring(2, 10));
+        }
+      } else {
+        setChatSessions([]);
+        setMessages([]);
+        setCurrentSessionId(Math.random().toString(36).substring(2, 10));
+      }
+      toast.addToast("success", t("chat.toast_history_cleared"));
+    } catch (err) {
+      console.error("Failed to clear DB history:", err);
+      toast.addToast("error", t("chat.toast_history_error"));
+    }
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setCurrentSessionId(Math.random().toString(36).substring(2, 10));
+    setShowHistoryModal(false);
+  };
 
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [pdfPaperUrl, setPdfPaperUrl] = useState<string | null>(null);
@@ -389,13 +479,57 @@ export const ChatView: React.FC<{
     toast.addToast("info", t("chat.cancelled_toast"));
   };
 
-  const handleSend = async (overrideText?: string) => {
+  /** Prior turns for multi-turn context (excludes the message being sent). */
+  const buildHistoryPayload = (prior: Message[]) => {
+    const MAX_PAIRS = 5;
+    const MAX_CHARS = 1200;
+    // UI status lines only — always resolve via i18n (current locale).
+    const placeholderHints = [
+      t("chat.processing"),
+      t("chat.searching_docs"),
+      t("chat.connecting_model"),
+      t("chat.cached_response"),
+      t("chat.cancelled"),
+    ]
+      .filter(Boolean)
+      .map((s) => String(s).toLowerCase());
+
+    return prior
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .filter((m) => {
+        const content = (m.content || "").trim();
+        if (!content) return false;
+        if (m.role === "assistant") {
+          const lower = content.toLowerCase();
+          if (
+            content.length < 100 &&
+            placeholderHints.some((h) => h && (lower === h || lower.includes(h) || h.includes(lower)))
+          ) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .slice(-(MAX_PAIRS * 2))
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content.length > MAX_CHARS
+          ? `${m.content.slice(0, MAX_CHARS - 1).trimEnd()}…`
+          : m.content,
+      }));
+  };
+
+  const handleSend = async (overrideText?: string, baseMessages?: Message[]) => {
     const text = overrideText?.trim() ?? input.trim();
     if (!text || loading || isStreaming) return;
     setInput("");
 
+    const currentBase = baseMessages ?? messages;
+
+    // Capture prior turns before appending the new user message.
+    const historyPayload = buildHistoryPayload(currentBase);
+
     const userMsg: Message = { role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
     let streamHandlesLoading = false;
 
@@ -411,7 +545,7 @@ export const ChatView: React.FC<{
           role: "assistant",
           content: t("chat.no_papers_selected"),
         };
-        setMessages((prev) => [...prev, errMsg]);
+        setMessages([...currentBase, userMsg, errMsg]);
         setLoading(false);
         return;
       }
@@ -420,7 +554,7 @@ export const ChatView: React.FC<{
       effectiveIds = undefined; // search tất cả papers
     } else if (scope === "collection") {
       if (!activeCollectionId) {
-        setMessages((prev) => [...prev, {
+        setMessages([...currentBase, userMsg, {
           role: "assistant",
           content: t("chat.no_collection"),
         }]);
@@ -436,13 +570,21 @@ export const ChatView: React.FC<{
       if (stream && initialMode === "chat") {
         streamHandlesLoading = true;
         const ids = effectiveIds;
-        const streamCtrl = api.chatStream(text, ids, scope, "default", scope === "collection" ? activeCollectionId : undefined, reasoningMode, strictEvidence);
+        const streamCtrl = api.chatStream(
+          text,
+          ids,
+          scope,
+          currentSessionId,
+          scope === "collection" ? activeCollectionId : undefined,
+          reasoningMode,
+          strictEvidence,
+          historyPayload,
+        );
         activeChatStreamRef.current = streamCtrl;
-        const assistantIdx = messages.length + 1;
+        const assistantIdx = currentBase.length + 1;
 
-        const loadingMsg = scope === "external" ? t("chat.processing") : t("chat.searching_docs");
-        setMessages((prev) => [...prev, { role: "assistant", content: loadingMsg }]);
-        setIsStreaming(true);
+        setMessages([...currentBase, userMsg]);
+        // Do NOT set isStreaming(true) yet. Wait for onStatus or onChunk to render typing animation.
 
         let resolved = false;
 
@@ -457,32 +599,45 @@ export const ChatView: React.FC<{
           setIsStreaming(false);
           releaseLoading();
           const content = t("chat.error_prefix", { msg: errMsg });
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, content } : m
-          ));
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content }];
+            }
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content } : m
+            );
+          });
         };
 
-        let hasReceivedChunk = false;
+        let streamAccumulatedText = "";
 
         streamCtrl.onStatus = (status) => {
-          if (hasReceivedChunk) return;
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, content: status } : m
-          ));
+          setIsStreaming(true);
+          if (streamAccumulatedText) return;
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content: status }];
+            }
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content: status } : m
+            );
+          });
         };
 
         streamCtrl.onChunk = (chunk) => {
-          setMessages((prev) => prev.map((m, i) => {
-            if (i !== assistantIdx) return m;
-            if (!hasReceivedChunk) {
-              hasReceivedChunk = true;
-              return { ...m, content: chunk };
+          setIsStreaming(true);
+          streamAccumulatedText += chunk;
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content: streamAccumulatedText }];
             }
-            return { ...m, content: m.content + chunk };
-          }));
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content: streamAccumulatedText } : m
+            );
+          });
         };
 
-        streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content, warning) => {
+        streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content, warning, truncated) => {
           if (resolved) return;
           resolved = true;
           activeChatStreamRef.current = null;
@@ -494,19 +649,26 @@ export const ChatView: React.FC<{
             return;
           }
           setMessages((prev) => {
-            const updated = prev.map((m, i) =>
-              i === assistantIdx
-                ? {
-                    ...m,
-                    model_used: model,
-                    citations: normalizeCitations(citations),
-                    router_reason,
-                    token_count,
-                    content: modified_content || m.content,
-                  }
-                : m
-            );
-            const finalContent = modified_content || updated[assistantIdx]?.content || "";
+            const newContent = modified_content || (prev.length > assistantIdx ? prev[assistantIdx].content : "");
+            if (!newContent.trim()) {
+              console.warn("[ChatView] onDone with empty content — modified_content=%o", modified_content);
+            }
+            
+            const updatedMessage = {
+              role: "assistant" as const,
+              model_used: model,
+              citations: normalizeCitations(citations),
+              router_reason,
+              token_count,
+              content: newContent,
+              truncated: truncated || false,
+            };
+
+            const updated = prev.length <= assistantIdx 
+              ? [...prev, updatedMessage]
+              : prev.map((m, i) => i === assistantIdx ? { ...m, ...updatedMessage } : m);
+            
+            const finalContent = newContent;
             if (finalContent && citations && citations.length > 0) {
               api.analyzeClaims(finalContent, citations).then((res) => {
                 if (res.analysis) {
@@ -537,10 +699,10 @@ export const ChatView: React.FC<{
             const ids = effectiveIds;
             const streamCtrl = api.verifyStream(text, ids, "verify", scope === "collection" ? activeCollectionId : undefined);
             activeChatStreamRef.current = streamCtrl;
-            const assistantIdx = messages.length + 1;
+            const assistantIdx = currentBase.length + 1;
 
-            setMessages((prev) => [...prev, { role: "assistant", content: t("chat.searching_docs") }]);
-            setIsStreaming(true);
+            setMessages([...currentBase, userMsg]);
+            // Do NOT set isStreaming(true) yet.
 
             let resolved = false;
             const releaseLoading = () => setLoading(false);
@@ -556,15 +718,19 @@ export const ChatView: React.FC<{
               });
             };
 
+            let verifyAccumulatedText = "";
+
             streamCtrl.onChunk = (chunk) => {
-              setMessages((prev) => prev.map((m, i) => {
-                if (i !== assistantIdx) return m;
-                const current = m.content;
-                if (current === t("chat.searching_docs")) {
-                  return { ...m, content: chunk };
+              setIsStreaming(true);
+              verifyAccumulatedText += chunk;
+              setMessages((prev) => {
+                if (prev.length <= assistantIdx) {
+                  return [...prev, { role: "assistant", content: verifyAccumulatedText }];
                 }
-                return { ...m, content: current + chunk };
-              }));
+                return prev.map((m, i) =>
+                  i === assistantIdx ? { ...m, content: verifyAccumulatedText } : m
+                );
+              });
             };
 
             streamCtrl.onVenueAudit = (auditData) => {
@@ -578,7 +744,7 @@ export const ChatView: React.FC<{
               setIsStreaming(false);
               releaseLoading();
               setMessages((prev) => {
-                const answer = prev[assistantIdx]?.content || "";
+                const answer = prev.length > assistantIdx ? prev[assistantIdx].content : "";
                 setVerifyResult({
                   answer,
                   citations,
@@ -588,9 +754,17 @@ export const ChatView: React.FC<{
                   verify_status: status as "full" | "partial" | "local_only",
                   venue_audit: venueAudit || undefined,
                 });
-                return prev.map((m, i) =>
-                  i === assistantIdx ? { ...m, model_used: model, citations: normalizeCitations(citations) } : m
-                );
+                
+                const updatedMessage = {
+                  role: "assistant" as const,
+                  content: answer,
+                  model_used: model,
+                  citations: normalizeCitations(citations)
+                };
+
+                return prev.length <= assistantIdx 
+                  ? [...prev, updatedMessage]
+                  : prev.map((m, i) => i === assistantIdx ? { ...m, ...updatedMessage } : m);
               });
               loadUsage();
             };
@@ -602,9 +776,14 @@ export const ChatView: React.FC<{
               setIsStreaming(false);
               releaseLoading();
               const content = t("chat.error_backend_not_running", { err });
-              setMessages((prev) => prev.map((m, i) =>
-                i === assistantIdx ? { ...m, content } : m
-              ));
+              setMessages((prev) => {
+                if (prev.length <= assistantIdx) {
+                  return [...prev, { role: "assistant", content }];
+                }
+                return prev.map((m, i) =>
+                  i === assistantIdx ? { ...m, content } : m
+                );
+              });
             };
 
             return;
@@ -620,10 +799,24 @@ export const ChatView: React.FC<{
             };
           }
         } else {
-          res = await api.chat(text, effectiveIds, scope, scope === "collection" ? activeCollectionId : undefined, reasoningMode);
+          res = await api.chat(
+            text,
+            effectiveIds,
+            scope,
+            currentSessionId,
+            scope === "collection" ? activeCollectionId : undefined,
+            reasoningMode,
+            historyPayload,
+          );
         }
         if (res.warning && !res.answer) {
           toast.addToast("warning", t(`toast.${res.warning}`, { defaultValue: res.warning }));
+        } else if (!res.answer || !res.answer.trim()) {
+          const errMsg: Message = {
+            role: "assistant",
+            content: t("chat.error_empty_response"),
+          };
+          setMessages((prev) => [...prev, userMsg, errMsg]);
         } else {
           const assistantMsg: Message = {
             role: "assistant",
@@ -631,7 +824,7 @@ export const ChatView: React.FC<{
             citations: normalizeCitations(res.citations),
             model_used: res.model_used,
           };
-          setMessages((prev) => [...prev, assistantMsg]);
+          setMessages((prev) => [...prev, userMsg, assistantMsg]);
         }
         loadUsage();
       }
@@ -795,6 +988,109 @@ export const ChatView: React.FC<{
     setBibliography("");
     setShowCitePanel(false);
     setVerifyResult(null);
+  };
+
+  /** Continue a truncated assistant message by appending streamed content to the EXISTING bubble. */
+  const handleContinue = (msgIndex: number) => {
+    const truncatedMsg = messages[msgIndex];
+    if (!truncatedMsg || !truncatedMsg.truncated || loading || isStreaming) return;
+    const continuePrompt = t("chat.continue_prompt");
+
+    // Build history including the truncated message so the model knows where to continue.
+    const historyUpTo = messages.slice(0, msgIndex + 1);
+    const historyPayload = buildHistoryPayload(historyUpTo);
+
+    // Determine effective paper IDs (same logic as handleSend).
+    let effectiveIds: string[] | undefined;
+    if (scope === "current") {
+      if (paperIds.length === 0) return;
+      effectiveIds = paperIds;
+    } else if (scope === "collection") {
+      if (!activeCollectionId) return;
+      effectiveIds = undefined;
+    } else {
+      effectiveIds = undefined;
+    }
+
+    // Reset truncated flag immediately so the continue button disappears.
+    setMessages((prev) => prev.map((m, i) =>
+      i === msgIndex ? { ...m, truncated: false } : m
+    ));
+
+    setLoading(true);
+    setIsStreaming(true);
+
+    // Force 'continue' mode for Continue button:
+    // - 768 token cap (vs 384 for fast) gives more room for continuation
+    // - Auto-continue: if still truncated, backend transparently re-generates
+    // - No deep reasoning — just extends the truncated text efficiently
+    const continueReasoningMode = "continue";
+    const streamCtrl = api.chatStream(
+      continuePrompt,
+      effectiveIds,
+      scope,
+      currentSessionId,
+      scope === "collection" ? activeCollectionId : undefined,
+      continueReasoningMode,
+      strictEvidence,
+      historyPayload,
+    );
+    activeChatStreamRef.current = streamCtrl;
+
+    let resolved = false;
+    const releaseLoading = () => setLoading(false);
+
+    streamCtrl.onChunk = (chunk) => {
+      setMessages((prev) => prev.map((m, i) =>
+        i === msgIndex ? { ...m, content: m.content + chunk } : m
+      ));
+    };
+
+    streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content, warning, truncated) => {
+      if (resolved) return;
+      resolved = true;
+      activeChatStreamRef.current = null;
+      setIsStreaming(false);
+      releaseLoading();
+
+      if (warning && !modified_content) {
+        toast.addToast("warning", t(`toast.${warning}`, { defaultValue: warning }));
+        return;
+      }
+
+      setMessages((prev) => prev.map((m, i) =>
+        i === msgIndex
+          ? {
+              ...m,
+              model_used: model,
+              citations: normalizeCitations(
+                m.citations ? [...m.citations, ...citations] : citations
+              ),
+              router_reason,
+              token_count,
+              // Continue: use m.content (already has old + new chunks from onChunk).
+              // Do NOT use modified_content — it's only the new continuation text
+              // and would replace/deduplicate the accumulated content.
+              content: m.content,
+              truncated: truncated || false,
+            }
+          : m
+      ));
+      loadUsage();
+    };
+
+    streamCtrl.onError = (err) => {
+      if (resolved) return;
+      resolved = true;
+      activeChatStreamRef.current = null;
+      setIsStreaming(false);
+      releaseLoading();
+      // Re-mark as truncated so the user can retry.
+      setMessages((prev) => prev.map((m, i) =>
+        i === msgIndex ? { ...m, truncated: true } : m
+      ));
+      toast.addToast("error", t("chat.continue_failed", { msg: err }));
+    };
   };
 
   // ─── Auto-Cite Handlers ────────────────────────────────────
@@ -966,10 +1262,11 @@ export const ChatView: React.FC<{
 
   const displayQuestions = suggestedQuestions.length > 0 ? suggestedQuestions : null;
 
-  const formatContent = (text: string, msgCitations?: CitationInfo[]) => {
+  const formatContent = (text: string, msgCitations?: CitationInfo[], msgReasoningMode?: string) => {
     return (
       <MarkdownRenderer
         text={text}
+        reasoningMode={msgReasoningMode}
         citations={msgCitations?.map(c => ({
           ref_id: c.ref_id || 0,
           paper_title: c.paper_title,
@@ -1195,6 +1492,60 @@ export const ChatView: React.FC<{
                 <IconSearch size={13} /> {t("chat.quick_verify")}
               </span>
             )}
+            <button
+              type="button"
+              className="chat-view-new-chat-btn"
+              onClick={handleNewChat}
+              title={t("chat.new_chat", { defaultValue: "New Chat" })}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "6px",
+                borderRadius: "6px",
+                border: "1px solid var(--color-border, rgba(255,255,255,0.12))",
+                background: "var(--color-bg-secondary, rgba(255,255,255,0.04))",
+                color: "var(--color-text, #e4e4e7)",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--color-primary, #6366f1)";
+                e.currentTarget.style.borderColor = "var(--color-border-hover, rgba(255,255,255,0.3))";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--color-text, #e4e4e7)";
+                e.currentTarget.style.borderColor = "var(--color-border, rgba(255,255,255,0.12))";
+              }}
+            >
+              <IconPlus size={14} />
+            </button>
+            <button
+              type="button"
+              className="chat-view-history-btn"
+              onClick={() => {
+                setShowHistoryModal(true);
+                fetchSessions();
+              }}
+              title={t("chat.history_title")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "5px 10px",
+                borderRadius: "6px",
+                border: "1px solid var(--color-border, rgba(255,255,255,0.12))",
+                background: "var(--color-bg-secondary, rgba(255,255,255,0.04))",
+                color: "var(--color-text, #e4e4e7)",
+                fontSize: "0.82rem",
+                cursor: "pointer",
+                fontWeight: 500,
+                transition: "all 0.15s ease",
+              }}
+            >
+              <IconHistory size={14} />
+              <span>{t("chat.history_btn")}</span>
+            </button>
             {messages.length > 0 && (
               <button type="button" className="chat-view-clear-btn" onClick={clearChat} title={t("chat.remove_paper_title")}>
                 <IconTrash size={14} />
@@ -1424,19 +1775,89 @@ export const ChatView: React.FC<{
               )}
             </div>
             <div className="chat-view-bubble">
-              {initialMode === "debate" && msg.role === "assistant" ? (
-                renderDebate(msg.content)
-              ) : (
-                  <>
+              {msg.role === "user" ? (
+                editingMsgIndex === i ? (
+                  <div className="chat-view-edit-box">
+                    <textarea
+                      className="chat-view-edit-textarea"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          if (editText.trim() && !loading && !isStreaming) {
+                            const targetText = editText.trim();
+                            const truncated = messages.slice(0, i);
+                            setEditingMsgIndex(null);
+                            handleSend(targetText, truncated);
+                          }
+                        } else if (e.key === "Escape") {
+                          setEditingMsgIndex(null);
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <div className="chat-view-edit-actions">
+                      <button
+                        type="button"
+                        className="chat-view-edit-btn cancel"
+                        onClick={() => setEditingMsgIndex(null)}
+                      >
+                        {t("common.cancel") || "Hủy"}
+                      </button>
+                      <button
+                        type="button"
+                        className="chat-view-edit-btn submit"
+                        disabled={!editText.trim() || isStreaming || loading}
+                        onClick={() => {
+                          if (!editText.trim() || loading || isStreaming) return;
+                          const targetText = editText.trim();
+                          const truncated = messages.slice(0, i);
+                          setEditingMsgIndex(null);
+                          handleSend(targetText, truncated);
+                        }}
+                      >
+                        <IconSend size={13} />
+                        <span>{t("chat.edit_and_resend") || "Gửi lại"}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="chat-view-user-content-wrapper">
                     <div
                       className="chat-view-text"
                       lang={/[ăâđêôơưĂÂĐÊÔƠƯàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(msg.content) ? "vi" : undefined}
                     >
                       {formatContent(msg.content, msg.citations)}
-                      {isStreaming && i === messages.length - 1 && (
-                        <span className="streaming-cursor">|</span>
-                      )}
                     </div>
+                    {!isStreaming && !loading && (
+                      <button
+                        type="button"
+                        className="chat-view-user-edit-trigger"
+                        title={t("chat.edit_message") || "Sửa và gửi lại"}
+                        onClick={() => {
+                          setEditingMsgIndex(i);
+                          setEditText(msg.content);
+                        }}
+                      >
+                        <IconEdit size={13} />
+                      </button>
+                    )}
+                  </div>
+                )
+              ) : initialMode === "debate" ? (
+                renderDebate(msg.content)
+              ) : (
+                <>
+                  <div
+                    className="chat-view-text"
+                    lang={/[ăâđêôơưĂÂĐÊÔƠƯàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i.test(msg.content) ? "vi" : undefined}
+                  >
+                    {formatContent(msg.content, msg.citations, msg.reasoning_mode || (msg.role === "assistant" && i === messages.length - 1 ? reasoningMode : undefined))}
+                    {isStreaming && i === messages.length - 1 && (
+                      <span className="streaming-cursor">|</span>
+                    )}
+                  </div>
                     {msg.citations && msg.citations.length > 0 && (
                       <details className="chat-view-footnotes">
                         <summary className="chat-view-footnotes-summary">
@@ -1511,6 +1932,58 @@ export const ChatView: React.FC<{
                           ))}
                         </div>
                       </details>
+                    )}
+                    {msg.truncated && (
+                      <div className="chat-view-continue-wrapper" style={{
+                        marginTop: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}>
+                        <button
+                          type="button"
+                          className="chat-view-continue-btn"
+                          onClick={() => handleContinue(i)}
+                          title={t("chat.continue_tooltip")}
+                          disabled={loading || isStreaming}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 14px",
+                            borderRadius: "8px",
+                            border: "1px solid var(--color-primary, rgba(99,102,241,0.3))",
+                            background: "rgba(99,102,241,0.08)",
+                            color: "var(--color-primary, #6366f1)",
+                            fontSize: "0.82rem",
+                            fontWeight: 600,
+                            cursor: loading || isStreaming ? "not-allowed" : "pointer",
+                            opacity: loading || isStreaming ? 0.5 : 1,
+                            transition: "all 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!loading && !isStreaming) {
+                              (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(99,102,241,0.5)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.08)";
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--color-primary, rgba(99,102,241,0.3))";
+                          }}
+                        >
+                          <IconArrowRight size={14} />
+                          <span>{t("chat.continue_btn")}</span>
+                        </button>
+                        <span
+                          style={{
+                            marginLeft: "10px",
+                            fontSize: "0.72rem",
+                            color: "var(--color-text-muted, rgba(255,255,255,0.35))",
+                          }}
+                        >
+                          {t("chat.continue_hint")}
+                        </span>
+                      </div>
                     )}
                   </>
               )}
@@ -1774,7 +2247,6 @@ export const ChatView: React.FC<{
                   <span className="item-icon"><IconZap size={16} /></span>
                   <div className="item-text">
                     <div className="item-title">{t("chat.mode_fast")}</div>
-                    <div className="item-desc">{t("chat.mode_fast_desc")}</div>
                   </div>
                 </div>
                 <div
@@ -1787,7 +2259,6 @@ export const ChatView: React.FC<{
                   <span className="item-icon"><IconBrainAi size={16} /></span>
                   <div className="item-text">
                     <div className="item-title">{t("chat.mode_deep")}</div>
-                    <div className="item-desc">{t("chat.mode_deep_desc")}</div>
                   </div>
                 </div>
                 <div
@@ -1800,7 +2271,6 @@ export const ChatView: React.FC<{
                   <span className="item-icon"><IconBrainAi size={16} /></span>
                   <div className="item-text">
                     <div className="item-title">{t("chat.mode_deep_plus")}</div>
-                    <div className="item-desc">{t("chat.mode_deep_plus_desc")}</div>
                   </div>
                 </div>
               </div>
@@ -1967,6 +2437,234 @@ export const ChatView: React.FC<{
                   {t("chat.paper_picker_confirm")}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showHistoryModal && (
+        <div
+          className="paper-picker-overlay"
+          onClick={() => setShowHistoryModal(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(4px)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            className="paper-picker-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "680px",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "var(--color-bg-panel, #1e1e2e)",
+              borderRadius: "12px",
+              border: "1px solid var(--color-border, rgba(255, 255, 255, 0.1))",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              className="paper-picker-header"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "16px 20px",
+                borderBottom: "1px solid var(--color-border, rgba(255, 255, 255, 0.1))",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <IconHistory size={20} style={{ color: "var(--color-primary, #6366f1)" }} />
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}>
+                  {t("chat.history_title")}
+                </h3>
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    background: "rgba(255,255,255,0.08)",
+                    color: "var(--color-text-muted, #a1a1aa)",
+                  }}
+                >
+                  {chatSessions.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowHistoryModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--color-text-muted, #a1a1aa)",
+                  cursor: "pointer",
+                  padding: "4px",
+                  borderRadius: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <IconClose size={18} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                padding: "12px 20px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                background: "rgba(0,0,0,0.1)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handleClearSession()}
+                disabled={chatSessions.length === 0}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  color: "#ef4444",
+                  fontSize: "0.82rem",
+                  cursor: chatSessions.length === 0 ? "not-allowed" : "pointer",
+                  opacity: chatSessions.length === 0 ? 0.5 : 1,
+                  fontWeight: 500,
+                }}
+              >
+                <IconTrash size={14} />
+                <span>{t("chat.history_clear_all", { defaultValue: "Clear All" })}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNewChat}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: "var(--color-primary, #6366f1)",
+                  color: "#ffffff",
+                  fontSize: "0.82rem",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                <span>{t("chat.new_chat", { defaultValue: "New Chat" })}</span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "16px 20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+              }}
+            >
+              {loadingHistory ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 0", gap: "10px", color: "var(--color-text-muted)" }}>
+                  <IconSpinner size={20} />
+                  <span>{t("common.loading")}</span>
+                </div>
+              ) : chatSessions.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "var(--color-text-muted)" }}>
+                  <IconHistory size={36} style={{ opacity: 0.3, marginBottom: "8px" }} />
+                  <p style={{ margin: 0, fontSize: "0.9rem" }}>{t("chat.history_empty")}</p>
+                </div>
+              ) : (
+                chatSessions.map((session) => (
+                  <div
+                    key={session.session_id}
+                    onClick={() => handleLoadSession(session.session_id)}
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "8px",
+                      background: session.session_id === currentSessionId ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                      border: `1px solid ${session.session_id === currentSessionId ? "rgba(99, 102, 241, 0.4)" : "rgba(255, 255, 255, 0.06)"}`,
+                      cursor: "pointer",
+                      transition: "background 0.2s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (session.session_id !== currentSessionId) {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.06)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (session.session_id !== currentSessionId) {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                      }
+                    }}
+                  >
+                    <div style={{ flex: 1, overflow: "hidden", marginRight: "12px" }}>
+                      <div
+                        style={{
+                          fontSize: "0.9rem",
+                          color: "var(--color-text, #e4e4e7)",
+                          fontWeight: 500,
+                          marginBottom: "4px",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {session.title || "New Chat"}
+                      </div>
+                      {session.updated_at && (
+                        <div style={{ color: "var(--color-text-muted, #71717a)", fontSize: "0.75rem" }}>
+                          {session.updated_at}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearSession(session.session_id);
+                      }}
+                      title={t("chat.history_clear")}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "var(--color-text-muted, #a1a1aa)",
+                        cursor: "pointer",
+                        padding: "6px",
+                        borderRadius: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-text-muted, #a1a1aa)"; e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <IconTrash size={16} />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

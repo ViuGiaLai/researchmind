@@ -162,7 +162,19 @@ class ProviderRouter:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
-                        text = self._gemini_text(json.loads(line[6:]))
+                        data = json.loads(line[6:])
+                        if "error" in data:
+                            err = data["error"]
+                            msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                            raise ProviderError(f"Gemini error: {msg}")
+                        
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            finish_reason = candidates[0].get("finishReason")
+                            if finish_reason and finish_reason not in ("STOP", "MAX_TOKENS"):
+                                raise ProviderError(f"Gemini stopped unexpectedly: {finish_reason}")
+                                
+                        text = self._gemini_text(data)
                         if text:
                             yield text
 
@@ -199,12 +211,29 @@ class ProviderRouter:
             async with client.stream("POST", url, headers=headers, json=payload) as response:
                 response.raise_for_status()
                 async for line in response.aiter_lines():
-                    if not line.startswith("data: ") or line == "data: [DONE]":
+                    if line == "data: [DONE]":
                         continue
-                    data = json.loads(line[6:])
-                    chunk = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                    if chunk:
-                        yield chunk
+                    if line.startswith("data: "):
+                        data = json.loads(line[6:])
+                    elif line.startswith("{") and "error" in line:
+                        data = json.loads(line)
+                    else:
+                        continue
+
+                    if "error" in data:
+                        err = data["error"]
+                        msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                        raise ProviderError(f"Provider error: {msg}")
+
+                    choices = data.get("choices", [])
+                    if choices:
+                        finish_reason = choices[0].get("finish_reason")
+                        if finish_reason and finish_reason not in ("stop", "length"):
+                            raise ProviderError(f"Provider stopped unexpectedly: {finish_reason}")
+                            
+                        chunk = choices[0].get("delta", {}).get("content", "")
+                        if chunk:
+                            yield chunk
 
     def _openai_request(self, provider: str, request: GenerateRequest, stream: bool) -> tuple[str, dict, dict]:
         bases = {

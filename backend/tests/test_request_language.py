@@ -31,7 +31,7 @@ def test_request_language_reaches_prompt_instruction():
     try:
         set_request_language("en-US")
         assert get_prompt_language("Vietnamese query") == "en"
-        assert "Write the complete response in English." in get_language_instruction("Vietnamese query")
+        assert "You MUST respond entirely in English." in get_language_instruction("Vietnamese query")
     finally:
         set_request_language("")
 

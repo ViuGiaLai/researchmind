@@ -3,7 +3,7 @@
 import re
 
 
-def adaptive_top_k(query: str, requested: int = 5, task_type: str = "") -> int:
+def adaptive_top_k(query: str, requested: int = 5, task_type: str = "", llm_mode: str = "") -> int:
     # Task-type overrides (lowest priority, applied before adaptive logic)
     task_cap = {
         "debate": 4,
@@ -20,7 +20,20 @@ def adaptive_top_k(query: str, requested: int = 5, task_type: str = "") -> int:
         if comparative or len(words) > 24
         else (min(requested, 5) if len(words) < 5 else max(requested, 7))
     )
-    return min(result, task_max)
+    result = min(result, task_max)
+
+    # Local GGUF: fewer chunks → much less prompt prefill on CPU.
+    mode = (llm_mode or "").strip().lower()
+    if not mode:
+        try:
+            from config.settings import settings
+
+            mode = str(getattr(settings, "llm_mode", "") or "").lower()
+        except Exception:
+            mode = ""
+    if mode == "local":
+        return min(result, 3)
+    return result
 
 
 def decompose_query(query: str, limit: int = 3) -> list[str]:

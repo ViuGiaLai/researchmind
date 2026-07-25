@@ -44,6 +44,45 @@ def _resolve_insight_paper_ids(body: dict) -> list[str] | None:
     return paper_ids
 
 
+async def _retrieve_fairly_across_papers(query: str, paper_ids: list[str], top_k_total: int = 15):
+    if not paper_ids:
+        class EmptyRes:
+            context_text = ""
+            papers_used = []
+            total_chunks = 0
+        return EmptyRes()
+        
+    top_k_per_paper = max(2, top_k_total // len(paper_ids))
+    tasks = [
+        asyncio.to_thread(
+            state.retriever.retrieve,
+            query=query,
+            paper_ids=[pid],
+            top_k=top_k_per_paper,
+        )
+        for pid in paper_ids
+    ]
+    
+    results = await asyncio.gather(*tasks)
+    
+    combined_context = []
+    papers_used = set()
+    total_chunks = 0
+    
+    for res in results:
+        if res.context_text:
+            combined_context.append(res.context_text)
+        papers_used.update(res.papers_used)
+        total_chunks += res.total_chunks
+        
+    class FairRetrievalResult:
+        context_text = "\n\n".join(combined_context)
+        papers_used = list(papers_used)
+        total_chunks = total_chunks
+        
+    return FairRetrievalResult()
+
+
 def _insight_preflight(paper_ids) -> dict | None:
     rag_error = rag_unavailable_message()
     if rag_error:
@@ -66,11 +105,10 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
     if preflight:
         return preflight
 
-    retrieval = await asyncio.to_thread(
-        state.retriever.retrieve,
+    retrieval = await _retrieve_fairly_across_papers(
         query=ACADEMIC_GOVERNANCE.insight_task("gap")["retrieval_query"],
         paper_ids=paper_ids,
-        top_k=15,
+        top_k_total=15,
     )
 
     if not retrieval.context_text.strip():
@@ -82,13 +120,15 @@ async def find_research_gap(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    gap_prompt = ACADEMIC_GOVERNANCE.insight_request("gap")
+    use_cache = body.get("use_cache", True)
+    gap_prompt = ACADEMIC_GOVERNANCE.insight_request("gap", lang=lang, concise=False)
 
     generation = await asyncio.to_thread(
         state.generator.generate,
         query=gap_prompt,
         context_text=retrieval.context_text,
-        task_type="gap",
+        task_type="insight",
+        use_cache=use_cache,
     )
 
     return {
@@ -112,11 +152,10 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
     if preflight:
         return preflight
 
-    retrieval = await asyncio.to_thread(
-        state.retriever.retrieve,
+    retrieval = await _retrieve_fairly_across_papers(
         query=ACADEMIC_GOVERNANCE.insight_task("conflict")["retrieval_query"],
         paper_ids=paper_ids,
-        top_k=15,
+        top_k_total=15,
     )
 
     if not retrieval.context_text.strip():
@@ -128,13 +167,15 @@ async def find_conflicts(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    conflict_prompt = ACADEMIC_GOVERNANCE.insight_request("conflict")
+    use_cache = body.get("use_cache", True)
+    conflict_prompt = ACADEMIC_GOVERNANCE.insight_request("conflict", lang=lang, concise=False)
 
     generation = await asyncio.to_thread(
         state.generator.generate,
         query=conflict_prompt,
         context_text=retrieval.context_text,
         task_type="insight",
+        use_cache=use_cache,
     )
 
     return {
@@ -158,11 +199,10 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
     if preflight:
         return preflight
 
-    retrieval = await asyncio.to_thread(
-        state.retriever.retrieve,
+    retrieval = await _retrieve_fairly_across_papers(
         query=ACADEMIC_GOVERNANCE.insight_task("topic")["retrieval_query"],
         paper_ids=paper_ids,
-        top_k=15,
+        top_k_total=15,
     )
 
     if not retrieval.context_text.strip():
@@ -174,13 +214,15 @@ async def suggest_topics(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    topic_prompt = ACADEMIC_GOVERNANCE.insight_request("topic")
+    use_cache = body.get("use_cache", True)
+    topic_prompt = ACADEMIC_GOVERNANCE.insight_request("topic", lang=lang)
 
     generation = await asyncio.to_thread(
         state.generator.generate,
         query=topic_prompt,
         context_text=retrieval.context_text,
         task_type="insight",
+        use_cache=use_cache,
     )
 
     return {
@@ -204,11 +246,10 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
     if preflight:
         return preflight
 
-    retrieval = await asyncio.to_thread(
-        state.retriever.retrieve,
+    retrieval = await _retrieve_fairly_across_papers(
         query=ACADEMIC_GOVERNANCE.insight_task("evolution")["retrieval_query"],
         paper_ids=paper_ids,
-        top_k=20,
+        top_k_total=20,
     )
 
     if not retrieval.context_text.strip():
@@ -220,13 +261,15 @@ async def find_evolution_map(request: Request, body: dict = Body(...)):
             "chunks_used": 0,
         }
 
-    evolution_prompt = ACADEMIC_GOVERNANCE.insight_request("evolution")
+    use_cache = body.get("use_cache", True)
+    evolution_prompt = ACADEMIC_GOVERNANCE.insight_request("evolution", lang=lang, concise=False)
 
     generation = await asyncio.to_thread(
         state.generator.generate,
         query=evolution_prompt,
         context_text=retrieval.context_text,
         task_type="insight",
+        use_cache=use_cache,
     )
 
     return {
@@ -246,6 +289,7 @@ async def compare_papers(request: Request, body: dict = Body(...)):
     """
     lang = get_language(request)
     paper_ids = _resolve_insight_paper_ids(body)
+    use_cache = body.get("use_cache", True)
 
     if not paper_ids or len(paper_ids) < 2:
         return {
@@ -314,6 +358,7 @@ Paper excerpts:\n{retrieval.context_text}"""
             query=prompt,
             context_text=retrieval.context_text,
             task_type="insight",
+            use_cache=use_cache,
         )
 
         content = (generation.content or "").strip()

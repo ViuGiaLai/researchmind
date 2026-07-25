@@ -20,9 +20,11 @@ class ClaudeProviderMixin:
     ) -> "GenerationResult":
         try:
             sp = system_prompt_override or self._get_system_prompt()
-            import anthropic
-
-            client = anthropic.Anthropic(api_key=self.claude_api_key)
+            if hasattr(self, "_get_anthropic_client"):
+                client = self._get_anthropic_client()
+            else:
+                import anthropic
+                client = anthropic.Anthropic(api_key=self.claude_api_key)
             response = client.messages.create(
                 model=self.claude_model,
                 max_tokens=max_tokens,

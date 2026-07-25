@@ -141,6 +141,7 @@ export const IconChart = wrapIcon(BarChart3, "icon-chart", true);
 export const IconSettings = wrapIcon(Settings, "icon-settings");
 export const IconStar = wrapIcon(Star, "icon-star");
 export const IconClock = wrapIcon(Clock, "icon-clock");
+export const IconHistory = wrapIcon(Clock, "icon-history");
 export const IconChat = wrapIcon(MessageSquare, "icon-chat", true);
 export const IconTrash = wrapIcon(Trash2, "icon-trash");
 export const IconRefresh = wrapIcon(RefreshCw, "icon-refresh");

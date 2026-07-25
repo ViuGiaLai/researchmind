@@ -72,7 +72,7 @@ def test_insight_tasks_are_versioned_data_and_enforce_evidence_policy():
     task = governance.insight_task("conflict")
     assert "methodology" in task["retrieval_query"]
     prompt = governance.insight_request("conflict")
-    assert "Distinguish true conflicts" in prompt
+    assert "Distinguish true empirical conflicts" in prompt
     assert "Use only source labels" in prompt
 
 

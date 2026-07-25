@@ -41,10 +41,25 @@ def _add_chat_history_created_index(connection) -> None:
     connection.execute(text("CREATE INDEX IF NOT EXISTS ix_chat_history_created_at ON chat_history(created_at)"))
 
 
+def _add_chat_history_missing_columns(connection) -> None:
+    """Add session_id, model_used, scope columns to chat_history table if missing."""
+    columns = [
+        ("session_id", "TEXT DEFAULT 'default'"),
+        ("model_used", "TEXT DEFAULT ''"),
+        ("scope", "TEXT DEFAULT 'current'"),
+    ]
+    for col_name, col_type in columns:
+        try:
+            connection.execute(text(f"ALTER TABLE chat_history ADD COLUMN {col_name} {col_type}"))
+        except Exception as e:
+            logger.debug(f"Column {col_name} already exists or failed to add: {e}")
+
+
 MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "seed_default_workspace", _seed_default_workspace),
     (2, "add_hot_path_indexes", _add_hot_path_indexes),
     (3, "add_chat_history_created_index", _add_chat_history_created_index),
+    (4, "add_chat_history_missing_columns", _add_chat_history_missing_columns),
 ]
 
 

@@ -97,7 +97,8 @@ class ChatHistory(Base):
     content = Column(Text, nullable=False)
     context_papers = Column(Text, default="[]")  # JSON array of paper_ids
     citations = Column(Text, default="[]")  # JSON array of citations
-    model_used = Column(String, default="")
+    model_used = Column(String, default="")  # model used to generate the response
+    scope = Column(String, default="current")  # current / library / collection / external
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
 

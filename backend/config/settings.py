@@ -179,7 +179,8 @@ class Settings(BaseSettings):
     openai_stream_timeout: float = 3.0
     llama_server_url: str = "http://127.0.0.1:8080"
     local_model: str = "Qwen3-4B-Q4_K_M.gguf"
-    local_max_tokens: int = 1024
+    # CPU decode is slow; keep default output short. Deep modes can raise via caps.
+    local_max_tokens: int = 512
 
     # Claude Cloud
     claude_api_key: str = ""

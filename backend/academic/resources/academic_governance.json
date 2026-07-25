@@ -434,42 +434,45 @@
                         },
     "insight_tasks":  {
                           "gap":  {
-                                      "objective":  "Analyze research gaps from the retrieved evidence.",
+                                      "objective":  "Identify specific, unexplored research gaps from the retrieved evidence by categorizing and analyzing trends.",
                                       "requirements":  [
-                                                           "Distinguish explicit author-stated gaps from inferred synthesis.",
-                                                           "Identify recurring methodological, data, or scope limitations across sources.",
-                                                           "Formulate 2-3 specific research questions when evidence supports them.",
-                                                           "Assess feasibility conditionally using available methods."
+                                                           "First, group the studies by their methodologies, datasets, or target domains.",
+                                                           "Perform a quantitative or qualitative trend analysis (e.g., 'Most studies focus on X, but very few address Y').",
+                                                           "Pinpoint exact, specific gaps based on missing evidence (e.g., lack of evaluation on Edge devices, or testing in low-light conditions).",
+                                                           "Do NOT use generic statements like 'More research is needed'. State precisely what combination of factors remains unexplored.",
+                                                           "Assess the feasibility of addressing these gaps conditionally using available methods."
                                                        ],
                                       "retrieval_query":  "research methodology findings results limitations future work gaps unexplored areas weaknesses"
                                   },
                           "conflict":  {
                                            "objective":  "Analyze conflicts and contradictions among the retrieved sources.",
                                            "requirements":  [
-                                                                "Identify direct contradictions in claims or results.",
-                                                                "Compare design, sample, metric, population, and setting differences.",
-                                                                "Distinguish true conflicts from scope-dependent differences.",
-                                                                "Propose an evidence-based resolution path."
+                                                                "For each paper, briefly summarize its core conclusion or findings.",
+                                                                "Compare their methodologies, datasets, and results to identify any divergences.",
+                                                                "If conflicts exist, explicitly list them and analyze the potential causes (e.g., different datasets, metrics, sample sizes).",
+                                                                "If NO conflicts exist, explain EXACTLY WHY they complement or align with each other. DO NOT simply output 'No contradiction'.",
+                                                                "Distinguish true empirical conflicts from mere scope-dependent differences."
                                                             ],
-                                           "retrieval_query":  "findings conclusions results claims arguments methodology approach results show demonstrate suggest"
+                                           "retrieval_query":  "findings conclusions results claims arguments methodology approach dataset limitations"
                                        },
                           "topic":  {
-                                        "objective":  "Propose research topics grounded in retrieved limitations and findings.",
+                                        "objective":  "Propose novel research topics grounded in retrieved limitations and unexplored gaps.",
                                         "requirements":  [
-                                                             "Summarize the evidence-supported field state.",
-                                                             "For each topic give title, rationale, and proposed methodology.",
-                                                             "Recommend one topic conditionally by impact and feasibility.",
-                                                             "Do not claim absolute novelty outside this evidence set."
+                                                             "Identify the current state of the field based on the provided papers.",
+                                                             "Propose highly specific topics that combine unexplored elements (e.g., applying Method X to Domain Y under Condition Z).",
+                                                             "For each topic, provide the Title, Rationale (why it is needed based on the papers), and Proposed Methodology.",
+                                                             "Include a quantitative score out of 10 for: Novelty, Feasibility, Impact, and Difficulty.",
+                                                             "Ensure topics are not generic. They must solve a specific limitation found in the evidence."
                                                          ],
                                         "retrieval_query":  "research topic methodology findings results future work direction novel approach innovative"
                                     },
                           "evolution":  {
-                                            "objective":  "Map the evolution of ideas, methods, and results from the retrieved sources.",
+                                            "objective":  "Map the logical evolution of ideas, methods, and results across the retrieved sources.",
                                             "requirements":  [
-                                                                 "Track progression using dates only when supplied.",
-                                                                 "Identify method or consensus changes only when evidence supports them.",
-                                                                 "Trace how later work builds on, modifies, or rejects earlier work.",
-                                                                 "Label any projected next step as inference."
+                                                                 "Trace the progression not just by date, but by logical flow: Idea -> Limitation -> Improvement -> Next Idea.",
+                                                                 "Explain WHY the field transitioned from one method to another (e.g., from CNN to Transformer) based on the evidence.",
+                                                                 "Identify how later work builds on, modifies, or overcomes the weaknesses of earlier work.",
+                                                                 "Group the evolution into distinct developmental phases."
                                                              ],
                                             "retrieval_query":  "research evolution development history background methodology findings results improvement advancement novel approach future direction"
                                         }

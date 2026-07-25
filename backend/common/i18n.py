@@ -106,12 +106,14 @@ def get_prompt_language(user_text: str = "", requested_language: str = "") -> st
 
 def get_language_instruction(user_text: str = "", requested_language: str = "") -> str:
     language = get_prompt_language(user_text, requested_language)
+    lang_name = get_output_language_name(language)
     return (
-        "## OUTPUT LANGUAGE"
-        + chr(10)
-        + "Write the complete response in "
-        + get_output_language_name(language)
-        + ". Keep proper nouns, citations, identifiers, code, and quoted source text unchanged."
+        "## OUTPUT LANGUAGE\n"
+        + f"You MUST respond entirely in {lang_name}. "
+        + f"NEVER write in another language. "
+        + f"If the user's message contains a mix of languages, still respond in {lang_name}. "
+        + "Keep proper nouns, citations, identifiers, code, and quoted source text unchanged. "
+        + "This is the MOST IMPORTANT instruction. Follow it above all others."
     )
 
 

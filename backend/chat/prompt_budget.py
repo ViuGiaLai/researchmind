@@ -23,12 +23,18 @@ PROVIDER_INPUT_BUDGET: dict[str, int] = {
     "cloudflare": 8_000,
     "cerebras": 8_000,
     "claude": 80_000,
-    "local": 3_500,
+    # Local GGUF on CPU is prefill-bound and context-constrained (2048 ctx max); keep input <= 1.2k tokens.
+    "local": 1_200,
 }
 
 OVERHEAD_TOKENS = 256
 
-CONTEXT_BLOCK_RE = re.compile(r"(?s)^(## Document context:\n)(.*?)(\n\n## Question:\n.*)$")
+CONTEXT_BLOCK_RE = re.compile(r"(?s)^(## Document context:\n)(.*?)(\n\n## (?:User q|Q)uestion:\n.*)$")
+# History may be prepended before document context (multi-turn chat).
+HISTORY_CONTEXT_RE = re.compile(
+    r"(?s)^(## Conversation history\n.*?)(\n\n## Document context:\n)(.*?)(\n\n## (?:User q|Q)uestion:\n.*)$"
+)
+HISTORY_PREFIX_RE = re.compile(r"(?s)^(## Conversation history\n.*?)(\n\n)(.+)$")
 SNIPPET_BLOCK_RE = re.compile(r"(?s)^(.*?)(\nExcerpt:\n)(.*)$")
 
 
@@ -62,7 +68,8 @@ def trim_context_text(
 
     query_shell = (
         f"## Document context:\n\n\n## Question:\n{query}\n\n"
-        "Answer using the context above when it contains relevant information. "
+        "Answer naturally and concisely based on the context. "
+        "Vary your sentence openings - do NOT keep starting with 'In this document' or 'The document' or 'Ở tài liệu này'. "
         "Cite each supported claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]."
     )
     allowed = _allowed_user_tokens(system_prompt, provider, max_output_tokens, model)
@@ -90,11 +97,45 @@ def fit_prompt_for_provider(
     max_output_tokens: int = 1024,
     model: str = "gpt-4o",
 ) -> tuple[str, bool]:
-    """Return (fitted_prompt, was_truncated)."""
+    """Return (fitted_prompt, was_truncated).
+
+    Truncation priority (keep what users need for follow-ups):
+    1. Shrink document context first
+    2. Keep conversation history + current question when possible
+    3. Only then hard-truncate the whole prompt
+    """
     allowed = _allowed_user_tokens(system_prompt, provider, max_output_tokens, model)
     user_tokens = count_tokens(user_prompt, model)
     if user_tokens <= allowed:
         return user_prompt, False
+
+    # Multi-turn + RAG: history + document context + question
+    hist_ctx = HISTORY_CONTEXT_RE.match(user_prompt)
+    if hist_ctx:
+        history, ctx_prefix, context, suffix = (
+            hist_ctx.group(1),
+            hist_ctx.group(2),
+            hist_ctx.group(3),
+            hist_ctx.group(4),
+        )
+        fixed = history + ctx_prefix + suffix
+        fixed_tokens = count_tokens(fixed, model)
+        context_budget = max(allowed - fixed_tokens, 128)
+        trimmed = truncate_to_token_limit(context, context_budget, model)
+        fitted = f"{history}{ctx_prefix}{trimmed}\n\n[...(context truncated for {provider})...]{suffix}"
+        if count_tokens(fitted, model) <= allowed:
+            logger.info(
+                f"prompt_budget: {provider} history+context trimmed "
+                f"(user budget={allowed}, kept history)"
+            )
+            return fitted, True
+        # Still over budget: keep question, shrink history, drop most context.
+        question = suffix
+        hist_budget = max(allowed - count_tokens(question, model) - 64, 128)
+        short_history = truncate_to_token_limit(history, hist_budget, model)
+        fitted = f"{short_history}\n\n{question.lstrip()}"
+        logger.info(f"prompt_budget: {provider} history+question fit (dropped long context)")
+        return fitted, True
 
     match = CONTEXT_BLOCK_RE.match(user_prompt)
     if match:
@@ -107,6 +148,20 @@ def fit_prompt_for_provider(
             f"prompt_budget: {provider} context {count_tokens(context, model)}→"
             f"{count_tokens(trimmed, model)} tokens (user budget={allowed})"
         )
+        return fitted, True
+
+    # Multi-turn plain chat (no document context): prefer keeping the current turn.
+    hist_only = HISTORY_PREFIX_RE.match(user_prompt)
+    if hist_only:
+        history, sep, current = hist_only.group(1), hist_only.group(2), hist_only.group(3)
+        current_tokens = count_tokens(current, model)
+        hist_budget = max(allowed - current_tokens - 16, 64)
+        short_history = truncate_to_token_limit(history, hist_budget, model)
+        fitted = f"{short_history}{sep}{current}"
+        if count_tokens(fitted, model) > allowed:
+            # Last resort: keep current question only.
+            fitted = truncate_to_token_limit(current, allowed, model)
+        logger.info(f"prompt_budget: {provider} multi-turn history trimmed (budget={allowed})")
         return fitted, True
 
     match = SNIPPET_BLOCK_RE.match(user_prompt)
