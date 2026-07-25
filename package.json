@@ -1,1 +1,18 @@
-{}
+{
+  "name": "researchmind-pages-functions",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@clerk/backend": "^3.13.1",
+    "@tsndr/cloudflare-worker-jwt": "^2.5.5",
+    "nanoid": "^6.0.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.100.0"
+  },
+  "scripts": {
+    "dev": "wrangler pages dev ./docs --port 8788",
+    "deploy": "wrangler pages deploy ./docs --project-name researchmind",
+    "deploy:preview": "wrangler pages deploy ./docs --project-name researchmind --branch preview"
+  }
+}

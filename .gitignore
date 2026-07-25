@@ -155,3 +155,8 @@ Desktop.ini
 *.swo
 *.bak
 *.orig
+
+# Cloudflare
+.dev.vars
+
+.wrangler

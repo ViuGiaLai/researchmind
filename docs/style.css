@@ -1620,6 +1620,14 @@ body {
   color: var(--report-green);
   font-weight: 700;
 }
+.unlisted-badge {
+  color: var(--report-amber);
+  font-weight: 700;
+}
+.private-badge {
+  color: var(--report-red);
+  font-weight: 700;
+}
 .integrity-badge {
   color: var(--accent-blue);
   font-weight: 600;

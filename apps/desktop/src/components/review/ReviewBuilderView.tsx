@@ -48,7 +48,7 @@ interface ReviewBuilderViewProps {
 }
 
 export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBuilderViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { confirm, confirmationDialog } = useConfirmDialog();
   const { prompt, promptDialog } = usePromptDialog();
   const [papers, setPapers] = useState<{ id: string; title: string; authors: string; thumbnail_url?: string; auto_summary?: string }[]>([]);
@@ -80,6 +80,11 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
   const [qualityLoading, setQualityLoading] = useState(false);
   const toast = useToast();
+  
+  const [cloudReportId, setCloudReportId] = useState<string | null>(null);
+  const [cloudSyncedAt, setCloudSyncedAt] = useState<string | null>(null);
+  const [cloudSyncing, setCloudSyncing] = useState(false);
+  const [cloudVisibility, setCloudVisibility] = useState<"public" | "unlisted" | "private">("public");
 
   // ─── Save/Load ─────────────────────────────────────────────
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
@@ -554,6 +559,51 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
       toast.addToast("error", t("review_builder.toast_export_failed", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleCloudSync = async () => {
+    setCloudSyncing(true);
+    try {
+      const payload = {
+        metadata: {
+          title: title || t("review_builder.default_title"),
+          language: i18n.language || "vi",
+          paper_count: selectedIds.length,
+          word_count: fullText.split(/\s+/).length,
+          report_type: "review",
+          visibility: cloudVisibility
+        },
+        ai: {
+          provider: "local",
+          model: "ResearchMind Desktop",
+          mode: "fast",
+          generated_at: new Date().toISOString()
+        },
+        content: {
+          summary: sections["conclusion"]?.content || "",
+          evidence_matrix: Object.values(evidence).flat(),
+          research_gap: sections["research_gaps"]?.content || "",
+          contradictions: [],
+          timeline: [],
+          references: papers.filter(p => selectedIds.includes(p.id))
+        }
+      };
+
+      if (cloudReportId) {
+        await api.updateCloudReport(cloudReportId, payload);
+        setCloudSyncedAt(new Date().toLocaleTimeString());
+        toast.addToast("success", t("review_builder.toast_sync_success", "Đã đồng bộ lên Cloud thành công!"));
+      } else {
+        const res = await api.createCloudReport(payload);
+        setCloudReportId(res.id);
+        setCloudSyncedAt(new Date().toLocaleTimeString());
+        toast.addToast("success", t("review_builder.toast_share_success", "Đã tạo link chia sẻ thành công!"));
+      }
+    } catch (e) {
+      toast.addToast("error", t("review_builder.toast_sync_failed", { msg: e instanceof Error ? e.message : String(e) }));
+    } finally {
+      setCloudSyncing(false);
     }
   };
 
@@ -1196,6 +1246,64 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                     {fmt === "markdown" ? "Markdown" : fmt === "html" ? "HTML" : "Word"}
                   </button>
                 ))}
+              </div>
+
+              <div className="u-row-wrap" style={{ gap: 8, padding: "12px 0", borderTop: "1px solid var(--color-border, rgba(148,163,184,0.1))" }}>
+                <span className="u-row-gap6 u-text-base u-font-semibold u-text-muted" style={{ marginRight: 8 }}>
+                  <IconZap size={16} />
+                  Cloud
+                </span>
+                
+                <select
+                  value={cloudVisibility}
+                  onChange={(e) => setCloudVisibility(e.target.value as any)}
+                  style={{
+                    padding: "4px 8px", borderRadius: 4, fontSize: "0.75rem",
+                    border: "1px solid var(--color-border, rgba(148,163,184,0.2))",
+                    background: "var(--color-surface)",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                  title={t("review_builder.visibility_label", "Chế độ hiển thị")}
+                >
+                  <option value="public">🌍 {t("review_builder.visibility_public")}</option>
+                  <option value="unlisted">🔗 {t("review_builder.visibility_unlisted")}</option>
+                  <option value="private">🔒 {t("review_builder.visibility_private")}</option>
+                </select>
+                <button
+                  onClick={handleCloudSync}
+                  disabled={cloudSyncing}
+                  className="u-btn-outline-sm"
+                  style={{ borderColor: "var(--color-primary)", color: "var(--color-primary)" }}
+                >
+                  {cloudSyncing ? <IconSpinner size={14} /> : <IconZap size={14} />}
+                  {cloudReportId ? "Đồng bộ ngay" : "Chia sẻ lên Web"}
+                </button>
+                
+                {cloudReportId && (
+                  <>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://researchmind.pages.dev/r/${cloudReportId}`);
+                        toast.addToast("success", "Đã sao chép Link Báo cáo!");
+                      }}
+                      className="u-btn-outline-sm"
+                    >
+                      Sao chép Link
+                    </button>
+                    <button
+                      onClick={() => window.open(`https://researchmind.pages.dev/r/${cloudReportId}`, "_blank")}
+                      className="u-btn-outline-sm"
+                    >
+                      Mở Viewer
+                    </button>
+                    {cloudSyncedAt && (
+                      <span className="u-text-sm u-text-muted" style={{ marginLeft: "auto", fontSize: "0.8rem" }}>
+                        Đã đồng bộ lúc: {cloudSyncedAt}
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
             </>
           )}

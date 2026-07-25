@@ -1726,7 +1726,11 @@
     "generated_by": "Bản review được tạo bởi ResearchMind theo hướng ưu tiên bằng chứng (ưu tiên kết luận có thể kiểm chứng).",
     "pdf_page_label": "Trang {page}",
     "open_citation": "Mở: {label}",
-    "open_citation_page": "Mở: {label} trang {page}"
+    "open_citation_page": "Mở: {label} trang {page}",
+    "visibility_label": "Chế độ hiển thị",
+    "visibility_public": "🌍 Công khai",
+    "visibility_unlisted": "🔗 Không công khai",
+    "visibility_private": "🔒 Riêng tư"
   },
   "screening": {
     "title": "Sàng lọc bài báo",

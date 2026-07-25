@@ -11,6 +11,7 @@ import { getFirebaseIdToken } from "./firebase";
 import { consumeJsonSse } from "./sse";
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
+export const CLOUD_GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || (import.meta.env.DEV ? "http://127.0.0.1:8788/api/v1" : "https://researchmind.pages.dev/api/v1");
 
 /** URL for iframe downloads. Firebase tokens are short-lived and only used
  * where browsers cannot attach the Authorization header themselves. */
@@ -51,28 +52,44 @@ function getBestToken(): string {
   return getFirebaseIdToken();
 }
 
+/** Token dành riêng cho Cloud Gateway (GATEWAY_SHARED_TOKEN) */
+function getGatewayToken(): string {
+  return import.meta.env.VITE_GATEWAY_SHARED_TOKEN || "";
+}
+
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
   return createApiHeaders(getBestToken(), getLangHeader(), extra);
 }
 
 function parseApiError(status: number, text: string): string {
   try {
-    const data = JSON.parse(text) as { detail?: unknown; message?: string; error?: string };
-    if (data.detail) {
-      if (typeof data.detail === "string") return data.detail;
-      if (Array.isArray(data.detail)) {
-        return data.detail
+    const data = JSON.parse(text) as Record<string, unknown>;
+    // Try nested error format: { error: { message: "..." } }
+    if (data && typeof data === "object") {
+      const errField = data.error;
+      if (errField && typeof errField === "object") {
+        const errObj = errField as Record<string, unknown>;
+        if (typeof errObj.message === "string") return errObj.message;
+        if (typeof errObj.code === "string") return errObj.code;
+      }
+      if (typeof errField === "string") return errField;
+    }
+    // Try detail field (FastAPI style)
+    const detail = (data as any).detail;
+    if (detail) {
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) {
+        return detail
           .map((d: { msg?: string }) => d.msg || JSON.stringify(d))
           .join("; ");
       }
     }
-    if (data.message) return data.message;
-    if (data.error) return data.error;
+    if (typeof (data as any).message === "string") return (data as any).message;
+    if (typeof (data as any).error === "string") return (data as any).error;
   } catch {
     // not JSON
   }
   if (status === 429) {
-    // This is a fallback error string; the UI wraps it in an Error object
     return "Free daily limit exhausted. Try again tomorrow or configure your own API key.";
   }
   return text || `HTTP ${status}`;
@@ -160,6 +177,64 @@ async function request<T>(
       throw new Error("Cannot connect to the backend. Make sure FastAPI is running (cd backend && uvicorn main:app --reload --port 8765).");
     }
     throw e;
+  }
+}
+
+async function cloudRequest<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const url = `${CLOUD_GATEWAY_URL}${path}`;
+  const token = getBestToken();
+  const sharedToken = getGatewayToken();
+
+  // For cloud gateway, prefer the shared token when available
+  // (Clerk JWT is designed for the Python backend, not Cloudflare gateway)
+  const effectiveToken = sharedToken || token || "";
+
+  const options: RequestInit = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Language": getLangHeader(),
+      "Accept-Language": getLangHeader(),
+      "ngrok-skip-browser-warning": "true",
+      ...(effectiveToken ? { Authorization: "Bearer " + effectiveToken } : {}),
+    },
+  };
+  if (body !== undefined) {
+    options.body = JSON.stringify(body);
+  }
+  try {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      const err = await res.text();
+      if (res.status === 401) {
+        const detail = parseApiError(res.status, err);
+        let hint: string;
+        if (effectiveToken === sharedToken) {
+          hint = `Shared token rejected. Check GATEWAY_SHARED_TOKEN in .dev.vars and .env of desktop app.`;
+        } else if (token) {
+          hint = `Clerk token present (${token.slice(0, 12)}...) but rejected. Check CLERK_SECRET_KEY in .dev.vars or Cloudflare dashboard.`;
+        } else {
+          hint = `No auth token available. Make sure you're signed in and Clerk has synced the session token.`;
+        }
+        throw new Error(`${detail}. ${hint}`);
+      }
+      throw new Error(parseApiError(res.status, err));
+    }
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    const text = await res.text();
+    if (!text) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
+  } catch (err: unknown) {
+    if (err instanceof Error) throw err;
+    throw new Error(String(err));
   }
 }
 
@@ -590,7 +665,36 @@ export const anonymization = {
 
 // ─── API functions ─────────────────────────────────────────────
 
+export interface CloudReportPayload {
+  metadata: {
+    title: string;
+    language: string;
+    paper_count: number;
+    word_count: number;
+    report_type: string;
+    visibility?: string;
+  };
+  ai: {
+    provider: string;
+    model: string;
+    mode: string;
+    generated_at: string;
+  };
+  content: {
+    summary?: any;
+    evidence_matrix?: any[];
+    research_gap?: any;
+    contradictions?: any[];
+    timeline?: any[];
+    references?: any[];
+  };
+}
+
 export const api = {
+  createCloudReport: (payload: CloudReportPayload) => 
+    cloudRequest<{ id: string; url: string }>("POST", "/reports", payload),
+  updateCloudReport: (id: string, payload: Partial<CloudReportPayload>) => 
+    cloudRequest<{ id: string; status: string; url: string }>("PATCH", `/reports/${id}`, payload),
   getLicenseStatus: () => request<LicenseStatus>("GET", "/api/license/status"),
   activateLicense: (token: string) =>
     request<LicenseStatus>("POST", "/api/license/activate", { token }),
@@ -1324,7 +1428,7 @@ export const api = {
       papers_used: string[];
       chunks_used: number;
       matrix: { columns: string[]; rows: string[][] };
-    }>("POST", "/api/insights/compare", { paper_ids: paperIds }),
+    }>("POST", "/api/insights/compare", { paper_ids: paperIds, use_cache: useCache }),
 
   // Highlights
   findHighlights: (paperId: string, limit = 10) =>

@@ -26,7 +26,9 @@ app = FastAPI(title="ResearchMind AI Gateway", version="1.0.0", lifespan=lifespa
 settings = get_settings()
 origins = [item.strip() for item in settings.cors_origins.split(",") if item.strip()]
 if origins:
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"], allow_headers=["Authorization", "Content-Type"])
+
+# Removed reports_router as it is now migrated to Cloudflare Pages Functions
 
 
 def validate_size(request: GenerateRequest) -> int:
