@@ -9,3 +9,6 @@ name = "researchmind"
 compatibility_date = "2026-07-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "./docs"
+
+[build]
+command = "npm install"
