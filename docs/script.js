@@ -22,7 +22,7 @@
 
   // ─── Detect report page ──────────────────────────────────
   function isReportPage() {
-    if (window.location.pathname.match(/\/(?:r|report|embed|share)\/[\w-]+/)) return true;
+    if (window.location.pathname.match(/\/(?:r|report|embed|share)(?:\/|\.html|$)/)) return true;
     if (getReportIdFromQuery()) return true;
     return false;
   }
@@ -458,20 +458,23 @@
     }).join("");
 
     // Timeline
-    var years = Object.keys(d.timeline).sort();
-    var maxVal = Math.max.apply(null, years.map(function (y) { return d.timeline[y]; }));
+    var years = (d.timeline && typeof d.timeline === "object") ? Object.keys(d.timeline).sort() : [];
+    var maxVal = years.length > 0 ? Math.max.apply(null, years.map(function (y) { return d.timeline[y]; })) : 1;
     var timelineBars = years.map(function (y) {
-      var pct = (d.timeline[y] / maxVal) * 100;
+      var pct = maxVal > 0 ? (d.timeline[y] / maxVal) * 100 : 0;
       return '<div class="timeline-year"><div class="timeline-label">' + y + '</div><div class="timeline-bar-track"><div class="timeline-bar-fill" style="width:' + pct + '%"></div></div><div class="timeline-count">' + d.timeline[y] + '</div></div>';
     }).join("");
 
     // Knowledge graph
-    var graphNodes = d.graph.map(function (g) {
-      return '<div class="graph-node"><div class="graph-node-label">' + esc(g.from) + '</div><div class="graph-arrow">↓</div></div>';
-    }).join("") + '<div class="graph-node"><div class="graph-node-label">' + esc(d.graph[d.graph.length - 1].to) + '</div></div>';
+    var graphNodes = "";
+    if (d.graph && d.graph.length > 0) {
+      graphNodes = d.graph.map(function (g) {
+        return '<div class="graph-node"><div class="graph-node-label">' + esc(g.from) + '</div><div class="graph-arrow">↓</div></div>';
+      }).join("") + '<div class="graph-node"><div class="graph-node-label">' + esc(d.graph[d.graph.length - 1].to) + '</div></div>';
+    }
 
     // Related reports
-    var relatedHtml = d.related.map(function (r) {
+    var relatedHtml = (d.related || []).map(function (r) {
       return '<a href="#" class="related-chip">' + esc(r) + '</a>';
     }).join("");
 

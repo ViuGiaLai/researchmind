@@ -685,7 +685,7 @@ export interface CloudReportPayload {
     evidence_matrix?: any[];
     research_gap?: any;
     contradictions?: any[];
-    timeline?: any[];
+    timeline?: any;
     references?: any[];
   };
 }
