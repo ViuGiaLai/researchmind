@@ -23,7 +23,7 @@ export const onRequestPost = async (context: any) => {
     schema_version: 1,
     report_version: 1,
     owner_uid: data.userId,
-    visibility: body.visibility || "private",
+    visibility: body.visibility || body.metadata?.visibility || "public",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     deleted_at: null,

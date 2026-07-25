@@ -732,7 +732,14 @@
               '</div>';
               return;
             }
-            if (!res.ok) throw new Error("Không tìm thấy báo cáo");
+            if (!res.ok) {
+              return res.json().then(function(errObj) {
+                throw new Error(errObj.error || "Không tìm thấy báo cáo (Mã lỗi " + res.status + ")");
+              }).catch(function(e) {
+                if (e.message && e.message !== "Unexpected token") throw e;
+                throw new Error("Không tìm thấy báo cáo (Mã lỗi " + res.status + ")");
+              });
+            }
             return res.json();
           })
           .then(function(data) {

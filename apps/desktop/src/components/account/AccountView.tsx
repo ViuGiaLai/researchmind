@@ -653,6 +653,7 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
                     }
 
                     const payload = {
+                      visibility: shareVisibility,
                       metadata: {
                         title: reportTitle,
                         language: i18n.language || "vi",

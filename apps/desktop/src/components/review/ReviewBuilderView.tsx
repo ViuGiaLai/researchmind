@@ -566,6 +566,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
     setCloudSyncing(true);
     try {
       const payload = {
+        visibility: cloudVisibility,
         metadata: {
           title: title || t("review_builder.default_title"),
           language: i18n.language || "vi",
