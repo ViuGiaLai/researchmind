@@ -710,7 +710,14 @@
       
       var reportId = getReportId();
       if (reportId) {
-        document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#666;">Đang tải báo cáo...</div>';
+        var rootEl = document.getElementById("report-root");
+        if (!rootEl) {
+          document.body.innerHTML = '<div id="report-root"></div>';
+          rootEl = document.getElementById("report-root");
+        }
+        if (rootEl) {
+          rootEl.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#666;">Đang tải báo cáo...</div>';
+        }
         
         var bearerToken = getBearerToken();
         var headers = { "Content-Type": "application/json" };
