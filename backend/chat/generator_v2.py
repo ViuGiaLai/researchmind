@@ -832,19 +832,19 @@ class Generator(
             if mode == "fast":
                 return (
                     "You are ResearchMind. Answer briefly and clearly (~80-120 words). "
-                    "No filler, no forced headings.\n"
+                    "If the user asks for creative content or lists, fulfill the request naturally without filler or forced headings.\n"
                     + anti_repeat + "\n"
                     + lang_instruction
                 )
             if mode == "deep":
                 return (
-                    "You are ResearchMind. Give a structured answer (~150-250 words) "
-                    "with key distinctions. No <think> tags.\n"
+                    "You are ResearchMind. Give a structured answer (~150-250 words) with key distinctions. "
+                    "Adapt naturally to the user's request. No <think> tags.\n"
                     + anti_repeat + "\n"
                     + lang_instruction
                 )
             return (
-                "You are ResearchMind. Provide a focused analysis (~250-400 words). "
+                "You are ResearchMind. Provide a focused analysis (~250-400 words) tailored to the user's request. "
                 "Cover main ideas and trade-offs; stay concise for a local model.\n"
                 + anti_repeat + "\n"
                 + lang_instruction
@@ -884,14 +884,14 @@ class Generator(
             sp = override.strip()
             if len(sp) > 900:
                 sp = sp[:900].rstrip() + "…"
-            if language:
+            if language and language not in sp:
                 sp = f"{sp}\n\n{language}"
         else:
             # Minimal local contract — full governance prompts are too heavy for 4B CPU.
             sp = (
                 "You are ResearchMind, a concise academic assistant. "
                 "Answer directly with evidence when available. Cite as [Paper, page X]. "
-                "If evidence is insufficient, say so briefly. "
+                "If evidence is insufficient to fully answer, say so, but you may still fulfill general or creative requests naturally. "
                 "Never start responses with 'In this document', 'The document', 'Ở tài liệu này', or similar repetitive phrases."
             )
             if language:
