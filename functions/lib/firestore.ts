@@ -17,17 +17,18 @@ async function getAccessToken(env: Env): Promise<string> {
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + 3600;
   
+  const clientEmail = (env.FIREBASE_CLIENT_EMAIL || "").trim().replace(/^"|"$/g, "");
+  let privateKey = (env.FIREBASE_PRIVATE_KEY || "").trim().replace(/^"|"$/g, "");
+  privateKey = privateKey.replace(/\\n/g, "\n");
+  
   const payload = {
-    iss: env.FIREBASE_CLIENT_EMAIL,
-    sub: env.FIREBASE_CLIENT_EMAIL,
+    iss: clientEmail,
+    sub: clientEmail,
     aud: "https://oauth2.googleapis.com/token",
     scope: "https://www.googleapis.com/auth/datastore",
     iat,
     exp,
   };
-
-  // Convert literal "\n" strings (often pasted into Cloudflare Dashboard) to physical newlines
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
   
   const token = await jwt.sign(payload, privateKey, { algorithm: "RS256" });
   
@@ -97,7 +98,8 @@ function firestoreToJson(obj: any): any {
 
 export async function createReport(env: Env, id: string, data: any) {
   const token = await getAccessToken(env);
-  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/reports?documentId=${id}`;
+  const projectId = (env.FIREBASE_PROJECT_ID || "").trim().replace(/^"|"$/g, "");
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/reports?documentId=${id}`;
   
   const doc = { fields: jsonToFirestore(data).mapValue.fields };
   
