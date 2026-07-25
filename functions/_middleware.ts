@@ -44,8 +44,8 @@ export const onRequest = async (context: any) => {
     userId = await verifyClerkToken(context.env, context.request);
   }
 
-  // ── Fallback to shared token (GATEWAY_SHARED_TOKEN) ──────────
-  if (!userId && bearerToken && context.env.GATEWAY_SHARED_TOKEN) {
+  // ── Fallback to shared token (VITE_GATEWAY_SHARED_TOKEN) ──────────
+  if (!userId && bearerToken && context.env.VITE_GATEWAY_SHARED_TOKEN) {
     userId = verifySharedToken(context.env, bearerToken);
   }
 

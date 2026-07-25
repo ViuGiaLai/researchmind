@@ -34,15 +34,15 @@ export async function verifyClerkToken(env: any, request: Request): Promise<stri
 }
 
 /**
- * Fallback: verify using a shared secret token (GATEWAY_SHARED_TOKEN).
+ * Fallback: verify using a shared secret token (VITE_GATEWAY_SHARED_TOKEN).
  * This mirrors the approach used by cloud_gateway/main.py.
  * Returns "__shared__" userId if valid, or null if not.
  */
 export function verifySharedToken(env: any, token: string): string | null {
-  if (!env.GATEWAY_SHARED_TOKEN) {
+  if (!env.VITE_GATEWAY_SHARED_TOKEN) {
     return null;
   }
-  if (token === env.GATEWAY_SHARED_TOKEN) {
+  if (token === env.VITE_GATEWAY_SHARED_TOKEN) {
     log("Shared token auth success");
     return "__shared__";
   }

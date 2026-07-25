@@ -52,9 +52,9 @@ function getBestToken(): string {
   return getFirebaseIdToken();
 }
 
-/** Token dành riêng cho Cloud Gateway (GATEWAY_SHARED_TOKEN) */
+/** Token dành riêng cho Cloud Gateway (VITE_GATEWAY_SHARED_TOKEN) */
 function getGatewayToken(): string {
-  return import.meta.env.GATEWAY_SHARED_TOKEN || "";
+  return import.meta.env.VITE_VITE_GATEWAY_SHARED_TOKEN || import.meta.env.VITE_GATEWAY_SHARED_TOKEN || "";
 }
 
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
@@ -214,7 +214,7 @@ async function cloudRequest<T>(
         const detail = parseApiError(res.status, err);
         let hint: string;
         if (effectiveToken === sharedToken) {
-          hint = `Shared token rejected. Check GATEWAY_SHARED_TOKEN in .dev.vars and .env of desktop app.`;
+          hint = `Shared token rejected. Check VITE_GATEWAY_SHARED_TOKEN in .dev.vars and .env of desktop app.`;
         } else if (token) {
           hint = `Clerk token present (${token.slice(0, 12)}...) but rejected. Check CLERK_SECRET_KEY in .dev.vars or Cloudflare dashboard.`;
         } else {

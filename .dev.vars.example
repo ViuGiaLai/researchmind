@@ -23,5 +23,5 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFA
 
 # --- Gateway Shared Token (tùy chọn, fallback auth khi Clerk không verify được) ---
 # Desktop gửi token này nếu Clerk JWT không có sẵn.
-# Desktop cần set GATEWAY_SHARED_TOKEN trong .env
-GATEWAY_SHARED_TOKEN=your-shared-secret-here
+# Desktop cần set VITE_GATEWAY_SHARED_TOKEN trong .env
+VITE_GATEWAY_SHARED_TOKEN=your-shared-secret-here

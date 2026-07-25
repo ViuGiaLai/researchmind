@@ -12,7 +12,7 @@ class GatewaySettings(BaseSettings):
     cors_origins: str = ""
     firebase_project_id: str = ""
     firebase_service_account_json: str = ""
-    gateway_shared_token: str = ""
+    vite_gateway_shared_token: str = ""
     allow_unauthenticated: bool = False
     free_requests_per_day: int = 30
     free_input_chars_per_day: int = 500_000
