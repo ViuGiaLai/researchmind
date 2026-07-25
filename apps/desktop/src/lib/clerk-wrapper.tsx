@@ -70,7 +70,7 @@ function ClerkAuthInner({ children }: { children: React.ReactNode }) {
       try { setCurrentToken(await clerkGetToken() || null); } catch { /* ignore */ }
     };
     syncToken();
-    const interval = setInterval(syncToken, 30 * 60 * 1000);
+    const interval = setInterval(syncToken, 30 * 1000); // 30 seconds
     return () => { clearInterval(interval); setCurrentToken(null); };
   }, [isSignedIn, isGuest, clerkGetToken]);
 

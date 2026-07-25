@@ -1,0 +1,27 @@
+# ================================================================
+# ResearchMind Cloudflare Pages Functions — Local Dev Variables
+# ================================================================
+# Copy this file to .dev.vars and fill in your real values.
+# wrangler pages dev loads .dev.vars automatically.
+#
+# Required:
+#   CLERK_SECRET_KEY       — từ Clerk Dashboard > API Keys
+#   CLERK_PUBLISHABLE_KEY  — từ Clerk Dashboard > API Keys
+#   FIREBASE_PROJECT_ID    — từ Firebase Console > Project Settings
+#   FIREBASE_CLIENT_EMAIL  — từ Firebase > Service Accounts
+#   FIREBASE_PRIVATE_KEY   — từ Firebase > Service Accounts (JSON key)
+# ================================================================
+
+# --- Clerk (bắt buộc để auth) ---
+CLERK_SECRET_KEY=sk_test_xxxxx
+CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
+
+# --- Firebase Firestore (bắt buộc để lưu reports) ---
+FIREBASE_PROJECT_ID=researchmind-xxxxx
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@researchmind-xxxxx.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQ...\n-----END PRIVATE KEY-----\n"
+
+# --- Gateway Shared Token (tùy chọn, fallback auth khi Clerk không verify được) ---
+# Desktop gửi token này nếu Clerk JWT không có sẵn.
+# Desktop cần set VITE_GATEWAY_SHARED_TOKEN trong .env
+GATEWAY_SHARED_TOKEN=your-shared-secret-here

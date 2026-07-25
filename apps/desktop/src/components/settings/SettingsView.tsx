@@ -10,6 +10,7 @@ import { LanguageSwitcher } from "../shared/LanguageSwitcher";
 import { LicensePanel } from "./LicensePanel";
 import { PrivacyCenter } from "./PrivacyCenter";
 import { CloudSyncPanel } from "./CloudSyncPanel";
+import { useAuth } from "../../lib/auth-provider";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   IconBrain,
@@ -73,6 +74,7 @@ interface SpecsResult {
 export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOpenHelp, onStartTour, onReplaySetup }) => {
   const { t } = useTranslation();
   const { confirm, confirmationDialog } = useConfirmDialog();
+  const { isGuest } = useAuth();
   // ── LLM Mode ────────────────────────────────────────────────
   const [llmMode, setLlmMode] = useState<LlmMode>("cloud_free");
 
@@ -834,8 +836,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
           </div>
           {llmMode === "cloud_free" && usage && (
             <span className="settings-ai-overview__usage">
-              <strong>{usage.used} / {usage.limit}</strong>
-              <small>{t("settings.ai_usage_questions")}</small>
+              {!isGuest ? (
+                <>
+                  <strong>PRO</strong>
+                  <small>{t("pro_unlimited")}</small>
+                </>
+              ) : (
+                <>
+                  <strong>{usage.used} / {usage.limit}</strong>
+                  <small>{t("settings.ai_usage_questions")}</small>
+                </>
+              )}
             </span>
           )}
           <button type="button" className="settings-ai-config-toggle" onClick={() => setShowAiModeModal(true)}>
@@ -1164,10 +1175,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ initialSection, onOp
                 </div>
                 <div className="settings-usage-count">
                   {usage ? (
-                    <>
-                      <strong>{usage.used} / {usage.limit}</strong>
-                      <span>{t("settings.ai_usage_questions")}</span>
-                    </>
+                    !isGuest ? (
+                      <>
+                        <strong>PRO</strong>
+                        <span>{t("pro_unlimited")}</span>
+                      </>
+                    ) : (
+                      <>
+                        <strong>{usage.used} / {usage.limit}</strong>
+                        <span>{t("settings.ai_usage_questions")}</span>
+                      </>
+                    )
                   ) : (
                     <span>{t("settings.ai_usage_loading")}</span>
                   )}

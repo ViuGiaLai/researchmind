@@ -1730,7 +1730,11 @@
     "generated_by": "Review created by ResearchMind following an evidence-first approach (prioritizing verifiable conclusions).",
     "pdf_page_label": "Page {page}",
     "open_citation": "Open: {label}",
-    "open_citation_page": "Open: {label} page {page}"
+    "open_citation_page": "Open: {label} page {page}",
+    "visibility_label": "Visibility",
+    "visibility_public": "🌍 Public",
+    "visibility_unlisted": "🔗 Unlisted",
+    "visibility_private": "🔒 Private"
   },
   "screening": {
     "title": "Paper Screening",

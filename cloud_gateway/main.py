@@ -26,7 +26,9 @@ app = FastAPI(title="ResearchMind AI Gateway", version="1.0.0", lifespan=lifespa
 settings = get_settings()
 origins = [item.strip() for item in settings.cors_origins.split(",") if item.strip()]
 if origins:
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"], allow_headers=["Authorization", "Content-Type"])
+
+# Removed reports_router as it is now migrated to Cloudflare Pages Functions
 
 
 def validate_size(request: GenerateRequest) -> int:
@@ -59,11 +61,12 @@ async def health():
 @app.get("/v1/quota")
 async def get_quota(user: dict = Depends(require_user)):
     usage = quota.current(user)
+    is_pro = user.get("auth") == "firebase"
     return {
         "requests_used": usage.get("requests", 0),
-        "requests_limit": settings.free_requests_per_day,
+        "requests_limit": 9999 if is_pro else settings.free_requests_per_day,
         "input_chars_used": usage.get("input_chars", 0),
-        "input_chars_limit": settings.free_input_chars_per_day,
+        "input_chars_limit": 99999999 if is_pro else settings.free_input_chars_per_day,
     }
 
 

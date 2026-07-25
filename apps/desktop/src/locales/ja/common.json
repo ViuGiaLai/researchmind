@@ -1241,7 +1241,11 @@
     "generated_by": "レビューはResearchMindによってエビデンス優先アプローチに従って作成されました（検証可能な結論を優先）。",
     "pdf_page_label": "{page}ページ",
     "open_citation": "開く: {label}",
-    "open_citation_page": "開く: {label} {page}ページ"
+    "open_citation_page": "開く: {label} {page}ページ",
+    "visibility_label": "表示設定",
+    "visibility_public": "🌍 公開",
+    "visibility_unlisted": "🔗 非公開（URLのみ）",
+    "visibility_private": "🔒 プライベート"
   },
   "screening": {
     "title": "論文スクリーニング",
