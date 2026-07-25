@@ -1,4 +1,4 @@
-import * as jwt from "@tsndr/cloudflare-worker-jwt";
+import jwt from "@tsndr/cloudflare-worker-jwt";
 
 interface Env {
   FIREBASE_PROJECT_ID: string;
@@ -26,7 +26,7 @@ async function getAccessToken(env: Env): Promise<string> {
     exp,
   };
 
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\\\n/g, "\\n");
   
   const token = await jwt.sign(payload, privateKey, { algorithm: "RS256" });
   
@@ -51,7 +51,6 @@ async function getAccessToken(env: Env): Promise<string> {
   return cachedAccessToken as string;
 }
 
-/** Converts a JS object to a Firestore Document format */
 function jsonToFirestore(obj: any): any {
   if (obj === null) return { nullValue: null };
   if (typeof obj === "boolean") return { booleanValue: obj };
@@ -74,7 +73,6 @@ function jsonToFirestore(obj: any): any {
   return { nullValue: null };
 }
 
-/** Converts a Firestore Document format back to JS object */
 function firestoreToJson(obj: any): any {
   if (!obj) return obj;
   if ("nullValue" in obj) return null;
@@ -93,7 +91,7 @@ function firestoreToJson(obj: any): any {
     }
     return res;
   }
-  return obj; // fallback
+  return obj;
 }
 
 export async function createReport(env: Env, id: string, data: any) {
@@ -133,7 +131,6 @@ export async function getReport(env: Env, id: string) {
 export async function updateReport(env: Env, id: string, partialData: any) {
   const token = await getAccessToken(env);
   
-  // We use PATCH with updateMask
   const fields = jsonToFirestore(partialData).mapValue.fields;
   const updateMask = Object.keys(fields).map(k => `updateMask.fieldPaths=${k}`).join('&');
   
@@ -169,8 +166,6 @@ export async function getMyReports(env: Env, userId: string) {
                 value: { stringValue: userId }
               }
             }
-            // We should filter deleted_at but Firestore requires index for complex queries.
-            // We can just filter deleted_at in memory or rely on single field filter first.
           ]
         }
       },
@@ -187,7 +182,6 @@ export async function getMyReports(env: Env, userId: string) {
   if (!res.ok) throw new Error(`Firestore query error: ${await res.text()}`);
   const results = await res.json() as any[];
   
-  // runQuery returns array of { document: { name, fields } }
   return results
     .filter(r => r.document)
     .map(r => {
