@@ -54,7 +54,7 @@ function getBestToken(): string {
 
 /** Token dành riêng cho Cloud Gateway (GATEWAY_SHARED_TOKEN) */
 function getGatewayToken(): string {
-  return import.meta.env.VITE_GATEWAY_SHARED_TOKEN || "";
+  return import.meta.env.GATEWAY_SHARED_TOKEN || "";
 }
 
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
