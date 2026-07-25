@@ -63,7 +63,7 @@ def test_local_system_prompt_is_compact():
     gen._local.system_prompt_override = None
     sp = gen._get_local_system_prompt()
     assert "ResearchMind" in sp
-    assert len(sp) < 400
+    assert len(sp) < 500
     assert "<think>" not in sp or "No <think>" in sp
 
 

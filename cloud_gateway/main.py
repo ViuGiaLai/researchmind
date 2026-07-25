@@ -59,11 +59,12 @@ async def health():
 @app.get("/v1/quota")
 async def get_quota(user: dict = Depends(require_user)):
     usage = quota.current(user)
+    is_pro = user.get("auth") == "firebase"
     return {
         "requests_used": usage.get("requests", 0),
-        "requests_limit": settings.free_requests_per_day,
+        "requests_limit": 9999 if is_pro else settings.free_requests_per_day,
         "input_chars_used": usage.get("input_chars", 0),
-        "input_chars_limit": settings.free_input_chars_per_day,
+        "input_chars_limit": 99999999 if is_pro else settings.free_input_chars_per_day,
     }
 
 

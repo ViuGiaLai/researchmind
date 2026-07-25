@@ -25,11 +25,11 @@ class QuotaManager:
         settings = get_settings()
         uid = str(user["uid"])
         if user.get("auth") == "firebase" and settings.production:
-            return self._reserve_firestore(uid, input_chars)
+            return self._reserve_firestore(user, uid, input_chars)
         key = f"{uid}:{self._day()}"
         with self._lock:
             usage = self._memory[key]
-            self._check(usage, input_chars)
+            self._check(user, usage, input_chars)
             usage["requests"] += 1
             usage["input_chars"] += input_chars
             return dict(usage)
@@ -43,14 +43,16 @@ class QuotaManager:
             return snapshot.to_dict() or {"requests": 0, "input_chars": 0}
         return dict(self._memory[f"{uid}:{self._day()}"])
 
-    def _check(self, usage: dict, input_chars: int) -> None:
+    def _check(self, user: dict, usage: dict, input_chars: int) -> None:
+        if user.get("auth") == "firebase":
+            return
         settings = get_settings()
         if usage.get("requests", 0) >= settings.free_requests_per_day:
             raise HTTPException(status_code=429, detail="Free daily request limit reached")
         if usage.get("input_chars", 0) + input_chars > settings.free_input_chars_per_day:
             raise HTTPException(status_code=429, detail="Free daily context limit reached")
 
-    def _reserve_firestore(self, uid: str, input_chars: int) -> dict[str, int]:
+    def _reserve_firestore(self, user: dict, uid: str, input_chars: int) -> dict[str, int]:
         from firebase_admin import firestore
         db = firestore.client()
         ref = db.collection("gateway_usage").document(f"{uid}_{self._day()}")
@@ -60,7 +62,7 @@ class QuotaManager:
         def update(txn):
             snapshot = ref.get(transaction=txn)
             usage = snapshot.to_dict() or {"requests": 0, "input_chars": 0}
-            self._check(usage, input_chars)
+            self._check(user, usage, input_chars)
             usage["requests"] = usage.get("requests", 0) + 1
             usage["input_chars"] = usage.get("input_chars", 0) + input_chars
             txn.set(ref, {**usage, "day": self._day(), "uid": uid}, merge=True)
