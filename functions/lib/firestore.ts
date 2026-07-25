@@ -96,29 +96,98 @@ function firestoreToJson(obj: any): any {
   return obj;
 }
 
-export async function createReport(env: Env, id: string, data: any) {
+export async function saveWorkspaceReport(env: Env, workspaceId: string, data: any) {
   const token = await getAccessToken(env);
   const projectId = (env.FIREBASE_PROJECT_ID || "").trim().replace(/^"|"$/g, "");
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/reports?documentId=${id}`;
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/workspace_reports/${workspaceId}`;
   
   const doc = { fields: jsonToFirestore(data).mapValue.fields };
   
   const res = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    method: "PATCH",
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(doc)
   });
   
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Firestore create error: ${err}`);
+    throw new Error(`Firestore save workspace report error: ${err}`);
   }
   return true;
 }
 
-export async function getReport(env: Env, id: string) {
+export async function getWorkspaceReport(env: Env, workspaceId: string) {
   const token = await getAccessToken(env);
-  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/reports/${id}`;
+  const projectId = (env.FIREBASE_PROJECT_ID || "").trim().replace(/^"|"$/g, "");
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/workspace_reports/${workspaceId}`;
+  
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Firestore get workspace report error: ${await res.text()}`);
+  
+  const data = await res.json() as any;
+  return firestoreToJson({ mapValue: { fields: data.fields } });
+}
+
+export async function createSnapshotReport(env: Env, id: string, data: any) {
+  const token = await getAccessToken(env);
+  const projectId = (env.FIREBASE_PROJECT_ID || "").trim().replace(/^"|"$/g, "");
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/report_snapshots/${id}`;
+  
+  const doc = { fields: jsonToFirestore(data).mapValue.fields };
+  
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(doc)
+  });
+  
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Firestore save snapshot error: ${err}`);
+  }
+  return true;
+}
+
+export async function getSnapshotReport(env: Env, id: string) {
+  const token = await getAccessToken(env);
+  const projectId = (env.FIREBASE_PROJECT_ID || "").trim().replace(/^"|"$/g, "");
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/report_snapshots/${id}`;
+  
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Firestore get snapshot error: ${await res.text()}`);
+  
+  const data = await res.json() as any;
+  return firestoreToJson({ mapValue: { fields: data.fields } });
+}
+
+// Universal getReport with collection fallback strategy
+export async function getReport(env: Env, id: string) {
+  // 1. Try workspace_reports
+  const wsDoc = await getWorkspaceReport(env, id).catch(() => null);
+  if (wsDoc) return wsDoc;
+
+  // 2. Try report_snapshots
+  const snapDoc = await getSnapshotReport(env, id).catch(() => null);
+  if (snapDoc) return snapDoc;
+
+  // 3. Fallback to legacy reports collection
+  const token = await getAccessToken(env);
+  const projectId = (env.FIREBASE_PROJECT_ID || "").trim().replace(/^"|"$/g, "");
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/reports/${id}`;
   
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` }
@@ -129,6 +198,10 @@ export async function getReport(env: Env, id: string) {
   
   const data = await res.json() as any;
   return firestoreToJson({ mapValue: { fields: data.fields } });
+}
+
+export async function createReport(env: Env, id: string, data: any) {
+  return createSnapshotReport(env, id, data);
 }
 
 export async function updateReport(env: Env, id: string, partialData: any) {

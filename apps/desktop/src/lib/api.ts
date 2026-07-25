@@ -693,6 +693,8 @@ export interface CloudReportPayload {
 export const api = {
   createCloudReport: (payload: CloudReportPayload) => 
     cloudRequest<{ id: string; url: string }>("POST", "/reports", payload),
+  putWorkspaceReport: (workspaceId: string, payload: CloudReportPayload) => 
+    cloudRequest<{ id: string; url: string }>("PUT", `/workspaces/${workspaceId}/report`, payload),
   updateCloudReport: (id: string, payload: Partial<CloudReportPayload>) => 
     cloudRequest<{ id: string; status: string; url: string }>("PATCH", `/reports/${id}`, payload),
   getLicenseStatus: () => request<LicenseStatus>("GET", "/api/license/status"),

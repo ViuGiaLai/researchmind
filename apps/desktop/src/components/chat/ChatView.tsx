@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
 import { api, getAuthenticatedApiUrl, ChatResponse, CitationEntry, Collection, VerifyResponse, ClaimAnalysis } from "../../lib/api";
 import { paperDisplayTitle } from "../../lib/paperDisplay";
+import { logger } from "../../lib/logger";
 import { VerifyPanel } from "./VerifyPanel";
 import { TrustPanel } from "./TrustPanel";
 import { PdfViewer } from "../pdf/PdfViewer";
@@ -1284,7 +1285,7 @@ export const ChatView: React.FC<{
             toast.addToast("error", t("chat.toast_citation_not_found", { ref: refId }));
             return;
           }
-          console.log("[Citation] Clicked:", citation);
+          logger.log("[Citation] Clicked:", citation);
           const paperId = citation.paper_id;
           if (!paperId) {
             console.warn("[Citation] paper_id is empty:", citation);
@@ -1876,7 +1877,7 @@ export const ChatView: React.FC<{
                               key={j}
                               className="chat-view-footnote-entry"
                               onClick={() => {
-                                console.log("[Citation] Footnote clicked:", c);
+                                logger.log("[Citation] Footnote clicked:", c);
                                 if (!c.ref_id) {
                                   console.warn("[Citation] Footer: ref_id missing");
                                   toast.addToast("error", t("chat.toast_ref_id_missing"));

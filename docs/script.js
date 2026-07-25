@@ -156,6 +156,10 @@
       unlisted: "Không công khai",
       integrity: "Tính toàn vẹn",
       shaVerified: "SHA256 đã xác minh",
+      researchReportUpper: "BÁO CÁO NGHIÊN CỨU",
+      authorFallback: "Tác giả ResearchMind",
+      downloadingPdf: "Đang tạo & tải file PDF...",
+      docxExported: "Đã xuất file DOCX!",
     },
     en: {
       langLabel: "English",
@@ -270,6 +274,10 @@
       unlisted: "Unlisted",
       integrity: "Integrity",
       shaVerified: "SHA256 Verified",
+      researchReportUpper: "RESEARCH REPORT",
+      authorFallback: "ResearchMind Author",
+      downloadingPdf: "Generating & Downloading PDF...",
+      docxExported: "DOCX Exported!",
     },
   };
 
@@ -372,14 +380,51 @@
     bar.id = "floatToolbar";
     bar.className = "report-float-toolbar";
     bar.innerHTML =
-      '<button class="float-btn" onclick="window.print()" title="' + t("downloadPdf") + '" aria-label="' + t("downloadPdf") + '">⬇ PDF</button>' +
+      '<button class="float-btn" onclick="window.__rmDownloadPdf()" title="' + t("downloadPdf") + '" aria-label="' + t("downloadPdf") + '">⬇ PDF</button>' +
       '<button class="float-btn" id="floatThemeToggle" onclick="window.__rmToggleTheme()" title="' + (currentTheme === "dark" ? t("lightMode") : t("darkMode")) + '">' + (currentTheme === "dark" ? t("lightMode") : t("darkMode")) + '</button>' +
       '<button class="float-btn" onclick="window.__rmCopyLink()" title="' + t("copyLink") + '" aria-label="' + t("copyLink") + '">🔗 ' + t("copyLink") + '</button>' +
       '<button class="float-btn float-lang" onclick="window.__rmToggleLang()" title="' + t("language") + '">' + (currentLang === "vi" ? "EN" : "VI") + '</button>';
     document.body.appendChild(bar);
   }
 
-  // ─── Expose toggle functions globally ─────────────────────
+  // ─── Expose functions globally ─────────────────────
+  window.__rmDownloadPdf = function () {
+    if (window.html2pdf) {
+      var el = document.querySelector(".report-container") || document.getElementById("report-root");
+      var fname = ((reportData && reportData.title) ? reportData.title.replace(/[^\w\s-]/g, "") : "ResearchMind_Report") + ".pdf";
+      showToast(t("downloadingPdf"));
+      window.html2pdf().set({
+        margin: 0.3,
+        filename: fname,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      }).from(el).save();
+    } else {
+      window.print();
+    }
+  };
+
+  window.__rmExportDocx = function () {
+    if (!reportData) return;
+    var title = reportData.title || "ResearchMind Report";
+    var content = "========================================\n" +
+                  title + "\n" +
+                  "========================================\n\n" +
+                  "Tác giả / Author: " + (reportData.author || "ResearchMind") + "\n" +
+                  "Ngày tạo / Date: " + (reportData.date || "") + "\n\n" +
+                  "--- TỔNG QUAN / SUMMARY ---\n" +
+                  (reportData.summary?.conclusions?.join("\n\n") || "") + "\n\n" +
+                  "--- TRÍCH DẪN / CITATIONS ---\n" +
+                  (reportData.citations?.map(function(c) { return "[" + c.id + "] " + c.title + " (" + c.year + ")"; }).join("\n") || "");
+    var blob = new Blob([content], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = title.replace(/[^\w\s-]/g, "") + ".docx";
+    a.click();
+    showToast(t("docxExported"));
+  };
+
   window.__rmToggleTheme = function () {
     toggleTheme();
     createFloatingToolbar();
@@ -457,20 +502,41 @@
       '</div>';
     }).join("");
 
-    // Timeline
-    var years = (d.timeline && typeof d.timeline === "object") ? Object.keys(d.timeline).sort() : [];
-    var maxVal = years.length > 0 ? Math.max.apply(null, years.map(function (y) { return d.timeline[y]; })) : 1;
-    var timelineBars = years.map(function (y) {
-      var pct = maxVal > 0 ? (d.timeline[y] / maxVal) * 100 : 0;
-      return '<div class="timeline-year"><div class="timeline-label">' + y + '</div><div class="timeline-bar-track"><div class="timeline-bar-fill" style="width:' + pct + '%"></div></div><div class="timeline-count">' + d.timeline[y] + '</div></div>';
-    }).join("");
-
     // Knowledge graph
     var graphNodes = "";
     if (d.graph && d.graph.length > 0) {
       graphNodes = d.graph.map(function (g) {
         return '<div class="graph-node"><div class="graph-node-label">' + esc(g.from) + '</div><div class="graph-arrow">↓</div></div>';
       }).join("") + '<div class="graph-node"><div class="graph-node-label">' + esc(d.graph[d.graph.length - 1].to) + '</div></div>';
+    } else if (d.citations && d.citations.length > 0) {
+      var topCites = d.citations.slice(0, 4);
+      graphNodes = topCites.map(function (c, idx) {
+        var next = idx < topCites.length - 1 ? '<div class="graph-arrow">↓</div>' : '';
+        var displayTitle = c.title ? (c.title.length > 40 ? c.title.slice(0, 40) + '...' : c.title) : 'Paper #' + (idx + 1);
+        return '<div class="graph-node"><div class="graph-node-label">' + esc(displayTitle) + '</div></div>' + next;
+      }).join("");
+    }
+
+    // Timeline
+    var years = (d.timeline && typeof d.timeline === "object") ? Object.keys(d.timeline).sort() : [];
+    if (years.length === 0 && d.citations && d.citations.length > 0) {
+      var autoTimeline = {};
+      d.citations.forEach(function (c) {
+        var y = c.year ? String(c.year) : "2026";
+        autoTimeline[y] = (autoTimeline[y] || 0) + 1;
+      });
+      years = Object.keys(autoTimeline).sort();
+      var autoMax = Math.max.apply(null, years.map(function (y) { return autoTimeline[y]; }));
+      var timelineBars = years.map(function (y) {
+        var pct = autoMax > 0 ? (autoTimeline[y] / autoMax) * 100 : 0;
+        return '<div class="timeline-year"><div class="timeline-label">' + y + '</div><div class="timeline-bar-track"><div class="timeline-bar-fill" style="width:' + pct + '%"></div></div><div class="timeline-count">' + autoTimeline[y] + '</div></div>';
+      }).join("");
+    } else {
+      var maxVal = years.length > 0 ? Math.max.apply(null, years.map(function (y) { return d.timeline[y]; })) : 1;
+      var timelineBars = years.map(function (y) {
+        var pct = maxVal > 0 ? (d.timeline[y] / maxVal) * 100 : 0;
+        return '<div class="timeline-year"><div class="timeline-label">' + y + '</div><div class="timeline-bar-track"><div class="timeline-bar-fill" style="width:' + pct + '%"></div></div><div class="timeline-count">' + d.timeline[y] + '</div></div>';
+      }).join("");
     }
 
     // Related reports
@@ -484,7 +550,7 @@
         /* ═══ VERIFIED HEADER ═══ */
         '<div class="report-header-verified">' +
           '<div class="report-header-top">' +
-            '<span class="report-verified-badge">🟢 ' + t("verifiedBadge") + ' RESEARCH REPORT</span>' +
+            '<span class="report-verified-badge">🟢 ' + t("verifiedBadge") + ' ' + t("researchReportUpper") + '</span>' +
             '<span class="report-brand-header">Research<span style="color:var(--accent-blue);">Mind</span></span>' +
           '</div>' +
           '<div class="report-header-meta">' +
@@ -524,8 +590,8 @@
           '<p class="report-hero-subtitle">' + esc(d.title) + '</p>' +
           '<p class="report-hero-byline">' + t("generatedBy") + '</p>' +
           '<div class="report-hero-actions">' +
-            '<button class="btn btn-primary" onclick="window.print()">⬇ ' + t("downloadPdf") + '</button>' +
-            '<button class="btn btn-secondary">📄 ' + t("exportDocx") + '</button>' +
+            '<button class="btn btn-primary" onclick="window.__rmDownloadPdf()">⬇ ' + t("downloadPdf") + '</button>' +
+            '<button class="btn btn-secondary" onclick="window.__rmExportDocx()">📄 ' + t("exportDocx") + '</button>' +
             '<button class="btn btn-secondary" onclick="navigator.clipboard.writeText(\'' + esc(d.title) + '. ResearchMind, ' + d.date + '. DOI: RM-' + esc(d.id) + '\');showToast(\'' + t("copyCitation") + '\')">📚 ' + t("copyCitation") + '</button>' +
             '<button class="btn btn-secondary" onclick="window.__rmCopyLink()">🔗 ' + t("shareReport") + '</button>' +
             '<a href="https://researchmind.pages.dev/" class="btn btn-ghost">🚀 ' + t("openWorkspace") + '</a>' +
@@ -559,7 +625,7 @@
         '<div class="report-section">' +
           '<div class="section-divider"></div>' +
           '<h2 class="report-section-title">📋 ' + t("executiveSummary") + '</h2>' +
-          '<p class="report-summary-desc">' + t("executiveDesc") + ' ' + d.docCount + ' ' + t("documents") + ' ' + t("published") + ' ' + esc(d.summary.yearRange) + '.</p>' +
+          '<p class="report-summary-desc">' + t("executiveDesc") + ' ' + d.docCount + ' ' + t("documents") + (d.summary.yearRange ? (' ' + t("published") + ' ' + esc(d.summary.yearRange)) : '') + '.</p>' +
           '<h3 class="report-subsection-title">' + t("mainConclusions") + '</h3>' +
           '<ul class="report-conclusions">' +
             d.summary.conclusions.map(function (c, i) {
@@ -617,18 +683,22 @@
         '</div>' +
 
         /* ═══ KNOWLEDGE GRAPH ═══ */
-        '<div class="report-section">' +
-          '<div class="section-divider"></div>' +
-          '<h2 class="report-section-title">🔗 ' + t("knowledgeGraph") + '</h2>' +
-          '<div class="graph-flow">' + graphNodes + '</div>' +
-        '</div>' +
+        (graphNodes ? (
+          '<div class="report-section">' +
+            '<div class="section-divider"></div>' +
+            '<h2 class="report-section-title">🔗 ' + t("knowledgeGraph") + '</h2>' +
+            '<div class="graph-flow">' + graphNodes + '</div>' +
+          '</div>'
+        ) : '') +
 
         /* ═══ TIMELINE ═══ */
-        '<div class="report-section">' +
-          '<div class="section-divider"></div>' +
-          '<h2 class="report-section-title">📈 ' + t("timeline") + '</h2>' +
-          '<div class="timeline-chart">' + timelineBars + '</div>' +
-        '</div>' +
+        (timelineBars ? (
+          '<div class="report-section">' +
+            '<div class="section-divider"></div>' +
+            '<h2 class="report-section-title">📈 ' + t("timeline") + '</h2>' +
+            '<div class="timeline-chart">' + timelineBars + '</div>' +
+          '</div>'
+        ) : '') +
 
         /* ═══ AI CONFIDENCE ═══ */
         '<div class="report-section">' +
@@ -676,11 +746,13 @@
         '</div>' +
 
         /* ═══ RELATED REPORTS ═══ */
-        '<div class="report-section">' +
-          '<div class="section-divider"></div>' +
-          '<h2 class="report-section-title">📎 ' + t("relatedReports") + '</h2>' +
-          '<div class="related-chips">' + relatedHtml + '</div>' +
-        '</div>' +
+        (relatedHtml ? (
+          '<div class="report-section">' +
+            '<div class="section-divider"></div>' +
+            '<h2 class="report-section-title">📎 ' + t("relatedReports") + '</h2>' +
+            '<div class="related-chips">' + relatedHtml + '</div>' +
+          '</div>'
+        ) : '') +
 
         /* ═══ FOOTER ═══ */
         '<div class="report-footer">' +
@@ -725,7 +797,11 @@
           headers["Authorization"] = "Bearer " + bearerToken;
         }
         
-        fetch('/api/v1/reports/' + reportId, { headers: headers })
+        var apiEndpoint = reportId.indexOf("ws_") === 0
+          ? ('/api/v1/workspaces/' + reportId + '/report')
+          : ('/api/v1/reports/' + reportId);
+        
+        fetch(apiEndpoint, { headers: headers })
           .then(function(res) {
             if (res.status === 403) {
               document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;gap:16px;padding:20px;text-align:center;">' +
@@ -751,21 +827,26 @@
           })
           .then(function(data) {
             var visibility = data.visibility || "private";
+            var rawAuthor = data.metadata?.author_name || data.owner_uid || "";
+            if (!rawAuthor || rawAuthor.indexOf("__shared__") === 0 || rawAuthor.indexOf("shared-") === 0) {
+              rawAuthor = t("authorFallback");
+            }
+
             reportData = {
               id: reportId,
               visibility: visibility,
               version: data.ai?.mode || "v1.0",
               generated: data.ai?.generated_at || "N/A",
-              title: data.metadata?.title || "Báo cáo chưa có tiêu đề",
-              author: data.metadata?.author_name || data.owner_uid || "N/A",
-              date: data.created_at ? new Date(data.created_at).toLocaleDateString("vi-VN") : "N/A",
+              title: data.metadata?.title || t("reportTitle"),
+              author: rawAuthor,
+              date: data.created_at ? new Date(data.created_at).toLocaleDateString(currentLang === "en" ? "en-US" : "vi-VN") : "N/A",
               readTime: Math.ceil((data.metadata?.word_count || 1000) / 200),
               docCount: data.metadata?.paper_count || 0,
               citationCount: 0,
               questions: "",
               summary: {
                 yearRange: "",
-                conclusions: [data.content?.summary || "Không có tóm tắt."],
+                conclusions: [data.content?.summary || t("executiveSummary")],
                 confidence: "High",
                 coverage: 100
               },

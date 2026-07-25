@@ -9,6 +9,7 @@ import {
   AuthenticateWithRedirectCallback,
 } from "@clerk/clerk-react";
 import { setCurrentToken } from "./auth-token";
+import { logger } from "./logger";
 
 export interface AuthUser {
   id: string;
@@ -144,7 +145,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   }, [isSignedIn, clerkGetToken]);
 
   useEffect(() => {
-    console.log("[Auth] ClerkAuthProvider state:", {
+    logger.log("[Auth] ClerkAuthProvider state:", {
       isLoaded, isSignedIn, clerkUser: clerkUser?.id || null,
       activeUser: activeUser?.id || null, loading, error, isGuest,
     });

@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { createReport } from "../../../lib/firestore";
+import { saveWorkspaceReport, createSnapshotReport } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 
 export const onRequestPost = async (context: any) => {
@@ -16,10 +16,22 @@ export const onRequestPost = async (context: any) => {
     return errorResponse("Invalid JSON payload", 400);
   }
 
-  const id = `rpt_${nanoid()}`;
+  const rawWs = body.workspace_id || body.metadata?.workspace_id || `ws_${nanoid(8)}`;
+  const isSnapshot = body.is_snapshot || body.snapshot || false;
+
+  let id = body.id;
+  if (!id) {
+    if (isSnapshot) {
+      id = `rpt_${nanoid(16)}`;
+    } else {
+      const cleanWs = rawWs.startsWith("ws_") ? rawWs : `ws_${rawWs.replace(/[^\w-]/g, "")}`;
+      id = cleanWs;
+    }
+  }
   
   const reportData = {
-    ...body, // Includes title, summary, etc.
+    ...body,
+    id,
     schema_version: 1,
     report_version: 1,
     owner_uid: data.userId,
@@ -31,7 +43,11 @@ export const onRequestPost = async (context: any) => {
   };
 
   try {
-    await createReport(env, id, reportData);
+    if (id.startsWith("ws_")) {
+      await saveWorkspaceReport(env, id, reportData);
+    } else {
+      await createSnapshotReport(env, id, reportData);
+    }
     return jsonResponse({ id, ...reportData }, 201);
   } catch (err: any) {
     return errorResponse(`Failed to create report: ${err.message}`, 500);
