@@ -26,7 +26,8 @@ async function getAccessToken(env: Env): Promise<string> {
     exp,
   };
 
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\\\n/g, "\\n");
+  // Convert literal "\n" strings (often pasted into Cloudflare Dashboard) to physical newlines
+  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
   
   const token = await jwt.sign(payload, privateKey, { algorithm: "RS256" });
   
