@@ -371,6 +371,12 @@ async def _generate_section(
             "\nUse these as an analytical plan, but retain only claims supported by the retrieved evidence."
         )
 
+    section_query += (
+        "\n\nCRITICAL SPEED & CONCISENESS REQUIREMENT: "
+        "Write extremely concisely and directly. Get straight to the academic point without filler words, redundant introductions, or fluff. "
+        "Prioritize brevity and speed. Maximum 2-3 paragraphs."
+    )
+
     generation = await asyncio.to_thread(
         state.generator.generate,
         query=section_query,
@@ -824,7 +830,17 @@ async def generate_draft_stream(req: Request, body: dict = Body(...)):
                     "error": str(e),
                 }
 
-        tasks = [asyncio.create_task(run_section(section)) for section in valid_sections]
+        is_local = state.generator._is_local_runtime()
+        concurrency_limit = 1 if is_local else 3
+        sem = asyncio.Semaphore(concurrency_limit)
+
+        async def run_section_with_sem(section: str):
+            async with sem:
+                if await req.is_disconnected():
+                    raise asyncio.CancelledError()
+                return await run_section(section)
+
+        tasks = [asyncio.create_task(run_section_with_sem(section)) for section in valid_sections]
         completed: list[dict] = []
 
         for task in asyncio.as_completed(tasks):

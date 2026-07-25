@@ -583,9 +583,8 @@ export const ChatView: React.FC<{
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = currentBase.length + 1;
 
-        const loadingMsg = scope === "external" ? t("chat.processing") : t("chat.searching_docs");
-        setMessages([...currentBase, userMsg, { role: "assistant", content: loadingMsg }]);
-        setIsStreaming(true);
+        setMessages([...currentBase, userMsg]);
+        // Do NOT set isStreaming(true) yet. Wait for onStatus or onChunk to render typing animation.
 
         let resolved = false;
 
@@ -600,25 +599,42 @@ export const ChatView: React.FC<{
           setIsStreaming(false);
           releaseLoading();
           const content = t("chat.error_prefix", { msg: errMsg });
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, content } : m
-          ));
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content }];
+            }
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content } : m
+            );
+          });
         };
 
         let streamAccumulatedText = "";
 
         streamCtrl.onStatus = (status) => {
+          setIsStreaming(true);
           if (streamAccumulatedText) return;
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, content: status } : m
-          ));
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content: status }];
+            }
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content: status } : m
+            );
+          });
         };
 
         streamCtrl.onChunk = (chunk) => {
+          setIsStreaming(true);
           streamAccumulatedText += chunk;
-          setMessages((prev) => prev.map((m, i) =>
-            i === assistantIdx ? { ...m, content: streamAccumulatedText } : m
-          ));
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content: streamAccumulatedText }];
+            }
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content: streamAccumulatedText } : m
+            );
+          });
         };
 
         streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content, warning, truncated) => {
@@ -633,23 +649,25 @@ export const ChatView: React.FC<{
             return;
           }
           setMessages((prev) => {
-            const newContent = modified_content || prev[assistantIdx]?.content || "";
+            const newContent = modified_content || (prev.length > assistantIdx ? prev[assistantIdx].content : "");
             if (!newContent.trim()) {
-              console.warn("[ChatView] onDone with empty content — modified_content=%o prevContent=%o", modified_content, prev[assistantIdx]?.content);
+              console.warn("[ChatView] onDone with empty content — modified_content=%o", modified_content);
             }
-            const updated = prev.map((m, i) =>
-              i === assistantIdx
-                ? {
-                    ...m,
-                    model_used: model,
-                    citations: normalizeCitations(citations),
-                    router_reason,
-                    token_count,
-                    content: newContent,
-                    truncated: truncated || false,
-                  }
-                : m
-            );
+            
+            const updatedMessage = {
+              role: "assistant" as const,
+              model_used: model,
+              citations: normalizeCitations(citations),
+              router_reason,
+              token_count,
+              content: newContent,
+              truncated: truncated || false,
+            };
+
+            const updated = prev.length <= assistantIdx 
+              ? [...prev, updatedMessage]
+              : prev.map((m, i) => i === assistantIdx ? { ...m, ...updatedMessage } : m);
+            
             const finalContent = newContent;
             if (finalContent && citations && citations.length > 0) {
               api.analyzeClaims(finalContent, citations).then((res) => {
@@ -683,8 +701,8 @@ export const ChatView: React.FC<{
             activeChatStreamRef.current = streamCtrl;
             const assistantIdx = currentBase.length + 1;
 
-            setMessages([...currentBase, userMsg, { role: "assistant", content: t("chat.searching_docs") }]);
-            setIsStreaming(true);
+            setMessages([...currentBase, userMsg]);
+            // Do NOT set isStreaming(true) yet.
 
             let resolved = false;
             const releaseLoading = () => setLoading(false);
@@ -703,10 +721,16 @@ export const ChatView: React.FC<{
             let verifyAccumulatedText = "";
 
             streamCtrl.onChunk = (chunk) => {
+              setIsStreaming(true);
               verifyAccumulatedText += chunk;
-              setMessages((prev) => prev.map((m, i) =>
-                i === assistantIdx ? { ...m, content: verifyAccumulatedText } : m
-              ));
+              setMessages((prev) => {
+                if (prev.length <= assistantIdx) {
+                  return [...prev, { role: "assistant", content: verifyAccumulatedText }];
+                }
+                return prev.map((m, i) =>
+                  i === assistantIdx ? { ...m, content: verifyAccumulatedText } : m
+                );
+              });
             };
 
             streamCtrl.onVenueAudit = (auditData) => {
@@ -720,7 +744,7 @@ export const ChatView: React.FC<{
               setIsStreaming(false);
               releaseLoading();
               setMessages((prev) => {
-                const answer = prev[assistantIdx]?.content || "";
+                const answer = prev.length > assistantIdx ? prev[assistantIdx].content : "";
                 setVerifyResult({
                   answer,
                   citations,
@@ -730,9 +754,17 @@ export const ChatView: React.FC<{
                   verify_status: status as "full" | "partial" | "local_only",
                   venue_audit: venueAudit || undefined,
                 });
-                return prev.map((m, i) =>
-                  i === assistantIdx ? { ...m, model_used: model, citations: normalizeCitations(citations) } : m
-                );
+                
+                const updatedMessage = {
+                  role: "assistant" as const,
+                  content: answer,
+                  model_used: model,
+                  citations: normalizeCitations(citations)
+                };
+
+                return prev.length <= assistantIdx 
+                  ? [...prev, updatedMessage]
+                  : prev.map((m, i) => i === assistantIdx ? { ...m, ...updatedMessage } : m);
               });
               loadUsage();
             };
@@ -744,9 +776,14 @@ export const ChatView: React.FC<{
               setIsStreaming(false);
               releaseLoading();
               const content = t("chat.error_backend_not_running", { err });
-              setMessages((prev) => prev.map((m, i) =>
-                i === assistantIdx ? { ...m, content } : m
-              ));
+              setMessages((prev) => {
+                if (prev.length <= assistantIdx) {
+                  return [...prev, { role: "assistant", content }];
+                }
+                return prev.map((m, i) =>
+                  i === assistantIdx ? { ...m, content } : m
+                );
+              });
             };
 
             return;

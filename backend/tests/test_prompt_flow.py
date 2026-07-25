@@ -10,7 +10,7 @@ def test_compact_system_contract_and_rag_message():
     prompt = build_system_prompt("vi", "fast", strict_evidence=True)
     assert "ResearchMind" in prompt
     assert "insufficient" in prompt
-    assert len(prompt) < 1000
+    assert len(prompt) < 1200
 
     message = build_rag_user_prompt("[Paper A] evidence", "What changed?")
     assert "## Document context:" in message

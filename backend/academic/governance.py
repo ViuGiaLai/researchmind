@@ -283,19 +283,36 @@ class AcademicGovernance:
         except KeyError as error:
             raise KeyError(f"Unknown insight task: {task}") from error
 
-    def insight_request(self, task: str) -> str:
+    def insight_request(self, task: str, lang: str = "vi", concise: bool = True) -> str:
         spec = self.insight_task(task)
         rules = self.rules(("evidence_grounding", "citation_integrity", "uncertainty_reporting"))
         requirements = "\n".join(f"- {item}" for item in spec["requirements"])
-        return "\n".join(
-            [
-                spec["objective"],
-                "Task requirements:",
-                requirements,
-                "Academic policy:",
-                *[f"- {rule}" for rule in rules],
-            ]
-        )
+        
+        parts = [
+            spec["objective"],
+            "Task requirements:",
+            requirements,
+            "Academic policy:",
+            *[f"- {rule}" for rule in rules],
+        ]
+        
+        lang_map = {"vi": "Vietnamese", "en": "English", "fr": "French", "zh": "Chinese", "ja": "Japanese"}
+        lang_name = lang_map.get(lang.lower(), lang)
+        
+        instructions = [f"- You MUST respond in {lang_name}."]
+        if concise:
+            instructions.extend([
+                "- Be concise and direct.",
+                "- Avoid unnecessary introductions or repetition.",
+                "- Return only the essential information needed for this task."
+            ])
+            
+        parts.extend([
+            "\nFormatting & Style:",
+            *instructions
+        ])
+            
+        return "\n".join(parts)
 
     def review_section(self, section: str) -> dict:
         """Return a versioned review-section manifest, not a hand-written prompt."""

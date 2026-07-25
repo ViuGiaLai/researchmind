@@ -130,7 +130,7 @@ export const InsightsView: React.FC<{
     }
   };
 
-  const runInsight = async () => {
+  const runInsight = async (useCache: boolean = true) => {
     if (!activeInsight) return;
     setLoading(true);
     setResult(null);
@@ -141,16 +141,16 @@ export const InsightsView: React.FC<{
         selectedPaperIds.length > 0 ? selectedPaperIds : undefined;
 
       if (activeInsight === "gap") {
-        const res = await api.findResearchGap(paperIds);
+        const res = await api.findResearchGap(paperIds, undefined, useCache);
         setResult(res);
       } else if (activeInsight === "conflict") {
-        const res = await api.findConflicts(paperIds);
+        const res = await api.findConflicts(paperIds, useCache);
         setResult(res);
       } else if (activeInsight === "topic") {
-        const res = await api.findTopicSuggestions(paperIds);
+        const res = await api.findTopicSuggestions(paperIds, useCache);
         setResult(res);
       } else if (activeInsight === "evolution") {
-        const res = await api.findEvolutionMap(paperIds);
+        const res = await api.findEvolutionMap(paperIds, useCache);
         setResult(res);
       } else if (activeInsight === "compare") {
         if (selectedPaperIds.length < 2) {
@@ -158,7 +158,7 @@ export const InsightsView: React.FC<{
           setLoading(false);
           return;
         }
-        const res = await api.comparePapers(selectedPaperIds);
+        const res = await api.comparePapers(selectedPaperIds, useCache);
         setResult(res);
       }
     } catch (e) {
@@ -377,7 +377,7 @@ export const InsightsView: React.FC<{
 
           <button
             className="insights-run-btn"
-            onClick={runInsight}
+            onClick={() => runInsight(true)}
             disabled={loading || (papers.length === 0 && !loadingPapers) || (activeInsight === "compare" && selectedPaperIds.length < 2)}
           >
             {loading ? (
@@ -503,8 +503,7 @@ export const InsightsView: React.FC<{
             <button
               className="insights-action-btn"
               onClick={() => {
-                setResult(null);
-                setError(null);
+                runInsight(false);
               }}
             >
               {t("insights.reanalyze")}

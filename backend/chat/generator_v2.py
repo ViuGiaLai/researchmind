@@ -824,46 +824,51 @@ class Generator(
     def _get_external_system_prompt(self) -> str:
         mode = getattr(self._local, "reasoning_mode", "fast")
         lang_instruction = getattr(self._local, "language_instruction", "")
+        # Anti-repetition instruction for local models that tend to start every answer the same way
+        anti_repeat = "Never start responses with 'In this document', 'The document', 'Ở tài liệu này', or similar repetitive phrases."
 
         # Local GGUF: never ask for long essays — word targets dominate decode time.
         if self._is_local_runtime():
             if mode == "fast":
                 return (
                     "You are ResearchMind. Answer briefly and clearly (~80-120 words). "
-                    "No filler, no forced headings.\n" + lang_instruction
+                    "No filler, no forced headings.\n"
+                    + anti_repeat + "\n"
+                    + lang_instruction
                 )
             if mode == "deep":
                 return (
                     "You are ResearchMind. Give a structured answer (~150-250 words) "
-                    "with key distinctions. No <think> tags.\n" + lang_instruction
+                    "with key distinctions. No <think> tags.\n"
+                    + anti_repeat + "\n"
+                    + lang_instruction
                 )
             return (
                 "You are ResearchMind. Provide a focused analysis (~250-400 words). "
-                "Cover main ideas and trade-offs; stay concise for a local model.\n" + lang_instruction
+                "Cover main ideas and trade-offs; stay concise for a local model.\n"
+                + anti_repeat + "\n"
+                + lang_instruction
             )
 
         if mode == "fast":
             return (
-                "You are ResearchMind, an academic research assistant. "
-                "Provide a direct, concise, and clear definition first (~100-150 words). "
-                "Add a brief example or key takeaway only if helpful. "
-                "Do not use rigid templates, forced headings, or artificial filler for simple questions. "
-                "Use Markdown (bold key terms, bullets) for readability. "
-                "Prioritize clarity, accuracy, and natural tone.\n\n" + lang_instruction
+                "You are ResearchMind. Answer concisely and directly. "
+                "If the user asks for creative content, lists, or specific formats, fulfill the request naturally. "
+                "Do not force definitions, rigid templates, or artificial filler. "
+                "Use Markdown for readability. Prioritize clarity, accuracy, and a natural tone.\n\n" + lang_instruction
             )
         elif mode == "deep":
             return (
-                "You are ResearchMind, an academic research assistant. "
-                "Provide a clear, well-structured response (~300-500 words). "
-                "Use Markdown headings and bullet points only when helpful. Include concrete examples and key technical distinctions. "
+                "You are ResearchMind. Provide a clear, well-structured response (~300-500 words). "
+                "Adapt naturally to the user's request, whether it's analytical or creative. "
+                "Use Markdown headings and bullet points only when helpful. "
                 "If applicable, add 3-4 dynamic 'Gợi ý đọc thêm' topics directly related to the user's question.\n\n" + lang_instruction
             )
         else:  # deep_plus / deep+
             return (
-                "You are ResearchMind, an academic research assistant. "
-                "Provide a comprehensive, research-grade analysis (500-1000+ words). "
-                "Break down core mechanics, mathematical or architectural principles, and trade-offs. "
-                "Reference classic literature or authoritative sources (e.g., Goodfellow et al., Vaswani et al., Stanford CS) when relevant. "
+                "You are ResearchMind. Provide a comprehensive analysis (500-1000+ words) tailored to the user's request. "
+                "Adapt to the required format naturally. "
+                "Reference authoritative sources when relevant. "
                 "Include dynamic 'Gợi ý đọc thêm' topics directly connected to this field.\n\n" + lang_instruction
             )
 
@@ -886,7 +891,8 @@ class Generator(
             sp = (
                 "You are ResearchMind, a concise academic assistant. "
                 "Answer directly with evidence when available. Cite as [Paper, page X]. "
-                "If evidence is insufficient, say so briefly."
+                "If evidence is insufficient, say so briefly. "
+                "Never start responses with 'In this document', 'The document', 'Ở tài liệu này', or similar repetitive phrases."
             )
             if language:
                 sp = f"{sp}\n{language}"
@@ -1381,14 +1387,23 @@ class Generator(
         if not use_prefill_history:
             parts.append(f"<|im_start|>user\n{current_user}<|im_end|>\n")
 
+        # Build language-aware assistant prefill to steer small local models
+        lang_inst = getattr(self._local, "language_instruction", "") or ""
+        if "Vietnamese" in lang_inst:
+            lang_prefix = "Trả lời bằng tiếng Việt, không mở đầu bằng 'Ở tài liệu này': "
+        elif "Japanese" in lang_inst:
+            lang_prefix = "日本語で回答: "
+        else:
+            lang_prefix = ""
+
         if prefill_text:
             if not is_deep_plus and not prefill_text.startswith("<think>"):
-                parts.append(f"<|im_start|>assistant\n<think>\n</think>\n{prefill_text}")
+                parts.append(f"<|im_start|>assistant\n<think>\n</think>\n{lang_prefix}{prefill_text}")
             else:
                 parts.append(f"<|im_start|>assistant\n{prefill_text}")
         else:
             if not is_deep_plus:
-                parts.append("<|im_start|>assistant\n<think>\n</think>\n")
+                parts.append(f"<|im_start|>assistant\n<think>\n</think>\n{lang_prefix}")
             else:
                 parts.append("<|im_start|>assistant\n")
         return "".join(parts)
@@ -1518,9 +1533,9 @@ class Generator(
         else:
             self._local.system_prompt_override = None
             user_prompt = (
+                f"[STYLE] Answer naturally. Do NOT start with 'Ở tài liệu này' or 'In this document'. Vary your openings. [/STYLE]\n\n"
                 f"## Document context:\n{context_text}\n\n"
                 f"## Question:\n{query}\n\n"
-                "Answer using the context above when it contains relevant information. "
                 "Cite every context-supported claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]."
             )
         user_prompt = apply_history_to_prompt(user_prompt, chat_history)

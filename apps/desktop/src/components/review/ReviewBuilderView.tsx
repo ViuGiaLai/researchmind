@@ -83,6 +83,9 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
 
   // ─── Save/Load ─────────────────────────────────────────────
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const draftIdRef = useRef<string | null>(currentDraftId);
+  useEffect(() => { draftIdRef.current = currentDraftId; }, [currentDraftId]);
+
   const [savedDrafts, setSavedDrafts] = useState<ReviewDraftSummary[]>([]);
   const [, setDraftsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,14 +96,14 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
   const [searchTerm, setSearchTerm] = useState("");
 
   const getDraftPayload = useCallback(() => ({
-    id: currentDraftId || undefined,
+    id: draftIdRef.current || undefined,
     title,
     paper_ids: selectedIds,
     paper_titles: paperTitles,
     outline_sections: outlineSections,
     sections,
     full_text: fullText || rebuildFullText(title, sections, outlineSections),
-  }), [currentDraftId, title, selectedIds, paperTitles, outlineSections, sections, fullText]);
+  }), [title, selectedIds, paperTitles, outlineSections, sections, fullText]);
 
   const doSave = useCallback(async (createVersion = false): Promise<boolean> => {
     setSaving(true);
@@ -109,9 +112,10 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
       const payload = { ...getDraftPayload(), create_version: createVersion };
       const res = await api.saveReviewDraft(payload);
       if (res.id && !res.error) {
+        draftIdRef.current = res.id;
         setCurrentDraftId(res.id);
         setLastSaved(new Date());
-        if (createVersion && currentDraftId) loadVersions(currentDraftId);
+        if (createVersion && draftIdRef.current) loadVersions(draftIdRef.current);
         return true;
       } else if (res.error) {
         throw new Error(res.error);

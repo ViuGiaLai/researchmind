@@ -29,10 +29,10 @@ PROVIDER_INPUT_BUDGET: dict[str, int] = {
 
 OVERHEAD_TOKENS = 256
 
-CONTEXT_BLOCK_RE = re.compile(r"(?s)^(## Document context:\n)(.*?)(\n\n## Question:\n.*)$")
+CONTEXT_BLOCK_RE = re.compile(r"(?s)^(## Document context:\n)(.*?)(\n\n## (?:User q|Q)uestion:\n.*)$")
 # History may be prepended before document context (multi-turn chat).
 HISTORY_CONTEXT_RE = re.compile(
-    r"(?s)^(## Conversation history\n.*?)(\n\n## Document context:\n)(.*?)(\n\n## Question:\n.*)$"
+    r"(?s)^(## Conversation history\n.*?)(\n\n## Document context:\n)(.*?)(\n\n## (?:User q|Q)uestion:\n.*)$"
 )
 HISTORY_PREFIX_RE = re.compile(r"(?s)^(## Conversation history\n.*?)(\n\n)(.+)$")
 SNIPPET_BLOCK_RE = re.compile(r"(?s)^(.*?)(\nExcerpt:\n)(.*)$")
@@ -68,7 +68,8 @@ def trim_context_text(
 
     query_shell = (
         f"## Document context:\n\n\n## Question:\n{query}\n\n"
-        "Answer using the context above when it contains relevant information. "
+        "Answer naturally and concisely based on the context. "
+        "Vary your sentence openings - do NOT keep starting with 'In this document' or 'The document' or 'Ở tài liệu này'. "
         "Cite each supported claim as [Paper title, page X] when a page is supplied, otherwise [Paper title]."
     )
     allowed = _allowed_user_tokens(system_prompt, provider, max_output_tokens, model)

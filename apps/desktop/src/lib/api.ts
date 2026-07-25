@@ -1304,19 +1304,19 @@ export const api = {
     ),
 
   // Insights
-  findResearchGap: (paperIds?: string[], collectionId?: string) =>
-    request<ChatResponse>("POST", "/api/insights/gap", { paper_ids: paperIds, collection_id: collectionId }),
+  findResearchGap: (paperIds?: string[], collectionId?: string, useCache: boolean = true) =>
+    request<ChatResponse>("POST", "/api/insights/gap", { paper_ids: paperIds, collection_id: collectionId, use_cache: useCache }),
 
-  findConflicts: (paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/insights/conflict", { paper_ids: paperIds }),
+  findConflicts: (paperIds?: string[], useCache: boolean = true) =>
+    request<ChatResponse>("POST", "/api/insights/conflict", { paper_ids: paperIds, use_cache: useCache }),
 
-  findTopicSuggestions: (paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/insights/topic", { paper_ids: paperIds }),
+  findTopicSuggestions: (paperIds?: string[], useCache: boolean = true) =>
+    request<ChatResponse>("POST", "/api/insights/topic", { paper_ids: paperIds, use_cache: useCache }),
 
-  findEvolutionMap: (paperIds?: string[]) =>
-    request<ChatResponse>("POST", "/api/insights/evolution", { paper_ids: paperIds }),
+  findEvolutionMap: (paperIds?: string[], useCache: boolean = true) =>
+    request<ChatResponse>("POST", "/api/insights/evolution", { paper_ids: paperIds, use_cache: useCache }),
 
-  comparePapers: (paperIds?: string[]) =>
+  comparePapers: (paperIds?: string[], useCache: boolean = true) =>
     request<{
       answer: string;
       citations: any[];
