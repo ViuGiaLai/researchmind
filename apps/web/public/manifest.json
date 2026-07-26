@@ -1,0 +1,15 @@
+{
+  "name": "ResearchMind Cloud",
+  "short_name": "ResearchMind",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "icons": [
+    {
+      "src": "/icon.ico",
+      "sizes": "16x16 32x32 48x48 256x256",
+      "type": "image/x-icon"
+    }
+  ]
+}

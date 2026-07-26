@@ -1,0 +1,23 @@
+{
+  "app": {
+    "name": "ResearchMind Cloud",
+    "tagline": "Local-first research + cloud collaboration"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "workspaces": "Workspaces",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Sign in",
+    "register": "Create account",
+    "logout": "Sign out"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search"
+  }
+}

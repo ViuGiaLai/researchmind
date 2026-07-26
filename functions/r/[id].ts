@@ -1,3 +1,5 @@
+export { onRequestOptions } from "../lib/cors";
+
 export const onRequestGet = async (context: any) => {
   const { request, env, params } = context;
   const id = params.id || "";

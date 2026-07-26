@@ -1,0 +1,3 @@
+﻿/** Feature module: snapshots */
+export {};
+

@@ -1,0 +1,773 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Đã có lỗi xảy ra",
+    "retry": "Thử lại",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "delete": "Xóa",
+    "confirm": "Xác nhận",
+    "close": "Đóng",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "all": "Tất cả",
+    "open": "Mở",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép",
+    "download": "Tải xuống",
+    "restore": "Khôi phục",
+    "create": "Tạo",
+    "edit": "Chỉnh sửa",
+    "view": "Xem"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Toàn cảnh không gian nghiên cứu của bạn — dữ liệu trực tiếp từ Desktop",
+    "cloudPlatform": "Cloud Platform",
+    "stats": {
+      "workspaces": "Không gian làm việc",
+      "workspacesSub": "Đã đồng bộ từ Desktop",
+      "reports": "Báo cáo (cloud)",
+      "reportsSub": "Đã publish công khai hoặc chia sẻ",
+      "papers": "Tài liệu (metadata)",
+      "papersSub": "Tổng số paper đã lưu chỉ mục",
+      "storage": "Dung lượng sao lưu",
+      "storageSub": "{{events}} sự kiện / 7 ngày"
+    },
+    "empty": {
+      "title": "Chưa có dữ liệu đồng bộ",
+      "description": "Mở ResearchMind Desktop và bật đồng bộ để thấy không gian làm việc, báo cáo và tài liệu của bạn ở đây.",
+      "action": "Xem hướng dẫn kết nối Desktop"
+    },
+    "error": {
+      "title": "Không tải được dữ liệu",
+      "description": "Đã có lỗi khi kết nối tới máy chủ. Vui lòng thử lại sau ít phút."
+    },
+    "recentWorkspaces": "Không gian làm việc",
+    "recentReports": "Báo cáo cloud",
+    "latestActivity": "Hoạt động gần đây",
+    "activityEmpty": {
+      "title": "Chưa có hoạt động nào",
+      "description": "Các thay đổi đồng bộ từ Desktop sẽ hiển thị tại đây."
+    }
+  },
+  "workspaces": {
+    "title": "Không gian làm việc",
+    "subtitle": "Quản lý không gian nghiên cứu đã đồng bộ từ Desktop lên Cloud",
+    "searchPlaceholder": "Tìm không gian làm việc...",
+    "empty": {
+      "title": "📂 Chưa có Cloud Workspace",
+      "description": "Nghiên cứu được quản lý từ ResearchMind Desktop. Để thấy không gian làm việc ở đây:",
+      "step1": "1. Mở ResearchMind Desktop",
+      "step2": "2. Tạo một Workspace",
+      "step3": "3. Bật Cloud Sync",
+      "step4": "4. Refresh trang này",
+      "downloadDesktop": "☁ Tải Desktop",
+      "docs": "📖 Tài liệu",
+      "tutorial": "🎥 Xem hướng dẫn"
+    },
+    "syncStates": {
+      "Synced": "Đã đồng bộ",
+      "Syncing": "Đang đồng bộ…",
+      "Local Only": "Chỉ trên máy",
+      "Conflict": "Xung đột",
+      "Backup Available": "Có bản sao lưu",
+      "Archived": "Đã lưu trữ"
+    },
+    "card": {
+      "papers": "📄 bài báo",
+      "reports": "📊 báo cáo",
+      "knowledgeGraph": "🧠 Sơ đồ tri thức",
+      "aiChats": "🤖 AI Chats",
+      "storage": "💾 Dung lượng",
+      "lastBackup": "Sao lưu gần nhất",
+      "owner": "👤 Chủ sở hữu",
+      "members": "👥 Thành viên",
+      "recentActivity": "Hoạt động gần đây",
+      "noActivity": "Chưa có hoạt động từ Desktop"
+    },
+    "tabs": {
+      "overview": "Tổng quan",
+      "reports": "Báo cáo",
+      "backup": "Sao lưu",
+      "activity": "Hoạt động",
+      "members": "Thành viên"
+    },
+    "detail": {
+      "papers": "Tài liệu",
+      "reports": "Báo cáo",
+      "members": "Thành viên",
+      "updated": "Cập nhật",
+      "owner": "Chủ sở hữu",
+      "knowledgeGraph": "Sơ đồ tri thức",
+      "aiChats": "Chat với AI",
+      "storage": "Dung lượng lưu trữ",
+      "lastBackup": "Sao lưu lần cuối",
+      "note": "Nội dung paper đầy đủ, index ChromaDB, Knowledge Graph và AI Chat hoạt động trên Desktop. Cloud lưu metadata, báo cáo publish và trạng thái đồng bộ.",
+      "noReports": "Chưa có báo cáo nào được publish từ workspace này.",
+      "noBackups": "Chưa có bản sao lưu nào.",
+      "noActivity": "Chưa có hoạt động nào.",
+      "noMembers": "Chưa có thành viên nào ngoài bạn.",
+      "createBackup": "Tạo sao lưu",
+      "restoreBackup": "Khôi phục",
+      "backupHistory": "Lịch sử sao lưu",
+      "viewReport": "Mở báo cáo",
+      "copyLink": "Sao chép link"
+    },
+    "syncIcons": {
+      "Synced": "🟢",
+      "Syncing": "🟡",
+      "Local Only": "⚪",
+      "Conflict": "🔴",
+      "Backup Available": "🟣",
+      "Archived": "⚪"
+    },
+    "conflict": {
+      "title": "Không gian làm việc này có xung đột",
+      "description": "Có 2 phiên bản khác nhau từ 2 thiết bị. Chọn phiên bản bạn muốn giữ:",
+      "keepLocal": "Giữ bản trên máy này",
+      "keepCloud": "Giữ bản trên Cloud",
+      "note": "Phiên bản không được chọn sẽ được lưu lại dưới dạng snapshot, không bị xóa."
+    },
+    "privacy": {
+      "label": "Quyền riêng tư",
+      "title": "Mức độ riêng tư của Workspace",
+      "description": "Kiểm soát dữ liệu nào được đồng bộ lên Cloud. Mặc định là Local Only — không có gì được tải lên nếu bạn chưa chủ động.",
+      "tiers": {
+        "local_only": {
+          "name": "🔒 Local Only",
+          "description": "Mọi dữ liệu chỉ trên máy. Cloud không biết gì về workspace này.",
+          "details": "• PDF gốc: chỉ trên máy\n• ChromaDB: chỉ trên máy\n• SQLite: chỉ trên máy\n• AI Chat: chỉ trên máy"
+        },
+        "sync_metadata": {
+          "name": "🔄 Sync Metadata",
+          "description": "Cloud chỉ biết tên, tags và trạng thái đồng bộ.",
+          "details": "• Đồng bộ: ID, tên, tags, ngày\n• KHÔNG: PDF, embedding, full note"
+        },
+        "backup_encrypted": {
+          "name": "☁️ Backup (AES-256)",
+          "description": "Sao lưu mã hóa đầu cuối. Kể cả ResearchMind cũng không đọc được.",
+          "details": "• Mã hóa AES-256 toàn bộ dữ liệu\n• Cloud lưu: encrypted.db, encrypted settings\n• Chỉ bạn có key giải mã"
+        },
+        "publish_report": {
+          "name": "🌍 Publish Report",
+          "description": "Chia sẻ báo cáo nghiên cứu công khai hoặc qua link.",
+          "details": "• Cloud lưu: HTML report, PDF report, share link\n• KHÔNG: paper gốc, chunk, embedding"
+        },
+        "team": {
+          "name": "👥 Team Workspace",
+          "description": "Cộng tác nhóm. Owner kiểm soát quyền truy cập.",
+          "details": "• Mời thành viên qua email\n• Phân quyền: Editor / Viewer\n• Chỉ dữ liệu được chia sẻ mới hiện"
+        }
+      },
+      "current": "Riêng tư hiện tại: {{level}}",
+      "changeConfirm": {
+        "title": "Đổi mức độ riêng tư?",
+        "description": "Từ {{from}} sang {{to}}. Dữ liệu sẽ được đồng bộ/tải lên theo mức mới."
+      },
+      "encrypted": "Mã hóa AES-256",
+      "encryptedBadge": "🔐 Encrypted",
+      "localOnly": "Chỉ trên máy",
+      "notSynced": "Chưa đồng bộ",
+      "openInDesktop": "Mở trong Desktop",
+      "storage": "Dung lượng",
+      "encryptedStorage": "{{size}} (Đã mã hóa)"
+    },
+    "notFound": "Không tìm thấy không gian làm việc."
+  },
+  "reports": {
+    "title": "Báo cáo",
+    "subtitle": "Báo cáo nghiên cứu đã publish lên cloud, có thể chia sẻ công khai",
+    "searchPlaceholder": "Tìm báo cáo...",
+    "empty": {
+      "title": "Chưa có báo cáo nào được publish",
+      "description": "Đăng nhập cloud từ Desktop App và publish một báo cáo để quản lý chia sẻ, phiên bản tại đây.",
+      "action": "Xem hướng dẫn publish"
+    },
+    "tabs": {
+      "all": "Tất cả",
+      "live": "Live",
+      "snapshot": "Snapshot"
+    },
+    "types": {
+      "Live Report": "Live Report",
+      "Snapshot": "Snapshot"
+    },
+    "visibility": {
+      "private": "Riêng tư",
+      "unlisted": "Chia sẻ qua link",
+      "public": "Công khai"
+    },
+    "copyLink": "Sao chép link chia sẻ",
+    "viewHistory": "Xem lịch sử phiên bản",
+    "restoreVersion": "Khôi phục phiên bản này",
+    "version": "Phiên bản {{version}}",
+    "updated": "cập nhật {{date}}",
+    "notFound": {
+      "title": "Không tìm thấy báo cáo",
+      "description": "Không có báo cáo cloud với id \"{{id}}\"."
+    },
+    "viewer": {
+      "abstractTitle": "Tóm tắt",
+      "defaultSummary": "Đây là báo cáo nghiên cứu trên cloud. Desktop xuất nội dung HTML/PDF đầy đủ lên API; trình xem nhúng nội dung đó vào đây.",
+      "metadataTitle": "Metadata báo cáo",
+      "workspaceLabel": "Không gian làm việc",
+      "publicUrlLabel": "URL công khai",
+      "bodyPlaceholder": "Điểm gắn iframe / HTML payload báo cáo"
+    }
+  },
+  "snapshots": {
+    "title": "Phiên bản Workspace",
+    "subtitle": "Lịch sử phiên bản không gian làm việc — xem, so sánh và khôi phục như Git dành cho nghiên cứu",
+    "empty": {
+      "title": "Chưa có phiên bản nào",
+      "description": "Snapshot lưu lại trạng thái Workspace tại một thời điểm để bạn có thể xem lịch sử hoặc khôi phục khi cần.",
+      "reasons": "Snapshot sẽ được tạo khi:",
+      "reason1": "• Publish Report",
+      "reason2": "• AI Regenerate Report",
+      "reason3": "• Tạo thủ công (Create Snapshot)",
+      "reason4": "• Thay đổi lớn trong Workspace",
+      "action": "Tạo Snapshot thủ công"
+    },
+    "types": {
+      "auto": "Tự động",
+      "manual": "Thủ công"
+    },
+    "columns": {
+      "version": "Phiên bản",
+      "workspace": "Workspace",
+      "created": "Ngày tạo",
+      "creator": "Người tạo",
+      "type": "Loại"
+    },
+    "actions": {
+      "view": "Xem",
+      "compare": "So sánh",
+      "restore": "Khôi phục",
+      "download": "Tải xuống"
+    },
+    "compare": {
+      "title": "So sánh phiên bản",
+      "from": "Từ",
+      "to": "Đến",
+      "changes": "Thay đổi",
+      "noChanges": "Không có thay đổi chi tiết",
+      "close": "Đóng"
+    },
+    "restoreConfirm": {
+      "title": "Khôi phục về phiên bản này?",
+      "description": "Toàn bộ Workspace sẽ quay về trạng thái tại thời điểm này. Trạng thái hiện tại sẽ được lưu thành một Snapshot mới trước khi khôi phục.",
+      "confirm": "Xác nhận khôi phục",
+      "cancel": "Hủy"
+    },
+    "created": "Đã tạo Snapshot thành công.",
+    "createManual": "Tạo Snapshot thủ công",
+    "versionLabel": "v{{version}}",
+    "openSnapshot": "Mở Snapshot"
+  },
+  "activity": {
+    "title": "Activity Timeline",
+    "subtitle": "Lịch sử toàn bộ hoạt động nghiên cứu trên Desktop và Cloud",
+    "empty": {
+      "title": "Chưa có hoạt động nào",
+      "description": "Activity Timeline lưu lại toàn bộ lịch sử nghiên cứu — từ import tài liệu, chat với AI, tạo Report đến đồng bộ Cloud.",
+      "triggers": "Hoạt động sẽ xuất hiện khi bạn:",
+      "trigger1": "• Import tài liệu",
+      "trigger2": "• Trò chuyện với AI",
+      "trigger3": "• Tạo Report",
+      "trigger4": "• Cập nhật Knowledge Graph",
+      "trigger5": "• Đồng bộ Cloud",
+      "trigger6": "• Tạo Snapshot / Sao lưu"
+    },
+    "filters": {
+      "all": "Tất cả",
+      "research": "Nghiên cứu",
+      "ai": "AI",
+      "reports": "Báo cáo",
+      "cloud": "Cloud",
+      "team": "Nhóm",
+      "security": "Bảo mật"
+    },
+    "categories": {
+      "research": "📚 Nghiên cứu",
+      "ai": "🤖 AI",
+      "reports": "📄 Báo cáo",
+      "cloud": "☁️ Cloud",
+      "team": "👥 Cộng tác",
+      "security": "🔐 Bảo mật"
+    },
+    "time": {
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua",
+      "daysAgo": "{{days}} ngày trước"
+    },
+    "detail": {
+      "duration": "Thời gian",
+      "entities": "Thực thể",
+      "relationships": "Quan hệ",
+      "workspace": "Workspace",
+      "actor": "Người thực hiện",
+      "hide": "Thu gọn",
+      "showMore": "Chi tiết"
+    }
+  },
+  "analytics": {
+    "title": "Control Center",
+    "subtitle": "Trung tâm quản lý toàn bộ tài khoản ResearchMind — thiết bị, đồng bộ, AI usage, tiến độ nghiên cứu và sức khỏe hệ thống",
+    "empty": {
+      "title": "Chưa có dữ liệu",
+      "description": "Nhập tài liệu từ Desktop để bắt đầu thu thập dữ liệu phân tích."
+    },
+    "sections": {
+      "overview": "📊 Tổng quan",
+      "cloud": "☁️ Cloud",
+      "devices": "💻 Thiết bị",
+      "aiUsage": "🤖 AI Usage",
+      "researchProgress": "📈 Tiến độ nghiên cứu",
+      "researchStats": "📚 Thống kê",
+      "subscription": "💳 Gói dịch vụ",
+      "systemHealth": "⚠️ Sức khỏe hệ thống",
+      "security": "🛡 Bảo mật",
+      "monthlySummary": "📋 Tổng kết tháng"
+    },
+    "overview": {
+      "workspaces": "Workspace",
+      "papers": "Bài báo",
+      "reports": "Báo cáo",
+      "citations": "Trích dẫn",
+      "aiChats": "AI Chats",
+      "notes": "Ghi chú",
+      "knowledgeGraphs": "Sơ đồ tri thức",
+      "snapshots": "Snapshot"
+    },
+    "cloud": {
+      "storageUsed": "Dung lượng đã dùng",
+      "backupSize": "Dung lượng sao lưu",
+      "lastBackup": "Sao lưu gần nhất",
+      "pendingSync": "Đồng bộ chờ",
+      "failedSync": "Đồng bộ lỗi",
+      "lastSync": "Đồng bộ gần nhất",
+      "never": "Chưa bao giờ"
+    },
+    "devices": {
+      "online": "Trực tuyến",
+      "offline": "Ngoại tuyến",
+      "lastSeen": "lần cuối",
+      "version": "Phiên bản"
+    },
+    "aiUsage": {
+      "requests": "yêu cầu",
+      "tokens": "tokens",
+      "noData": "Chưa có dữ liệu AI Usage."
+    },
+    "researchGrowth": {
+      "papersPerWeek": "Bài báo nhập/tuần",
+      "kgNodes": "Node KG",
+      "evidenceExtracted": "Bằng chứng trích xuất",
+      "contradictions": "Mâu thuẫn phát hiện",
+      "reportsGenerated": "Báo cáo đã tạo"
+    },
+    "stats": {
+      "mostActiveWorkspace": "Workspace hoạt động nhiều nhất",
+      "mostViewedReport": "Báo cáo xem nhiều nhất",
+      "mostUsedPrompt": "Prompt dùng nhiều nhất",
+      "avgAiResponseTime": "Thời gian phản hồi AI trung bình",
+      "avgIndexingSpeed": "Tốc độ index trung bình"
+    },
+    "subscription": {
+      "plan": "Gói hiện tại",
+      "aiCredits": "AI Credits còn lại",
+      "storageRemaining": "Dung lượng còn lại",
+      "nextBilling": "Thanh toán tiếp theo",
+      "upgrade": "Nâng cấp"
+    },
+    "systemHealth": {
+      "healthy": "Tốt",
+      "degraded": "Suy giảm",
+      "down": "Mất kết nối"
+    },
+    "security": {
+      "lastLogin": "Đăng nhập gần nhất",
+      "devicesLoggedIn": "Thiết bị đã đăng nhập",
+      "twoFactor": "Xác thực 2 bước",
+      "recentSessions": "Phiên hoạt động",
+      "apiKeys": "API Keys",
+      "enabled": "Đã bật",
+      "disabled": "Chưa bật"
+    },
+    "monthly": {
+      "papers": "bài báo",
+      "reports": "báo cáo",
+      "aiChats": "AI chats",
+      "backups": "sao lưu",
+      "snapshots": "snapshot",
+      "graphUpdates": "cập nhật KG"
+    },
+    "noData": "Chưa có dữ liệu"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "subtitle": "Cập nhật về không gian làm việc, nhóm và hệ thống",
+    "unread": "{{count}} chưa đọc",
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "empty": {
+      "title": "Không có thông báo nào",
+      "description": "Bạn sẽ nhận thông báo khi có đồng bộ mới, lời mời nhóm hoặc cập nhật hệ thống."
+    },
+    "categories": {
+      "all": "Tất cả",
+      "workspace": "Không gian làm việc",
+      "team": "Nhóm",
+      "ai": "AI",
+      "system": "Hệ thống",
+      "billing": "Thanh toán"
+    }
+  },
+  "backups": {
+    "title": "Sao lưu",
+    "subtitle": "Bản sao lưu không gian làm việc, cài đặt và prompt của bạn",
+    "createBackup": "Tạo bản sao lưu",
+    "empty": {
+      "title": "Chưa có bản sao lưu nào",
+      "description": "Bản sao lưu được tạo tự động định kỳ, hoặc bạn có thể tạo ngay bây giờ."
+    },
+    "types": {
+      "all": "Tất cả",
+      "workspace": "Không gian làm việc",
+      "settings": "Cài đặt",
+      "prompts": "Prompt",
+      "full": "Đầy đủ"
+    },
+    "statuses": {
+      "completed": "Hoàn thành",
+      "pending": "Đang xử lý",
+      "failed": "Thất bại",
+      "restoring": "Đang khôi phục"
+    },
+    "created": "Đã tạo bản sao lưu.",
+    "restoreQueued": "Đã xếp hàng khôi phục cho {{id}}. Khởi động lại backend/Desktop nếu cần.",
+    "note": "Tạo và khôi phục bản sao lưu qua backend `/backups`. Không có dữ liệu giả trong trình duyệt."
+  },
+  "devices": {
+    "title": "Thiết bị",
+    "subtitle": "Trung tâm quản lý thiết bị và đồng bộ — Desktop, đồng bộ, bảo mật và sao lưu",
+    "empty": {
+      "title": "Chưa có thiết bị Desktop nào",
+      "description": "Đăng nhập ResearchMind Desktop với cùng tài khoản để thiết bị xuất hiện tại đây.",
+      "action": "Tải Desktop"
+    },
+    "online": "Trực tuyến",
+    "offline": "Ngoại tuyến",
+    "thisDevice": "Thiết bị này",
+    "lastSeen": "lần cuối {{time}}",
+    "platforms": {
+      "desktop": "Desktop",
+      "web": "Web",
+      "mobile": "Di động"
+    },
+    "sections": {
+      "summary": "📊 Tổng quan",
+      "devices": "💻 Thiết bị",
+      "sync": "🔄 Đồng bộ",
+      "backup": "☁️ Sao lưu",
+      "security": "🛡 Bảo mật",
+      "activity": "📋 Nhật ký"
+    },
+    "summaryCards": {
+      "total": "Tổng thiết bị",
+      "online": "Đang online",
+      "offlineCount": "Ngoại tuyến",
+      "pendingSync": "Đồng bộ chờ"
+    },
+    "status": {
+      "synced": "✓ Đã đồng bộ",
+      "syncing": "Đang đồng bộ…",
+      "pending": "Đang chờ",
+      "conflict": "Xung đột",
+      "offline": "Ngoại tuyến",
+      "error": "Lỗi"
+    },
+    "info": {
+      "os": "Hệ điều hành",
+      "version": "Phiên bản",
+      "architecture": "Kiến trúc",
+      "timezone": "Múi giờ",
+      "workspaces": "Workspace",
+      "lastSync": "Đồng bộ gần nhất",
+      "lastLogin": "Đăng nhập gần nhất",
+      "storage": "Dung lượng local",
+      "ip": "IP gần nhất"
+    },
+    "sync": {
+      "pending": "Đang chờ đồng bộ",
+      "uploading": "Đang tải lên",
+      "downloading": "Đang tải xuống",
+      "failed": "Thất bại",
+      "forceSync": "Đồng bộ ngay",
+      "progress": "{{percent}}%"
+    },
+    "backup": {
+      "lastBackup": "Sao lưu gần nhất",
+      "backupSize": "Dung lượng sao lưu",
+      "create": "Tạo sao lưu",
+      "restore": "Khôi phục",
+      "never": "Chưa sao lưu"
+    },
+    "security": {
+      "trusted": "Thiết bị tin cậy",
+      "twoFactor": "Xác thực 2 bước",
+      "location": "Vị trí gần nhất",
+      "enabled": "Đã bật",
+      "disabled": "Chưa bật"
+    },
+    "actions": {
+      "rename": "Đổi tên",
+      "disconnect": "Ngắt kết nối",
+      "forget": "Quên thiết bị",
+      "forceSync": "Đồng bộ ngay",
+      "restore": "Khôi phục",
+      "createBackup": "Tạo sao lưu"
+    },
+    "revoke": "Ngắt kết nối",
+    "revokeConfirm": {
+      "title": "Ngắt kết nối thiết bị này?",
+      "description": "Thiết bị sẽ cần đăng nhập lại để tiếp tục đồng bộ. Dữ liệu local trên thiết bị đó không bị ảnh hưởng."
+    }
+  },
+  "team": {
+    "title": "Cộng tác nhóm",
+    "subtitle": "Mời, quản lý và cộng tác trên không gian làm việc chung",
+    "inviteMember": "Mời thành viên",
+    "empty": {
+      "title": "Chưa có cộng tác viên nào",
+      "description": "Mời đồng nghiệp, giảng viên hoặc sinh viên cộng tác trên không gian làm việc chung.",
+      "permissions": "Quyền được hỗ trợ:",
+      "permViewer": "• Người xem — chỉ xem",
+      "permCommenter": "• Người bình luận — xem + bình luận",
+      "permEditor": "• Biên tập viên — chỉnh sửa báo cáo, metadata",
+      "permAdmin": "• Quản trị viên — mời, sửa, xóa"
+    },
+    "overview": {
+      "teamName": "Tên nhóm",
+      "totalMembers": "Tổng thành viên",
+      "sharedWorkspaces": "Workspace chia sẻ",
+      "pendingInvites": "Lời mời đang chờ",
+      "activeToday": "Hoạt động hôm nay",
+      "totalComments": "Bình luận",
+      "totalReports": "Báo cáo",
+      "totalSnapshots": "Snapshot",
+      "organization": "Tổ chức (sau này)"
+    },
+    "columns": {
+      "member": "Thành viên",
+      "role": "Vai trò",
+      "workspaces": "Workspace",
+      "status": "Trạng thái",
+      "lastActive": "Hoạt động gần nhất",
+      "actions": "Thao tác"
+    },
+    "roles": {
+      "owner": "🔑 Chủ sở hữu",
+      "admin": "🛡 Quản trị viên",
+      "editor": "✏️ Biên tập viên",
+      "commenter": "💬 Người bình luận",
+      "viewer": "👁 Người xem"
+    },
+    "roleDescriptions": {
+      "owner": "Xóa Workspace · Mời/Xóa thành viên · Quản lý thanh toán",
+      "admin": "Mời thành viên · Chỉnh sửa mọi thứ",
+      "editor": "Chỉnh sửa báo cáo · Upload metadata · Bình luận",
+      "commenter": "Chỉ xem và bình luận",
+      "viewer": "Chỉ xem"
+    },
+    "statuses": {
+      "pending": "Đang chờ",
+      "active": "Đã tham gia",
+      "online": "Trực tuyến",
+      "offline": "Ngoại tuyến",
+      "declined": "Đã từ chối",
+      "cancelled": "Đã hủy"
+    },
+    "invitationStatuses": {
+      "sent": "📨 Đã gửi",
+      "opened": "👁 Đã xem",
+      "accepted": "✅ Đã chấp nhận",
+      "expired": "⏰ Hết hạn",
+      "revoked": "🚫 Đã thu hồi",
+      "cancelled": "✖ Đã hủy"
+    },
+    "invite": {
+      "email": "Email",
+      "role": "Vai trò",
+      "workspace": "Workspace",
+      "message": "Lời nhắn",
+      "messagePlaceholder": "Chào mừng bạn tham gia dự án...",
+      "send": "Gửi lời mời",
+      "emailPlaceholder": "abc@lab.edu",
+      "success": "Đã mời {{email}} với vai trò {{role}} vào {{workspace}}",
+      "noWorkspace": "Không có không gian làm việc — hãy tạo workspace trước"
+    },
+    "invitations": {
+      "title": "Lời mời đang chờ",
+      "resend": "Gửi lại",
+      "cancel": "Hủy lời mời",
+      "none": "Không có lời mời nào đang chờ."
+    },
+    "workspacePermissions": {
+      "title": "Quyền trên từng Workspace",
+      "owner": "Chủ sở hữu",
+      "editor": "Biên tập",
+      "commenter": "Bình luận",
+      "viewer": "Xem"
+    },
+    "activity": {
+      "title": "Hoạt động nhóm",
+      "none": "Chưa có hoạt động nào.",
+      "joined": "{{name}} đã tham gia",
+      "left": "{{name}} đã rời nhóm",
+      "roleChanged": "{{name}} đổi vai trò thành {{role}}",
+      "invited": "{{name}} đã mời {{email}}",
+      "removed": "{{name}} đã bị xóa khỏi nhóm"
+    },
+    "auditLog": {
+      "title": "Nhật ký kiểm toán",
+      "none": "Chưa có nhật ký nào.",
+      "ownerChanged": "Quyền sở hữu đã thay đổi",
+      "permissionUpdated": "Quyền {{role}} của {{email}} đã được cập nhật",
+      "workspaceShared": "Workspace đã được chia sẻ",
+      "memberRemoved": "{{email}} đã bị xóa khỏi nhóm",
+      "ip": "IP",
+      "device": "Thiết bị",
+      "time": "Thời gian"
+    },
+    "removeConfirm": {
+      "title": "Xóa thành viên này?",
+      "description": "{{name}} ({{email}}) sẽ bị xóa khỏi workspace. Dữ liệu không bị ảnh hưởng.",
+      "workspace": "Workspace",
+      "transferOwnership": "Chuyển quyền sở hữu",
+      "newOwner": "Chủ sở hữu mới",
+      "keepComments": "Giữ lại bình luận",
+      "confirm": "Xác nhận xóa",
+      "cancel": "Hủy"
+    },
+    "workspaceLabel": "Không gian làm việc",
+    "emailLabel": "Email thành viên",
+    "emailPlaceholder": "colleague@lab.edu",
+    "roleLabel": "Vai trò",
+    "invited": "Đã mời {{email}} với vai trò {{role}}",
+    "noWorkspace": "Không có không gian làm việc — hãy tạo workspace trước",
+    "sections": {
+      "overview": "📊 Tổng quan",
+      "members": "👥 Thành viên",
+      "invite": "✉️ Mời thành viên",
+      "permissions": "🔐 Quyền trên Workspace",
+      "invitations": "📨 Lời mời",
+      "activity": "📋 Hoạt động",
+      "audit": "📜 Nhật ký kiểm toán"
+    }
+  },
+  "billing": {
+    "title": "Thanh toán",
+    "subtitle": "Gói dịch vụ và AI Credits của bạn",
+    "comingSoon": {
+      "title": "Sắp ra mắt",
+      "description": "Tính năng quản lý gói dịch vụ và thanh toán đang được hoàn thiện."
+    },
+    "currentPlan": "Gói hiện tại",
+    "aiCredits": "AI Credits còn lại",
+    "upgrade": "Nâng cấp gói",
+    "viewHistory": "Xem lịch sử thanh toán",
+    "activateToken": "Kích hoạt license token",
+    "activateTitle": "Kích hoạt mã license",
+    "activateDescription": "Dán mã license nhận được sau khi thanh toán (xem `docs/PAYMENT_SETUP.md`). Gọi `POST /license/activate`.",
+    "tokenLabel": "Mã license",
+    "tokenPlaceholder": "eyJ...",
+    "activate": "Kích hoạt",
+    "activated": "Đã kích hoạt license.",
+    "plans": {
+      "free": "Miễn phí",
+      "pro": "Pro",
+      "lab": "Lab",
+      "team": "Team",
+      "enterprise": "Enterprise"
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "subtitle": "Khóa truy cập cho tích hợp bên ngoài",
+    "createKey": "Tạo key mới",
+    "empty": {
+      "title": "Chưa có API key nào",
+      "description": "Tạo key để kết nối ResearchMind với công cụ khác hoặc script tự động."
+    },
+    "keyNameLabel": "Tên key",
+    "keyNamePlaceholder": "CI publish · personal script",
+    "secretWarning": {
+      "title": "Lưu lại key này ngay bây giờ",
+      "description": "Đây là lần duy nhất key đầy đủ được hiển thị. Bạn sẽ không thể xem lại sau khi rời trang này."
+    },
+    "created": "tạo {{time}}",
+    "lastUsed": "dùng lần cuối {{time}}",
+    "revoke": "Thu hồi",
+    "dismiss": "Đóng"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "subtitle": "Thông tin tài khoản và tùy chọn ứng dụng",
+    "sections": {
+      "profile": "Hồ sơ",
+      "preferences": "Tùy chọn",
+      "ai": "Cấu hình AI",
+      "experimental": "Tính năng thử nghiệm"
+    },
+    "emailNotifications": "Thông báo email",
+    "weeklyDigest": "Bản tin hàng tuần",
+    "autoBackup": "Tự động sao lưu",
+    "defaultVisibility": "Chế độ hiển thị mặc định cho báo cáo",
+    "theme": "Giao diện",
+    "themes": {
+      "dark": "Tối",
+      "light": "Sáng",
+      "system": "Theo hệ thống"
+    },
+    "locale": "Ngôn ngữ",
+    "locales": {
+      "vi": "Tiếng Việt",
+      "en": "English"
+    },
+    "toggleLocale": "Ngôn ngữ: {{locale}} (nhấn để đổi)"
+  },
+  "help": {
+    "title": "Trợ giúp",
+    "subtitle": "Câu hỏi thường gặp và hướng dẫn sử dụng",
+    "desktopTitle": "Desktop App (Research IDE)",
+    "desktopDescription": "Nhập PDF, xây dựng đồ thị tri thức, chạy ma trận bằng chứng và xuất báo cáo.",
+    "cloudTitle": "Cloud Platform",
+    "cloudDescription": "URL báo cáo ổn định, sao lưu, thiết bị và cộng tác nhóm.",
+    "openDocs": "Mở tài liệu →",
+    "categories": {
+      "gettingStarted": "Bắt đầu với ResearchMind Desktop",
+      "connectCloud": "Kết nối Desktop với Cloud",
+      "syncConflicts": "Xử lý xung đột đồng bộ",
+      "exportReports": "Xuất báo cáo và trích dẫn",
+      "security": "Câu hỏi về bảo mật dữ liệu"
+    }
+  },
+  "feedback": {
+    "title": "Góp ý",
+    "subtitle": "Báo lỗi hoặc đề xuất tính năng bạn muốn thấy ở ResearchMind",
+    "typeLabel": "Loại góp ý",
+    "types": {
+      "bug": "Báo lỗi",
+      "feature": "Đề xuất tính năng",
+      "other": "Khác"
+    },
+    "subjectLabel": "Tiêu đề",
+    "messageLabel": "Nội dung",
+    "submit": "Gửi góp ý",
+    "thankYou": {
+      "title": "Cảm ơn bạn đã góp ý",
+      "description": "Mình sẽ xem qua sớm nhất có thể."
+    }
+  }
+}

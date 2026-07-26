@@ -1,5 +1,7 @@
 import { getReport, updateReport } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
+export { onRequestOptions } from "../../../lib/cors";
+
 
 export const onRequestGet = async (context: any) => {
   const { env, data, params } = context;

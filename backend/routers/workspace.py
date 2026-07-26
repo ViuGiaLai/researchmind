@@ -193,6 +193,26 @@ async def join_workspace_via_invite(body: dict = Body(...)):
         session.close()
 
 
+@router.get("/sync/devices")
+async def list_sync_devices():
+    session = get_session(state.engine)
+    try:
+        rows = session.query(SyncDevice).order_by(SyncDevice.last_seen_at.desc()).all()
+        return {
+            "devices": [
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "last_seen_at": _iso(row.last_seen_at),
+                    "created_at": _iso(row.created_at),
+                }
+                for row in rows
+            ]
+        }
+    finally:
+        session.close()
+
+
 @router.post("/sync/devices")
 async def register_sync_device(body: dict = Body(...)):
     device_id = str(body.get("device_id") or "").strip()
@@ -209,6 +229,48 @@ async def register_sync_device(body: dict = Body(...)):
             session.add(device)
         session.commit()
         return {"device_id": device_id, "registered": True}
+    finally:
+        session.close()
+
+
+@router.delete("/sync/devices/{device_id}")
+async def revoke_sync_device(device_id: str):
+    session = get_session(state.engine)
+    try:
+        device = session.query(SyncDevice).filter(SyncDevice.id == device_id).first()
+        if not device:
+            raise HTTPException(status_code=404, detail="Device not found")
+        session.delete(device)
+        session.commit()
+        return {"deleted": True, "device_id": device_id}
+    finally:
+        session.close()
+
+
+@router.get("/activity")
+async def list_activity(workspace_id: str | None = None, limit: int = 50):
+    """Cloud activity feed derived from sync changes and workspace membership events."""
+    session = get_session(state.engine)
+    try:
+        lim = min(max(limit, 1), 200)
+        q = session.query(SyncChange).order_by(SyncChange.revision.desc())
+        if workspace_id:
+            q = q.filter(SyncChange.workspace_id == workspace_id)
+        rows = q.limit(lim).all()
+        activities = [
+            {
+                "id": f"sync_{row.revision}",
+                "type": f"{row.entity_type}_{row.operation}",
+                "title": f"{row.operation.title()} {row.entity_type.replace('_', ' ')}",
+                "detail": f"{row.entity_id} · device {row.device_id}",
+                "workspace_id": row.workspace_id,
+                "actor_id": row.device_id,
+                "timestamp": _iso(row.created_at),
+                "revision": row.revision,
+            }
+            for row in rows
+        ]
+        return {"activities": activities, "total": len(activities)}
     finally:
         session.close()
 

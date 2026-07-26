@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://researchmind.pages.dev/sitemap.xml

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ResearchMind — AI Research Assistant & Literature Review Tool</title>
+    <meta name="description" content="Local-first AI research assistant. Manage papers, RAG chat with citations, critique, evidence matrix, literature review, and deep academic analysis." />
+    <meta name="theme-color" id="theme-color" content="#f8fafc" />
+    <link rel="icon" href="/icon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="/icon.ico" />
+    <link rel="apple-touch-icon" href="/icon.ico" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Prevent flash — sync dark class + theme-color before React mounts -->
+    <script>
+      (function() {
+        var t = localStorage.getItem("rm_theme");
+        var d = t === "dark" || (!t && window.matchMedia("(prefers-color-scheme: dark)").matches) || !t;
+        if (d) {
+          document.documentElement.classList.add("dark");
+          document.getElementById("theme-color").content = "#090d16";
+        }
+      })();
+    </script>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="ResearchMind — AI Research Assistant & Literature Review Tool" />
+    <meta property="og:description" content="Local-first AI research assistant. Manage papers, RAG chat with citations, critique, evidence matrix, literature review, and deep academic analysis." />
+    <meta property="og:image" content="https://researchmind.pages.dev/og.png" />
+    <meta property="og:url" content="https://researchmind.pages.dev/" />
+    <meta property="og:type" content="website" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  </head>
+  <body class="antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/app/main.tsx"></script>
+  </body>
+</html>

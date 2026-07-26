@@ -1,5 +1,7 @@
 import { saveWorkspaceReport, getWorkspaceReport } from "../../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../../lib/response";
+export { onRequestOptions } from "../../../../lib/cors";
+
 
 /**
  * GET /api/v1/workspaces/:id/report

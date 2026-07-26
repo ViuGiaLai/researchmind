@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-bg: #f8fafc;
+  --color-bg-deep: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-accent: #0ea5e9;
+  --color-accent-soft: rgba(14, 165, 233, 0.08);
+  --color-header-bg: rgba(255, 255, 255, 0.75);
+  --color-sidebar-bg: #f8fafc;
+  --color-sidebar-border: #e2e8f0;
+  --color-input-bg: #ffffff;
+  --color-input-border: #e2e8f0;
+  --gradient-1: rgba(14, 165, 233, 0.05);
+  --gradient-2: rgba(99, 102, 241, 0.03);
+  --bg-gradient: #f8fafc;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.dark {
+  color-scheme: dark;
+  --color-bg: #090d16;
+  --color-bg-deep: #090d16;
+  --color-surface: #0f172a;
+  --color-surface-raised: #1e293b;
+  --color-border: #1e293b;
+  --color-text: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #64748b;
+  --color-accent: #38bdf8;
+  --color-accent-soft: rgba(56, 189, 248, 0.08);
+  --color-header-bg: rgba(15, 23, 42, 0.75);
+  --color-sidebar-bg: rgba(9, 13, 22, 0.6);
+  --color-sidebar-border: #1e293b;
+  --color-input-bg: #0f172a;
+  --color-input-border: #334155;
+  --gradient-1: rgba(14, 165, 233, 0.12);
+  --gradient-2: rgba(99, 102, 241, 0.10);
+  --bg-gradient: #090d16;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, var(--gradient-1), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, var(--gradient-2), transparent 50%),
+    var(--bg-gradient);
+  color: var(--color-text);
+  transition: color 0.3s ease;
+}
+
+@layer components {
+  .page-title {
+    font-family: Outfit, Inter, system-ui, sans-serif;
+    font-size: 1.5rem;
+    line-height: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--color-text);
+  }
+  @media (min-width: 640px) {
+    .page-title {
+      font-size: 1.875rem;
+      line-height: 2.25rem;
+    }
+  }
+  .page-subtitle {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--color-text-muted);
+  }
+  .surface-card {
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-card);
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .link-muted {
+    color: var(--color-text-muted);
+    transition: color 0.15s;
+  }
+  .link-muted:hover {
+    color: var(--color-accent);
+  }
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) rgba(56, 189, 248, 0.4);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+  }
+}
+
+/* ─── Theme-aware utility classes ─── */
+@layer utilities {
+  .theme-bg { background-color: var(--color-bg); }
+  .theme-bg-deep { background-color: var(--color-bg-deep); }
+  .theme-surface { background-color: var(--color-surface); }
+  .theme-surface-raised { background-color: var(--color-surface-raised); }
+  .theme-border { border-color: var(--color-border); }
+  .theme-text { color: var(--color-text); }
+  .theme-text-secondary { color: var(--color-text-secondary); }
+  .theme-text-muted { color: var(--color-text-muted); }
+  .theme-shadow-card { box-shadow: var(--shadow-card); }
+}
+
+/* ─── Smooth transition for theme switch ─── */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Light mode overrides for dark-only Tailwind classes ─── */
+/* Remap hardcoded dark Tailwind classes to CSS variables when NOT in dark mode.
+   Uses \: to escape colons in class names (Tailwind's hover:prefix), 
+   and \/ to escape forward slashes (Tailwind's opacity modifiers).
+   This makes all existing components work in light mode without changing every file. */
+:root:not(.dark) .bg-slate-900,
+:root:not(.dark) .bg-slate-900\/80,
+:root:not(.dark) .bg-slate-900\/70 {
+  background-color: var(--color-surface) !important;
+}
+:root:not(.dark) .hover\:bg-slate-900:hover,
+:root:not(.dark) .hover\:bg-slate-900\/80:hover,
+:root:not(.dark) .hover\:bg-slate-900\/60:hover,
+:root:not(.dark) .hover\:bg-slate-800:hover,
+:root:not(.dark) .hover\:bg-slate-800\/80:hover,
+:root:not(.dark) .hover\:bg-slate-700:hover {
+  background-color: var(--color-surface-raised) !important;
+}
+:root:not(.dark) .hover\:text-slate-200:hover {
+  color: var(--color-text-secondary) !important;
+}
+:root:not(.dark) .bg-slate-950\/80 { background-color: var(--color-bg-deep) !important; }
+:root:not(.dark) .bg-slate-950\/70 { background-color: var(--color-header-bg) !important; }
+:root:not(.dark) .bg-slate-950\/60 { background-color: var(--color-sidebar-bg) !important; }
+:root:not(.dark) .bg-slate-950\/50 { background-color: var(--color-bg-deep) !important; }
+:root:not(.dark) .bg-slate-950\/40 { background-color: var(--color-bg-deep) !important; }
+:root:not(.dark) .bg-slate-950\/30 { background-color: var(--color-bg-deep) !important; }
+:root:not(.dark) .bg-slate-950 { background-color: var(--color-bg-deep) !important; }
+:root:not(.dark) .bg-slate-800,
+:root:not(.dark) .bg-slate-800\/80,
+:root:not(.dark) .bg-slate-700 {
+  background-color: var(--color-surface-raised) !important;
+}
+:root:not(.dark) .text-slate-50,
+:root:not(.dark) .text-slate-100 {
+  color: var(--color-text) !important;
+}
+:root:not(.dark) .text-slate-200,
+:root:not(.dark) .text-slate-300 {
+  color: var(--color-text-secondary) !important;
+}
+:root:not(.dark) .text-slate-400,
+:root:not(.dark) .text-slate-500,
+:root:not(.dark) .text-slate-600 {
+  color: var(--color-text-muted) !important;
+}
+:root:not(.dark) .border-slate-700,
+:root:not(.dark) .border-slate-700\/80,
+:root:not(.dark) .border-slate-800,
+:root:not(.dark) .border-slate-800\/80,
+:root:not(.dark) .border-slate-900 {
+  border-color: var(--color-border) !important;
+}
+:root:not(.dark) .placeholder\:text-slate-500::placeholder { color: var(--color-text-muted) !important; }
+:root:not(.dark) .divide-slate-800 > * + * { border-color: var(--color-border) !important; }
+:root:not(.dark) .ring-slate-800 { --tw-ring-color: var(--color-border) !important; }
+:root:not(.dark) .from-slate-900 { --tw-gradient-from: var(--color-surface) !important; }
+:root:not(.dark) .via-slate-900 { --tw-gradient-via: var(--color-surface) !important; }

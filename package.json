@@ -8,10 +8,10 @@
     "nanoid": "^6.0.0"
   },
   "devDependencies": {
-    "wrangler": "^3.100.0"
+    "wrangler": "^4.114.0"
   },
   "scripts": {
-    "dev": "wrangler pages dev ./docs --port 8788",
+    "dev": "wrangler pages dev docs --port 8788 --compatibility-date=2025-07-18",
     "deploy": "wrangler pages deploy ./docs --project-name researchmind",
     "deploy:preview": "wrangler pages deploy ./docs --project-name researchmind --branch preview"
   }

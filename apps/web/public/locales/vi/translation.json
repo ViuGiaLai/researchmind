@@ -1,0 +1,23 @@
+{
+  "app": {
+    "name": "ResearchMind Cloud",
+    "tagline": "Nghiên cứu local-first + cộng tác trên mây"
+  },
+  "nav": {
+    "dashboard": "Tổng quan",
+    "workspaces": "Workspace",
+    "reports": "Báo cáo",
+    "settings": "Cài đặt"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "register": "Tạo tài khoản",
+    "logout": "Đăng xuất"
+  },
+  "common": {
+    "loading": "Đang tải…",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "search": "Tìm kiếm"
+  }
+}

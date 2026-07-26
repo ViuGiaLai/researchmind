@@ -1,0 +1,718 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "all": "All"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Your research space at a glance — live data from Desktop",
+    "cloudPlatform": "Cloud Platform",
+    "stats": {
+      "workspaces": "Workspaces",
+      "workspacesSub": "Synced from Desktop",
+      "reports": "Reports (cloud)",
+      "reportsSub": "Published as public or shared",
+      "papers": "Papers (metadata)",
+      "papersSub": "Total indexed papers",
+      "storage": "Backup storage",
+      "storageSub": "{{events}} events / 7d"
+    },
+    "empty": {
+      "title": "No synced data yet",
+      "description": "Open ResearchMind Desktop and enable sync to see your workspaces, reports and papers here.",
+      "action": "View Desktop connection guide"
+    },
+    "error": {
+      "title": "Failed to load data",
+      "description": "There was an error connecting to the server. Please try again later."
+    },
+    "latestActivity": "Latest activity",
+    "activityEmpty": {
+      "title": "No activity yet",
+      "description": "Sync changes from Desktop will appear here."
+    }
+  },
+  "workspaces": {
+    "title": "Workspaces",
+    "subtitle": "Manage research workspaces synced from Desktop to Cloud",
+    "searchPlaceholder": "Search workspaces...",
+    "empty": {
+      "title": "📂 No Cloud Workspaces",
+      "description": "Your research is managed from ResearchMind Desktop. To see your work here:",
+      "step1": "1. Open ResearchMind Desktop",
+      "step2": "2. Create a Workspace",
+      "step3": "3. Enable Cloud Sync",
+      "step4": "4. Refresh this page",
+      "downloadDesktop": "☁ Download Desktop",
+      "docs": "📖 Documentation",
+      "tutorial": "🎥 Watch Tutorial"
+    },
+    "syncStates": {
+      "Synced": "Synced",
+      "Syncing": "Syncing…",
+      "Local Only": "Local only",
+      "Conflict": "Conflict",
+      "Backup Available": "Backup available",
+      "Archived": "Archived"
+    },
+    "card": {
+      "papers": "📄 papers",
+      "reports": "📊 reports",
+      "knowledgeGraph": "🧠 Knowledge Graph",
+      "aiChats": "🤖 AI Chats",
+      "storage": "💾 Storage",
+      "lastBackup": "Last backup",
+      "owner": "👤 Owner",
+      "members": "👥 Members",
+      "recentActivity": "Recent activity",
+      "noActivity": "No activity from Desktop yet"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "reports": "Reports",
+      "backup": "Backup",
+      "activity": "Activity",
+      "members": "Members"
+    },
+    "detail": {
+      "papers": "Papers",
+      "reports": "Reports",
+      "members": "Members",
+      "updated": "Updated",
+      "owner": "Owner",
+      "knowledgeGraph": "Knowledge Graph",
+      "aiChats": "AI Chats",
+      "storage": "Storage",
+      "lastBackup": "Last backup",
+      "note": "Full paper bodies, ChromaDB index, Knowledge Graph and AI Chat run on Desktop. Cloud stores metadata, published reports and sync state.",
+      "noReports": "No reports published from this workspace yet.",
+      "noBackups": "No backups yet.",
+      "noActivity": "No activity yet.",
+      "noMembers": "No other members yet.",
+      "createBackup": "Create backup",
+      "restoreBackup": "Restore",
+      "backupHistory": "Backup history",
+      "viewReport": "Open report",
+      "copyLink": "Copy link"
+    },
+    "syncIcons": {
+      "Synced": "🟢",
+      "Syncing": "🟡",
+      "Local Only": "⚪",
+      "Conflict": "🔴",
+      "Backup Available": "🟣",
+      "Archived": "⚪"
+    },
+    "conflict": {
+      "title": "This workspace has a conflict",
+      "description": "There are 2 different versions from 2 devices. Choose which version you want to keep:",
+      "keepLocal": "Keep local version",
+      "keepCloud": "Keep Cloud version",
+      "note": "The unchosen version will be saved as a snapshot, not deleted."
+    },
+    "privacy": {
+      "label": "Privacy",
+      "title": "Workspace Privacy Level",
+      "description": "Control which data is synced to Cloud. Default is Local Only — nothing is uploaded unless you explicitly allow it.",
+      "tiers": {
+        "local_only": {
+          "name": "🔒 Local Only",
+          "description": "All data stays on your machine. Cloud knows nothing about this workspace.",
+          "details": "• PDFs: local only\n• ChromaDB: local only\n• SQLite: local only\n• AI Chat: local only"
+        },
+        "sync_metadata": {
+          "name": "🔄 Sync Metadata",
+          "description": "Cloud only knows name, tags and sync status.",
+          "details": "• Syncs: ID, name, tags, dates\n• NOT: PDF, embeddings, full notes"
+        },
+        "backup_encrypted": {
+          "name": "☁️ Backup (AES-256)",
+          "description": "End-to-end encrypted backup. Even ResearchMind can't read your data.",
+          "details": "• AES-256 encrypted\n• Cloud stores: encrypted.db, encrypted settings\n• Only you have the decryption key"
+        },
+        "publish_report": {
+          "name": "🌍 Publish Report",
+          "description": "Share research reports publicly or via link.",
+          "details": "• Cloud stores: HTML report, PDF report, share link\n• NOT: source papers, chunks, embeddings"
+        },
+        "team": {
+          "name": "👥 Team Workspace",
+          "description": "Team collaboration. Owner controls access permissions.",
+          "details": "• Invite members by email\n• Roles: Editor / Viewer\n• Only shared data is visible"
+        }
+      },
+      "current": "Current privacy: {{level}}",
+      "encrypted": "AES-256 Encrypted",
+      "encryptedBadge": "🔐 Encrypted",
+      "localOnly": "Local only",
+      "notSynced": "Not synced",
+      "openInDesktop": "Open in Desktop",
+      "storage": "Storage",
+      "encryptedStorage": "{{size}} (Encrypted)"
+    },
+    "notFound": "Workspace not found."
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Research reports published to cloud, ready to share publicly",
+    "searchPlaceholder": "Search reports...",
+    "empty": {
+      "title": "No reports published yet",
+      "description": "Sign in to cloud from Desktop App and publish a report to manage sharing and versions here.",
+      "action": "View publish guide"
+    },
+    "tabs": {
+      "all": "All",
+      "live": "Live",
+      "snapshot": "Snapshots"
+    },
+    "types": {
+      "Live Report": "Live Report",
+      "Snapshot": "Snapshot"
+    },
+    "visibility": {
+      "private": "Private",
+      "unlisted": "Shared link",
+      "public": "Public"
+    },
+    "copyLink": "Copy share link",
+    "viewHistory": "View version history",
+    "restoreVersion": "Restore this version",
+    "version": "Version {{version}}",
+    "updated": "updated {{date}}",
+    "notFound": {
+      "title": "Report not found",
+      "description": "No cloud report with id \"{{id}}\"."
+    },
+    "viewer": {
+      "abstractTitle": "Summary",
+      "defaultSummary": "Research report on cloud. Desktop publishes full HTML/PDF content to the report API; the viewer embeds that payload here.",
+      "metadataTitle": "Report metadata",
+      "workspaceLabel": "Workspace",
+      "publicUrlLabel": "Public URL",
+      "bodyPlaceholder": "Report body iframe / HTML payload mount point"
+    }
+  },
+  "snapshots": {
+    "title": "Workspace Versions",
+    "subtitle": "Version history for workspaces — view, compare and restore like Git for research",
+    "empty": {
+      "title": "No versions yet",
+      "description": "Snapshots capture the state of a Workspace at a point in time so you can view history or restore when needed.",
+      "reasons": "Snapshots are created when:",
+      "reason1": "• Publish Report",
+      "reason2": "• AI Regenerate Report",
+      "reason3": "• Create Manual Snapshot",
+      "reason4": "• Major Workspace Changes",
+      "action": "Create Snapshot manually"
+    },
+    "types": {
+      "auto": "Auto",
+      "manual": "Manual"
+    },
+    "columns": {
+      "version": "Version",
+      "workspace": "Workspace",
+      "created": "Created",
+      "creator": "By",
+      "type": "Type"
+    },
+    "actions": {
+      "view": "View",
+      "compare": "Compare",
+      "restore": "Restore",
+      "download": "Download"
+    },
+    "compare": {
+      "title": "Compare Versions",
+      "from": "From",
+      "to": "To",
+      "changes": "Changes",
+      "noChanges": "No detailed changes available",
+      "close": "Close"
+    },
+    "restoreConfirm": {
+      "title": "Restore to this version?",
+      "description": "The entire Workspace will revert to its state at this point. The current state will be saved as a new Snapshot before restoring.",
+      "confirm": "Confirm restore",
+      "cancel": "Cancel"
+    },
+    "created": "Snapshot created successfully.",
+    "createManual": "Create Snapshot manually",
+    "versionLabel": "v{{version}}",
+    "openSnapshot": "Open Snapshot"
+  },
+  "activity": {
+    "title": "Activity Timeline",
+    "subtitle": "Complete history of all research activity on Desktop and Cloud",
+    "empty": {
+      "title": "No activity yet",
+      "description": "Activity Timeline captures your full research history — from paper imports and AI chats to reports and Cloud syncs.",
+      "triggers": "Activity will appear when you:",
+      "trigger1": "• Import papers",
+      "trigger2": "• Chat with AI",
+      "trigger3": "• Create Reports",
+      "trigger4": "• Update Knowledge Graph",
+      "trigger5": "• Sync Cloud",
+      "trigger6": "• Create Snapshot / Backup"
+    },
+    "filters": {
+      "all": "All",
+      "research": "Research",
+      "ai": "AI",
+      "reports": "Reports",
+      "cloud": "Cloud",
+      "team": "Team",
+      "security": "Security"
+    },
+    "categories": {
+      "research": "📚 Research",
+      "ai": "🤖 AI",
+      "reports": "📄 Reports",
+      "cloud": "☁️ Cloud",
+      "team": "👥 Collaboration",
+      "security": "🔐 Security"
+    },
+    "time": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo": "{{days}} days ago"
+    },
+    "detail": {
+      "duration": "Duration",
+      "entities": "Entities",
+      "relationships": "Relationships",
+      "workspace": "Workspace",
+      "actor": "By",
+      "hide": "Hide",
+      "showMore": "Details"
+    }
+  },
+  "analytics": {
+    "title": "Control Center",
+    "subtitle": "Central account management — devices, sync, AI usage, research progress, and system health",
+    "empty": {
+      "title": "No data yet",
+      "description": "Import papers from Desktop to start collecting analytics."
+    },
+    "sections": {
+      "overview": "📊 Overview",
+      "cloud": "☁️ Cloud",
+      "devices": "💻 Devices",
+      "aiUsage": "🤖 AI Usage",
+      "researchProgress": "📈 Research Progress",
+      "researchStats": "📚 Statistics",
+      "subscription": "💳 Subscription",
+      "systemHealth": "⚠️ System Health",
+      "security": "🛡 Security",
+      "monthlySummary": "📋 Monthly Summary"
+    },
+    "overview": {
+      "workspaces": "Workspaces",
+      "papers": "Papers",
+      "reports": "Reports",
+      "citations": "Citations",
+      "aiChats": "AI Chats",
+      "notes": "Notes",
+      "knowledgeGraphs": "Knowledge Graphs",
+      "snapshots": "Snapshots"
+    },
+    "cloud": {
+      "storageUsed": "Storage used",
+      "backupSize": "Backup size",
+      "lastBackup": "Last backup",
+      "pendingSync": "Pending sync",
+      "failedSync": "Failed sync",
+      "lastSync": "Last sync",
+      "never": "Never"
+    },
+    "devices": {
+      "online": "Online",
+      "offline": "Offline",
+      "lastSeen": "last seen",
+      "version": "Version"
+    },
+    "aiUsage": {
+      "requests": "requests",
+      "tokens": "tokens",
+      "noData": "No AI usage data yet."
+    },
+    "researchGrowth": {
+      "papersPerWeek": "Papers/week",
+      "kgNodes": "KG Nodes",
+      "evidenceExtracted": "Evidence extracted",
+      "contradictions": "Contradictions found",
+      "reportsGenerated": "Reports generated"
+    },
+    "stats": {
+      "mostActiveWorkspace": "Most active workspace",
+      "mostViewedReport": "Most viewed report",
+      "mostUsedPrompt": "Most used prompt",
+      "avgAiResponseTime": "Avg AI response time",
+      "avgIndexingSpeed": "Avg indexing speed"
+    },
+    "subscription": {
+      "plan": "Current plan",
+      "aiCredits": "AI Credits remaining",
+      "storageRemaining": "Storage remaining",
+      "nextBilling": "Next billing",
+      "upgrade": "Upgrade"
+    },
+    "systemHealth": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "down": "Down"
+    },
+    "security": {
+      "lastLogin": "Last login",
+      "devicesLoggedIn": "Devices logged in",
+      "twoFactor": "2-Factor Auth",
+      "recentSessions": "Recent sessions",
+      "apiKeys": "API Keys",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "monthly": {
+      "papers": "papers",
+      "reports": "reports",
+      "aiChats": "AI chats",
+      "backups": "backups",
+      "snapshots": "snapshots",
+      "graphUpdates": "graph updates"
+    },
+    "noData": "No data yet"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Updates about workspaces, teams and system",
+    "unread": "{{count}} unread",
+    "markAllRead": "Mark all as read",
+    "empty": {
+      "title": "No notifications",
+      "description": "You'll receive notifications for new syncs, team invites or system updates."
+    },
+    "categories": {
+      "all": "All",
+      "workspace": "Workspace",
+      "team": "Team",
+      "ai": "AI",
+      "system": "System",
+      "billing": "Billing"
+    }
+  },
+  "backups": {
+    "title": "Backups",
+    "subtitle": "Backups of your workspaces, settings and prompts",
+    "createBackup": "Create backup",
+    "empty": {
+      "title": "No backups yet",
+      "description": "Backups are created automatically on schedule, or you can create one now."
+    },
+    "types": {
+      "workspace": "Workspace",
+      "settings": "Settings",
+      "prompts": "Prompts",
+      "full": "Full"
+    },
+    "statuses": {
+      "completed": "Completed",
+      "pending": "Pending",
+      "failed": "Failed",
+      "restoring": "Restoring"
+    },
+    "note": "Create and restore backups via backend `/backups`. Nothing is simulated in the browser."
+  },
+  "devices": {
+    "title": "Devices",
+    "subtitle": "Device and sync management center — Desktop, sync, security and backup",
+    "empty": {
+      "title": "No Desktop devices connected",
+      "description": "Sign in to ResearchMind Desktop with the same account to register this device.",
+      "action": "Download Desktop"
+    },
+    "online": "Online",
+    "offline": "Offline",
+    "thisDevice": "This device",
+    "lastSeen": "last seen {{time}}",
+    "platforms": {
+      "desktop": "Desktop",
+      "web": "Web",
+      "mobile": "Mobile"
+    },
+    "sections": {
+      "summary": "📊 Summary",
+      "devices": "💻 Devices",
+      "sync": "🔄 Sync",
+      "backup": "☁️ Backup",
+      "security": "🛡 Security",
+      "activity": "📋 Activity Log"
+    },
+    "summaryCards": {
+      "total": "Total devices",
+      "online": "Online",
+      "offlineCount": "Offline",
+      "pendingSync": "Pending sync"
+    },
+    "status": {
+      "synced": "✓ Synced",
+      "syncing": "Syncing…",
+      "pending": "Pending",
+      "conflict": "Conflict",
+      "offline": "Offline",
+      "error": "Error"
+    },
+    "info": {
+      "os": "Operating System",
+      "version": "Version",
+      "architecture": "Architecture",
+      "timezone": "Timezone",
+      "workspaces": "Workspaces",
+      "lastSync": "Last sync",
+      "lastLogin": "Last login",
+      "storage": "Local storage",
+      "ip": "Last IP"
+    },
+    "sync": {
+      "pending": "Pending sync",
+      "uploading": "Uploading",
+      "downloading": "Downloading",
+      "failed": "Failed",
+      "forceSync": "Force sync",
+      "progress": "{{percent}}%"
+    },
+    "backup": {
+      "lastBackup": "Last backup",
+      "backupSize": "Backup size",
+      "create": "Create backup",
+      "restore": "Restore",
+      "never": "Never backed up"
+    },
+    "security": {
+      "trusted": "Trusted device",
+      "twoFactor": "2-Factor Auth",
+      "location": "Last location",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "actions": {
+      "rename": "Rename",
+      "disconnect": "Disconnect",
+      "forget": "Forget device",
+      "forceSync": "Force sync",
+      "restore": "Restore",
+      "createBackup": "Create backup"
+    },
+    "revoke": "Disconnect",
+    "revokeConfirm": {
+      "title": "Disconnect this device?",
+      "description": "The device will need to sign in again to continue syncing. Local data on that device will not be affected."
+    }
+  },
+  "team": {
+    "title": "Team Collaboration",
+    "subtitle": "Invite, manage and collaborate on shared workspaces",
+    "inviteMember": "Invite member",
+    "empty": {
+      "title": "No collaborators yet",
+      "description": "Invite colleagues, supervisors or students to collaborate on shared workspaces.",
+      "permissions": "Supported permissions:",
+      "permViewer": "• Viewer — view only",
+      "permCommenter": "• Commenter — view + comment",
+      "permEditor": "• Editor — edit reports, metadata",
+      "permAdmin": "• Admin — invite, edit, remove"
+    },
+    "overview": {
+      "teamName": "Team name",
+      "totalMembers": "Total members",
+      "sharedWorkspaces": "Shared workspaces",
+      "pendingInvites": "Pending invitations",
+      "activeToday": "Active today",
+      "totalComments": "Comments",
+      "totalReports": "Reports",
+      "totalSnapshots": "Snapshots",
+      "organization": "Organization (later)"
+    },
+    "columns": {
+      "member": "Member",
+      "role": "Role",
+      "workspaces": "Workspaces",
+      "status": "Status",
+      "lastActive": "Last active",
+      "actions": "Actions"
+    },
+    "roles": {
+      "owner": "🔑 Owner",
+      "admin": "🛡 Admin",
+      "editor": "✏️ Editor",
+      "commenter": "💬 Commenter",
+      "viewer": "👁 Viewer"
+    },
+    "roleDescriptions": {
+      "owner": "Delete Workspace · Invite/Remove members · Billing",
+      "admin": "Invite members · Edit everything",
+      "editor": "Edit reports · Upload metadata · Comment",
+      "commenter": "View and comment only",
+      "viewer": "View only"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "active": "Active",
+      "online": "Online",
+      "offline": "Offline",
+      "declined": "Declined",
+      "cancelled": "Cancelled"
+    },
+    "invitationStatuses": {
+      "sent": "📨 Sent",
+      "opened": "👁 Opened",
+      "accepted": "✅ Accepted",
+      "expired": "⏰ Expired",
+      "revoked": "🚫 Revoked",
+      "cancelled": "✖ Cancelled"
+    },
+    "invite": {
+      "email": "Email",
+      "role": "Role",
+      "workspace": "Workspace",
+      "message": "Message",
+      "messagePlaceholder": "Welcome to our project...",
+      "send": "Send invitation",
+      "emailPlaceholder": "abc@lab.edu",
+      "success": "Invited {{email}} as {{role}} to {{workspace}}",
+      "noWorkspace": "No workspaces — create a workspace first"
+    },
+    "invitations": {
+      "title": "Pending invitations",
+      "resend": "Resend",
+      "cancel": "Cancel invitation",
+      "none": "No pending invitations."
+    },
+    "workspacePermissions": {
+      "title": "Workspace Permissions",
+      "owner": "Owner",
+      "editor": "Edit",
+      "commenter": "Comment",
+      "viewer": "View"
+    },
+    "activity": {
+      "title": "Team activity",
+      "none": "No activity yet.",
+      "joined": "{{name}} joined",
+      "left": "{{name}} left",
+      "roleChanged": "{{name}} role changed to {{role}}",
+      "invited": "{{name}} invited {{email}}",
+      "removed": "{{name}} was removed from team"
+    },
+    "auditLog": {
+      "title": "Audit log",
+      "none": "No audit entries yet.",
+      "ownerChanged": "Ownership changed",
+      "permissionUpdated": "Permission for {{email}} updated to {{role}}",
+      "workspaceShared": "Workspace was shared",
+      "memberRemoved": "{{email}} was removed from team",
+      "ip": "IP",
+      "device": "Device",
+      "time": "Time"
+    },
+    "removeConfirm": {
+      "title": "Remove this member?",
+      "description": "{{name}} ({{email}}) will be removed from this workspace. Their data will not be affected.",
+      "workspace": "Workspace",
+      "transferOwnership": "Transfer ownership",
+      "newOwner": "New owner",
+      "keepComments": "Keep comments",
+      "confirm": "Confirm remove",
+      "cancel": "Cancel"
+    },
+    "workspaceLabel": "Workspace",
+    "emailLabel": "Member email",
+    "emailPlaceholder": "colleague@lab.edu",
+    "roleLabel": "Role",
+    "invited": "Invited {{email}} as {{role}}",
+    "noWorkspace": "No workspaces — create a workspace first",
+    "sections": {
+      "overview": "📊 Overview",
+      "members": "👥 Members",
+      "invite": "✉️ Invite member",
+      "permissions": "🔐 Workspace Permissions",
+      "invitations": "📨 Invitations",
+      "activity": "📋 Activity",
+      "audit": "📜 Audit log"
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Service plan and AI Credits",
+    "comingSoon": {
+      "title": "Coming soon",
+      "description": "Billing and plan management is being finalized."
+    },
+    "activateTitle": "Activate license token",
+    "activateDescription": "Paste a license token issued after payment. Calls `POST /license/activate`.",
+    "activateToken": "Activate license token",
+    "activate": "Activate"
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "subtitle": "Programmatic access to report and cloud APIs",
+    "createKey": "Create key",
+    "empty": {
+      "title": "No API keys yet",
+      "description": "Create a key to call Cloud Platform APIs from scripts or integrations."
+    },
+    "keyNameLabel": "Key name",
+    "keyNamePlaceholder": "CI publish · personal script",
+    "secretWarning": {
+      "title": "Save this key now",
+      "description": "This is the only time the full key will be shown. You won't be able to see it again after leaving this page."
+    },
+    "revoke": "Revoke"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Account info and app preferences",
+    "emailNotifications": "Email notifications",
+    "weeklyDigest": "Weekly digest",
+    "autoBackup": "Auto backup",
+    "defaultVisibility": "Default report visibility",
+    "theme": "Theme",
+    "themes": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "locale": "Locale",
+    "locales": {
+      "en": "English",
+      "vi": "Tiếng Việt"
+    },
+    "toggleLocale": "Locale: {{locale}} (toggle)"
+  },
+  "help": {
+    "title": "Help Center",
+    "subtitle": "Desktop IDE and Cloud platform guides",
+    "desktopTitle": "Desktop App (Research IDE)",
+    "desktopDescription": "Import PDFs, build knowledge graphs, run evidence matrices and export reports.",
+    "cloudTitle": "Cloud Platform",
+    "cloudDescription": "Stable report URLs, backups, devices and team collaboration.",
+    "openDocs": "Open docs →"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "subtitle": "Report a bug or request a feature",
+    "submit": "Submit",
+    "thankYou": {
+      "title": "Thanks for the feedback!",
+      "description": "We'll take a look as soon as possible."
+    }
+  }
+}

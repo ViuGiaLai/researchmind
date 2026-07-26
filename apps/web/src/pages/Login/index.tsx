@@ -1,0 +1,138 @@
+import React, { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Button, Input } from "@researchmind/ui";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { validateLogin } from "@/utils/validation";
+import { clerkConfigured } from "@/lib/clerk";
+import { firebaseConfigured } from "@/lib/firebase";
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 5.1 29.3 3 24 3 12.3 3 3 12.3 3 24s9.3 21 21 21 21-9.3 21-21c0-1.2-.1-2.3-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34 5.1 29.3 3 24 3 16.1 3 9.3 7.5 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 36.3 26.7 37 24 37c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.2 40.5 16 45 24 45z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.1-3.5 5.5-6.5 6.9l.1.1 6.2 5.2C36.9 39 45 33 45 24c0-1.2-.1-2.3-.4-3.5z" />
+    </svg>
+  );
+}
+
+export default function LoginPage() {
+  const { login, loginWithGoogle, provider } = useAuthContext();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: string } | null)?.from || "/app";
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  const authReady = clerkConfigured || firebaseConfigured;
+
+  return (
+    <div>
+      <h1 className="font-display text-2xl font-bold text-slate-50">Sign in</h1>
+      <p className="mt-1 text-sm text-slate-400">
+        Same account as ResearchMind Desktop
+      </p>
+
+      {clerkConfigured ? (
+        <div className="mt-6 space-y-3">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            loading={googleLoading}
+            disabled={!authReady}
+            onClick={async () => {
+              setGoogleLoading(true);
+              setFormError("");
+              try {
+                await loginWithGoogle();
+              } catch (err) {
+                setFormError(err instanceof Error ? err.message : "Google sign-in failed");
+                setGoogleLoading(false);
+              }
+            }}
+          >
+            <GoogleIcon /> Continue with Google
+          </Button>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <div className="h-px flex-1 bg-slate-800" />
+            or email
+            <div className="h-px flex-1 bg-slate-800" />
+          </div>
+        </div>
+      ) : null}
+
+      <form
+        className="mt-4 space-y-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const v = validateLogin(email, password);
+          setErrors(v);
+          if (Object.keys(v).length) return;
+          setLoading(true);
+          setFormError("");
+          try {
+            await login(email.trim(), password);
+            navigate(from, { replace: true });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Login failed";
+            if (/verification strategy|not valid for this account/i.test(msg)) {
+              setFormError(
+                "This account uses Google sign-in. Click “Continue with Google” above.",
+              );
+            } else {
+              setFormError(msg);
+            }
+          } finally {
+            setLoading(false);
+          }
+        }}
+      >
+        <Input
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={errors.email}
+          autoComplete="email"
+        />
+        <Input
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={errors.password}
+          autoComplete="current-password"
+        />
+        {formError ? <p className="text-sm text-rose-400">{formError}</p> : null}
+        <Button type="submit" className="w-full" loading={loading} disabled={!authReady}>
+          Sign in with email
+        </Button>
+      </form>
+      <div className="mt-4 flex justify-between text-sm text-slate-400">
+        <Link to="/forgot-password" className="hover:text-sky-300">
+          Forgot password?
+        </Link>
+        <Link to="/register" className="hover:text-sky-300">
+          Create account
+        </Link>
+      </div>
+      {!authReady ? (
+        <p className="mt-4 text-xs text-amber-300/90">
+          Set <code>VITE_CLERK_PUBLISHABLE_KEY</code> (same as Desktop) in{" "}
+          <code>apps/web/.env</code>.
+        </p>
+      ) : (
+        <p className="mt-4 text-xs text-slate-500">
+          Auth provider: <span className="text-slate-300">{provider}</span>
+          {provider === "clerk" ? " — same Clerk project as Desktop." : null}
+        </p>
+      )}
+    </div>
+  );
+}
