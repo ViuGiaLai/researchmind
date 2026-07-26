@@ -25,11 +25,11 @@ export default function SettingsPage() {
       </div>
       <Card>
         <CardContent className="space-y-4">
-          <h3 className="text-sm font-semibold text-sky-300">{t("settings.profile")}</h3>
+          <h3 className="text-sm font-semibold text-primary">{t("settings.profile")}</h3>
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.profile.name")}</span>
             <input
-              className="h-8 rounded-lg border border-slate-700 bg-slate-950 px-2 text-right text-sm text-slate-100"
+              className="h-8 rounded-lg border border-border bg-background px-2 text-right text-sm text-foreground"
               value={user?.name || ""}
               readOnly
             />
@@ -37,15 +37,15 @@ export default function SettingsPage() {
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.profile.email")}</span>
             <input
-              className="h-8 rounded-lg border border-slate-700 bg-slate-950 px-2 text-right text-sm text-slate-100"
+              className="h-8 rounded-lg border border-border bg-background px-2 text-right text-sm text-foreground"
               value={user?.email || ""}
               readOnly
             />
           </label>
 
-          <hr className="border-slate-800" />
+          <hr className="border-border" />
 
-          <h3 className="text-sm font-semibold text-slate-200">{t("settings.notifications")}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("settings.notifications")}</h3>
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.notifications.email")}</span>
             <input
@@ -71,13 +71,13 @@ export default function SettingsPage() {
             />
           </label>
 
-          <hr className="border-slate-800" />
+          <hr className="border-border" />
 
-          <h3 className="text-sm font-semibold text-slate-200">{t("settings.preferences")}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("settings.preferences")}</h3>
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.notifications.visibility")}</span>
             <select
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1"
+              className="rounded-lg border border-border bg-background px-2 py-1 text-foreground"
               value={settings.defaultVisibility}
               onChange={(e) => void save({ defaultVisibility: e.target.value as any })}
             >
@@ -89,7 +89,7 @@ export default function SettingsPage() {
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.preferences.theme")}</span>
             <select
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1"
+              className="rounded-lg border border-border bg-background px-2 py-1 text-foreground"
               value={theme}
               onChange={(e) => {
                 const v = e.target.value as "dark" | "light" | "system";
@@ -105,7 +105,7 @@ export default function SettingsPage() {
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.preferences.language")}</span>
             <select
-              className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1"
+              className="rounded-lg border border-border bg-background px-2 py-1 text-foreground"
               value={settings.locale}
               onChange={(e) => void save({ locale: e.target.value as "en" | "vi" })}
             >
@@ -114,15 +114,15 @@ export default function SettingsPage() {
             </select>
           </label>
 
-          <hr className="border-slate-800" />
+          <hr className="border-border" />
 
-          <h3 className="text-sm font-semibold text-slate-200">{t("settings.ai")}</h3>
-          <p className="text-xs text-slate-500">{t("settings.ai.provider")}</p>
-          <p className="text-xs text-slate-500">{t("settings.ai.apiKey")}</p>
+          <h3 className="text-sm font-semibold text-foreground">{t("settings.ai")}</h3>
+          <p className="text-xs text-muted-foreground">{t("settings.ai.provider")}</p>
+          <p className="text-xs text-muted-foreground">{t("settings.ai.apiKey")}</p>
 
-          <hr className="border-slate-800" />
+          <hr className="border-border" />
 
-          <h3 className="text-sm font-semibold text-slate-200">{t("settings.experimental")}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{t("settings.experimental")}</h3>
           <label className="flex items-center justify-between gap-4 text-sm">
             <span>{t("settings.experimental.toggle")}</span>
             <input type="checkbox" />

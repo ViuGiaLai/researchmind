@@ -4,7 +4,7 @@ import {
   createSnapshotReport,
   upsertDocument,
   getDocument,
-  recordActivity,
+  processEventSideEffects,
 } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 export { onRequestOptions } from "../../../lib/cors";
@@ -37,13 +37,14 @@ export const onRequestPost = async (context: any) => {
     }
   }
 
+  const visibility = body.visibility || body.metadata?.visibility || "public";
   const reportData = {
     ...body,
     id,
     schema_version: 1,
     report_version: 1,
     owner_uid: data.userId,
-    visibility: body.visibility || body.metadata?.visibility || "public",
+    visibility,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     deleted_at: null,
@@ -53,6 +54,7 @@ export const onRequestPost = async (context: any) => {
   try {
     if (id.startsWith("ws_")) {
       await saveWorkspaceReport(env, id, reportData);
+      // Update workspace metadata (non-blocking)
       try {
         const existing = await getDocument(env, "workspaces", id);
         await upsertDocument(env, "workspaces", id, {
@@ -62,7 +64,7 @@ export const onRequestPost = async (context: any) => {
           owner_uid: data.userId,
           sync_state: "Synced",
           paper_count: existing?.paper_count || body.paper_count || 0,
-          report_count: 1,
+          report_count: (Number(existing?.report_count || 0)) + 1,
           member_count: existing?.member_count || 1,
           created_at: existing?.created_at || reportData.created_at,
           updated_at: reportData.updated_at,
@@ -71,23 +73,34 @@ export const onRequestPost = async (context: any) => {
       } catch {
         /* non-blocking */
       }
-      await recordActivity(env, {
+      // Event-driven: record event + auto-create notification + auto-create snapshot
+      await processEventSideEffects(env, {
+        event_type: "report.published",
+        actor_id: data.userId,
         owner_uid: data.userId,
-        type: "report_published",
         title: "Live report published",
         detail: String(body.title || id),
         workspace_id: id,
-        actor_id: data.userId,
+        payload: {
+          visibility,
+          device: body.metadata?.device || body.device || "",
+          changes: ["Report published"],
+        },
       }).catch(() => undefined);
     } else {
       await createSnapshotReport(env, id, reportData);
-      await recordActivity(env, {
+      await processEventSideEffects(env, {
+        event_type: "snapshot.created",
+        actor_id: data.userId,
         owner_uid: data.userId,
-        type: "snapshot_created",
         title: "Snapshot created",
         detail: String(body.title || id),
         workspace_id: String(body.workspace_id || ""),
-        actor_id: data.userId,
+        payload: {
+          snapshot_type: body.snapshot_type || "manual",
+          version: body.report_version || 1,
+          device: body.metadata?.device || body.device || "",
+        },
       }).catch(() => undefined);
     }
     return jsonResponse({ id, ...reportData }, 201);

@@ -1,4 +1,4 @@
-import { queryByOwner, recordActivity, softDeleteDocument, upsertDocument } from "../../../lib/firestore";
+import { queryByOwner, processEventSideEffects, softDeleteDocument, upsertDocument } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 import { newId, nowIso, readJson, requireUser } from "../../../lib/http";
 export { onRequestOptions } from "../../../lib/cors";
@@ -54,12 +54,13 @@ export const onRequestPost = async (context: any) => {
       created_at: ts,
       updated_at: ts,
     });
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "api_key.created",
+      actor_id: userId,
       owner_uid: userId,
-      type: "api_key_created",
       title: "API key created",
       detail: name,
-      actor_id: userId,
+      payload: { key_id: id, scopes: Array.isArray(body.scopes) ? body.scopes : ["reports:read"] },
     });
     return jsonResponse(
       {

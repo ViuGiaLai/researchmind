@@ -1,4 +1,4 @@
-import { getDocument, upsertDocument } from "../../../lib/firestore";
+import { getDocument, upsertDocument, processEventSideEffects } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 import { nowIso, readJson, requireUser } from "../../../lib/http";
 export { onRequestOptions } from "../../../lib/cors";
@@ -53,6 +53,17 @@ export const onRequestPut = async (context: any) => {
     };
     delete (next as any).id;
     await upsertDocument(context.env, "user_settings", userId, next);
+    
+    // Fire-and-forget event emission
+    processEventSideEffects(context.env, {
+      event_type: "settings.changed",
+      actor_id: userId,
+      owner_uid: userId,
+      title: "Settings updated",
+      detail: "User preferences changed",
+      payload: { changed_keys: Object.keys(body) },
+    }).catch(() => undefined);
+    
     const { owner_uid: _o, created_at: _c, updated_at: _u, deleted_at: _d, ...publicSettings } =
       next as any;
     return jsonResponse(publicSettings);

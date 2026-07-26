@@ -276,6 +276,50 @@ export async function queryByOwner(
   return rows;
 }
 
+// ─── Event Store ────────────────────────────────────────────────────────
+
+/**
+ * Record a structured event with namespaced event_type and JSON payload.
+ * This is the standard way to log activity across all services.
+ * Returns the event ID.
+ */
+export async function recordEvent(
+  env: Env,
+  event: {
+    event_type: string;
+    actor_id: string;
+    owner_uid: string;
+    title: string;
+    detail?: string;
+    workspace_id?: string;
+    actor_name?: string;
+    payload?: Record<string, unknown>;
+  },
+): Promise<string> {
+  const id = `evt_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  const now = new Date().toISOString();
+  await upsertDocument(env, "activity", id, {
+    id,
+    event_type: event.event_type,
+    actor_id: event.actor_id,
+    owner_uid: event.owner_uid,
+    workspace_id: event.workspace_id || "",
+    title: event.title,
+    detail: event.detail || "",
+    payload: event.payload || {},
+    actor_name: event.actor_name || "",
+    // Legacy flat type (backward compat)
+    type: event.event_type.split(".").pop() || event.event_type,
+    timestamp: now,
+    created_at: now,
+  });
+  return id;
+}
+
+/**
+ * Backward-compatible wrapper — delegates to recordEvent.
+ * @deprecated Use recordEvent with structured event_type and payload instead.
+ */
 export async function recordActivity(
   env: Env,
   entry: {
@@ -287,13 +331,166 @@ export async function recordActivity(
     actor_id?: string;
     actor_name?: string;
   },
-): Promise<void> {
-  const id = `act_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-  await upsertDocument(env, "activity", id, {
-    ...entry,
-    timestamp: new Date().toISOString(),
-    created_at: new Date().toISOString(),
+): Promise<string> {
+  const eventType = entry.type.includes(".")
+    ? entry.type
+    : `cloud.${entry.type}`;
+  return recordEvent(env, {
+    event_type: eventType,
+    actor_id: entry.actor_id || entry.owner_uid,
+    owner_uid: entry.owner_uid,
+    title: entry.title,
+    detail: entry.detail,
+    workspace_id: entry.workspace_id,
+    actor_name: entry.actor_name,
+    payload: { legacy_type: entry.type },
   });
+}
+
+// ─── Event Side Effects (Notifications + Snapshots) ─────────────────────
+
+/** Event types that should auto-create a snapshot. */
+const SNAPSHOT_EVENTS = new Set([
+  "report.published",
+  "report.updated",
+  "snapshot.restored",
+]);
+
+function shouldCreateSnapshot(eventType: string): boolean {
+  return SNAPSHOT_EVENTS.has(eventType);
+}
+
+/** Determine notification kind from event type. */
+function notificationKind(eventType: string): string {
+  if (eventType.includes("conflict") || eventType.includes("error")) return "error";
+  if (eventType.includes("invited") || eventType.includes("shared")) return "invite";
+  if (eventType.includes("backup") || eventType.includes("sync")) return "sync";
+  if (eventType.includes("billing")) return "billing";
+  if (eventType.includes("report") || eventType.includes("snapshot")) return "success";
+  return "info";
+}
+
+/** Auto-create a snapshot for report.* events. */
+async function createSnapshotFromEvent(
+  env: Env,
+  event: {
+    event_type: string;
+    owner_uid: string;
+    actor_id: string;
+    workspace_id?: string;
+    title: string;
+    detail?: string;
+    payload?: Record<string, unknown>;
+  },
+): Promise<void> {
+  const workspaceId = event.workspace_id || "";
+  if (!workspaceId) return;
+
+  const snapshotId = `snap_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  const now = new Date().toISOString();
+  const wsDoc = workspaceId
+    ? await getDocument(env, "workspaces", workspaceId).catch(() => null)
+    : null;
+
+  // Fetch current version of the workspace report to snapshot
+  const currentReport = workspaceId
+    ? await getDocument(env, "workspace_reports", workspaceId).catch(() => null)
+    : null;
+  const currentVersion = Number(currentReport?.report_version || currentReport?.version || 1);
+  const newVersion = currentVersion + 1;
+
+  await upsertDocument(env, "report_snapshots", snapshotId, {
+    id: snapshotId,
+    owner_uid: event.owner_uid,
+    workspace_id: workspaceId,
+    workspace_name: wsDoc?.name || "",
+    title: event.title,
+    version: newVersion,
+    snapshot_type: "auto",
+    tag: "published",
+    creator: event.actor_id,
+    device: event.payload?.device || "",
+    summary: event.detail || "",
+    changes: event.payload?.changes || [`Snapshot created from ${event.event_type}`],
+    url: `/r/${snapshotId}`,
+    created_at: now,
+    timestamp: now,
+  });
+
+  // Update report version
+  if (currentReport) {
+    await upsertDocument(env, "workspace_reports", workspaceId, {
+      ...currentReport,
+      report_version: newVersion,
+      updated_at: now,
+    }).catch(() => undefined);
+  }
+}
+
+/** Auto-create a notification from an event. */
+async function createNotificationFromEvent(
+  env: Env,
+  event: {
+    event_type: string;
+    actor_id: string;
+    owner_uid: string;
+    workspace_id?: string;
+    title: string;
+    detail?: string;
+  },
+): Promise<void> {
+  const kind = notificationKind(event.event_type);
+  const notifId = `notif_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  const now = new Date().toISOString();
+  await upsertDocument(env, "notifications", notifId, {
+    id: notifId,
+    owner_uid: event.owner_uid,
+    kind,
+    title: event.title,
+    body: event.detail || "",
+    read: false,
+    href: event.workspace_id ? `/app/workspaces/${event.workspace_id}` : undefined,
+    event_type: event.event_type,
+    created_at: now,
+    updated_at: now,
+  }).catch(() => undefined);
+}
+
+/**
+ * Process event side effects in a fire-and-forget manner:
+ * 1. Record the event to the activity store
+ * 2. Auto-create a notification
+ * 3. Auto-create a snapshot (for report.published, report.updated, snapshot.restored)
+ * Returns the event ID.
+ */
+export async function processEventSideEffects(
+  env: Env,
+  event: {
+    event_type: string;
+    actor_id: string;
+    owner_uid: string;
+    title: string;
+    detail?: string;
+    workspace_id?: string;
+    actor_name?: string;
+    payload?: Record<string, unknown>;
+  },
+): Promise<string> {
+  // 1. Record the event
+  const eventId = await recordEvent(env, event);
+
+  // 2. Auto-create notification (skip for internal/status events)
+  const skipNotification = event.event_type.startsWith("security.");
+  if (!skipNotification) {
+    await createNotificationFromEvent(env, event).catch(() => undefined);
+  }
+
+  // 3. Auto-create snapshot for report.* events with a workspace
+  if (shouldCreateSnapshot(event.event_type) && event.workspace_id) {
+    await createSnapshotFromEvent(env, event).catch(() => undefined);
+  }
+
+  return eventId;
 }
 
 // ─── Report helpers (existing contract — used by desktop + web) ───

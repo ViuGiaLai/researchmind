@@ -62,8 +62,8 @@ export default function BillingPage() {
 
       <Card>
         <CardContent className="space-y-3">
-          <h3 className="font-semibold text-slate-100">{t("billing.activate.title")}</h3>
-          <p className="text-sm text-slate-400">
+          <h3 className="font-semibold text-foreground">{t("billing.activate.title")}</h3>
+          <p className="text-sm text-muted-foreground">
             {t("billing.activate.description")}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">

@@ -1,4 +1,4 @@
-import { queryByOwner, recordActivity, upsertDocument } from "../../../lib/firestore";
+import { queryByOwner, processEventSideEffects, upsertDocument } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 import { newId, nowIso, readJson, requireUser } from "../../../lib/http";
 export { onRequestOptions } from "../../../lib/cors";
@@ -54,14 +54,18 @@ export const onRequestPost = async (context: any) => {
 
   try {
     await upsertDocument(context.env, "backups", id, doc);
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "cloud.backup_created",
+      actor_id: userId,
       owner_uid: userId,
-      type: "backup_created",
       title: "Cloud backup created",
       detail: String(doc.name),
       workspace_id: String(doc.workspace_id || ""),
-      actor_id: userId,
-    });
+      payload: {
+        type: doc.type,
+        size_bytes: doc.size_bytes,
+      },
+    }).catch(() => undefined);
     return jsonResponse(
       {
         id,

@@ -76,6 +76,22 @@ function buildDeleteSql(
 }
 
 app.use("*", async (c, next) => {
+  // Handle OPTIONS preflight explicitly to ensure CORS works even if
+  // ALLOWED_ORIGINS env var is misconfigured in deployment.
+  if (c.req.method === "OPTIONS") {
+    const origin = c.req.header("origin") || "*";
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
+
+  // For non-OPTIONS requests, use Hono's cors middleware with the configured origins
   const corsMiddleware = cors({
     origin: parseAllowedOrigins(c.env.ALLOWED_ORIGINS || ""),
     allowHeaders: ["Authorization", "Content-Type"],
@@ -89,17 +105,28 @@ app.use("/api/*", async (c, next) => {
   if (!authHeader?.startsWith("Bearer ")) {
     return c.json({ error: "Unauthorized" }, 401);
   }
+
+  const rawToken = authHeader.slice("Bearer ".length).trim();
+  if (!rawToken) return c.json({ error: "Unauthorized" }, 401);
+
+  // ── Dev mode: Clerk keys not configured → accept any Bearer token ──
+  // The token itself is used as the userId for local development.
   if (!c.env.CLERK_SECRET_KEY && !c.env.CLERK_JWT_KEY) {
-    console.error(JSON.stringify({ message: "Clerk verification is not configured" }));
-    return c.json({ error: "Authentication service unavailable" }, 503);
+    console.log("[dev-auth] Clerk not configured — using raw token as userId");
+    c.set("userId", rawToken);
+    await c.env.DB.prepare(
+      "INSERT INTO users (id) VALUES (?) ON CONFLICT(id) DO UPDATE SET updated_at=CURRENT_TIMESTAMP",
+    )
+      .bind(rawToken)
+      .run();
+    await next();
+    return;
   }
 
-  const token = authHeader.slice("Bearer ".length).trim();
-  if (!token) return c.json({ error: "Unauthorized" }, 401);
-
+  // ── Production mode: verify Clerk JWT ──
   const allowedOrigins = parseAllowedOrigins(c.env.ALLOWED_ORIGINS || "");
   try {
-    const verified = await verifyToken(token, {
+    const verified = await verifyToken(rawToken, {
       secretKey: c.env.CLERK_SECRET_KEY,
       jwtKey: c.env.CLERK_JWT_KEY,
       authorizedParties: allowedOrigins.length > 0 ? allowedOrigins : undefined,

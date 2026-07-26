@@ -1,4 +1,4 @@
-import { getDocument, queryByOwner, upsertDocument, recordActivity } from "../../../../lib/firestore";
+import { getDocument, queryByOwner, upsertDocument, processEventSideEffects } from "../../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../../lib/response";
 import { nowIso, readJson, requireUser } from "../../../../lib/http";
 export { onRequestOptions } from "../../../../lib/cors";
@@ -29,13 +29,14 @@ export const onRequestPatch = async (context: any) => {
       role: newRole,
       updated_at: ts,
     });
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "team.permission_changed",
+      actor_id: userId,
       owner_uid: userId,
-      type: "permission_updated",
       title: "Permission updated",
       detail: `${String(member.identity || "")} → ${newRole}`,
       workspace_id: String(member.workspace_id || ""),
-      actor_id: userId,
+      payload: { member_id: memberId, old_role: String(member.role || ""), new_role: newRole },
     });
 
     return jsonResponse({ id: memberId, role: newRole, updated_at: ts });
@@ -98,13 +99,14 @@ export const onRequestDelete = async (context: any) => {
     const activityDetail = transferOwnership && newOwnerId
       ? `${String(member.identity || member.id)} removed, ownership transferred to ${newOwnerId}`
       : `${String(member.identity || member.id)} removed from ${workspaceId}`;
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "team.member_left",
+      actor_id: userId,
       owner_uid: userId,
-      type: "member_removed",
       title: "Member removed",
       detail: activityDetail,
       workspace_id: workspaceId,
-      actor_id: userId,
+      payload: { member_id: memberId, transfer_ownership: transferOwnership },
     });
 
     return jsonResponse({ deleted: true, id: memberId, ownershipTransferred: transferOwnership && !!newOwnerId });

@@ -1,4 +1,4 @@
-import { queryByOwner, recordActivity, softDeleteDocument, upsertDocument, getDocument } from "../../../lib/firestore";
+import { queryByOwner, processEventSideEffects, softDeleteDocument, upsertDocument, getDocument } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 import { nowIso, readJson, requireUser } from "../../../lib/http";
 export { onRequestOptions } from "../../../lib/cors";
@@ -89,12 +89,13 @@ export const onRequestPost = async (context: any) => {
       updated_at: ts,
     };
     await upsertDocument(context.env, "devices", deviceId, doc);
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "cloud.device_linked",
+      actor_id: userId,
       owner_uid: userId,
-      type: "device_linked",
       title: "Device linked",
       detail: name,
-      actor_id: userId,
+      payload: { device_id: deviceId, platform },
     });
     return jsonResponse({ device_id: deviceId, registered: true, ...doc }, 201);
   } catch (err: any) {

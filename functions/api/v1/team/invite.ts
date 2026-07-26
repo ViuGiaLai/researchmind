@@ -1,4 +1,4 @@
-import { getDocument, queryByOwner, upsertDocument, recordActivity } from "../../../lib/firestore";
+import { getDocument, queryByOwner, upsertDocument, processEventSideEffects } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 import { newId, nowIso, readJson, requireUser } from "../../../lib/http";
 export { onRequestOptions } from "../../../lib/cors";
@@ -69,13 +69,14 @@ export const onRequestPost = async (context: any) => {
       member_count: Number(ws.member_count || 1) + 1,
       updated_at: ts,
     });
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "team.member_invited",
+      actor_id: userId,
       owner_uid: userId,
-      type: "member_invited",
       title: "Member invited",
       detail: `${identity} as ${role}`,
       workspace_id: workspaceId,
-      actor_id: userId,
+      payload: { email: identity, role },
     });
 
     return jsonResponse(doc, 201);

@@ -5,7 +5,7 @@ import type { ApiKey } from "@researchmind/types";
 import { createApiKey, listApiKeys, revokeApiKey } from "@/services/api-keys";
 import { Loading } from "@/components/common/Loading";
 import { formatRelativeTime } from "@researchmind/utils";
-import { t } from "@/i18n";
+import { t, tpl } from "@/i18n";
 
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -69,7 +69,7 @@ export default function ApiKeysPage() {
       </div>
 
       {error ? (
-        <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </p>
       ) : null}
@@ -77,17 +77,17 @@ export default function ApiKeysPage() {
       {secret ? (
         <Card>
           <CardContent className="space-y-2">
-            <p className="text-sm font-medium text-emerald-300">{t("apiKeys.secretWarning.title")}</p>
-            <p className="text-xs text-slate-400">{t("apiKeys.secretWarning.description")}</p>
-            <code className="block break-all rounded-lg bg-slate-900/80 px-3 py-2 text-xs text-sky-200">
+            <p className="text-sm font-medium text-warning">{t("apiKeys.secretWarning.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("apiKeys.secretWarning.description")}</p>
+            <code className="block break-all rounded-lg bg-muted/80 px-3 py-2 text-xs text-primary">
               {secret}
             </code>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(secret)}>
-                {t("apiKeys.reveal.copy")}
+                {t("common.copy")}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setSecret(null)}>
-                {t("apiKeys.reveal.dismiss")}
+                {t("apiKeys.dismiss")}
               </Button>
             </div>
           </CardContent>
@@ -97,7 +97,7 @@ export default function ApiKeysPage() {
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="min-w-[220px] flex-1">
-            <label className="mb-1 block text-xs text-slate-400">{t("apiKeys.keyNameLabel")}</label>
+            <label className="mb-1 block text-xs text-muted-foreground">{t("apiKeys.keyNameLabel")}</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -123,10 +123,10 @@ export default function ApiKeysPage() {
             <Card key={k.id}>
               <CardContent className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="font-medium text-slate-100">{k.name}</div>
-                  <div className="text-xs text-slate-500">
-                    {k.prefix}… · {t("apiKeys.created", { time: formatRelativeTime(k.createdAt) })}
-                    {k.lastUsedAt ? ` · ${t("apiKeys.lastUsed", { time: formatRelativeTime(k.lastUsedAt) })}` : ""}
+                  <div className="font-medium text-foreground">{k.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {k.prefix}… · {tpl("apiKeys.created", { time: formatRelativeTime(k.createdAt) })}
+                    {k.lastUsedAt ? ` · ${tpl("apiKeys.lastUsed", { time: formatRelativeTime(k.lastUsedAt) })}` : ""}
                   </div>
                 </div>
                 <Button

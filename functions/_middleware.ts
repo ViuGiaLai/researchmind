@@ -1,5 +1,4 @@
 import { resolveUserId } from "./lib/auth";
-import { corsHeaders } from "./lib/cors";
 
 function log(...args: unknown[]) {
   console.log("[middleware]", ...args);
@@ -11,7 +10,27 @@ function error(...args: unknown[]) {
   console.error("[middleware]", ...args);
 }
 
+/**
+ * Echo back the exact origin for credentialed CORS requests.
+ * Cannot use "*" when the browser includes Authorization header.
+ */
+function buildCorsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin") || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Language, Accept-Language, ngrok-skip-browser-warning",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
+  };
+}
+
 export const onRequest = async (context: any) => {
+  const corsHeaders = buildCorsHeaders(context.request);
+
+  // Handle OPTIONS preflight — return 204 with CORS headers immediately.
+  // This MUST run before auth to allow unauthenticated preflight requests.
   if (context.request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
@@ -38,8 +57,8 @@ export const onRequest = async (context: any) => {
   try {
     const response = await context.next();
     const newHeaders = new Headers(response.headers);
-    Object.keys(corsHeaders).forEach((key) => {
-      newHeaders.set(key, (corsHeaders as any)[key]);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      newHeaders.set(key, value);
     });
     return new Response(response.body, {
       status: response.status,

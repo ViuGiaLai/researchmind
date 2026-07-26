@@ -1,5 +1,6 @@
 import { queryByOwner } from "../../../lib/firestore";
-import { jsonResponse, errorResponse, requireUser } from "../../../lib/http";
+import { jsonResponse, errorResponse } from "../../../lib/response";
+import { requireUser } from "../../../lib/http";
 export { onRequestOptions } from "../../../lib/cors";
 
 export const onRequestGet = async (context: any) => {

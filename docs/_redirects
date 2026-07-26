@@ -1,7 +1,8 @@
 # Cloudflare Pages redirects
 # Clean report URLs
 
-/r/*  /report.html 200
+# /r/* is handled by functions/r/[id].ts — do NOT add a _redirects rule here
+# because Cloudflare may redirect /report.html → /report and change the URL.
 /report/*  /report.html 200
 
 # Old query-param URLs forward to report.html (handled by JS)

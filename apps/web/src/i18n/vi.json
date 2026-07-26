@@ -698,7 +698,8 @@
     "createKey": "Tạo key mới",
     "empty": {
       "title": "Chưa có API key nào",
-      "description": "Tạo key để kết nối ResearchMind với công cụ khác hoặc script tự động."
+      "description": "Tạo key để kết nối ResearchMind với công cụ khác hoặc script tự động.",
+      "action": "Tạo key"
     },
     "keyNameLabel": "Tên key",
     "keyNamePlaceholder": "CI publish · personal script",

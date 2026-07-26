@@ -412,12 +412,14 @@
   "backups": {
     "title": "Backups",
     "subtitle": "Backups of your workspaces, settings and prompts",
+    "created": "Backup created.",
     "createBackup": "Create backup",
     "empty": {
       "title": "No backups yet",
       "description": "Backups are created automatically on schedule, or you can create one now."
     },
     "types": {
+      "all": "All",
       "workspace": "Workspace",
       "settings": "Settings",
       "prompts": "Prompts",
@@ -667,7 +669,8 @@
     "createKey": "Create key",
     "empty": {
       "title": "No API keys yet",
-      "description": "Create a key to call Cloud Platform APIs from scripts or integrations."
+      "description": "Create a key to call Cloud Platform APIs from scripts or integrations.",
+      "action": "Create key"
     },
     "keyNameLabel": "Key name",
     "keyNamePlaceholder": "CI publish · personal script",
@@ -675,6 +678,9 @@
       "title": "Save this key now",
       "description": "This is the only time the full key will be shown. You won't be able to see it again after leaving this page."
     },
+    "created": "created {{time}}",
+    "lastUsed": "last used {{time}}",
+    "dismiss": "Dismiss",
     "revoke": "Revoke"
   },
   "settings": {
@@ -704,11 +710,26 @@
     "desktopDescription": "Import PDFs, build knowledge graphs, run evidence matrices and export reports.",
     "cloudTitle": "Cloud Platform",
     "cloudDescription": "Stable report URLs, backups, devices and team collaboration.",
-    "openDocs": "Open docs →"
+    "openDocs": "Open docs →",
+    "categories": {
+      "gettingStarted": "Getting started with ResearchMind Desktop",
+      "connectCloud": "Connect Desktop to Cloud",
+      "syncConflicts": "Handling sync conflicts",
+      "exportReports": "Exporting reports and citations",
+      "security": "Data security FAQ"
+    }
   },
   "feedback": {
     "title": "Feedback",
     "subtitle": "Report a bug or request a feature",
+    "typeLabel": "Feedback type",
+    "subjectLabel": "Subject",
+    "messageLabel": "Message",
+    "types": {
+      "bug": "Bug report",
+      "feature": "Feature request",
+      "other": "Other"
+    },
     "submit": "Submit",
     "thankYou": {
       "title": "Thanks for the feedback!",

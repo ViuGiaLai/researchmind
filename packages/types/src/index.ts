@@ -34,17 +34,69 @@ export type SnapshotTag = "draft" | "milestone" | "published" | "archived";
 
 export type ActivityCategory = "research" | "ai" | "reports" | "cloud" | "team" | "security";
 
-export type ActivityType =
-  | "report_published"
-  | "paper_imported"
-  | "backup_created"
-  | "workspace_updated"
-  | "device_linked"
-  | "member_invited"
-  | "settings_changed"
-  | "snapshot_created"
-  | "login"
-  | "api_key_created";
+export type EventType =
+  // ── Research ──
+  | "paper.imported"
+  | "paper.deleted"
+  | "paper.annotation"
+  | "paper.starred"
+  | "paper.metadata_updated"
+  // ── AI ──
+  | "ai.report_generated"
+  | "ai.evidence_matrix"
+  | "ai.knowledge_graph"
+  | "ai.research_memory"
+  | "ai.chat_completed"
+  // ── Reports ──
+  | "report.published"
+  | "report.unpublished"
+  | "report.updated"
+  | "report.downloaded"
+  | "report.exported"
+  // ── Snapshots ──
+  | "snapshot.created"
+  | "snapshot.restored"
+  | "snapshot.compared"
+  // ── Cloud / Sync ──
+  | "cloud.synced"
+  | "cloud.sync_conflict"
+  | "cloud.backup_created"
+  | "cloud.backup_restored"
+  | "cloud.device_linked"
+  | "cloud.device_disconnected"
+  // ── Team / Collaboration ──
+  | "team.member_invited"
+  | "team.member_joined"
+  | "team.member_left"
+  | "team.comment_added"
+  | "team.permission_changed"
+  | "team.workspace_shared"
+  // ── Settings / Account ──
+  | "settings.changed"
+  | "security.login"
+  | "security.logout"
+  | "security.password_changed"
+  | "api_key.created"
+  | "api_key.deleted";
+
+export type ActivityType = EventType;
+
+/** Derive category from the event type prefix. */
+export function eventCategory(et: string): ActivityCategory {
+  const prefix = et.split(".")[0];
+  switch (prefix) {
+    case "paper": return "research";
+    case "ai": return "ai";
+    case "report": return "reports";
+    case "snapshot": return "reports";
+    case "cloud": return "cloud";
+    case "team": return "team";
+    case "security":
+    case "settings":
+    case "api_key": return "security";
+    default: return "cloud";
+  }
+}
 
 export interface User {
   id: string;
@@ -118,7 +170,11 @@ export interface Snapshot {
 
 export interface ActivityItem {
   id: string;
-  type: ActivityType;
+  /** Namespaced event type, e.g. "report.published". Maps to the ActivityType union. */
+  eventType: EventType;
+  /** Legacy flat type (backward compat). Derived from eventType's last segment. */
+  type: string;
+  /** Category auto-derived from eventType prefix. */
   category: ActivityCategory;
   title: string;
   detail: string;
@@ -126,6 +182,9 @@ export interface ActivityItem {
   workspaceName?: string;
   actorId?: string;
   actorName?: string;
+  /** Structured JSON payload carrying event-specific data. */
+  payload?: Record<string, unknown>;
+  /** Legacy metadata (backward compat). */
   metadata?: Record<string, string | number>;
   timestamp: string;
 }

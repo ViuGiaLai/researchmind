@@ -1,4 +1,4 @@
-import { getDocument, queryByOwner, recordActivity, upsertDocument } from "../../../lib/firestore";
+import { getDocument, queryByOwner, processEventSideEffects, upsertDocument } from "../../../lib/firestore";
 import { jsonResponse, errorResponse } from "../../../lib/response";
 import { newId, nowIso, readJson, requireUser } from "../../../lib/http";
 import { corsHeaders } from "../../../lib/cors";
@@ -86,14 +86,18 @@ export const onRequestPost = async (context: any) => {
       joined_at: ts,
       created_at: ts,
     });
-    await recordActivity(context.env, {
+    await processEventSideEffects(context.env, {
+      event_type: "cloud.synced",
+      actor_id: userId,
       owner_uid: userId,
-      type: "workspace_updated",
       title: "Workspace created",
       detail: name,
       workspace_id: id,
-      actor_id: userId,
-    });
+      payload: {
+        sync_state: body.sync_state || "Synced",
+        paper_count: body.paper_count || 0,
+      },
+    }).catch(() => undefined);
     return jsonResponse(mapWorkspace(doc), 201);
   } catch (err: any) {
     return errorResponse(`Failed to create workspace: ${err.message}`, 500);

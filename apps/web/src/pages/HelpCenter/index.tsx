@@ -35,13 +35,13 @@ export default function HelpCenterPage() {
             <Card key={item.key || label}>
               <CardContent>
                 <div className="flex items-start gap-3">
-                  <item.icon className="mt-0.5 h-5 w-5 shrink-0 text-sky-400" />
+                  <item.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div>
-                    <h3 className="font-semibold text-slate-100">{label}</h3>
-                    {desc ? <p className="mt-1 text-sm text-slate-400">{desc}</p> : null}
+                    <h3 className="font-semibold text-foreground">{label}</h3>
+                    {desc ? <p className="mt-1 text-sm text-muted-foreground">{desc}</p> : null}
                   </div>
                 </div>
-                <Link to="/docs" className="mt-3 inline-block text-sm text-sky-400">{t("help.openDocs")}</Link>
+                <Link to="/docs" className="mt-3 inline-block text-sm text-primary">{t("help.openDocs")}</Link>
               </CardContent>
             </Card>
           );

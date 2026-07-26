@@ -14,6 +14,10 @@
   --color-text-muted: #64748b;
   --color-accent: #0ea5e9;
   --color-accent-soft: rgba(14, 165, 233, 0.08);
+  --color-success: #10b981;
+  --color-success-soft: rgba(16, 185, 129, 0.08);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.08);
   --color-header-bg: rgba(255, 255, 255, 0.75);
   --color-sidebar-bg: #f8fafc;
   --color-sidebar-border: #e2e8f0;
@@ -37,6 +41,10 @@
   --color-text-muted: #64748b;
   --color-accent: #38bdf8;
   --color-accent-soft: rgba(56, 189, 248, 0.08);
+  --color-success: #34d399;
+  --color-success-soft: rgba(52, 211, 153, 0.08);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.08);
   --color-header-bg: rgba(15, 23, 42, 0.75);
   --color-sidebar-bg: rgba(9, 13, 22, 0.6);
   --color-sidebar-border: #1e293b;
@@ -117,6 +125,17 @@ body {
   .theme-text-secondary { color: var(--color-text-secondary); }
   .theme-text-muted { color: var(--color-text-muted); }
   .theme-shadow-card { box-shadow: var(--shadow-card); }
+  .theme-text-success { color: var(--color-success); }
+  .theme-text-warning { color: var(--color-warning); }
+  .theme-bg-success { background-color: var(--color-success); }
+  .theme-bg-warning { background-color: var(--color-warning); }
+  .theme-bg-success-soft { background-color: var(--color-success-soft); }
+  .theme-bg-warning-soft { background-color: var(--color-warning-soft); }
+  /* Direct utility classes (used in JSX alongside theme-* variants) */
+  .text-success { color: var(--color-success); }
+  .text-warning { color: var(--color-warning); }
+  .bg-success\/10 { background-color: var(--color-success-soft); }
+  .bg-warning\/10 { background-color: var(--color-warning-soft); }
 }
 
 /* ─── Smooth transition for theme switch ─── */

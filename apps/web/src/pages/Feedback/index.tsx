@@ -21,26 +21,26 @@ export default function FeedbackPage() {
             }}
           >
             <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-slate-300">{t("feedback.typeLabel")}</span>
+              <span className="font-medium text-foreground">{t("feedback.typeLabel")}</span>
               <select
-                className="h-10 rounded-xl border border-slate-700 bg-slate-950 px-3 text-slate-100"
+                className="h-10 rounded-xl border border-border bg-background px-3 text-foreground"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
               >
-                <option value="bug">{t("feedback.type.bug")}</option>
-                <option value="feature">{t("feedback.type.feature")}</option>
-                <option value="other">{t("feedback.type.other")}</option>
+                <option value="bug">{t("feedback.types.bug")}</option>
+                <option value="feature">{t("feedback.types.feature")}</option>
+                <option value="other">{t("feedback.types.other")}</option>
               </select>
             </label>
             <Input label={t("feedback.subjectLabel")} required />
             <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-slate-300">{t("feedback.message")}</span>
-              <textarea className="min-h-[140px] rounded-xl border border-slate-700 bg-slate-950 p-3" required />
+              <span className="font-medium text-foreground">{t("feedback.message")}</span>
+              <textarea className="min-h-[140px] rounded-xl border border-border bg-background p-3 text-foreground" required />
             </label>
             {sent ? (
               <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
-                <p className="font-medium text-emerald-300">{t("feedback.thankYou.title")}</p>
-                <p className="mt-1 text-sm text-emerald-400">{t("feedback.thankYou.description")}</p>
+                <p className="font-medium text-success">{t("feedback.thankYou.title")}</p>
+                <p className="mt-1 text-sm text-success">{t("feedback.thankYou.description")}</p>
               </div>
             ) : null}
             <Button type="submit">{t("feedback.submit")}</Button>
