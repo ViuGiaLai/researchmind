@@ -17,10 +17,15 @@ export const onRequest = async (context: any) => {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Language, Accept-Language, ngrok-skip-browser-warning",
+    "Access-Control-Max-Age": "86400",
+    "Vary": "Origin",
   };
 
   if (context.request.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
   }
 
   const authHeader = context.request.headers.get("Authorization") || "";

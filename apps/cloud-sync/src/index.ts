@@ -1,6 +1,5 @@
 import { verifyToken } from "@clerk/backend";
 import { Hono, type Context } from "hono";
-import { cors } from "hono/cors";
 
 type Bindings = {
   DB: D1Database;
@@ -75,13 +74,40 @@ function buildDeleteSql(
   );
 }
 
+// ─────────────────────────────────────────────
+//  CORS middleware – manual (robust against empty env var)
+// ─────────────────────────────────────────────
 app.use("*", async (c, next) => {
-  const corsMiddleware = cors({
-    origin: parseAllowedOrigins(c.env.ALLOWED_ORIGINS || ""),
-    allowHeaders: ["Authorization", "Content-Type"],
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  });
-  return corsMiddleware(c, next);
+  const allowedOrigins = parseAllowedOrigins(c.env.ALLOWED_ORIGINS || "");
+  const requestOrigin = c.req.header("Origin") || "";
+
+  // If no origins configured, allow all (safe for dev);
+  // otherwise reflect the request origin only if it is allowed.
+  const resolvedOrigin =
+    allowedOrigins.length === 0
+      ? "*"
+      : allowedOrigins.includes(requestOrigin)
+        ? requestOrigin
+        : "null";
+
+  const corsHeaders: Record<string, string> = {
+    "Access-Control-Allow-Origin": resolvedOrigin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+    "Access-Control-Max-Age": "86400",
+  };
+
+  // Handle OPTIONS preflight
+  if (c.req.method === "OPTIONS") {
+    return c.text("", 204, corsHeaders);
+  }
+
+  await next();
+
+  // Attach CORS headers to every response (including errors)
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    c.res.headers.set(key, value);
+  }
 });
 
 app.use("/api/*", async (c, next) => {
