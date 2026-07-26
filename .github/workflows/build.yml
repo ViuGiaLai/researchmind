@@ -237,6 +237,37 @@ jobs:
       - run: pnpm typecheck
         working-directory: apps/cloud-sync
 
+  deploy-cloud-sync:
+    needs: [changes, typecheck-cloud-sync]
+    if: >
+      needs.changes.outputs.cloud_sync == 'true'
+      && github.ref == 'refs/heads/main'
+      && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: apps/cloud-sync/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/cloud-sync
+
+      - name: Deploy cloud-sync worker
+        run: pnpm deploy
+        working-directory: apps/cloud-sync
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
   test-cloud-gateway:
     needs: changes
     if: needs.changes.outputs.gateway == 'true' || github.event_name == 'pull_request'
