@@ -1,5 +1,6 @@
-import { verifyToken } from "@clerk/backend";
 import { Hono, type Context } from "hono";
+// @clerk/backend is dynamically imported inside the auth middleware to
+// prevent module-level import failures from crashing the entire Worker.
 
 type Bindings = {
   DB: D1Database;
@@ -75,40 +76,70 @@ function buildDeleteSql(
 }
 
 // ─────────────────────────────────────────────
-//  CORS middleware – manual (robust against empty env var)
+//  Shared CORS header builder
 // ─────────────────────────────────────────────
-app.use("*", async (c, next) => {
-  const allowedOrigins = parseAllowedOrigins(c.env.ALLOWED_ORIGINS || "");
-  const requestOrigin = c.req.header("Origin") || "";
 
-  // If no origins configured, allow all (safe for dev);
-  // otherwise reflect the request origin only if it is allowed.
-  const resolvedOrigin =
-    allowedOrigins.length === 0
-      ? "*"
-      : allowedOrigins.includes(requestOrigin)
-        ? requestOrigin
-        : "null";
+/** Resolve the allowed origin string based on the request's Origin header. */
+const resolveCorsOrigin = (
+  requestOrigin: string | null,
+  allowedOriginsStr: string,
+): string => {
+  const allowedOrigins = parseAllowedOrigins(allowedOriginsStr);
+  return allowedOrigins.length === 0
+    ? "*"
+    : requestOrigin && allowedOrigins.includes(requestOrigin)
+      ? requestOrigin
+      : "null";
+};
 
-  const corsHeaders: Record<string, string> = {
-    "Access-Control-Allow-Origin": resolvedOrigin,
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Max-Age": "86400",
-  };
-
-  // Handle OPTIONS preflight
-  if (c.req.method === "OPTIONS") {
-    return c.text("", 204, corsHeaders);
-  }
-
-  await next();
-
-  // Attach CORS headers to every response (including errors)
-  for (const [key, value] of Object.entries(corsHeaders)) {
-    c.res.headers.set(key, value);
-  }
+/** Build CORS headers from an Origin string and environment variable. */
+const buildCorsHeadersFromOrigin = (
+  origin: string | null,
+  allowedOriginsStr: string,
+): Record<string, string> => ({
+  "Access-Control-Allow-Origin": resolveCorsOrigin(origin, allowedOriginsStr),
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Max-Age": "86400",
 });
+
+const buildCorsHeaders = (c: Context<AppEnv>): Record<string, string> =>
+  buildCorsHeadersFromOrigin(c.req.header("Origin") || null, c.env.ALLOWED_ORIGINS || "");
+
+const applyCorsHeaders = (
+  headers: Headers,
+  corsHeaders: Record<string, string>,
+) => {
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    headers.set(key, value);
+  }
+};
+
+// ─────────────────────────────────────────────
+//  CORS enforcement — applied at the fetch wrapper level
+//  so even if Hono's middleware chain fails or doesn't
+//  route the OPTIONS method, CORS headers are guaranteed.
+// ─────────────────────────────────────────────
+
+/**
+ * Wrap a Response and overlay CORS headers onto it.
+ * The merged response is returned as a new immutable Response so
+ * that headers CANNOT be silently dropped by the runtime.
+ */
+const withCorsHeaders = (
+  response: Response,
+  corsHeaders: Record<string, string>,
+): Response => {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    headers.set(key, value);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+};
 
 app.use("/api/*", async (c, next) => {
   const authHeader = c.req.header("Authorization");
@@ -123,8 +154,9 @@ app.use("/api/*", async (c, next) => {
   const token = authHeader.slice("Bearer ".length).trim();
   if (!token) return c.json({ error: "Unauthorized" }, 401);
 
-  const allowedOrigins = parseAllowedOrigins(c.env.ALLOWED_ORIGINS || "");
   try {
+    const allowedOrigins = parseAllowedOrigins(c.env.ALLOWED_ORIGINS || "");
+    const { verifyToken } = await import("@clerk/backend");
     const verified = await verifyToken(token, {
       secretKey: c.env.CLERK_SECRET_KEY,
       jwtKey: c.env.CLERK_JWT_KEY,
@@ -493,7 +525,55 @@ app.onError((error, c) => {
       path: c.req.path,
     }),
   );
-  return c.json({ error: "Internal server error" }, 500);
+
+  // ⚠️ onError response DOES NOT go through middleware chain,
+  // so we must attach CORS headers here explicitly.
+  const corsHeaders = buildCorsHeaders(c);
+  const res = c.json({ error: "Internal server error" }, 500);
+  applyCorsHeaders(res.headers, corsHeaders);
+  return res;
 });
 
-export default app;
+export default {
+  async fetch(request: Request, env: Bindings, ctx: ExecutionContext): Promise<Response> {
+    // Compute CORS headers from the raw request BEFORE any Hono middleware
+    // runs.  This guarantees we can still set them even if Hono crashes.
+    const corsHeaders = buildCorsHeadersFromOrigin(
+      request.headers.get("Origin"),
+      env.ALLOWED_ORIGINS || "",
+    );
+
+    // ── Handle preflight at the outermost layer ─────────────────
+    // By the time Hono's middleware chain runs, the Response object
+    // returned for OPTIONS is sometimes reconstructed without the
+    // custom headers we set.  Handling OPTIONS here — where we own
+    // the Response from construction to delivery — guarantees CORS
+    // headers are always present on the preflight response.
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: { ...corsHeaders },
+      });
+    }
+
+    // ── Forward to Hono, then overlay CORS ────────────────────
+    try {
+      const response = await app.fetch(request, env, ctx);
+      return withCorsHeaders(response, corsHeaders);
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          message: "Unhandled worker error",
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      return new Response(
+        JSON.stringify({ error: "Internal server error" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
+    }
+  },
+};
