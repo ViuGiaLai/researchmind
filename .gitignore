@@ -158,5 +158,5 @@ Desktop.ini
 
 # Cloudflare
 .dev.vars
-
+serviceAccountKey.json
 .wrangler
