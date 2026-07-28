@@ -12,13 +12,23 @@ class GatewaySettings(BaseSettings):
     cors_origins: str = ""
     firebase_project_id: str = ""
     firebase_service_account_json: str = ""
-    vite_gateway_shared_token: str = ""
+    gateway_shared_token: str = ""
     allow_unauthenticated: bool = False
     free_requests_per_day: int = 30
     free_input_chars_per_day: int = 500_000
     max_input_chars: int = 120_000
     max_output_tokens: int = 4096
     provider_timeout: float = 120.0
+
+    # Public, runtime-configurable desktop client settings. These values are
+    # deliberately safe to return from /v1/client-config; never add secrets
+    # (provider keys, service accounts, or database credentials) here.
+    frontend_clerk_publishable_key: str = ""
+    frontend_cloud_sync_url: str = ""
+    frontend_reports_api_url: str = ""
+    frontend_client_config_version: int = 1
+    frontend_config_generated_at: str = ""
+    frontend_feature_flags: str = "{}"
 
     # ─── Gemini ────────────────────────────────────────────────────
     gemini_api_key: str = ""

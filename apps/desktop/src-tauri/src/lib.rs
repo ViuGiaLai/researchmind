@@ -1,5 +1,6 @@
 use log::{error, info, warn};
 use serde::Serialize;
+use std::fs;
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -486,6 +487,30 @@ fn start_backend_supervisor(app: tauri::AppHandle) {
     });
 }
 
+/// Read the one immutable bootstrap URL bundled with the desktop app.
+/// All mutable public client settings are fetched from this Gateway at runtime.
+#[tauri::command]
+fn read_gateway_config(app: tauri::AppHandle) -> Result<String, String> {
+    let mut candidates = Vec::new();
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(resource_dir.join("gateway.json"));
+        candidates.push(resource_dir.join("resources").join("gateway.json"));
+    }
+    if let Ok(path) = app
+        .path()
+        .resolve("gateway.json", tauri::path::BaseDirectory::Resource)
+    {
+        candidates.push(path);
+    }
+
+    for path in candidates {
+        if path.is_file() {
+            return fs::read_to_string(&path)
+                .map_err(|error| format!("Could not read bundled gateway.json at {}: {}", path.display(), error));
+        }
+    }
+    Err("Bundled gateway.json was not found.".into())
+}
 /// Open a native folder picker dialog and return the selected path.
 #[tauri::command]
 fn select_folder(app_handle: tauri::AppHandle) -> Result<Option<String>, String> {
@@ -559,6 +584,7 @@ pub fn run() {
             check_backend_health,
             get_backend_spawn_status,
             kill_backend,
+            read_gateway_config,
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {

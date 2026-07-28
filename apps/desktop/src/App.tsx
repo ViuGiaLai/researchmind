@@ -307,7 +307,7 @@ export function App() {
       const timeout = setTimeout(() => controller.abort(), 8000);
       let h: { status: string; backend_ready?: boolean; init_message?: string; setup_completed?: boolean };
       try {
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765"}/api/ping`, { headers: { "ngrok-skip-browser-warning": "true" },
+        const res = await fetch(`${BASE_URL}/api/ping`, { headers: { "ngrok-skip-browser-warning": "true" },
           signal: controller.signal,
         });
         clearTimeout(timeout);

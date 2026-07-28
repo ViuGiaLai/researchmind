@@ -32,7 +32,7 @@ def _firebase_app():
 async def require_user(authorization: str = Header(default="")) -> dict:
     settings = get_settings()
     token = authorization.removeprefix("Bearer ").strip() if authorization.startswith("Bearer ") else ""
-    if settings.vite_gateway_shared_token and token == settings.vite_gateway_shared_token:
+    if settings.gateway_shared_token and token == settings.gateway_shared_token:
         return {"uid": "shared-development-client", "auth": "shared"}
     if token and settings.firebase_project_id:
         try:
@@ -50,6 +50,6 @@ def validate_auth_configuration() -> None:
     settings = get_settings()
     if settings.production and settings.allow_unauthenticated:
         raise RuntimeError("ALLOW_UNAUTHENTICATED cannot be enabled in production")
-    if settings.production and not settings.firebase_project_id and not settings.vite_gateway_shared_token:
-        raise RuntimeError("FIREBASE_PROJECT_ID or VITE_GATEWAY_SHARED_TOKEN is required in production")
+    if settings.production and not settings.firebase_project_id and not settings.gateway_shared_token:
+        raise RuntimeError("FIREBASE_PROJECT_ID or GATEWAY_SHARED_TOKEN is required in production")
 

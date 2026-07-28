@@ -67,8 +67,20 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS
+        value: http://localhost:1420,tauri://localhost,http://tauri.localhost
+      - key: FRONTEND_CLERK_PUBLISHABLE_KEY
         sync: false
-      - key: VITE_GATEWAY_SHARED_TOKEN
+      - key: FRONTEND_CLOUD_SYNC_URL
+        sync: false
+      - key: FRONTEND_REPORTS_API_URL
+        sync: false
+      - key: FRONTEND_CLIENT_CONFIG_VERSION
+        value: "1"
+      - key: FRONTEND_CONFIG_GENERATED_AT
+        sync: false
+      - key: FRONTEND_FEATURE_FLAGS
+        value: '{"cloudSync":true,"reports":true}'
+      - key: GATEWAY_SHARED_TOKEN
         sync: false
       - key: GEMINI_API_KEY
         sync: false

@@ -17,14 +17,9 @@ import { open } from "@tauri-apps/plugin-shell";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import i18n from "../i18n";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
+const firebaseConfig = { apiKey: "", authDomain: "", projectId: "", appId: "" };
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
+const backendUrl = "http://127.0.0.1:8765";
 const firebaseConfigured = Boolean(
   firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId,
 );

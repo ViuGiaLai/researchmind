@@ -1,3 +1,4 @@
+import { getPublicPagesUrl } from "../../lib/client-config";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCheck, IconCopy, IconEdit, IconLock, IconSpinner, IconUser, IconSparkle } from "../Icons";
@@ -349,7 +350,7 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
       const wId = selectedWorkspaceId || "default_workspace";
       await api.addWorkspaceMember(wId, collabEmail.trim(), collabRole);
 
-      const baseUrl = import.meta.env.VITE_PUBLIC_PAGES_URL || "https://researchmind.pages.dev";
+      const baseUrl = getPublicPagesUrl();
       const inviteUrl = `${baseUrl}/docs.html?invite=usr_${(user?.uid || "guest").slice(0, 8)}&workspace=${wId}&role=${collabRole}`;
       void navigator.clipboard.writeText(inviteUrl);
 
@@ -727,7 +728,7 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
                       }
                     }
 
-                    const shareUrl = `https://researchmind.pages.dev/r/${res.id || cleanWsId}`;
+                    const shareUrl = `${getPublicPagesUrl()}/r/${res.id || cleanWsId}`;
 
                     await navigator.clipboard.writeText(shareUrl).catch(() => {});
 
@@ -923,7 +924,7 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
             </div>
 
             <p className="collab-modal-desc">
-              {t("account.join_modal_desc", "Dán đường dẫn Lời mời HTTPS (researchmind.pages.dev/docs.html?invite=...) hoặc mã Workspace vào bên dưới.")}
+              {t("account.join_modal_desc", "Dán đường dẫn Lời mời HTTPS hoặc mã Workspace vào bên dưới.")}
             </p>
 
             <form onSubmit={handleJoinWorkspace} className="collab-form">
@@ -932,7 +933,7 @@ export function AccountView({ onOpenSettings }: AccountViewProps) {
                 <input
                   type="text"
                   className="collab-input"
-                  placeholder={t("account.join_modal_placeholder", "https://researchmind.pages.dev/docs.html?invite=usr_...&workspace=...")}
+                  placeholder={t("account.join_modal_placeholder", "https://reports.example/docs.html?invite=usr_...&workspace=...")}
                   value={joinLinkInput}
                   onChange={(e) => setJoinLinkInput(e.target.value)}
                   required

@@ -17,9 +17,7 @@ import {
   type DbEncryptedNote,
   type DbProject,
 } from "./db";
-
-const SYNC_API_URL =
-  import.meta.env.VITE_CLOUD_SYNC_URL || "http://localhost:8787/api";
+import { getCloudSyncUrl } from "./client-config";
 const REQUEST_TIMEOUT_MS = 15_000;
 const PUSH_CONCURRENCY = 4;
 
@@ -82,7 +80,7 @@ async function requestJson<T>(
     REQUEST_TIMEOUT_MS,
   );
   try {
-    const response = await fetch(`${SYNC_API_URL}/${path}`, {
+    const response = await fetch(`${getCloudSyncUrl()}/${path}`, {
       ...init,
       signal: controller.signal,
       headers: {

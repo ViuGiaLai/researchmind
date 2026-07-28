@@ -1,3 +1,4 @@
+import { getPublicPagesUrl } from '../../lib/client-config';
 import "../../styles/review.css";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -1286,7 +1287,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                   <>
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(`https://researchmind.pages.dev/r/${cloudReportId}`);
+                        navigator.clipboard.writeText(`${getPublicPagesUrl()}/r/${cloudReportId}`);
                         toast.addToast("success", "Đã sao chép Link Báo cáo!");
                       }}
                       className="u-btn-outline-sm"
@@ -1294,7 +1295,7 @@ export function ReviewBuilderView({ projectId, initialPaperIds = [] }: ReviewBui
                       Sao chép Link
                     </button>
                     <button
-                      onClick={() => window.open(`https://researchmind.pages.dev/r/${cloudReportId}`, "_blank")}
+                      onClick={() => window.open(`${getPublicPagesUrl()}/r/${cloudReportId}`, "_blank")}
                       className="u-btn-outline-sm"
                     >
                       Mở Viewer

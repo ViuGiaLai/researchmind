@@ -1,11 +1,12 @@
 """Deployable ResearchMind AI gateway."""
 
 import json
+import hashlib
 import httpx
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from .auth import require_user, validate_auth_configuration
 from .config import get_settings
@@ -26,9 +27,43 @@ app = FastAPI(title="ResearchMind AI Gateway", version="1.0.0", lifespan=lifespa
 settings = get_settings()
 origins = [item.strip() for item in settings.cors_origins.split(",") if item.strip()]
 if origins:
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"], allow_headers=["Authorization", "Content-Type"])
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"], allow_headers=["Authorization", "Content-Type", "If-None-Match"], expose_headers=["ETag"])
 
 # Removed reports_router as it is now migrated to Cloudflare Pages Functions
+
+
+def client_config_payload() -> dict:
+    """Return only public, remotely configurable desktop client settings."""
+    try:
+        feature_flags = json.loads(settings.frontend_feature_flags)
+    except (TypeError, ValueError):
+        feature_flags = {}
+    if not isinstance(feature_flags, dict):
+        feature_flags = {}
+
+    return {
+        "schemaVersion": 1,
+        "clientConfigVersion": settings.frontend_client_config_version,
+        "generatedAt": settings.frontend_config_generated_at or None,
+        "config": {
+            "clerkPublishableKey": settings.frontend_clerk_publishable_key,
+            "cloudSyncUrl": settings.frontend_cloud_sync_url,
+            "reportsApiUrl": settings.frontend_reports_api_url,
+            "featureFlags": feature_flags,
+        },
+    }
+
+
+@app.get("/v1/client-config")
+async def client_config(request: Request):
+    """Serve public desktop configuration with conditional-request caching."""
+    payload = client_config_payload()
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    etag = f'"{hashlib.sha256(serialized.encode("utf-8")).hexdigest()}"'
+    headers = {"ETag": etag, "Cache-Control": "no-cache"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(content=payload, headers=headers)
 
 
 def validate_size(request: GenerateRequest) -> int:

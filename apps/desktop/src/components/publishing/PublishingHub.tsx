@@ -1,3 +1,4 @@
+import { getPublicPagesUrl } from "../../lib/client-config";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconSpinner } from "../Icons";
@@ -500,7 +501,7 @@ export const PublishingHub: React.FC<PublishingHubProps> = ({
                     className="btn"
                     style={{ background: "var(--color-primary, #0d9488)", color: "#fff" }}
                     onClick={() => {
-                      const baseUrl = import.meta.env.VITE_PUBLIC_PAGES_URL || "https://researchmind.pages.dev";
+                      const baseUrl = getPublicPagesUrl();
                       const reportId = `pub_${selectedTemplate}_${Math.random().toString(36).substring(2, 8)}`;
                       const reportTitle = encodeURIComponent(title || "Báo cáo Kiểm tra Xuất bản Phản biện (Manuscript Audit)");
                       const auditScore = auditResult?.overall_score || 95;

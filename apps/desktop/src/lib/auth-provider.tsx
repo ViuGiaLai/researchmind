@@ -10,6 +10,7 @@ import {
 } from "@clerk/clerk-react";
 import { setCurrentToken } from "./auth-token";
 import { logger } from "./logger";
+import { getClientConfig } from "./client-config";
 
 export interface AuthUser {
   id: string;
@@ -77,13 +78,11 @@ function clerkError(err: unknown): string {
   return "An unknown error occurred";
 }
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "";
-const clerkConfigured = Boolean(clerkPublishableKey);
 const OAUTH_CALLBACK_PATH = "/sso-callback";
 
 /** Completes Clerk's OAuth exchange at the redirect URL configured below. */
 export function ClerkOAuthCallback() {
-  if (!clerkConfigured) return null;
+  if (!getClientConfig().clerkPublishableKey) return null;
 
   return (
     <AuthenticateWithRedirectCallback
@@ -93,7 +92,7 @@ export function ClerkOAuthCallback() {
   );
 }
 
-function getClerkSignInUrl(): string {
+function getClerkSignInUrl(clerkPublishableKey: string): string {
   try {
     const parts = clerkPublishableKey.split("_");
     const b64 = parts[parts.length - 1];
@@ -152,7 +151,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   }, [isLoaded, isSignedIn, clerkUser, activeUser, loading, error, isGuest]);
 
   const signIn = useCallback(() => {
-    const signInUrl = getClerkSignInUrl();
+    const signInUrl = getClerkSignInUrl(getClientConfig().clerkPublishableKey);
     if (!signInUrl) return;
     const returnUrl = encodeURIComponent(window.location.origin);
     window.location.href = signInUrl + "?redirect_url=" + returnUrl;
@@ -338,9 +337,10 @@ function FallbackAuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function PluggableAuthProvider({ children }: { children: React.ReactNode }) {
-  if (clerkConfigured) {
+  const { clerkPublishableKey } = getClientConfig();
+  if (clerkPublishableKey) {
     const appUrl = window.location.origin;
-    const clerkSignInPageUrl = getClerkSignInUrl();
+    const clerkSignInPageUrl = getClerkSignInUrl(clerkPublishableKey);
     return (
       <ClerkProvider
         publishableKey={clerkPublishableKey}

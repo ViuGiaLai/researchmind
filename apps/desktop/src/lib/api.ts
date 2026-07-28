@@ -9,9 +9,10 @@ import i18n from "../i18n";
 import { getCurrentToken } from "./auth-token";
 import { getFirebaseIdToken } from "./firebase";
 import { consumeJsonSse } from "./sse";
+import { getReportsApiUrl } from "./client-config";
 
-export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765";
-export const CLOUD_GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || (import.meta.env.DEV ? "http://127.0.0.1:8788/api/v1" : "https://researchmind.pages.dev/api/v1");
+// The local backend is bundled with the desktop application and is not remote configuration.
+export const BASE_URL = "http://127.0.0.1:8765";
 
 /** URL for iframe downloads. Firebase tokens are short-lived and only used
  * where browsers cannot attach the Authorization header themselves. */
@@ -52,9 +53,9 @@ function getBestToken(): string {
   return getFirebaseIdToken();
 }
 
-/** Token dành riêng cho Cloud Gateway (VITE_GATEWAY_SHARED_TOKEN) */
+/** The Configuration Gateway never distributes shared secrets to a client. */
 function getGatewayToken(): string {
-  return import.meta.env.VITE_VITE_GATEWAY_SHARED_TOKEN || import.meta.env.VITE_GATEWAY_SHARED_TOKEN || "";
+  return "";
 }
 
 function mergeHeaders(extra?: Record<string, string>): Record<string, string> {
@@ -185,7 +186,7 @@ async function cloudRequest<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const url = `${CLOUD_GATEWAY_URL}${path}`;
+  const url = `${getReportsApiUrl()}${path}`;
   const token = getBestToken();
   const sharedToken = getGatewayToken();
 
@@ -214,7 +215,7 @@ async function cloudRequest<T>(
         const detail = parseApiError(res.status, err);
         let hint: string;
         if (effectiveToken === sharedToken) {
-          hint = `Shared token rejected. Check VITE_GATEWAY_SHARED_TOKEN in .dev.vars and .env of desktop app.`;
+          hint = `Shared token rejected. Shared gateway tokens are not supported by the desktop client.`;
         } else if (token) {
           hint = `Clerk token present (${token.slice(0, 12)}...) but rejected. Check CLERK_SECRET_KEY in .dev.vars or Cloudflare dashboard.`;
         } else {
