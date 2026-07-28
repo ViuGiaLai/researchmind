@@ -60,7 +60,7 @@ class BenchmarkSuite:
         """Run evaluation for ResearchMind Platform (Rule Engine + Tools + Grounding)."""
         annotations = self.data.get("annotations", [])
         if not annotations:
-            return BenchmarkMetrics("ResearchMind Platform", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            return BenchmarkMetrics("Development Fixture Proxy (Not End-to-End)", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
         # Run rule tools over gold standard items
         from academic.tools.citation_checker import CitationCheckerTool
@@ -101,7 +101,7 @@ class BenchmarkSuite:
         f1 = 2 * (precision * recall) / (precision + recall)
 
         return BenchmarkMetrics(
-            baseline_name="ResearchMind Platform",
+            baseline_name="Development Fixture Proxy (Not End-to-End)",
             citation_accuracy=citation_acc,
             hallucination_rate=hallucination,
             grounding_ratio=grounding,
@@ -114,7 +114,7 @@ class BenchmarkSuite:
     def evaluate_raw_llm_baseline(self) -> BenchmarkMetrics:
         """Simulate/Evaluate Raw Un-grounded LLM Baseline (ChatGPT / Gemini raw prompt)."""
         return BenchmarkMetrics(
-            baseline_name="Raw LLM Baseline (Un-grounded)",
+            baseline_name="Configured Raw LLM Reference (Not Measured)",
             citation_accuracy=0.62,
             hallucination_rate=0.28,
             grounding_ratio=0.72,
@@ -125,7 +125,7 @@ class BenchmarkSuite:
         )
 
     def run_full_comparative_benchmark(self) -> dict[str, Any]:
-        """Run head-to-head empirical comparison."""
+        """Return development proxies with explicit evidence limitations."""
         platform_metrics = self.evaluate_researchmind_platform()
         raw_metrics = self.evaluate_raw_llm_baseline()
 
@@ -136,6 +136,17 @@ class BenchmarkSuite:
             "dataset_info": {
                 "name": self.data.get("dataset_name", "Unknown"),
                 "total_items": len(self.data.get("annotations", [])),
+            },
+            "methodology": {
+                "status": "development_proxy_not_publishable",
+                "publishable": False,
+                "platform_measurement": (
+                    "Static annotation/tool audit; generated ResearchMind answers are not scored."
+                ),
+                "baseline_measurement": (
+                    "Configured reference values; raw baseline outputs and repeated trials are not stored."
+                ),
+                "required_next_step": "Run a frozen end-to-end benchmark and archive raw outputs.",
             },
             "results": [
                 platform_metrics.to_dict(),

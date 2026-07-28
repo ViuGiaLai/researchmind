@@ -76,11 +76,17 @@ class AcademicVerificationEngine:
         details["reference_check"] = ref_res.data
 
         # 5. Claim Grounding check
-        grounding_valid = "## Evidence" in text_content or len(cits_to_check) > 0 or "supported" in text_content.lower()
+        grounding_valid = "## Evidence" in text_content or len(cits_to_check) > 0
         if not grounding_valid:
             warnings.append("No explicit evidence grounding markers detected.")
 
-        overall_valid = venue_compliant and citation_correctness and doi_valid and reference_exists
+        overall_valid = (
+            venue_compliant
+            and citation_correctness
+            and grounding_valid
+            and doi_valid
+            and reference_exists
+        )
 
         return VerificationResult(
             is_valid=overall_valid,

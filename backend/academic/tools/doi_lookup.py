@@ -52,9 +52,11 @@ class DOILookupTool(BaseTool):
             errors.append(f"Crossref error: {e}")
 
         data["resolved"] = False
+        if not errors:
+            errors.append(f"DOI could not be resolved: {doi}")
         return ToolResult(
             tool=self.name,
-            success=len(errors) == 0,
+            success=False,
             data=data,
             errors=errors,
             provenance="Crossref API — not resolved",

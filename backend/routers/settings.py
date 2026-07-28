@@ -157,6 +157,9 @@ async def update_settings(new_settings: dict = Body(...)):
                 state.hybrid.clear_query_cache()
 
         state.generator = build_generator()
+        from routers.chat import clear_chat_response_cache
+
+        clear_chat_response_cache()
 
         return {"status": "updated"}
     except Exception as e:
@@ -525,6 +528,9 @@ async def clear_cache(request: Request):
         session.query(LLMCache).delete()
         session.query(EmbeddingCache).delete()
         session.commit()
+        from routers.chat import clear_chat_response_cache
+
+        clear_chat_response_cache()
         logger.info("Local LLM and Embedding cache cleared successfully")
         return {"status": "success", "message": t("settings.cache_cleared", lang)}
     except Exception as e:

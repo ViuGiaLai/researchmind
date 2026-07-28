@@ -1,7 +1,7 @@
-# Decoupling Academic Knowledge from LLM Prompts: Architecture, Implementation, and Empirical Evaluation of ResearchMind
+# Decoupling Academic Knowledge from LLM Prompts: Architecture, Implementation, and Evaluation Protocol for ResearchMind
 
 **Authors:** ResearchMind Academic AI Team  
-**Target Venue:** ACM Transactions on Computer-Human Interaction (TOCHI) / IEEE Transactions on Software Engineering (TSE)  
+**Target Venue:** To be selected after aligning the research question and contribution with one venue's scope
 **Date:** July 22, 2026  
 **Document Version:** 1.1.0-PaperDraft  
 
@@ -11,7 +11,7 @@
 
 Large Language Models (LLMs) are increasingly applied to scientific writing, manuscript auditing, and peer-review tasks. However, relying on monolithic, prompt-based LLM architectures incurs severe technical debt, high hallucination rates, and non-deterministic compliance failures against publishing guidelines. In this paper, we introduce **ResearchMind**, a decoupled **Academic AI Platform** that shifts scientific governance, venue formatting rules, and factual verification outside of model prompts. ResearchMind integrates a versioned JSON Rule Engine (covering 12 major academic venues including IEEE, Nature, ACM, Springer LNCS, ICML, and ICLR), a 10-entity Academic Ontology, a 7-tool standalone execution layer, an 8-step multi-agent orchestrator, and a 5-pillar research rigor engine. 
 
-Empirical evaluation over an annotated gold-standard dataset of landmark publications demonstrates that ResearchMind reduces factual hallucination from 28.00% to 3.50% (an 87.5% reduction) and improves manuscript venue compliance from 55.00% to 98.00% compared to un-grounded LLM baselines. Systematic ablation experiments further confirm that rule-based verification engines provide the largest marginal contribution ($\Delta F_1 = -0.1948$) to overall evaluation reliability.
+The repository currently contains an eight-item development fixture and deterministic component checks. It does not yet contain end-to-end model outputs, repeated trials, uncertainty estimates, or executable ablations sufficient to support comparative performance claims. Previously reported percentages are retained below only as legacy development targets and must not be cited as empirical findings.
 
 ---
 
@@ -62,14 +62,16 @@ The platform structures scientific knowledge across 10 core entities: `Paper`, `
 
 ---
 
-## 3. EXPERIMENTAL SETUP & RESULTS
+## 3. EVALUATION PROTOCOL AND CURRENT EVIDENCE STATUS
 
-### 3.1. Gold Standard Dataset
-We constructed an annotated gold-standard benchmark dataset comprising landmark scientific papers (including *Attention Is All You Need*, *ResNet*, *BERT*, *Adam*, *AlphaFold*, *Swin Transformer*, and *LLaMA*) along with synthetic corrupted edge cases.
+### 3.1. Development Evaluation Fixture
+The current fixture contains eight annotated items: seven landmark machine-learning papers and one synthetic corrupted case. Because the sample is small and lacks a documented annotation protocol, independent adjudication, and inter-rater agreement, it is a development fixture rather than a validated gold-standard dataset.
 
-### 3.2. Head-to-Head Comparative Benchmark
+### 3.2. Legacy Development Targets
 
-| Evaluation Metric | Raw LLM Baseline (Un-grounded) | ResearchMind Platform | Empirical Delta |
+> **Evidence status:** The baseline, precision/recall, and ablation values below are configured or illustrative values in the current code. They were not produced by an end-to-end controlled comparison and are not publishable results.
+
+| Evaluation Metric | Configured Baseline Value | Development Proxy Value | Arithmetic Difference |
 | :--- | :---: | :---: | :---: |
 | **Citation Accuracy** | 62.00% | **95.20%** | **+33.20%** |
 | **Grounding Ratio** | 72.00% | **96.50%** | **+24.50%** |
@@ -81,9 +83,11 @@ We constructed an annotated gold-standard benchmark dataset comprising landmark 
 
 ---
 
-## 4. ABLATION STUDY
+## 4. PLANNED ABLATION STUDY
 
-We systematically disabled individual platform modules to quantify their marginal impact on overall performance:
+The values below specify the legacy target table. A valid ablation study must execute the same frozen test set, model version, prompt version, decoding parameters, and seeds while disabling exactly one component per condition. Until those artifacts are stored, the table must be interpreted as a study plan rather than observed performance.
+
+> **Status:** Not yet executed as a controlled ablation experiment.
 
 | Experimental Variant | Disabled Component | F1-Score | Citation Accuracy | Compliance Rate | $\Delta F_1$ |
 | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -95,14 +99,17 @@ We systematically disabled individual platform modules to quantify their margina
 
 ---
 
-## 5. THREATS TO VALIDITY & LIMITATIONS
+## 5. THREATS TO VALIDITY, REPRODUCIBILITY, AND LIMITATIONS
 
 1. **Internal Validity (Benchmark Size):** Current evaluation is performed over 8 curated gold-standard benchmark items. While representative of landmark ML/AI papers, scaling the dataset to 500+ papers across biomedical and social science domains remains ongoing work.
 2. **External Validity (PDF Parsing Noise):** Optical Character Recognition (OCR) errors in scanned legacy PDFs may introduce noise into structural section segmentation.
 3. **Construct Validity (LLM Provider Variance):** Fluctuations in underlying foundation model API versions may introduce minor variance in synthesis prose quality.
 
+4. **Measurement Validity:** The current evaluator partly re-scores fixture annotations and includes configured reference values; it does not measure factual correctness of generated answers.
+5. **Statistical Conclusion Validity:** No repeated runs, confidence intervals, effect sizes, hypothesis tests, or correction for multiple comparisons are currently available.
+6. **Reproducibility:** A publishable evaluation must archive model/provider versions, prompts, code revision, seeds, raw outputs, annotations, and analysis scripts.
 ---
 
 ## 6. CONCLUSION
 
-ResearchMind demonstrates that decoupling academic knowledge, venue rules, and verification tools from LLM prompts produces a significantly more reliable, deterministic, and compliant academic AI platform. The implementation passes all 44 architectural unit tests, and empirical evaluation confirms an 87.5% reduction in hallucination rate.
+ResearchMind implements a decoupled architecture for academic governance, retrieval, verification, and formatting. The present evidence supports an architectural and component-level contribution; it does not yet establish a statistically significant reduction in hallucination or superiority over an ungrounded LLM baseline. Those claims require the preregistered end-to-end evaluation described above.

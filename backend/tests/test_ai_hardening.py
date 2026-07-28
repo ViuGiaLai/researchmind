@@ -76,3 +76,45 @@ def test_provider_retry_stops_after_success(monkeypatch):
     result = generator._call_provider_with_retry("example", "prompt")
     assert result.finish_reason == "stop"
     assert calls == ["example", "example"]
+
+
+def test_chat_cache_key_isolated_by_generation_identity():
+    local = _chat_cache_key("question", ["paper"], "current", None, generation_identity="local:qwen")
+    cloud = _chat_cache_key("question", ["paper"], "current", None, generation_identity="cloud:gemini")
+
+    assert local != cloud
+
+
+def test_chat_cache_key_keeps_legacy_positional_arguments():
+    positional = _chat_cache_key(
+        "question",
+        ["paper"],
+        "current",
+        None,
+        "deep",
+        True,
+        "vi",
+        "library:v1",
+        "history:v1",
+        generation_identity="cloud_custom:gemini:model",
+    )
+    keyword = _chat_cache_key(
+        "question",
+        ["paper"],
+        "current",
+        None,
+        reasoning_mode="deep",
+        strict_evidence=True,
+        language="vi",
+        data_version="library:v1",
+        history_fp="history:v1",
+        generation_identity="cloud_custom:gemini:model",
+    )
+    assert positional == keyword
+
+
+def test_custom_cloud_routes_to_selected_provider():
+    generator = Generator(mode="cloud_custom")
+    generator.custom_cloud_provider = "claude"
+
+    assert generator._get_provider_for_task("rag") == "claude"

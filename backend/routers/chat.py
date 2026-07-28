@@ -37,6 +37,12 @@ router = APIRouter(prefix="/api", tags=["Chat"])
 _chat_response_cache: dict[str, dict] = {}
 _chat_response_cache_max = 128
 _chat_response_cache_ttl_seconds = 600
+_max_stream_continuations = 2
+def clear_chat_response_cache() -> None:
+    """Invalidate process-local chat responses after model or cache changes."""
+    _chat_response_cache.clear()
+
+
 _entailment_verifier = MultilingualEntailmentVerifier()
 _CHAT_PIPELINE_VERSION = "academic-boundary-v2"
 _INTERNAL_OUTPUT_PATTERNS = (
@@ -54,6 +60,24 @@ def _sanitize_public_answer(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
+def _chat_generation_identity() -> str:
+    """Return a stable cache identity for the active mode, provider and model."""
+    generator = state.generator
+    mode = str(getattr(generator, "mode", settings.llm_mode) or settings.llm_mode)
+    if mode == "cloud_custom":
+        provider = str(getattr(generator, "custom_cloud_provider", "") or "cloud_custom")
+    elif mode == "local":
+        provider = "local"
+    elif mode == "cloud_free":
+        provider = "researchmind_cloud" if getattr(generator, "researchmind_cloud_url", "") else "cloud_free_chain"
+    else:
+        provider = mode
+    model = str(getattr(generator, f"{provider}_model", "") or "")
+    if provider == "local":
+        model = str(getattr(generator, "local_model", "") or model)
+    return f"{mode}:{provider}:{model}"
+
+
 def _chat_cache_key(
     message: str,
     paper_ids,
@@ -64,6 +88,7 @@ def _chat_cache_key(
     language: str = "",
     data_version: str = "",
     history_fp: str = "",
+    generation_identity: str = "",
 ) -> str:
     normalized_papers = sorted(paper_ids or [])
     return json.dumps(
@@ -72,6 +97,7 @@ def _chat_cache_key(
             "paper_ids": normalized_papers,
             "scope": scope or "current",
             "collection_id": collection_id or "",
+            "generation": generation_identity,
             "reasoning_mode": reasoning_mode or "fast",
             "strict_evidence": bool(strict_evidence),
             "language": language or get_prompt_language(message),
@@ -167,7 +193,15 @@ def _load_paper_metadata(
 ) -> tuple[dict[str, str], dict[str, int | None], str]:
     """Load citation maps and cache version with one database query."""
     if not paper_ids:
-        return {}, {}, "library"
+        from sqlalchemy import func
+
+        session = get_session(state.engine)
+        try:
+            count, latest = session.query(func.count(Paper.id), func.max(Paper.indexed_at)).one()
+            version = latest.isoformat() if latest else ""
+            return {}, {}, f"library:{count}:{version}"
+        finally:
+            session.close()
     session = get_session(state.engine)
     try:
         papers = (
@@ -701,7 +735,7 @@ async def _stream_chat(
     full_response = ""
     chat_history = list(history or [])
     continuation_count = 0
-    max_auto_continuations = 1
+    max_auto_continuations = _max_stream_continuations
     generation_query = query
     generation_mode = reasoning_mode
     generation_history = chat_history
@@ -784,7 +818,7 @@ async def _stream_chat(
         public_response = _sanitize_public_answer(full_response)
         modified_content = public_response
 
-        if full_response:
+        if full_response and finish_reason not in {"length", "error"} and not gateway_err:
             try:
                 citations = []
                 pattern = r"\[([^\]]+?)(?:,\s*(?:page|trang)\s*(\d+))?\]"
@@ -946,10 +980,10 @@ async def suggest_questions(body: dict = Body(...), background_tasks: Background
                 _SUGGESTED_QUESTIONS_CACHE[lang] = ["AIとは何ですか？", "機械学習の学習を始めるにはどうすればよいですか？", "日常生活におけるAIの応用例は何ですか？"]
             else:
                 _SUGGESTED_QUESTIONS_CACHE[lang] = ["What is AI?", "How to start learning about machine learning?", "What are the applications of AI in daily life?"]
-        
+
         if background_tasks:
             background_tasks.add_task(generate_suggested_questions_bg, lang)
-            
+
         return {"questions": _SUGGESTED_QUESTIONS_CACHE[lang][:3]}
 
     titles_str = "\n".join(f"- {t}" for t in paper_titles[:10])
@@ -1070,6 +1104,7 @@ async def chat(req: Request, request: dict = Body(...)):
         get_prompt_language(message),
         paper_cache_version,
         history_fingerprint(chat_history),
+        generation_identity=_chat_generation_identity(),
     )
     use_cache = bool(request.get("use_cache", True)) and not bool(request.get("retry", False))
     cached = _get_chat_cache(cache_key) if use_cache else None
@@ -1077,7 +1112,11 @@ async def chat(req: Request, request: dict = Body(...)):
         increment_ai_metric("chat.cache.hit")
         logger.info(f"CHAT_CACHE hit total={time_mod.time() - t0:.3f}s")
         if stream:
-            return StreamingResponse(_stream_cached_chat(cached, lang), media_type="text/event-stream")
+            return StreamingResponse(
+                _stream_cached_chat(cached, lang),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
+            )
         return cached
     increment_ai_metric("chat.cache.miss")
     daily_budget = max(0, int(getattr(settings, "ai_daily_token_budget", 0) or 0))
@@ -1142,13 +1181,9 @@ async def chat(req: Request, request: dict = Body(...)):
         )
 
         # ─── Academic Engine Enrichment ────────────────────────────────────────
-        t_engine = time_mod.time()
-        retrieval.context_text = await _enhance_context_with_engines(
-            retrieval.context_text,
-            message,
-            paper_ids,
-        )
-        logger.info(f"TIMING: engine_enrich={time_mod.time() - t_engine:.2f}s")
+        # Heuristic audits inspect snippets rather than complete manuscripts;
+        # keep them in dedicated verification workflows and off this critical path.
+
 
     # Phân biệt: có context paper → RAG (gemini), không context → chat đơn giản (github)
     has_paper_context = (
@@ -1157,6 +1192,11 @@ async def chat(req: Request, request: dict = Body(...)):
         and len(retrieval.context_text.strip()) >= 50
     )
     actual_task_type = "rag" if has_paper_context else "chat"
+
+    citation_paper_ids = list(paper_ids or retrieval.papers_used or [])
+    if citation_paper_ids and not paper_ids:
+        paper_ids = citation_paper_ids
+        paper_title_map, paper_page_map, _ = _load_paper_metadata(citation_paper_ids)
 
     chunk_map = _build_chunk_map(retrieval.context_text)
 
@@ -1180,6 +1220,7 @@ async def chat(req: Request, request: dict = Body(...)):
                 history=chat_history,
                 scope=scope,
             ),
+            headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
             media_type="text/event-stream",
         )
 
@@ -1191,6 +1232,7 @@ async def chat(req: Request, request: dict = Body(...)):
         task_type=actual_task_type,
         strict_evidence=strict_evidence,
         history=chat_history,
+        use_cache=use_cache,
     )
     t3 = time_mod.time()
     logger.info(f"TIMING: generate={t3 - t2:.2f}s model={generation.model_used} total={t3 - t0:.2f}s")
@@ -1324,7 +1366,7 @@ def get_chat_sessions():
             ChatHistory.session_id,
             func.max(ChatHistory.created_at).label("updated_at")
         ).group_by(ChatHistory.session_id).subquery()
-        
+
         # We can also get the title (first user message) by querying min(id) per session
         first_msgs = db.query(
             ChatHistory.session_id,
@@ -1347,7 +1389,7 @@ def get_chat_sessions():
                 "updated_at": str(s.updated_at) if s.updated_at else None,
                 "title": s.title[:100] if s.title else s.session_id,
             })
-            
+
         return {"sessions": result}
     except Exception as e:
         logger.error(f"Failed to get chat sessions: {e}")

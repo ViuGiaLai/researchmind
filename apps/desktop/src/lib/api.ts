@@ -978,6 +978,7 @@ export const api = {
       collection_id: collectionId,
       reasoning_mode: reasoningMode,
       history: history && history.length ? history : undefined,
+      use_cache: retry ? false : undefined,
       retry: retry || undefined,
     }),
 
@@ -1006,6 +1007,7 @@ export const api = {
       reasoning_mode: reasoningMode,
       strict_evidence: strictEvidence,
       history: history && history.length ? history : undefined,
+      use_cache: retry ? false : undefined,
       retry: retry || undefined,
     });
     const controller = new AbortController();

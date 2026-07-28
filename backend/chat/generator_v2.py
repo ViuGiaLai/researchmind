@@ -274,6 +274,9 @@ class Generator(
 
         if self.mode == "local":
             return "local"
+        if self.mode == "cloud_custom":
+            return self.custom_cloud_provider
+
 
         if self.researchmind_cloud_url and self.mode == "cloud_free":
             return "researchmind_cloud"
@@ -765,7 +768,7 @@ class Generator(
         except Exception as e:
             self._local.current_finish_reason = "error"
             logger.warning(f"_stream_provider: {provider} failed: {e}")
-            yield f"\n\n⚠️ [Đã dừng tạo phản hồi do lỗi kết nối: {e}]"
+            return
 
     def _route_by_task_stream(self, task_type: str, user_prompt: str, max_tokens: int = 1024):
         """Stream through the same task-specific fallback chain as non-streaming calls."""
@@ -783,6 +786,7 @@ class Generator(
             role = "primary" if provider == primary else "fallback"
             logger.info(f"task_routing_stream: {task_type} provider={provider} role={role}")
             stream_gen = self._stream_provider(provider, user_prompt, max_tokens)
+            self._local.current_finish_reason = "pending"
             if stream_gen is None:
                 continue
             yielded = False
@@ -790,6 +794,11 @@ class Generator(
                 yielded = True
                 yield chunk
             if yielded:
+                if getattr(self._local, "current_finish_reason", "pending") == "pending":
+                    self._local.current_finish_reason = "error"
+                    logger.warning(
+                        f"task_routing_stream: {task_type} provider={provider} ended without a terminal event"
+                    )
                 return
             logger.warning(f"task_routing_stream: {task_type} provider={provider} failed or returned no content")
 
@@ -923,14 +932,14 @@ class Generator(
         task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
         self._local.strict_evidence = strict_evidence
-        
+
         is_local = self._is_local_runtime()
         if is_local:
             pairs = 1 if reasoning_mode in ("fast", "continue") else 2
             chat_history = normalize_history(history, max_pairs=pairs, exclude_last_user=query)
         else:
             chat_history = normalize_history(history, exclude_last_user=query)
-            
+
         self._local.chat_history = chat_history
         if context_text not in ("__EXTERNAL_KNOWLEDGE__", ""):
             context_text, detected = neutralize_untrusted_text(context_text)
@@ -967,9 +976,11 @@ class Generator(
 
         system_prompt = self._get_system_prompt()
         hist_fp = history_fingerprint(chat_history)
+        cache_provider = self._get_provider_for_task(task_type) or self.mode
+        cache_model = getattr(self, f"{cache_provider}_model", "")
         key_hash = cache_fingerprint(
-            model=f"route:{task_type}:{reasoning_mode}",
-            provider=self.custom_cloud_provider or self.mode,
+            model=f"route:{task_type}:{reasoning_mode}:{cache_model}",
+            provider=f"{self.mode}:{cache_provider}",
             prompt=(
                 f"[task={task_type};reasoning={reasoning_mode};strict={int(strict_evidence)};history={hist_fp}]\n"
                 + system_prompt
@@ -1003,7 +1014,7 @@ class Generator(
             query, context_text, citations_meta, max_tokens, task_type, history=chat_history
         )
 
-        if result and result.finish_reason != "error" and state.engine:
+        if result and result.finish_reason == "stop" and state.engine:
             session = get_session(state.engine)
             try:
                 cached_res = {
@@ -1338,25 +1349,19 @@ class Generator(
             if detected:
                 logger.warning("RAG_SECURITY prompt injection pattern neutralized in verify context")
 
-        user_prompt = (
-            f"## Context from documents and external academic sources:\n{combined_context}\n\n"
-            f"## Question:\n{query}\n\n"
-            "Verify the research claims using the data above. "
-            "Clearly distinguish local PDF evidence from OpenAlex and Crossref evidence."
-        )
-
         system_prompt = self._get_verify_system_prompt() + "\n\n" + get_language_instruction(query)
+        previous_prompt = getattr(self._local, "system_prompt_override", None)
         self._local.system_prompt_override = system_prompt
         try:
             return self._generate_uncached(
                 query,
-                context_text,
+                combined_context,
                 citations_meta=citations_meta,
                 max_tokens=max_tokens,
                 task_type="verify",
             )
         finally:
-            self._local.system_prompt_override = None
+            self._local.system_prompt_override = previous_prompt
 
     # ── Helpers ────────────────────────────────────────────────
 
@@ -1502,7 +1507,7 @@ class Generator(
         task_type, reasoning_mode = self._set_request_routing_context(task_type, reasoning_mode)
         self._local.language_instruction = get_language_instruction(query)
         self._local.strict_evidence = strict_evidence
-        
+
         is_local = self._is_local_runtime()
         if is_local:
             # Aggressive history truncation for weak CPUs to minimize prompt prefill latency
@@ -1510,7 +1515,7 @@ class Generator(
             chat_history = normalize_history(history, max_pairs=pairs, exclude_last_user=query)
         else:
             chat_history = normalize_history(history, exclude_last_user=query)
-            
+
         self._local.chat_history = chat_history
         max_tokens = self.MODE_MAX_TOKENS.get(task_type, self.MODE_MAX_TOKENS["default"])
         if reasoning_mode in ("deep", "deep_plus", "deep+"):
@@ -1623,6 +1628,8 @@ class Generator(
     def _stream_chain(self, user_prompt: str, max_tokens: int = 1024, task_type: str = ""):
         self._local.current_router_reason = ""
         self._local.current_token_count = 0
+        self._local.current_finish_reason = "stop"
+        self._local.stream_gateway_error = ""
         self.current_router_reason = ""
         self.current_token_count = 0
 

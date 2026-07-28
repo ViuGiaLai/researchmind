@@ -123,3 +123,24 @@ def test_academic_evaluation_suite():
     assert metrics.hallucination_rate == 0.0
     assert metrics.writing_quality >= 0.7
     assert metrics.overall_academic_score > 0.7
+
+
+def test_verification_rejects_missing_evidence_and_references():
+    verifier = AcademicVerificationEngine()
+    result = verifier.verify_manuscript(
+        title="Unverified Manuscript",
+        text_content=(
+            "## Abstract\nShort abstract.\n\n"
+            "## Introduction\nThis unsupported claim has no evidence.\n\n"
+            "## Method\nMethod text.\n\n"
+            "## Results\nResult text.\n\n"
+            "## Conclusion\nConclusion text.\n\n"
+            "## References\n"
+        ),
+        venue_id="ieee_trans",
+        citations=[],
+    )
+
+    assert result.grounding_valid is False
+    assert result.reference_exists is False
+    assert result.is_valid is False

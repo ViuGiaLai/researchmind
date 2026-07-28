@@ -233,15 +233,12 @@ class VerifyReportBuilder:
         if is_valid:
             self.report.academic_verdict.verdict = "supported"
             self.report.academic_verdict.reason = "All 5 verification checks passed."
-        elif fail_count >= 3:
-            self.report.academic_verdict.verdict = "contradicted"
-            self.report.academic_verdict.reason = f"{fail_count} of 5 verification checks failed."
-        elif fail_count >= 1:
+        elif result.get("grounding_valid", False):
             self.report.academic_verdict.verdict = "partially_supported"
-            self.report.academic_verdict.reason = f"{fail_count} of 5 verification checks failed but remaining passed."
+            self.report.academic_verdict.reason = f"Evidence markers were found, but {fail_count} validation dimensions failed."
         else:
             self.report.academic_verdict.verdict = "inconclusive"
-            self.report.academic_verdict.reason = "Verification engine returned inconclusive results."
+            self.report.academic_verdict.reason = "Insufficient explicit evidence to determine claim support."
 
         # ── Academic basis (base — enriched by other apply_* methods) ──
         self.report.academic_basis.rules_applied = [
@@ -263,14 +260,10 @@ class VerifyReportBuilder:
         # ── Confidence (base — adjusted by other apply_* methods) ──
         pass_rate = sum(1 for _, passed in checks if passed) / len(checks)
         self.report.confidence.score = pass_rate
-        if pass_rate >= 0.8:
-            self.report.confidence.level = "High"
-        elif pass_rate >= 0.5:
-            self.report.confidence.level = "Medium"
-        else:
-            self.report.confidence.level = "Low"
+        self.report.confidence.level = "Medium" if pass_rate >= 0.6 else "Low"
         self.report.confidence.reasoning = (
-            f"{'All' if pass_rate == 1.0 else f'{int(pass_rate * 100)}% of'} verification checks passed."
+            f"Verification coverage: {int(pass_rate * 100)}%. "
+            "This score is not a probability that the claim is true."
         )
 
         # ── Limitations ──

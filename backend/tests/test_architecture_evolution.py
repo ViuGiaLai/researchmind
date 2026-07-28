@@ -48,9 +48,10 @@ def test_tool_layer_citation_checker():
         ],
         venue_id="ieee_trans",
     )
-    assert res.success is True
+    assert res.success is False
     assert res.data["total"] == 2
     assert len(res.data["verified"]) >= 1
+    assert len(res.data["invalid"]) == 1
 
 
 def test_tool_layer_format_auditor():
@@ -147,4 +148,6 @@ async def test_agent_orchestrator_full_8_step_pipeline():
 
     executed_steps = [s.step for s in res.steps]
     assert executed_steps == ["parse", "retrieve", "analyze", "audit", "verify", "auto_fix", "synthesize", "export"]
-    assert all(s.success for s in res.steps)
+    assert all(s.success for s in res.steps if s.step != "verify")
+    assert next(s for s in res.steps if s.step == "verify").success is False
+    assert res.success is False

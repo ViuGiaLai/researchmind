@@ -30,7 +30,7 @@ describe("chat retry requests", () => {
     await api.chat("question", ["paper"], "current", "session", undefined, "fast", [], true);
 
     const request = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(request.body))).toMatchObject({ retry: true });
+    expect(JSON.parse(String(request.body))).toMatchObject({ retry: true, use_cache: false });
   });
 
   it("sends retry=true for a regenerated streaming answer", async () => {
@@ -62,6 +62,6 @@ describe("chat retry requests", () => {
 
     await completed;
     const request = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(JSON.parse(String(request.body))).toMatchObject({ retry: true });
+    expect(JSON.parse(String(request.body))).toMatchObject({ retry: true, use_cache: false });
   });
 });

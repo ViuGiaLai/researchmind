@@ -29,7 +29,7 @@ class AcademicReasoningEngine:
         self.ontology = ontology or AcademicOntologyGraph()
 
     def deduce_sota_claims(self) -> list[DeductedFact]:
-        """Deduce SOTA method status from experimental benchmarks."""
+        """Identify unique observed benchmark leaders without asserting global SOTA."""
         deductions: list[DeductedFact] = []
         # Group experiments by (dataset_name, metric_name)
         grouped: dict[tuple[str, str], list[ExperimentEntity]] = {}
@@ -37,26 +37,49 @@ class AcademicReasoningEngine:
             key = (exp.dataset_name.lower(), exp.metric_name.lower())
             grouped.setdefault(key, []).append(exp)
 
+        lower_is_better_terms = ("loss", "error", "latency", "delay", "far", "fpr", "mae", "mse", "rmse")
         for (ds, metric), exp_list in grouped.items():
-            if not exp_list:
+            distinct_methods = {exp.method_name.casefold() for exp in exp_list}
+            if len(distinct_methods) < 2:
                 continue
-            # Assume higher value is better
-            best_exp = max(exp_list, key=lambda e: e.value)
-            best_exp.is_sota = True
+
+            metric_entity = next(
+                (item for item in self.ontology.metrics.values() if item.name.casefold() == metric),
+                None,
+            )
+            lower_is_better = any(term in metric for term in lower_is_better_terms)
+            higher_is_better = not lower_is_better
+            if metric_entity is not None and not lower_is_better:
+                higher_is_better = metric_entity.higher_is_better
+
+            best_value = (
+                max(exp.value for exp in exp_list)
+                if higher_is_better
+                else min(exp.value for exp in exp_list)
+            )
+            winners = [exp for exp in exp_list if exp.value == best_value]
+            if len(winners) != 1:
+                continue
+
+            best_exp = winners[0]
+            direction = "highest" if higher_is_better else "lowest"
             deductions.append(
                 DeductedFact(
                     fact_type="sota_claim",
                     statement=(
-                        f"Method '{best_exp.method_name}' achieves SOTA on '{best_exp.dataset_name}' under '{best_exp.metric_name}' with value {best_exp.value}."
+                        f"Method '{best_exp.method_name}' has the {direction} observed value "
+                        f"on '{best_exp.dataset_name}' for '{best_exp.metric_name}' ({best_exp.value}) "
+                        f"among {len(exp_list)} indexed experiments; this does not establish global SOTA."
                     ),
                     paper_ids=[best_exp.paper_id],
-                    confidence=0.95,
+                    confidence=0.70,
                     reasoning_chain=[
-                        f"Compared {len(exp_list)} experiments on dataset '{ds}' using metric '{metric}'.",
-                        f"Method '{best_exp.method_name}' achieved highest value {best_exp.value}.",
+                        f"Compared {len(exp_list)} indexed experiments across {len(distinct_methods)} methods.",
+                        f"Metric direction: {'higher' if higher_is_better else 'lower'} is better.",
                     ],
                 )
             )
+
         return deductions
 
     def detect_evidence_conflicts(self) -> list[DeductedFact]:

@@ -24,7 +24,6 @@ from common.text_utils import count_tokens
 
 from ..types import GenerationResult
 
-
 # Connect fails fast if the server is down.
 # Read timeout is per-chunk (resets on every received byte).
 LOCAL_TIMEOUT = httpx.Timeout(connect=5.0, read=90.0, write=10.0, pool=5.0)
@@ -233,7 +232,7 @@ class LocalProviderMixin:
 
     def _generate_local(
         self, prompt: str, system_prompt_override: str | None = None, max_tokens: int | None = None
-    ) -> "GenerationResult":
+    ) -> GenerationResult:
         sp = system_prompt_override or getattr(self, "_get_local_system_prompt", lambda: "")()
         if not sp and hasattr(self, "_get_system_prompt"):
             sp = self._get_system_prompt()
@@ -397,7 +396,7 @@ class LocalProviderMixin:
         assistant_prefill = ""
 
         while True:
-            self._local.current_finish_reason = "stop"
+            self._local.current_finish_reason = "pending"
             local_ntokens = self._resolve_ntokens(max_tokens)
             logger.info(
                 f"local_stream: mode={reasoning_mode} task={getattr(self._local, 'task_type', '')} "
@@ -426,8 +425,10 @@ class LocalProviderMixin:
                             try:
                                 data = json.loads(data_str)
                                 chunk = data.get("content", "")
-                                if data.get("stop") and data.get("truncated"):
-                                    self._local.current_finish_reason = "length"
+                                if data.get("stop"):
+                                    self._local.current_finish_reason = (
+                                        "length" if data.get("truncated") else "stop"
+                                    )
                                 if chunk:
                                     filtered_chunk, in_thinking = _filter_think_tags(chunk, in_thinking)
                                     if filtered_chunk:
@@ -455,7 +456,8 @@ class LocalProviderMixin:
                         logger.error(f"Local stream HTTP error: {err}")
                 except (httpx.ConnectError, httpx.TimeoutException) as err:
                     logger.error(f"Local LLM stream connection/timeout error: {err}")
-                    yield f"\n⚠️ Connection error: {err}\n"
+                    self._local.current_finish_reason = "error"
+                    return
                     return
                 except Exception as e:
                     logger.warning(f"Native /completion on local failed ({e}), falling back to /v1/chat/completions...")
@@ -541,7 +543,8 @@ class LocalProviderMixin:
             except (httpx.ConnectError, httpx.TimeoutException) as err:
                 if auto_continue_count == 0:
                     logger.error(f"Local LLM stream connection/timeout error: {err}")
-                    yield f"\n⚠️ Connection error: {err}\n"
+                    self._local.current_finish_reason = "error"
+                    return
                 return
             except Exception as e:
                 if auto_continue_count == 0:
@@ -568,8 +571,10 @@ class LocalProviderMixin:
                             break
                         try:
                             data = json.loads(data_str)
-                            if data.get("stop") and data.get("truncated"):
-                                self._local.current_finish_reason = "length"
+                            if data.get("stop"):
+                                self._local.current_finish_reason = (
+                                    "length" if data.get("truncated") else "stop"
+                                )
                             chunk = data.get("content", "")
                             if not chunk:
                                 continue
@@ -639,10 +644,12 @@ class LocalProviderMixin:
             except httpx.ConnectError as err:
                 if auto_continue_count == 0:
                     logger.error(f"Local stream last-resort connection error: {err}")
-                    yield f"\n⚠️ Cannot connect to llama-server: {err}\n"
+                    self._local.current_finish_reason = "error"
+                    return
                 return
             except Exception as e:
                 if auto_continue_count == 0:
                     logger.error(f"Local stream last-resort failed: {e}")
-                    yield f"\n⚠️ Local model error: {e}\n"
+                    self._local.current_finish_reason = "error"
+                    return
                 return

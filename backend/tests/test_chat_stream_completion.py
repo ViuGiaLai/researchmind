@@ -98,10 +98,11 @@ def test_stream_auto_continues_and_caches_only_complete_answer(monkeypatch):
     assert cached[0][1]["answer"] == "First half and second half."
 
 
-def test_stream_does_not_cache_answer_still_truncated_after_retry(monkeypatch):
+def test_stream_does_not_cache_answer_still_truncated_after_all_continuations(monkeypatch):
     generator = _Generator([
         (["First half"], "length"),
         ([" still incomplete"], "length"),
+        ([" and remains incomplete"], "length"),
     ])
 
     events, cached = asyncio.run(_collect_stream(monkeypatch, generator))
@@ -109,6 +110,24 @@ def test_stream_does_not_cache_answer_still_truncated_after_retry(monkeypatch):
     assert events[-1]["done"] is True
     assert events[-1]["truncated"] is True
     assert cached == []
+
+
+def test_stream_completes_on_second_continuation(monkeypatch):
+    generator = _Generator([
+        (["First"], "length"),
+        ([" second"], "length"),
+        ([" third."], "stop"),
+    ])
+
+    events, cached = asyncio.run(_collect_stream(monkeypatch, generator))
+
+    assert len(generator.calls) == 3
+    assert events[-1]["truncated"] is False
+    assert events[-1]["modified_content"] == "First second third."
+    assert cached[0][1]["answer"] == "First second third."
+
+
+
 
 def test_openai_and_gemini_streams_preserve_length_finish_reason():
     generator = Generator()

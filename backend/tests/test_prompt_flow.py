@@ -53,6 +53,30 @@ def test_stream_verify_uses_and_restores_verify_prompt(monkeypatch):
     assert generator._local.system_prompt_override == "previous"
 
 
+def test_nonstream_verify_uses_combined_context_and_restores_prompt(monkeypatch):
+    generator = Generator()
+    generator._local.system_prompt_override = "previous"
+    captured = {}
+
+    def fake_generate(query, context, **kwargs):
+        captured["query"] = query
+        captured["context"] = context
+        captured["task_type"] = kwargs["task_type"]
+        captured["system_prompt"] = generator._local.system_prompt_override
+        return GenerationResult(content="verified", citations=[], model_used="test")
+
+    monkeypatch.setattr(generator, "_get_verify_system_prompt", lambda: "verify-only")
+    monkeypatch.setattr(generator, "_generate_uncached", fake_generate)
+
+    result = generator.generate_verify(
+        "claim", "Local evidence supports the claim.", "Crossref DOI 10.1234/example."
+    )
+
+    assert result.content == "verified"
+    assert "Local evidence" in captured["context"]
+    assert "EXTERNAL ACADEMIC DATA" in captured["context"]
+    assert captured["task_type"] == "verify"
+    assert captured["system_prompt"].startswith("verify-only")
 def test_patched_stream_respects_provider_budget(monkeypatch):
     generator = PatchedGenerator()
     calls = []
@@ -120,4 +144,7 @@ def test_cache_fingerprint_is_stable_and_separates_reasoning_modes(monkeypatch):
     generator.current_model = "stale/provider"
     generator.generate("q", "", task_type="chat", reasoning_mode="deep", use_cache=False)
 
-    assert captured_models == ["route:chat:fast", "route:chat:deep"]
+    assert captured_models == [
+        "route:chat:fast:gpt-4o-mini",
+        "route:chat:deep:gpt-4o-mini",
+    ]

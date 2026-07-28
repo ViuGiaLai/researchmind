@@ -76,7 +76,7 @@ class CitationCheckerTool(BaseTool):
 
         return ToolResult(
             tool=self.name,
-            success=True,
+            success=len(invalid) == 0,
             data={
                 "total": len(citations),
                 "verified": verified,

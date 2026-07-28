@@ -217,7 +217,8 @@ class TestSOTADeduction:
         assert fact.fact_type == "sota_claim"
         assert "EfficientNet" in fact.statement
         assert "ImageNet" in fact.statement
-        assert fact.confidence == 0.95
+        assert fact.confidence == 0.70
+        assert "does not establish global SOTA" in fact.statement
         assert len(fact.paper_ids) == 1
         assert "paper_c" in fact.paper_ids
         assert len(fact.reasoning_chain) >= 2
@@ -228,16 +229,14 @@ class TestSOTADeduction:
         assert results == []
 
     def test_deduce_sota_tied_values(self, tied_ontology):
-        """When two methods have the same score, the first encountered is marked SOTA."""
+        """A tie is not reported as a unique benchmark leader."""
         engine = AcademicReasoningEngine(ontology=tied_ontology)
         results = engine.deduce_sota_claims()
 
-        assert len(results) == 1
-        # Both have 95.0, so Method-A (first) is considered SOTA
-        assert "Method-A" in results[0].statement
+        assert results == []
 
     def test_deduce_sota_single_experiment(self, empty_ontology):
-        """Single method with no comparison should still be SOTA."""
+        """One experiment cannot establish comparative leadership."""
         empty_ontology.methods["m"] = MethodEntity(name="M")
         empty_ontology.datasets["ds"] = DatasetEntity(name="DS")
         empty_ontology.metrics["acc"] = MetricEntity(name="Accuracy")
@@ -254,9 +253,7 @@ class TestSOTADeduction:
         engine = AcademicReasoningEngine(ontology=empty_ontology)
         results = engine.deduce_sota_claims()
 
-        assert len(results) == 1
-        assert results[0].fact_type == "sota_claim"
-        assert "M" in results[0].statement
+        assert results == []
 
 
 # ─────────────────────────────────────────────────────────────
@@ -466,8 +463,8 @@ class TestErrorHandling:
         results = engine.detect_evidence_conflicts()
         assert results == []
 
-    def test_sota_missing_method_name(self, empty_ontology):
-        """Experiments without matching method entity should still be processed."""
+    def test_single_experiment_with_missing_method_name_not_reported(self, empty_ontology):
+        """An unmatched method cannot create comparative benchmark evidence."""
         empty_ontology.datasets["ds"] = DatasetEntity(name="DS")
         empty_ontology.metrics["m"] = MetricEntity(name="M")
         empty_ontology.experiments["e"] = ExperimentEntity(
@@ -480,5 +477,4 @@ class TestErrorHandling:
         )
         engine = AcademicReasoningEngine(ontology=empty_ontology)
         results = engine.deduce_sota_claims()
-        assert len(results) == 1
-        assert "UnknownMethod" in results[0].statement
+        assert results == []

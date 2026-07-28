@@ -1,4 +1,4 @@
-# Empirical Validation & Benchmark Report: ResearchMind Academic AI Platform
+# Development Benchmark Audit: ResearchMind Academic AI Platform
 
 **Author:** ResearchMind Engineering & Academic AI Team  
 **Date:** July 22, 2026  
@@ -8,17 +8,19 @@
 
 ##  EXECUTIVE SUMMARY
 
-This report presents an empirical evaluation of the **ResearchMind Academic AI Platform**, transitioning from qualitative claims to rigorous empirical benchmarking on annotated gold-standard datasets.
+This report audits the current evaluation assets of the **ResearchMind Academic AI Platform**. It distinguishes executable measurements from configured or illustrative values so that development diagnostics are not misreported as scientific evidence.
 
-By replacing raw prompt-based LLM generation with a decoupled **Rule Engine, Knowledge Base, Standalone Tool Layer, 10-Entity Academic Ontology, Multi-Agent Orchestrator, and 5-Pillar Research Rigor Engine**, the platform demonstrates significant improvements across key academic metrics.
+The platform includes a **Rule Engine, Knowledge Base, Standalone Tool Layer, 10-Entity Academic Ontology, Multi-Agent Orchestrator, and 5-Pillar Research Rigor Engine**. Their comparative effect has not yet been established by a controlled end-to-end experiment.
 
 ---
 
-## 1. EMPIRICAL BENCHMARK RESULTS
+## 1. LEGACY DEVELOPMENT VALUES
+
+> **Not publishable as empirical results:** the raw-LLM baseline and ResearchMind precision/recall are configured values; the current platform path audits fixture annotations rather than scoring generated answers.
 
 ### Head-to-Head Comparison: ResearchMind Platform vs. Raw LLM Baseline
 
-| Metric | Raw LLM Baseline (Un-grounded) | ResearchMind Platform | Empirical Improvement |
+| Metric | Configured Baseline Value | Development Proxy Value | Arithmetic Difference |
 | :--- | :---: | :---: | :---: |
 | **Citation Accuracy** | 62.00% | **95.20%** | **+33.20%** |
 | **Grounding Ratio** | 72.00% | **96.50%** | **+24.50%** |
@@ -30,7 +32,9 @@ By replacing raw prompt-based LLM generation with a decoupled **Rule Engine, Kno
 
 ---
 
-## 2. ABLATION STUDY RESULTS
+## 2. PLANNED ABLATION STUDY
+
+> The current ablation scores are hard-coded development targets. No module-disabled output artifacts or repeated controlled trials are stored in the repository.
 
 To evaluate the marginal contribution of each system component, we conducted systematic ablation trials by disabling one module at a time:
 
@@ -46,9 +50,9 @@ To evaluate the marginal contribution of each system component, we conducted sys
 
 ---
 
-## 3. ADVERSARIAL STRESS TESTING
+## 3. ADVERSARIAL DEVELOPMENT CHECKS
 
-The platform was subjected to 4 real-world stress scenarios:
+The repository describes four development scenarios. A passing unit check demonstrates graceful code-path handling, not a population-level safety or robustness rate:
 
 1. **Corrupted DOIs**: Identified invalid DOI strings, emitted fallback warnings without crashing (100% Graceful Handling).
 2. **Ultra-Long Manuscripts (50,000+ words)**: Successfully audited word limit constraints without memory exhaustion (100% Graceful Handling).
@@ -57,7 +61,10 @@ The platform was subjected to 4 real-world stress scenarios:
 
 ---
 
-## 4. FUNCTIONAL & ARCHITECTURAL VERIFICATION
+## 4. REPRODUCIBILITY REQUIREMENTS
 
-- **Functional Test Suite**: `40 / 40 PASSED` (100%) across `test_academic_rigor.py`, `test_academic_system_deep.py`, `test_platform_quality.py`, `test_architecture_evolution.py`, `test_academic_governance.py`.
-- **Frontend TypeScript Compilation**: `npx tsc --noEmit` `0 Errors` (100% PASSED).
+- Record the exact code revision, dependency lockfiles, provider/model versions, prompts, decoding parameters, and random seeds.
+- Store raw outputs for every system and baseline condition; score them with a blinded annotation protocol and report inter-rater agreement.
+- Report sample sizes, per-item results, confidence intervals, effect sizes, and a justified statistical analysis.
+- Execute real module-disabled conditions instead of assigning ablation scores manually.
+- Regenerate test counts and TypeScript/build status from the current revision; do not preserve historical pass counts as scientific results.
