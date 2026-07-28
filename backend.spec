@@ -1,5 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+import chromadb
+
+
+def collect_namespace_modules(package):
+    """Collect modules below namespace-package directories.
+
+    PyInstaller's collect_submodules stops at ChromaDB directories without an
+    __init__.py, including execution executors and local vector segments.
+    """
+    package_root = Path(package.__file__).resolve().parent
+    modules = []
+    for module_path in package_root.rglob("*.py"):
+        relative = module_path.relative_to(package_root).with_suffix("")
+        if module_path.name == "__init__.py" or "test" in relative.parts:
+            continue
+        modules.append(f"{package.__name__}.{'.'.join(relative.parts)}")
+    return modules
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 datas = [
@@ -41,7 +60,6 @@ hiddenimports = [
     'sqlalchemy',
 
     # === Templates ===
-    'jinja2',
     'markupsafe',
 
     # === HTTP client ===
@@ -109,6 +127,7 @@ hiddenimports = [
 
 # Thu thập toàn bộ module của ChromaDB
 hiddenimports += collect_submodules("chromadb")
+hiddenimports += collect_namespace_modules(chromadb)
 
 # Thu thập toàn bộ module của Tokenizers
 hiddenimports += collect_submodules("tokenizers")

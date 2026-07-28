@@ -3,11 +3,115 @@ use serde::Serialize;
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+#[cfg(target_os = "windows")]
+struct BackendJob(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(target_os = "windows")]
+unsafe impl Send for BackendJob {}
+
+#[cfg(target_os = "windows")]
+impl BackendJob {
+    fn assign(child: &Child) -> Result<Self, std::io::Error> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+            SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        };
+
+        let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+        if handle.is_null() {
+            return Err(std::io::Error::last_os_error());
+        }
+
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        let configured = unsafe {
+            SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                std::ptr::addr_of!(limits).cast(),
+                std::mem::size_of_val(&limits) as u32,
+            )
+        };
+        let assigned = configured != 0
+            && unsafe { AssignProcessToJobObject(handle, child.as_raw_handle() as _) } != 0;
+        if !assigned {
+            let error = std::io::Error::last_os_error();
+            unsafe {
+                CloseHandle(handle);
+            }
+            return Err(error);
+        }
+
+        Ok(Self(handle))
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for BackendJob {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+struct BackendProcess {
+    child: Child,
+    #[cfg(target_os = "windows")]
+    job: Option<BackendJob>,
+}
+
+impl BackendProcess {
+    fn new(child: Child) -> Self {
+        #[cfg(target_os = "windows")]
+        let job = match BackendJob::assign(&child) {
+            Ok(job) => Some(job),
+            Err(error) => {
+                warn!(
+                    "Could not attach backend PID {} to a Windows Job Object: {}",
+                    child.id(),
+                    error
+                );
+                None
+            }
+        };
+
+        Self {
+            child,
+            #[cfg(target_os = "windows")]
+            job,
+        }
+    }
+
+    fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    fn has_exited(&mut self) -> Result<bool, std::io::Error> {
+        Ok(self.child.try_wait()?.is_some())
+    }
+
+    fn terminate(&mut self) {
+        #[cfg(target_os = "windows")]
+        if self.job.take().is_none() {
+            let _ = self.child.kill();
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        let _ = self.child.kill();
+
+        let _ = self.child.wait();
+    }
+}
 #[derive(Default, Serialize, Clone)]
 struct BackendSpawnStatus {
     attempted: bool,
@@ -17,8 +121,9 @@ struct BackendSpawnStatus {
 }
 
 struct BackendState {
-    process: Mutex<Option<Child>>,
+    process: Mutex<Option<BackendProcess>>,
     spawn_status: Mutex<BackendSpawnStatus>,
+    shutting_down: AtomicBool,
 }
 
 fn backend_binary_name() -> &'static str {
@@ -243,7 +348,7 @@ fn configure_backend_process(_command: &mut Command) {}
 fn spawn_backend(
     app: &tauri::AppHandle,
     status: &BackendSpawnStatus,
-) -> (Option<Child>, BackendSpawnStatus) {
+) -> (Option<BackendProcess>, BackendSpawnStatus) {
     let mut status = status.clone();
 
     if use_external_backend() {
@@ -288,7 +393,7 @@ fn spawn_backend(
                 child.id(),
                 spawn_started.elapsed().as_millis()
             );
-            (Some(child), status)
+            (Some(BackendProcess::new(child)), status)
         }
         Err(e) => {
             let msg = format!("Không thể khởi chạy backend: {}", e);
@@ -297,6 +402,88 @@ fn spawn_backend(
             (None, status)
         }
     }
+}
+
+fn start_backend_supervisor(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let mut restart_pending = false;
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            let state = app.state::<BackendState>();
+            if state.shutting_down.load(Ordering::Acquire) {
+                break;
+            }
+
+            if !restart_pending {
+                restart_pending = match state.process.lock() {
+                    Ok(mut guard) => {
+                        match guard.as_mut() {
+                            Some(backend) => match backend.has_exited() {
+                                Ok(true) => {
+                                    warn!("Backend process tree exited unexpectedly; scheduling restart");
+                                    guard.take();
+                                    true
+                                }
+                                Ok(false) => false,
+                                Err(error) => {
+                                    warn!("Could not inspect backend process state: {}", error);
+                                    false
+                                }
+                            },
+                            None => false,
+                        }
+                    }
+                    Err(error) => {
+                        error!("Backend supervisor lock failed: {}", error);
+                        break;
+                    }
+                };
+            }
+
+            if !restart_pending {
+                continue;
+            }
+
+            std::thread::sleep(Duration::from_millis(250));
+            if state.shutting_down.load(Ordering::Acquire) {
+                break;
+            }
+
+            let (replacement, spawn_status) = spawn_backend(&app, &BackendSpawnStatus::default());
+            if let Ok(mut status) = state.spawn_status.lock() {
+                *status = spawn_status;
+            }
+
+            let Some(mut replacement) = replacement else {
+                if is_researchmind_backend_healthy() {
+                    info!("Backend recovered through an existing healthy process");
+                    restart_pending = false;
+                } else {
+                    warn!("Backend restart deferred; retrying in the background");
+                }
+                continue;
+            };
+
+            if state.shutting_down.load(Ordering::Acquire) {
+                replacement.terminate();
+                break;
+            }
+
+            let replacement_pid = replacement.id();
+            match state.process.lock() {
+                Ok(mut guard) => {
+                    *guard = Some(replacement);
+                    restart_pending = false;
+                    info!("Backend restarted successfully (PID: {})", replacement_pid);
+                }
+                Err(error) => {
+                    error!("Could not store restarted backend process: {}", error);
+                    replacement.terminate();
+                    break;
+                }
+            };
+        }
+    });
 }
 
 /// Open a native folder picker dialog and return the selected path.
@@ -329,12 +516,14 @@ fn get_backend_spawn_status(state: State<'_, BackendState>) -> Result<BackendSpa
 /// Kill the Python backend process.
 #[tauri::command]
 fn kill_backend(state: State<'_, BackendState>) -> Result<(), String> {
+    state.shutting_down.store(true, Ordering::Release);
     if let Ok(mut guard) = state.process.lock() {
-        if let Some(ref mut child) = *guard {
-            info!("Killing Python backend (PID: {})", child.id());
-            let _ = child.kill();
-            let _ = child.wait();
-            *guard = None;
+        if let Some(mut backend) = guard.take() {
+            info!(
+                "Killing Python backend process tree (PID: {})",
+                backend.id()
+            );
+            backend.terminate();
         }
     }
     Ok(())
@@ -352,10 +541,15 @@ pub fn run() {
         .setup(|app| {
             let (backend, spawn_status) =
                 spawn_backend(app.handle(), &BackendSpawnStatus::default());
+            let supervise_backend = backend.is_some();
             app.manage(BackendState {
                 process: Mutex::new(backend),
                 spawn_status: Mutex::new(spawn_status),
+                shutting_down: AtomicBool::new(false),
             });
+            if supervise_backend {
+                start_backend_supervisor(app.handle().clone());
+            }
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
@@ -369,11 +563,11 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 if let Some(backend) = window.try_state::<BackendState>() {
+                    backend.shutting_down.store(true, Ordering::Release);
                     if let Ok(mut guard) = backend.process.lock() {
-                        if let Some(ref mut child) = *guard {
-                            info!("Shutting down Python backend...");
-                            let _ = child.kill();
-                            let _ = child.wait();
+                        if let Some(mut backend) = guard.take() {
+                            info!("Shutting down Python backend process tree...");
+                            backend.terminate();
                         }
                     }
                 }
