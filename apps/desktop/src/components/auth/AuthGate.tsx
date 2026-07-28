@@ -25,9 +25,38 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const [authLoadingTimedOut, setAuthLoadingTimedOut] = useState(false);
 
-  if (auth.loading) return <div className="auth-shell"><IconSpinner size={32} className="auth-spin" /></div>;
+  React.useEffect(() => {
+    if (!auth.loading) {
+      setAuthLoadingTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setAuthLoadingTimedOut(true), 12_000);
+    return () => window.clearTimeout(timer);
+  }, [auth.loading]);
+
   if (auth.user || auth.isGuest) return <>{children}</>;
+  if (auth.loading && !authLoadingTimedOut) {
+    return <div className="auth-shell"><IconSpinner size={32} className="auth-spin" /></div>;
+  }
+  if (auth.loading) {
+    return (
+      <main className="auth-shell">
+        <section className="auth-loading-fallback" role="alert">
+          <IconBrain size={32} className="icon-gradient" />
+          <h1>{t("auth.error_network")}</h1>
+          <p>{t("auth.continue_local_hint")}</p>
+          <button className="auth-primary" type="button" onClick={() => auth.enableGuestMode()}>
+            {t("auth.continue_local")}
+          </button>
+          <button className="auth-link" type="button" onClick={() => window.location.reload()}>
+            {t("common.retry")}
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
