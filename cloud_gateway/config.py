@@ -4,6 +4,8 @@ Provider secrets belong here and must never be shipped with the desktop app.
 """
 
 from functools import lru_cache
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -100,7 +102,11 @@ class GatewaySettings(BaseSettings):
         "deepseek,freemodel,claude"
     )
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def production(self) -> bool:

@@ -505,8 +505,13 @@ fn read_gateway_config(app: tauri::AppHandle) -> Result<String, String> {
 
     for path in candidates {
         if path.is_file() {
-            return fs::read_to_string(&path)
-                .map_err(|error| format!("Could not read bundled gateway.json at {}: {}", path.display(), error));
+            return fs::read_to_string(&path).map_err(|error| {
+                format!(
+                    "Could not read bundled gateway.json at {}: {}",
+                    path.display(),
+                    error
+                )
+            });
         }
     }
     Err("Bundled gateway.json was not found.".into())
