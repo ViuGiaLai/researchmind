@@ -700,43 +700,78 @@ async def _stream_chat(
     first_token_at = None
     full_response = ""
     chat_history = list(history or [])
-    stream_iterator = AsyncThreadIterator(
-        lambda: state.generator.stream_generate(
-            query,
-            context_text,
-            reasoning_mode=reasoning_mode,
-            task_type=task_type,
-            strict_evidence=strict_evidence,
-            history=chat_history,
-        ),
-        on_complete=state.generator.get_stream_metadata,
-    )
-    try:
-        async for chunk in stream_iterator:
-            if await req.is_disconnected():
-                logger.info("CHAT_STREAM: client disconnected, aborting LLM generation")
-                increment_ai_metric("chat.stream.cancelled")
-                return
-            if first_token_at is None:
-                first_token_at = time_mod.time()
-                logger.info(
-                    "CHAT_TTFT "
-                    f"ttft={first_token_at - timing.get('start', stream_start):.2f}s "
-                    f"retrieve={timing.get('retrieve', 0.0):.2f}s "
-                    f"context_len={len(context_text)}"
-                )
-            full_response += chunk
-            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-    finally:
-        await stream_iterator.aclose()
+    continuation_count = 0
+    max_auto_continuations = 1
+    generation_query = query
+    generation_mode = reasoning_mode
+    generation_history = chat_history
+    stream_metadata: dict = {}
+    total_token_count = 0
 
-    stream_metadata = stream_iterator.result if stream_iterator.result is not None else {}
+    while True:
+        stream_iterator = AsyncThreadIterator(
+            lambda: state.generator.stream_generate(
+                generation_query,
+                context_text,
+                reasoning_mode=generation_mode,
+                task_type=task_type,
+                strict_evidence=strict_evidence,
+                history=generation_history,
+            ),
+            on_complete=state.generator.get_stream_metadata,
+        )
+        try:
+            async for chunk in stream_iterator:
+                if await req.is_disconnected():
+                    logger.info("CHAT_STREAM: client disconnected, aborting LLM generation")
+                    increment_ai_metric("chat.stream.cancelled")
+                    return
+                if first_token_at is None:
+                    first_token_at = time_mod.time()
+                    logger.info(
+                        "CHAT_TTFT "
+                        f"ttft={first_token_at - timing.get('start', stream_start):.2f}s "
+                        f"retrieve={timing.get('retrieve', 0.0):.2f}s "
+                        f"context_len={len(context_text)}"
+                    )
+                full_response += chunk
+                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+        finally:
+            await stream_iterator.aclose()
+
+        stream_metadata = stream_iterator.result if stream_iterator.result is not None else {}
+        total_token_count += int(stream_metadata.get("token_count", 0) or 0)
+        finish_reason = str(stream_metadata.get("finish_reason", "stop") or "stop").lower()
+        should_continue = finish_reason == "length" or (
+            finish_reason == "error" and bool(full_response.strip())
+        )
+        if not should_continue or continuation_count >= max_auto_continuations:
+            break
+
+        continuation_count += 1
+        increment_ai_metric("chat.stream.auto_continue")
+        logger.info(
+            f"CHAT_STREAM auto_continue={continuation_count}/{max_auto_continuations} "
+            f"response_chars={len(full_response)}"
+        )
+        generation_history = [
+            *chat_history,
+            {"role": "user", "content": query},
+            {"role": "assistant", "content": full_response},
+        ]
+        generation_query = (
+            f"{query}\n\n"
+            "[CONTINUATION INSTRUCTION] Continue the previous assistant answer exactly from where it stopped. "
+            "Keep the same language and academic format. Do not repeat or restart the answer."
+        )
+        generation_mode = "continue"
+
     gateway_err = str(stream_metadata.get("gateway_error", ""))
     model_used = str(stream_metadata.get("model_used", ""))
     router_reason = str(stream_metadata.get("router_reason", ""))
-    token_count = int(stream_metadata.get("token_count", 0) or 0)
-    finish_reason = str(stream_metadata.get("finish_reason", "stop") or "stop")
-    truncated = finish_reason == "length"
+    token_count = total_token_count
+    finish_reason = str(stream_metadata.get("finish_reason", "stop") or "stop").lower()
+    truncated = finish_reason in {"length", "error"} and bool(full_response.strip())
     processed_citations: list = []
 
     # If the local provider yielded nothing, send a fallback message.
@@ -815,12 +850,13 @@ async def _stream_chat(
     yield f"data: {json.dumps({'done': True, 'model_used': model_used, 'router_reason': router_reason, 'token_count': token_count, 'citations': processed_citations, 'modified_content': modified_content, 'warning': gateway_err, 'truncated': truncated})}\n\n"
     is_error = (
         bool(gateway_err)
+        or finish_reason == "error"
         or "error" in (model_used or "").lower()
         or modified_content.startswith("⚠️")
         or "Local model error" in modified_content
         or "400 Bad Request" in modified_content
     )
-    if cache_key and not is_error:
+    if cache_key and not is_error and not truncated:
         _put_chat_cache(
             cache_key,
             {
@@ -1204,12 +1240,14 @@ async def chat(req: Request, request: dict = Body(...)):
         "router_token_count": generation.router_token_count,
         "papers_used": retrieval.papers_used,
         "chunks_used": retrieval.total_chunks,
+        "truncated": generation.finish_reason == "length",
     }
     if generation.finish_reason == "error" and generation.model_used == "researchmind_cloud/error":
         response["warning"] = generation.content
         response["answer"] = ""
         response["modified_content"] = ""
-    _put_chat_cache(cache_key, response)
+    if generation.finish_reason not in {"length", "error"}:
+        _put_chat_cache(cache_key, response)
     return response
 
 

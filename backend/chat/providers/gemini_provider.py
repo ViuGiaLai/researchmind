@@ -81,6 +81,7 @@ class GeminiProviderMixin:
 
     def _stream_gemini(self, prompt: str, api_key: str, max_tokens: int = 1024, is_free: bool = False):
         """Stream response from Google Gemini API (SSE native)."""
+        emitted = False
         try:
             url = (
                 f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -101,14 +102,24 @@ class GeminiProviderMixin:
                             data = json.loads(data_str)
                             candidates = data.get("candidates", [])
                             if candidates:
-                                text_chunk = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                                candidate = candidates[0]
+                                finish_reason = candidate.get("finishReason")
+                                if finish_reason == "MAX_TOKENS":
+                                    self._local.current_finish_reason = "length"
+                                elif finish_reason:
+                                    self._local.current_finish_reason = "stop"
+                                text_chunk = candidate.get("content", {}).get("parts", [{}])[0].get("text", "")
                                 if text_chunk:
+                                    emitted = True
                                     yield text_chunk
                         except Exception:
                             continue
         except Exception as e:
+            self._local.current_finish_reason = "error"
             lang = getattr(getattr(self, "_local", None), "lang", "vi")
             logger.error(f"Gemini stream failed: {e}")
+            if emitted:
+                return
             yield _t("provider.error.gemini_stream", lang, error=redact_api_key(str(e)))
             local_tokens = self._cap_local_max_tokens(384)
             fitted = self._fit_prompt(prompt, "local", local_tokens)

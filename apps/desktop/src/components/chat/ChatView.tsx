@@ -533,7 +533,11 @@ export const ChatView: React.FC<{
       }));
   };
 
-  const handleSend = async (overrideText?: string, baseMessages?: Message[]) => {
+  const handleSend = async (
+    overrideText?: string,
+    baseMessages?: Message[],
+    bypassCache = false,
+  ) => {
     const text = overrideText?.trim() ?? input.trim();
     if (!text || loading || isStreaming) return;
     setInput("");
@@ -593,6 +597,7 @@ export const ChatView: React.FC<{
           reasoningMode,
           strictEvidence,
           historyPayload,
+          bypassCache,
         );
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = currentBase.length + 1;
@@ -836,6 +841,7 @@ export const ChatView: React.FC<{
             scope === "collection" ? activeCollectionId : undefined,
             reasoningMode,
             historyPayload,
+            bypassCache,
           );
         }
         if (res.warning && !res.answer) {
@@ -852,6 +858,7 @@ export const ChatView: React.FC<{
             content: res.answer,
             citations: normalizeCitations(res.citations),
             model_used: res.model_used,
+            truncated: res.truncated || false,
           };
           setMessages((prev) => [...prev, userMsg, assistantMsg]);
         }
@@ -1063,6 +1070,7 @@ export const ChatView: React.FC<{
       continueReasoningMode,
       strictEvidence,
       historyPayload,
+      true,
     );
     activeChatStreamRef.current = streamCtrl;
 
@@ -1818,7 +1826,7 @@ export const ChatView: React.FC<{
                             const targetText = editText.trim();
                             const truncated = messages.slice(0, i);
                             setEditingMsgIndex(null);
-                            handleSend(targetText, truncated);
+                            handleSend(targetText, truncated, true);
                           }
                         } else if (e.key === "Escape") {
                           setEditingMsgIndex(null);
@@ -1843,7 +1851,7 @@ export const ChatView: React.FC<{
                           const targetText = editText.trim();
                           const truncated = messages.slice(0, i);
                           setEditingMsgIndex(null);
-                          handleSend(targetText, truncated);
+                          handleSend(targetText, truncated, true);
                         }}
                       >
                         <IconSend size={13} />

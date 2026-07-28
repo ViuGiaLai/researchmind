@@ -86,13 +86,14 @@ async def generate_stream(request: GenerateRequest, user: dict = Depends(require
 
     async def events():
         sent_meta = False
+        router = ProviderRouter(settings)
         try:
-            async for content, provider, model, routing in ProviderRouter(settings).stream(request):
+            async for content, provider, model, routing in router.stream(request):
                 if not sent_meta:
                     yield json.dumps({"type": "meta", "provider": provider, "model": model, **routing}) + "\n"
                     sent_meta = True
                 yield json.dumps({"type": "delta", "content": content}, ensure_ascii=False) + "\n"
-            yield json.dumps({"type": "done"}) + "\n"
+            yield json.dumps({"type": "done", "finish_reason": router.last_finish_reason}) + "\n"
         except Exception as exc:
             yield json.dumps({"type": "error", "content": str(exc)}) + "\n"
 

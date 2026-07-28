@@ -15,6 +15,7 @@ class ProviderError(RuntimeError):
 class ProviderRouter:
     def __init__(self, settings: GatewaySettings):
         self.settings = settings
+        self.last_finish_reason = "stop"
         try:
             raw_map = json.loads(settings.task_provider_map)
             self.task_map = {str(k).lower(): str(v).lower() for k, v in raw_map.items()}
@@ -171,6 +172,10 @@ class ProviderRouter:
                         candidates = data.get("candidates", [])
                         if candidates:
                             finish_reason = candidates[0].get("finishReason")
+                            if finish_reason == "MAX_TOKENS":
+                                self.last_finish_reason = "length"
+                            elif finish_reason:
+                                self.last_finish_reason = "stop"
                             if finish_reason and finish_reason not in ("STOP", "MAX_TOKENS"):
                                 raise ProviderError(f"Gemini stopped unexpectedly: {finish_reason}")
                                 
@@ -228,6 +233,10 @@ class ProviderRouter:
                     choices = data.get("choices", [])
                     if choices:
                         finish_reason = choices[0].get("finish_reason")
+                        if finish_reason in {"length", "max_tokens"}:
+                            self.last_finish_reason = "length"
+                        elif finish_reason:
+                            self.last_finish_reason = "stop"
                         if finish_reason and finish_reason not in ("stop", "length"):
                             raise ProviderError(f"Provider stopped unexpectedly: {finish_reason}")
                             
@@ -279,5 +288,7 @@ class ProviderRouter:
         async with httpx.AsyncClient(timeout=self.settings.provider_timeout) as client:
             response = await client.post("https://api.anthropic.com/v1/messages", headers=headers, json=payload)
             response.raise_for_status()
-            return "".join(item.get("text", "") for item in response.json().get("content", []) if item.get("type") == "text")
+            data = response.json()
+            self.last_finish_reason = "length" if data.get("stop_reason") == "max_tokens" else "stop"
+            return "".join(item.get("text", "") for item in data.get("content", []) if item.get("type") == "text")
 

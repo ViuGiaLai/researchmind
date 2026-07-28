@@ -304,6 +304,7 @@ export interface ChatResponse {
   papers_used: string[];
   chunks_used: number;
   warning?: string;
+  truncated?: boolean;
 }
 
 export interface Stats {
@@ -967,6 +968,7 @@ export const api = {
     collectionId?: string,
     reasoningMode?: string,
     history?: Array<{ role: "user" | "assistant"; content: string }>,
+    retry = false,
   ) =>
     request<ChatResponse>("POST", "/api/chat", {
       message,
@@ -976,6 +978,7 @@ export const api = {
       collection_id: collectionId,
       reasoning_mode: reasoningMode,
       history: history && history.length ? history : undefined,
+      retry: retry || undefined,
     }),
 
   chatCollection: (message: string, collectionId: string) =>
@@ -990,6 +993,7 @@ export const api = {
     reasoningMode?: string,
     strictEvidence?: boolean,
     history?: Array<{ role: "user" | "assistant"; content: string }>,
+    retry = false,
   ) => {
     const url = `${BASE_URL}/api/chat`;
     const body = JSON.stringify({
@@ -1002,6 +1006,7 @@ export const api = {
       reasoning_mode: reasoningMode,
       strict_evidence: strictEvidence,
       history: history && history.length ? history : undefined,
+      retry: retry || undefined,
     });
     const controller = new AbortController();
     const stream: {

@@ -173,7 +173,8 @@ class Generator(
         self._local = threading.local()
 
     MODE_MAX_TOKENS = {
-        "chat": 1024,
+        "chat": 2048,
+        "rag": 2048,
         "summary": 512,
         "verify": 1536,
         "review": 2048,
@@ -748,6 +749,10 @@ class Generator(
                     messages=[{"role": "user", "content": user_prompt}],
                 ) as stream:
                     yield from stream.text_stream
+                    final_message = stream.get_final_message()
+                    self._local.current_finish_reason = (
+                        "length" if getattr(final_message, "stop_reason", "") == "max_tokens" else "stop"
+                    )
                 return
             elif provider == "local":
                 local_tokens = self._cap_local_max_tokens(max_tokens)
@@ -758,6 +763,7 @@ class Generator(
                 logger.warning(f"_stream_provider: unknown provider '{provider}'")
                 return
         except Exception as e:
+            self._local.current_finish_reason = "error"
             logger.warning(f"_stream_provider: {provider} failed: {e}")
             yield f"\n\n⚠️ [Đã dừng tạo phản hồi do lỗi kết nối: {e}]"
 
@@ -1706,6 +1712,10 @@ class Generator(
                         messages=[{"role": "user", "content": user_prompt}],
                     ) as stream:
                         yield from stream.text_stream
+                        final_message = stream.get_final_message()
+                        self._local.current_finish_reason = (
+                            "length" if getattr(final_message, "stop_reason", "") == "max_tokens" else "stop"
+                        )
                 except Exception as e:
                     self._set_model(f"local/{self.local_model}")
                     yield f"\n⚠️ Claude streaming failed: {str(e)}. Switching to the local model..."

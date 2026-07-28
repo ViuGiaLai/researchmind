@@ -460,6 +460,7 @@ class OpenAIProviderMixin:
 
     def _stream_openai(self, prompt: str, api_key: str, model: str, base_url: str, max_tokens: int = 1024):
         """Stream from any OpenAI-compatible API."""
+        emitted = False
         try:
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             payload = {
@@ -489,9 +490,17 @@ class OpenAIProviderMixin:
                             break
                         try:
                             data = json.loads(data_str)
-                            delta = data["choices"][0]["delta"]
+                            choice = data["choices"][0]
+                            finish_reason = choice.get("finish_reason")
+                            if finish_reason in {"length", "max_tokens"}:
+                                self._local.current_finish_reason = "length"
+                            elif finish_reason:
+                                self._local.current_finish_reason = "stop"
+                            delta = choice["delta"]
                             reasoning_chunk = delta.get("reasoning_content", "") or delta.get("reasoning", "")
                             content_chunk = delta.get("content", "")
+                            if reasoning_chunk or content_chunk:
+                                emitted = True
                             if reasoning_chunk and not is_fast:
                                 if not in_thinking:
                                     yield "<think>\n"
@@ -507,10 +516,14 @@ class OpenAIProviderMixin:
                 if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except Exception as e:
+            self._local.current_finish_reason = "error"
             logger.error(f"OpenAI-compatible stream failed: {e}")
+            if emitted:
+                return
 
     def _stream_deepseek(self, prompt: str, api_key: str, max_tokens: int = 1024, is_free: bool = False):
         """Stream response from DeepSeek API (has reasoning_content)."""
+        emitted = False
         try:
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             payload = {
@@ -536,9 +549,17 @@ class OpenAIProviderMixin:
                             break
                         try:
                             data = json.loads(data_str)
-                            delta = data["choices"][0]["delta"]
+                            choice = data["choices"][0]
+                            finish_reason = choice.get("finish_reason")
+                            if finish_reason in {"length", "max_tokens"}:
+                                self._local.current_finish_reason = "length"
+                            elif finish_reason:
+                                self._local.current_finish_reason = "stop"
+                            delta = choice["delta"]
                             reasoning_chunk = delta.get("reasoning_content", "") or delta.get("reasoning", "")
                             content_chunk = delta.get("content", "")
+                            if reasoning_chunk or content_chunk:
+                                emitted = True
                             if reasoning_chunk and not is_fast:
                                 if not in_thinking:
                                     yield "<think>\n"
@@ -554,8 +575,11 @@ class OpenAIProviderMixin:
                 if not is_fast and in_thinking:
                     yield "\n</think>\n"
         except Exception as e:
+            self._local.current_finish_reason = "error"
             lang = getattr(getattr(self, "_local", None), "lang", "vi")
             logger.error(f"DeepSeek stream failed: {e}")
+            if emitted:
+                return
             yield _t("provider.error.deepseek_stream", lang, error=str(e))
             local_tokens = self._cap_local_max_tokens(384)
             fitted = self._fit_prompt(prompt, "local", local_tokens)

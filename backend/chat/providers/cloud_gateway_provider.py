@@ -113,9 +113,15 @@ class CloudGatewayProviderMixin:
                             self.current_router_reason = routing_reason
                         elif event_type == "delta":
                             yield str(event.get("content", ""))
+                        elif event_type == "done":
+                            finish_reason = str(event.get("finish_reason", "stop") or "stop").lower()
+                            self._local.current_finish_reason = (
+                                "length" if finish_reason in {"length", "max_tokens"} else finish_reason
+                            )
                         elif event_type == "error":
                             raise RuntimeError(str(event.get("content", "Gateway stream failed")))
             except httpx.HTTPStatusError as exc:
+                self._local.current_finish_reason = "error"
                 status = exc.response.status_code
                 logger.warning("Gateway stream HTTP {}", status)
                 gateway_error = "free_30_limit" if status == 429 else "cloud_unavailable"

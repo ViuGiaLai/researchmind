@@ -388,6 +388,12 @@ class LocalProviderMixin:
         auto_continue_count = 0
         all_accumulated: list[str] = []
         current_prompt = prompt
+        history = getattr(self._local, "chat_history", None) or []
+        base_assistant_prefill = (
+            str(history[-1].get("content", ""))
+            if reasoning_mode == "continue" and history and isinstance(history[-1], dict)
+            else ""
+        )
         assistant_prefill = ""
 
         while True:
@@ -439,7 +445,7 @@ class LocalProviderMixin:
                             logger.info(
                                 f"AUTO_CONTINUE: pass {auto_continue_count}/{max_auto_continues} (finish_reason=length)"
                             )
-                            assistant_prefill = "".join(all_accumulated)
+                            assistant_prefill = base_assistant_prefill + "".join(all_accumulated)
                             continue
                         return
                 except httpx.HTTPStatusError as err:

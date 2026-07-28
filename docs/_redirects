@@ -1,7 +1,2 @@
 # Cloudflare Pages redirects
-# Clean report URLs
-
-/r/*  /report.html 200
-/report/*  /report.html 200
-
-# Old query-param URLs forward to report.html (handled by JS)
+# Report routing is handled by functions/r/[id].ts and functions/report/[id].ts
