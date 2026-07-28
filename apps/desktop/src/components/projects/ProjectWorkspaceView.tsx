@@ -1,3 +1,4 @@
+import "../../styles/projects.css";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type LivingReviewSubscription, type Paper, type ResearchArtifact, type ResearchProject, type ResearchProjectDetail, type ReviewAuditEvent, type WorkspaceMember } from "../../lib/api";

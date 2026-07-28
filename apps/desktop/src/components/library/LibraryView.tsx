@@ -149,6 +149,7 @@ export const LibraryView: React.FC<{
   const listRef = useRef<HTMLDivElement>(null);
   const [listScrollTop, setListScrollTop] = useState(0);
   const searchDebounceReady = useRef(false);
+  const loadRequestIdRef = useRef(0);
   const activePaperIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -165,8 +166,11 @@ export const LibraryView: React.FC<{
       return;
     }
     const timer = setTimeout(() => {
-      setPage(1);
-      loadPapers(1);
+      if (page === 1) {
+        void loadPapers(1);
+      } else {
+        setPage(1);
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -278,6 +282,7 @@ export const LibraryView: React.FC<{
 
   const loadPapers = async (forcedPage?: number) => {
     const effectivePage = forcedPage ?? page;
+    const requestId = ++loadRequestIdRef.current;
     const started = performance.now();
     setLoading(true);
     try {
@@ -298,6 +303,7 @@ export const LibraryView: React.FC<{
         collection_id: activeCollectionId || undefined,
         q: searchQuery.trim() || undefined,
       });
+      if (requestId !== loadRequestIdRef.current) return;
 
       setPapers(res.papers);
       setTotal(res.total);
@@ -317,7 +323,7 @@ export const LibraryView: React.FC<{
     } catch (e) {
       console.error("Failed to load papers:", e);
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) setLoading(false);
     }
   };
 

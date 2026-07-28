@@ -1,3 +1,7 @@
+import "../../styles/chat.css";
+import "../../styles/cite-panel.css";
+import "../../styles/debate.css";
+import "../../styles/trust.css";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
@@ -147,6 +151,7 @@ export const ChatView: React.FC<{
   const isNearBottomRef = useRef(true);
   const activeChatStreamRef = useRef<{ abort: () => void } | null>(null);
   const questionsAbortRef = useRef<AbortController | null>(null);
+  const streamRenderFrameRef = useRef<number | null>(null);
 
   // Auto-cite state
   const [citeStyle, setCiteStyle] = useState<CitationStyle>("apa");
@@ -464,12 +469,20 @@ export const ChatView: React.FC<{
   useEffect(() => {
     return () => {
       activeChatStreamRef.current?.abort();
+      if (streamRenderFrameRef.current !== null) {
+        window.cancelAnimationFrame(streamRenderFrameRef.current);
+        streamRenderFrameRef.current = null;
+      }
     };
   }, []);
 
   const handleCancelStream = () => {
     activeChatStreamRef.current?.abort();
     activeChatStreamRef.current = null;
+    if (streamRenderFrameRef.current !== null) {
+      window.cancelAnimationFrame(streamRenderFrameRef.current);
+      streamRenderFrameRef.current = null;
+    }
     setIsStreaming(false);
     setLoading(false);
     setMessages((prev) => prev.map((m, i) =>
@@ -584,10 +597,32 @@ export const ChatView: React.FC<{
         activeChatStreamRef.current = streamCtrl;
         const assistantIdx = currentBase.length + 1;
 
-        setMessages([...currentBase, userMsg]);
-        // Do NOT set isStreaming(true) yet. Wait for onStatus or onChunk to render typing animation.
+        const initialStatus = scope === "external" ? t("chat.connecting_model") : t("chat.searching_docs");
+        setIsStreaming(true);
+        setMessages([...currentBase, userMsg, { role: "assistant", content: initialStatus }]);
 
         let resolved = false;
+        let streamAccumulatedText = "";
+
+        const cancelStreamRender = () => {
+          if (streamRenderFrameRef.current !== null) {
+            window.cancelAnimationFrame(streamRenderFrameRef.current);
+            streamRenderFrameRef.current = null;
+          }
+        };
+
+        const flushStreamRender = () => {
+          streamRenderFrameRef.current = null;
+          const content = streamAccumulatedText;
+          setMessages((prev) => {
+            if (prev.length <= assistantIdx) {
+              return [...prev, { role: "assistant", content }];
+            }
+            return prev.map((m, i) =>
+              i === assistantIdx ? { ...m, content } : m
+            );
+          });
+        };
 
         const releaseLoading = () => {
           setLoading(false);
@@ -596,6 +631,7 @@ export const ChatView: React.FC<{
         const finishWithError = (errMsg: string) => {
           if (resolved) return;
           resolved = true;
+          cancelStreamRender();
           activeChatStreamRef.current = null;
           setIsStreaming(false);
           releaseLoading();
@@ -610,10 +646,7 @@ export const ChatView: React.FC<{
           });
         };
 
-        let streamAccumulatedText = "";
-
         streamCtrl.onStatus = (status) => {
-          setIsStreaming(true);
           if (streamAccumulatedText) return;
           setMessages((prev) => {
             if (prev.length <= assistantIdx) {
@@ -626,16 +659,10 @@ export const ChatView: React.FC<{
         };
 
         streamCtrl.onChunk = (chunk) => {
-          setIsStreaming(true);
           streamAccumulatedText += chunk;
-          setMessages((prev) => {
-            if (prev.length <= assistantIdx) {
-              return [...prev, { role: "assistant", content: streamAccumulatedText }];
-            }
-            return prev.map((m, i) =>
-              i === assistantIdx ? { ...m, content: streamAccumulatedText } : m
-            );
-          });
+          if (streamRenderFrameRef.current === null) {
+            streamRenderFrameRef.current = window.requestAnimationFrame(flushStreamRender);
+          }
         };
 
         streamCtrl.onDone = (model, citations, router_reason, token_count, modified_content, warning, truncated) => {
@@ -649,8 +676,9 @@ export const ChatView: React.FC<{
             setMessages((prev) => prev.filter((_, i) => i !== assistantIdx));
             return;
           }
+          cancelStreamRender();
           setMessages((prev) => {
-            const newContent = modified_content || (prev.length > assistantIdx ? prev[assistantIdx].content : "");
+            const newContent = modified_content || streamAccumulatedText || (prev.length > assistantIdx ? prev[assistantIdx].content : "");
             if (!newContent.trim()) {
               console.warn("[ChatView] onDone with empty content — modified_content=%o", modified_content);
             }

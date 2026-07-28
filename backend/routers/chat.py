@@ -538,10 +538,21 @@ async def _enhance_context_with_engines(
             finally:
                 session.close()
 
-            for title, doi in paper_rows:
-                if title:
-                    knowledge = await ke.get_paper_knowledge(title, doi)
-                    ke_papers.append(knowledge)
+            semaphore = asyncio.Semaphore(2)
+
+            async def fetch_knowledge(title: str, doi: str | None):
+                async with semaphore:
+                    return await ke.get_paper_knowledge(title, doi)
+
+            knowledge_results = await asyncio.gather(
+                *(fetch_knowledge(title, doi) for title, doi in paper_rows if title),
+                return_exceptions=True,
+            )
+            for result in knowledge_results:
+                if isinstance(result, Exception):
+                    logger.warning(f"KnowledgeEngine paper lookup failed: {result}")
+                else:
+                    ke_papers.append(result)
 
             if ke_papers:
                 sota_context = ke.build_sota_prompt_context(ke_papers)

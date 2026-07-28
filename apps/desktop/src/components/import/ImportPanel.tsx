@@ -222,36 +222,48 @@ export const ImportPanel: React.FC<{ onImported: (paperId?: string) => void }> =
 
   const importFiles = async (files: File[]) => {
     setImporting(true);
-    setResults([]);
-    const newResults: ImportResult[] = [];
-
-    for (const file of files) {
-      try {
-        const res = await api.importPaper(file);
-        const suggested = (res as any).suggested_title || res.title;
-        newResults.push({
-          job_id: res.job_id,
-          filename: file.name,
-          status: res.status || "indexing",
-          progress: 35,
-          paper_id: res.paper_id,
-          pages: res.page_count,
-          title: suggested,
-          suggestedTitle: suggested,
-          ocrPagesCount: res.ocr_pages_count,
-          ocrPagesFailed: res.ocr_pages_failed,
-          isScanned: res.is_scanned,
-        });
-      } catch (e) {
-        newResults.push({
-          filename: file.name,
-          status: "error",
-          error: e instanceof Error ? e.message : t("error.unknown"),
-        });
-      }
-    }
-
+    const newResults: ImportResult[] = files.map((file) => ({
+      filename: file.name,
+      status: "queued",
+      progress: 0,
+    }));
     setResults(newResults);
+
+    let nextIndex = 0;
+    const uploadNext = async () => {
+      while (nextIndex < files.length) {
+        const index = nextIndex++;
+        const file = files[index];
+        try {
+          const res = await api.importPaper(file);
+          const suggested = (res as any).suggested_title || res.title;
+          newResults[index] = {
+            job_id: res.job_id,
+            filename: file.name,
+            status: res.status || "indexing",
+            progress: 35,
+            paper_id: res.paper_id,
+            pages: res.page_count,
+            title: suggested,
+            suggestedTitle: suggested,
+            ocrPagesCount: res.ocr_pages_count,
+            ocrPagesFailed: res.ocr_pages_failed,
+            isScanned: res.is_scanned,
+          };
+        } catch (e) {
+          newResults[index] = {
+            filename: file.name,
+            status: "error",
+            error: e instanceof Error ? e.message : t("error.unknown"),
+          };
+        }
+        setResults([...newResults]);
+      }
+    };
+
+    const workerCount = Math.min(3, files.length);
+    await Promise.all(Array.from({ length: workerCount }, () => uploadNext()));
+
     setImporting(false);
     const indexingIds = newResults
       .filter((r) => r.job_id && r.status !== "error")

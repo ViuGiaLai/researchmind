@@ -1,3 +1,4 @@
+import "../../styles/personal-brain.css";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, PersonalBrainResponse } from "../../lib/api";

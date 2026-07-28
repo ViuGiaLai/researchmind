@@ -15,7 +15,6 @@ import { useAuth } from "./lib/auth-provider";
 import { SyncStatus } from "./components/auth/SyncStatus";
 import { MasterPasswordModal } from "./components/auth/MasterPasswordModal";
 import { debouncedTriggerSync, SyncDaemon } from "./lib/sync";
-import { SettingsView } from "./components/settings/SettingsView";
 
 function lazyImport<T extends React.ComponentType<any>>(importFn: () => Promise<Record<string, T>>, name: string) {
   return React.lazy(async () => {
@@ -49,6 +48,7 @@ const EvidenceMatrixView = lazyImport(() => import("./components/evidence/Eviden
 const ProjectWorkspaceView = lazyImport(() => import("./components/projects/ProjectWorkspaceView"), "ProjectWorkspaceView");
 const AISetupWizard = lazyImport(() => import("./components/setup/AISetupWizard"), "AISetupWizard");
 const PublishingHub = lazyImport(() => import("./components/publishing/PublishingHub"), "PublishingHub");
+const SettingsView = lazyImport(() => import("./components/settings/SettingsView"), "SettingsView");
 
 type Tab = "wow" | "projects" | "library" | "chat" | "review" | "brain" | "daily" | "graph" | "evidence" | "settings" | "account" | "publishing";
 
@@ -305,7 +305,7 @@ export function App() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
-      let h: { status: string; backend_ready?: boolean; init_message?: string };
+      let h: { status: string; backend_ready?: boolean; init_message?: string; setup_completed?: boolean };
       try {
         const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8765"}/api/ping`, { headers: { "ngrok-skip-browser-warning": "true" },
           signal: controller.signal,
@@ -326,17 +326,20 @@ export function App() {
           : (h.init_message || t("startup.initializing_ai"))
       );
 
-      try {
-        const s = await api.getSettings();
-        if (!mountedRef.current) return;
-        if (!s.setup_completed) {
-          setShowSetup(true);
+      let setupCompleted = h.setup_completed;
+      if (setupCompleted === undefined) {
+        try {
+          const s = await api.getSettings();
+          setupCompleted = s.setup_completed;
+        } catch (settingsErr) {
+          console.warn("Settings load during startup:", settingsErr);
         }
-      } catch (settingsErr) {
-        console.warn("Settings load during startup:", settingsErr);
       }
 
       if (!mountedRef.current) return;
+      if (setupCompleted === false) {
+        setShowSetup(true);
+      }
       // Only leave the loading screen after setup state is known
       setCheckingSetup(false);
     } catch {

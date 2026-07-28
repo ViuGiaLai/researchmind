@@ -1,3 +1,4 @@
+import "../../styles/anonymization.css";
 /**
  * AnonymizationPanel — Bảng điều khiển ẩn danh hóa bài báo.
  *

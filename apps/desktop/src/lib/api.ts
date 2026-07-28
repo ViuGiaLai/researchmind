@@ -705,7 +705,7 @@ export const api = {
   // Health
   health: () => request<HealthResponse>("GET", "/api/health"),
 
-  ping: () => request<{ status: string; backend_ready?: boolean; init_message?: string }>("GET", "/api/ping"),
+  ping: () => request<{ status: string; backend_ready?: boolean; init_message?: string; setup_completed?: boolean }>("GET", "/api/ping"),
 
   getDiagnostics: async () => {
     const paths = ["/api/system/diagnostics", "/api/settings/diagnostics"];

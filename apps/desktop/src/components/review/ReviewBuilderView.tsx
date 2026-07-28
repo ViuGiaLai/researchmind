@@ -1,3 +1,4 @@
+import "../../styles/review.css";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { api, ReviewSection, ReviewSectionResponse, OutlineSection, EvidencePreflightResponse, EvidenceItem, ReviewDraftSummary, DraftVersionSummary, QualityIssue, QualityMetrics, getAuthenticatedApiUrl } from "../../lib/api";

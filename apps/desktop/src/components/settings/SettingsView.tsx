@@ -1,3 +1,4 @@
+import "../../styles/settings.css";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, BASE_URL } from "../../lib/api";

@@ -171,6 +171,7 @@ async def ping():
         "status": "ok",
         "backend_ready": state.backend_ready,
         "init_message": state.init_message,
+        "setup_completed": settings.setup_completed,
     }
 
 

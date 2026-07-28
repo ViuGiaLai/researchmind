@@ -1,3 +1,4 @@
+import "../../styles/daily-reader.css";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, DailyReaderResponse, DailyPaper } from "../../lib/api";

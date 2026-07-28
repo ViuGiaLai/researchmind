@@ -1,3 +1,4 @@
+import "../../styles/graph.css";
 import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { api, GraphStats, GraphEntity, GraphCommunity, GraphVisualizationData } from "../../lib/api";
