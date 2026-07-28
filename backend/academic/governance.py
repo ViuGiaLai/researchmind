@@ -301,16 +301,15 @@ class AcademicGovernance:
 
         instructions = [f"- You MUST respond in {lang_name}."]
         if concise:
-            instructions.extend([
-                "- Be concise and direct.",
-                "- Avoid unnecessary introductions or repetition.",
-                "- Return only the essential information needed for this task."
-            ])
+            instructions.extend(
+                [
+                    "- Be concise and direct.",
+                    "- Avoid unnecessary introductions or repetition.",
+                    "- Return only the essential information needed for this task.",
+                ]
+            )
 
-        parts.extend([
-            "\nFormatting & Style:",
-            *instructions
-        ])
+        parts.extend(["\nFormatting & Style:", *instructions])
 
         return "\n".join(parts)
 

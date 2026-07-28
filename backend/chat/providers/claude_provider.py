@@ -24,6 +24,7 @@ class ClaudeProviderMixin:
                 client = self._get_anthropic_client()
             else:
                 import anthropic
+
                 client = anthropic.Anthropic(api_key=self.claude_api_key)
             response = client.messages.create(
                 model=self.claude_model,

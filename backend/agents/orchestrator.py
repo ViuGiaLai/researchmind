@@ -154,10 +154,10 @@ async def run_pipeline(
 
     # Final Output & Quality Evaluation
     pipeline_result.final_output = next((s.output for s in reversed(pipeline_result.steps) if s.success), None)
-    deliverable_succeeded = any(
-        s.step in ("synthesize", "export") and s.success for s in pipeline_result.steps
+    deliverable_succeeded = any(s.step in ("synthesize", "export") and s.success for s in pipeline_result.steps)
+    pipeline_result.success = deliverable_succeeded and any(
+        s.step == "verify" and s.success for s in pipeline_result.steps
     )
-    pipeline_result.success = deliverable_succeeded and any(s.step == "verify" and s.success for s in pipeline_result.steps)
     pipeline_result.evaluation = evaluate_pipeline_result(pipeline_result)
 
     logger.info(

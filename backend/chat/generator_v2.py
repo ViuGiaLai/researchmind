@@ -277,7 +277,6 @@ class Generator(
         if self.mode == "cloud_custom":
             return self.custom_cloud_provider
 
-
         if self.researchmind_cloud_url and self.mode == "cloud_free":
             return "researchmind_cloud"
 
@@ -580,7 +579,8 @@ class Generator(
             local_state = {
                 "task_type": getattr(self._local, "task_type", ""),
                 "reasoning_mode": getattr(self._local, "reasoning_mode", "fast"),
-                "system_prompt_override": system_prompt_override or getattr(self._local, "system_prompt_override", None),
+                "system_prompt_override": system_prompt_override
+                or getattr(self._local, "system_prompt_override", None),
                 "language_instruction": getattr(self._local, "language_instruction", ""),
                 "strict_evidence": getattr(self._local, "strict_evidence", False),
                 "lang": getattr(self._local, "lang", "vi"),
@@ -848,20 +848,20 @@ class Generator(
                 return (
                     "You are ResearchMind. Answer briefly and clearly (~80-120 words). "
                     "If the user asks for creative content or lists, fulfill the request naturally without filler or forced headings.\n"
-                    + anti_repeat + "\n"
+                    + anti_repeat
+                    + "\n"
                     + lang_instruction
                 )
             if mode == "deep":
                 return (
                     "You are ResearchMind. Give a structured answer (~150-250 words) with key distinctions. "
-                    "Adapt naturally to the user's request. No <think> tags.\n"
-                    + anti_repeat + "\n"
-                    + lang_instruction
+                    "Adapt naturally to the user's request. No <think> tags.\n" + anti_repeat + "\n" + lang_instruction
                 )
             return (
                 "You are ResearchMind. Provide a focused analysis (~250-400 words) tailored to the user's request. "
                 "Cover main ideas and trade-offs; stay concise for a local model.\n"
-                + anti_repeat + "\n"
+                + anti_repeat
+                + "\n"
                 + lang_instruction
             )
 
@@ -877,7 +877,8 @@ class Generator(
                 "You are ResearchMind. Provide a clear, well-structured response (~300-500 words). "
                 "Adapt naturally to the user's request, whether it's analytical or creative. "
                 "Use Markdown headings and bullet points only when helpful. "
-                "If applicable, add 3-4 dynamic 'Gợi ý đọc thêm' topics directly related to the user's question.\n\n" + lang_instruction
+                "If applicable, add 3-4 dynamic 'Gợi ý đọc thêm' topics directly related to the user's question.\n\n"
+                + lang_instruction
             )
         else:  # deep_plus / deep+
             return (
@@ -1116,8 +1117,14 @@ class Generator(
             for provider in chain:
                 if provider == "local":
                     logger.warning("All cloud_free providers failed. Falling back to local model...")
-                    fitted_local = self._fit_prompt(user_prompt, "local", max_tokens or 1024, local_state["system_prompt_override"])
-                    return self._generate_local(fitted_local, system_prompt_override=local_state["system_prompt_override"], max_tokens=max_tokens)
+                    fitted_local = self._fit_prompt(
+                        user_prompt, "local", max_tokens or 1024, local_state["system_prompt_override"]
+                    )
+                    return self._generate_local(
+                        fitted_local,
+                        system_prompt_override=local_state["system_prompt_override"],
+                        max_tokens=max_tokens,
+                    )
 
                 logger.info(f"cloud_free: trying {provider}...")
                 t0 = time.time()
@@ -1142,9 +1149,7 @@ class Generator(
 
             logger.warning("All cloud_free providers failed. Falling back to local model...")
             local_tokens = self._cap_local_max_tokens(max_tokens or 512)
-            fitted_local = self._fit_prompt(
-                user_prompt, "local", local_tokens, local_state["system_prompt_override"]
-            )
+            fitted_local = self._fit_prompt(user_prompt, "local", local_tokens, local_state["system_prompt_override"])
             return self._generate_local(
                 fitted_local,
                 system_prompt_override=local_state["system_prompt_override"],
@@ -1537,7 +1542,11 @@ class Generator(
 
         if context_text == "__EXTERNAL_KNOWLEDGE__":
             self._local.system_prompt_override = self._get_external_system_prompt()
-            user_prompt = query if is_local else f"Question: {query}\n\nAnswer the question naturally using your existing knowledge."
+            user_prompt = (
+                query
+                if is_local
+                else f"Question: {query}\n\nAnswer the question naturally using your existing knowledge."
+            )
         elif not context_text.strip() or len(context_text.strip()) < 50:
             self._local.system_prompt_override = self._get_external_system_prompt()
             user_prompt = query

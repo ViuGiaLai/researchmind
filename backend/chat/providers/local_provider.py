@@ -426,9 +426,7 @@ class LocalProviderMixin:
                                 data = json.loads(data_str)
                                 chunk = data.get("content", "")
                                 if data.get("stop"):
-                                    self._local.current_finish_reason = (
-                                        "length" if data.get("truncated") else "stop"
-                                    )
+                                    self._local.current_finish_reason = "length" if data.get("truncated") else "stop"
                                 if chunk:
                                     filtered_chunk, in_thinking = _filter_think_tags(chunk, in_thinking)
                                     if filtered_chunk:
@@ -572,9 +570,7 @@ class LocalProviderMixin:
                         try:
                             data = json.loads(data_str)
                             if data.get("stop"):
-                                self._local.current_finish_reason = (
-                                    "length" if data.get("truncated") else "stop"
-                                )
+                                self._local.current_finish_reason = "length" if data.get("truncated") else "stop"
                             chunk = data.get("content", "")
                             if not chunk:
                                 continue

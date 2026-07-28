@@ -235,7 +235,9 @@ class VerifyReportBuilder:
             self.report.academic_verdict.reason = "All 5 verification checks passed."
         elif result.get("grounding_valid", False):
             self.report.academic_verdict.verdict = "partially_supported"
-            self.report.academic_verdict.reason = f"Evidence markers were found, but {fail_count} validation dimensions failed."
+            self.report.academic_verdict.reason = (
+                f"Evidence markers were found, but {fail_count} validation dimensions failed."
+            )
         else:
             self.report.academic_verdict.verdict = "inconclusive"
             self.report.academic_verdict.reason = "Insufficient explicit evidence to determine claim support."
@@ -262,8 +264,7 @@ class VerifyReportBuilder:
         self.report.confidence.score = pass_rate
         self.report.confidence.level = "Medium" if pass_rate >= 0.6 else "Low"
         self.report.confidence.reasoning = (
-            f"Verification coverage: {int(pass_rate * 100)}%. "
-            "This score is not a probability that the claim is true."
+            f"Verification coverage: {int(pass_rate * 100)}%. This score is not a probability that the claim is true."
         )
 
         # ── Limitations ──

@@ -68,15 +68,15 @@ def test_nonstream_verify_uses_combined_context_and_restores_prompt(monkeypatch)
     monkeypatch.setattr(generator, "_get_verify_system_prompt", lambda: "verify-only")
     monkeypatch.setattr(generator, "_generate_uncached", fake_generate)
 
-    result = generator.generate_verify(
-        "claim", "Local evidence supports the claim.", "Crossref DOI 10.1234/example."
-    )
+    result = generator.generate_verify("claim", "Local evidence supports the claim.", "Crossref DOI 10.1234/example.")
 
     assert result.content == "verified"
     assert "Local evidence" in captured["context"]
     assert "EXTERNAL ACADEMIC DATA" in captured["context"]
     assert captured["task_type"] == "verify"
     assert captured["system_prompt"].startswith("verify-only")
+
+
 def test_patched_stream_respects_provider_budget(monkeypatch):
     generator = PatchedGenerator()
     calls = []

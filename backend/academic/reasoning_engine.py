@@ -52,11 +52,7 @@ class AcademicReasoningEngine:
             if metric_entity is not None and not lower_is_better:
                 higher_is_better = metric_entity.higher_is_better
 
-            best_value = (
-                max(exp.value for exp in exp_list)
-                if higher_is_better
-                else min(exp.value for exp in exp_list)
-            )
+            best_value = max(exp.value for exp in exp_list) if higher_is_better else min(exp.value for exp in exp_list)
             winners = [exp for exp in exp_list if exp.value == best_value]
             if len(winners) != 1:
                 continue

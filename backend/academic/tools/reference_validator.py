@@ -33,7 +33,6 @@ class ReferenceValidatorTool(BaseTool):
         if not any(ref.strip() for ref in references):
             issues.append({"index": None, "issue": "missing_references", "ref": ""})
 
-
         doi_re = re.compile(r"10\.\d{4,}/\S+")
         year_re = re.compile(r"\b(19|20)\d{2}\b")
 

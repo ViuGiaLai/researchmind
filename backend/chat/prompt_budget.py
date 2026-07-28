@@ -124,10 +124,7 @@ def fit_prompt_for_provider(
         trimmed = truncate_to_token_limit(context, context_budget, model)
         fitted = f"{history}{ctx_prefix}{trimmed}\n\n[...(context truncated for {provider})...]{suffix}"
         if count_tokens(fitted, model) <= allowed:
-            logger.info(
-                f"prompt_budget: {provider} history+context trimmed "
-                f"(user budget={allowed}, kept history)"
-            )
+            logger.info(f"prompt_budget: {provider} history+context trimmed (user budget={allowed}, kept history)")
             return fitted, True
         # Still over budget: keep question, shrink history, drop most context.
         question = suffix

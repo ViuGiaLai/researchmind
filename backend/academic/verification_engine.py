@@ -80,13 +80,7 @@ class AcademicVerificationEngine:
         if not grounding_valid:
             warnings.append("No explicit evidence grounding markers detected.")
 
-        overall_valid = (
-            venue_compliant
-            and citation_correctness
-            and grounding_valid
-            and doi_valid
-            and reference_exists
-        )
+        overall_valid = venue_compliant and citation_correctness and grounding_valid and doi_valid and reference_exists
 
         return VerificationResult(
             is_valid=overall_valid,

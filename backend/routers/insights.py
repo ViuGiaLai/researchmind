@@ -46,10 +46,12 @@ def _resolve_insight_paper_ids(body: dict) -> list[str] | None:
 
 async def _retrieve_fairly_across_papers(query: str, paper_ids: list[str], top_k_total: int = 15):
     if not paper_ids:
+
         class EmptyRes:
             context_text = ""
             papers_used = []
             total_chunks = 0
+
         return EmptyRes()
 
     top_k_per_paper = max(2, top_k_total // len(paper_ids))

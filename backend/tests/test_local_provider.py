@@ -14,10 +14,7 @@ def test_strip_think_tags():
     assert _strip_think_tags("<think>internal thought</think>\nHello world!") == "Hello world!"
     assert _strip_think_tags("No think tags here") == "No think tags here"
     assert _strip_think_tags("</think>Leading end tag") == "Leading end tag"
-    assert (
-        _strip_think_tags("<think>t1</think>Part 1<think>t2</think>Part 2")
-        == "Part 1Part 2"
-    )
+    assert _strip_think_tags("<think>t1</think>Part 1<think>t2</think>Part 2") == "Part 1Part 2"
 
 
 def test_filter_think_tags_single_chunk():

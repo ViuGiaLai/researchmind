@@ -38,6 +38,8 @@ _chat_response_cache: dict[str, dict] = {}
 _chat_response_cache_max = 128
 _chat_response_cache_ttl_seconds = 600
 _max_stream_continuations = 2
+
+
 def clear_chat_response_cache() -> None:
     """Invalidate process-local chat responses after model or cache changes."""
     _chat_response_cache.clear()
@@ -678,6 +680,7 @@ def _safe_commit_chat_history(db) -> None:
         logger.warning(f"ChatHistory commit failed ({e}), running auto-migration...")
         try:
             from sqlalchemy import text
+
             for col_name, col_type in [
                 ("session_id", "TEXT DEFAULT 'default'"),
                 ("model_used", "TEXT DEFAULT ''"),
@@ -776,9 +779,7 @@ async def _stream_chat(
         stream_metadata = stream_iterator.result if stream_iterator.result is not None else {}
         total_token_count += int(stream_metadata.get("token_count", 0) or 0)
         finish_reason = str(stream_metadata.get("finish_reason", "stop") or "stop").lower()
-        should_continue = finish_reason == "length" or (
-            finish_reason == "error" and bool(full_response.strip())
-        )
+        should_continue = finish_reason == "length" or (finish_reason == "error" and bool(full_response.strip()))
         if not should_continue or continuation_count >= max_auto_continuations:
             break
 
@@ -916,8 +917,10 @@ async def _stream_chat(
 
 _SUGGESTED_QUESTIONS_CACHE: dict[str, list[str]] = {}
 
+
 async def generate_suggested_questions_bg(lang: str):
     import random
+
     seed = random.randint(1, 1000000)
     prompt = (
         f"Provide three beginner-friendly AI/ML questions in the user's language. "
@@ -944,6 +947,7 @@ async def generate_suggested_questions_bg(lang: str):
             _SUGGESTED_QUESTIONS_CACHE[lang] = questions[:3]
     except Exception as e:
         logger.warning(f"Background suggest_questions failed: {e}")
+
 
 @router.post("/chat/suggest-questions")
 async def suggest_questions(body: dict = Body(...), background_tasks: BackgroundTasks = None):
@@ -975,11 +979,23 @@ async def suggest_questions(body: dict = Body(...), background_tasks: Background
         lang = get_prompt_language()
         if lang not in _SUGGESTED_QUESTIONS_CACHE:
             if lang == "vi":
-                _SUGGESTED_QUESTIONS_CACHE[lang] = ["AI là gì?", "Làm thế nào để bắt đầu học về machine learning?", "AI có những ứng dụng nào?"]
+                _SUGGESTED_QUESTIONS_CACHE[lang] = [
+                    "AI là gì?",
+                    "Làm thế nào để bắt đầu học về machine learning?",
+                    "AI có những ứng dụng nào?",
+                ]
             elif lang == "ja":
-                _SUGGESTED_QUESTIONS_CACHE[lang] = ["AIとは何ですか？", "機械学習の学習を始めるにはどうすればよいですか？", "日常生活におけるAIの応用例は何ですか？"]
+                _SUGGESTED_QUESTIONS_CACHE[lang] = [
+                    "AIとは何ですか？",
+                    "機械学習の学習を始めるにはどうすればよいですか？",
+                    "日常生活におけるAIの応用例は何ですか？",
+                ]
             else:
-                _SUGGESTED_QUESTIONS_CACHE[lang] = ["What is AI?", "How to start learning about machine learning?", "What are the applications of AI in daily life?"]
+                _SUGGESTED_QUESTIONS_CACHE[lang] = [
+                    "What is AI?",
+                    "How to start learning about machine learning?",
+                    "What are the applications of AI in daily life?",
+                ]
 
         if background_tasks:
             background_tasks.add_task(generate_suggested_questions_bg, lang)
@@ -1184,7 +1200,6 @@ async def chat(req: Request, request: dict = Body(...)):
         # Heuristic audits inspect snippets rather than complete manuscripts;
         # keep them in dedicated verification workflows and off this critical path.
 
-
     # Phân biệt: có context paper → RAG (gemini), không context → chat đơn giản (github)
     has_paper_context = (
         retrieval.context_text
@@ -1309,6 +1324,7 @@ def get_chat_history(session_id: str = Query(None), limit: int = Query(50)):
                 db.rollback()
                 try:
                     from sqlalchemy import text
+
                     for col_name, col_type in [
                         ("session_id", "TEXT DEFAULT 'default'"),
                         ("model_used", "TEXT DEFAULT ''"),
@@ -1339,16 +1355,18 @@ def get_chat_history(session_id: str = Query(None), limit: int = Query(50)):
             elif not c_val:
                 c_val = []
 
-            result_history.append({
-                "id": h.id,
-                "role": h.role,
-                "content": h.content,
-                "citations": c_val,
-                "model_used": getattr(h, "model_used", "") or "",
-                "session_id": getattr(h, "session_id", "default") or "default",
-                "scope": getattr(h, "scope", None) or "current",
-                "created_at": str(h.created_at) if getattr(h, "created_at", None) else None,
-            })
+            result_history.append(
+                {
+                    "id": h.id,
+                    "role": h.role,
+                    "content": h.content,
+                    "citations": c_val,
+                    "model_used": getattr(h, "model_used", "") or "",
+                    "session_id": getattr(h, "session_id", "default") or "default",
+                    "scope": getattr(h, "scope", None) or "current",
+                    "created_at": str(h.created_at) if getattr(h, "created_at", None) else None,
+                }
+            )
 
         return {"history": result_history}
     finally:
@@ -1361,34 +1379,40 @@ def get_chat_sessions():
     db = get_session(state.engine)
     try:
         from sqlalchemy import func
+
         # Find the latest created_at for each session
-        latest_msgs = db.query(
-            ChatHistory.session_id,
-            func.max(ChatHistory.created_at).label("updated_at")
-        ).group_by(ChatHistory.session_id).subquery()
+        latest_msgs = (
+            db.query(ChatHistory.session_id, func.max(ChatHistory.created_at).label("updated_at"))
+            .group_by(ChatHistory.session_id)
+            .subquery()
+        )
 
         # We can also get the title (first user message) by querying min(id) per session
-        first_msgs = db.query(
-            ChatHistory.session_id,
-            func.min(ChatHistory.id).label("first_id")
-        ).filter(ChatHistory.role == "user").group_by(ChatHistory.session_id).subquery()
+        first_msgs = (
+            db.query(ChatHistory.session_id, func.min(ChatHistory.id).label("first_id"))
+            .filter(ChatHistory.role == "user")
+            .group_by(ChatHistory.session_id)
+            .subquery()
+        )
 
         # Join to get the actual first message content for title
-        sessions = db.query(
-            latest_msgs.c.session_id,
-            latest_msgs.c.updated_at,
-            ChatHistory.content.label("title")
-        ).outerjoin(first_msgs, first_msgs.c.session_id == latest_msgs.c.session_id)\
-         .outerjoin(ChatHistory, ChatHistory.id == first_msgs.c.first_id)\
-         .order_by(latest_msgs.c.updated_at.desc()).all()
+        sessions = (
+            db.query(latest_msgs.c.session_id, latest_msgs.c.updated_at, ChatHistory.content.label("title"))
+            .outerjoin(first_msgs, first_msgs.c.session_id == latest_msgs.c.session_id)
+            .outerjoin(ChatHistory, ChatHistory.id == first_msgs.c.first_id)
+            .order_by(latest_msgs.c.updated_at.desc())
+            .all()
+        )
 
         result = []
         for s in sessions:
-            result.append({
-                "session_id": s.session_id,
-                "updated_at": str(s.updated_at) if s.updated_at else None,
-                "title": s.title[:100] if s.title else s.session_id,
-            })
+            result.append(
+                {
+                    "session_id": s.session_id,
+                    "updated_at": str(s.updated_at) if s.updated_at else None,
+                    "title": s.title[:100] if s.title else s.session_id,
+                }
+            )
 
         return {"sessions": result}
     except Exception as e:

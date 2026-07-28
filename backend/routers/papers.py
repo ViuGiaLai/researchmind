@@ -1061,7 +1061,11 @@ def _index_paper(file_id: str, doc, job_id: str | None = None):
             target_lang = get_prompt_language()
 
             intro_chunks = (
-                session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.asc()).limit(chunk_limit).all()
+                session.query(Chunk)
+                .filter(Chunk.paper_id == file_id)
+                .order_by(Chunk.chunk_index.asc())
+                .limit(chunk_limit)
+                .all()
             )
             conclusion_chunk = (
                 session.query(Chunk).filter(Chunk.paper_id == file_id).order_by(Chunk.chunk_index.desc()).first()
@@ -1099,10 +1103,9 @@ Do not infer contributions or limitations that are absent from the context. Pres
             )
 
             if result and result.content:
-                session.query(Paper).filter(Paper.id == file_id).update({
-                    "auto_summary": result.content,
-                    "auto_summary_lang": target_lang
-                })
+                session.query(Paper).filter(Paper.id == file_id).update(
+                    {"auto_summary": result.content, "auto_summary_lang": target_lang}
+                )
                 session.commit()
                 logger.info(f"Generated auto-summary for {doc.filename}")
         except Exception as sum_err:
@@ -1612,7 +1615,11 @@ async def regenerate_summary(paper_id: str):
         target_lang = get_prompt_language()
 
         intro_chunks = (
-            session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(chunk_limit).all()
+            session.query(Chunk)
+            .filter(Chunk.paper_id == paper_id)
+            .order_by(Chunk.chunk_index.asc())
+            .limit(chunk_limit)
+            .all()
         )
         conclusion_chunk = (
             session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.desc()).first()
