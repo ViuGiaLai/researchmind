@@ -39,7 +39,7 @@ def _saved_search_to_dict(saved: SavedSearch) -> dict:
 
 
 @router.get("/collections")
-async def list_collections():
+def list_collections():
     session = get_session(state.engine)
     try:
         rows = (
@@ -132,7 +132,7 @@ async def delete_collection(collection_id: str):
 
 
 @router.get("/collections/{collection_id}/papers")
-async def list_collection_papers(collection_id: str):
+def list_collection_papers(collection_id: str):
     session = get_session(state.engine)
     try:
         exists = session.query(Collection.id).filter(Collection.id == collection_id).scalar()

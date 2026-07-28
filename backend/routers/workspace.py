@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException
 from fastapi.responses import FileResponse
+from sqlalchemy import func
 from starlette.background import BackgroundTask
 
 from app_state import state
@@ -303,12 +304,14 @@ async def pull_sync_changes(workspace_id: str = DEFAULT_WORKSPACE_ID, after: int
 
 
 @router.get("/projects")
-async def list_projects(workspace_id: str = DEFAULT_WORKSPACE_ID):
+def list_projects(workspace_id: str = DEFAULT_WORKSPACE_ID):
     session = get_session(state.engine)
     try:
-        projects = (
-            session.query(Project)
+        rows = (
+            session.query(Project, func.count(ProjectPaper.paper_id))
+            .outerjoin(ProjectPaper, ProjectPaper.project_id == Project.id)
             .filter(Project.workspace_id == workspace_id)
+            .group_by(Project.id)
             .order_by(Project.updated_at.desc())
             .all()
         )
@@ -321,11 +324,11 @@ async def list_projects(workspace_id: str = DEFAULT_WORKSPACE_ID):
                     "description": project.description,
                     "research_question": project.research_question,
                     "status": project.status,
-                    "paper_count": session.query(ProjectPaper).filter(ProjectPaper.project_id == project.id).count(),
+                    "paper_count": int(paper_count),
                     "created_at": _iso(project.created_at),
                     "updated_at": _iso(project.updated_at),
                 }
-                for project in projects
+                for project, paper_count in rows
             ]
         }
     finally:

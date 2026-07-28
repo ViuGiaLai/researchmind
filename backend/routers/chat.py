@@ -162,6 +162,42 @@ def _resolve_collection_paper_ids(collection_id: str | None) -> list[str]:
         session.close()
 
 
+def _load_paper_metadata(
+    paper_ids: list[str] | None,
+) -> tuple[dict[str, str], dict[str, int | None], str]:
+    """Load citation maps and cache version with one database query."""
+    if not paper_ids:
+        return {}, {}, "library"
+    session = get_session(state.engine)
+    try:
+        papers = (
+            session.query(
+                Paper.id,
+                Paper.title,
+                Paper.filename,
+                Paper.page_count,
+                Paper.status,
+                Paper.indexed_at,
+            )
+            .filter(Paper.id.in_(paper_ids))
+            .all()
+        )
+        title_map = {}
+        page_map = {}
+        versions = []
+        for pid, title, filename, page_count, status, indexed_at in papers:
+            if title:
+                title_map[title.strip().lower()] = pid
+            if filename:
+                title_map[filename.strip().lower()] = pid
+            title_map[pid] = pid
+            page_map[pid] = page_count
+            versions.append(f"{pid}:{status}:{indexed_at.isoformat() if indexed_at else ''}")
+        return title_map, page_map, "|".join(sorted(versions))
+    finally:
+        session.close()
+
+
 def _build_paper_title_map(paper_ids: list[str] | None) -> dict[str, str]:
     """Build a mapping from paper title/filename → paper_id for lookups."""
     if not paper_ids:
@@ -987,6 +1023,7 @@ async def chat(req: Request, request: dict = Body(...)):
         if paper_error:
             return {"answer": paper_error, "citations": [], "model_used": "", "papers_used": [], "chunks_used": 0}
 
+    paper_title_map, paper_page_map, paper_cache_version = _load_paper_metadata(paper_ids)
     cache_key = _chat_cache_key(
         message,
         paper_ids,
@@ -995,7 +1032,7 @@ async def chat(req: Request, request: dict = Body(...)):
         reasoning_mode,
         strict_evidence,
         get_prompt_language(message),
-        _build_paper_cache_version(paper_ids),
+        paper_cache_version,
         history_fingerprint(chat_history),
     )
     use_cache = bool(request.get("use_cache", True)) and not bool(request.get("retry", False))
@@ -1085,8 +1122,6 @@ async def chat(req: Request, request: dict = Body(...)):
     )
     actual_task_type = "rag" if has_paper_context else "chat"
 
-    paper_title_map = _build_paper_title_map(paper_ids)
-    paper_page_map = _build_paper_page_map(paper_ids)
     chunk_map = _build_chunk_map(retrieval.context_text)
 
     if stream:
@@ -1126,7 +1161,6 @@ async def chat(req: Request, request: dict = Body(...)):
 
     # Process citations for non-streaming path too
     citations = generation.citations or []
-    chunk_map = _build_chunk_map(retrieval.context_text)
     public_content = _sanitize_public_answer(generation.content)
     modified_content, processed_citations = _process_citations(
         public_content, citations, paper_title_map, chunk_map, paper_page_map
@@ -1180,7 +1214,7 @@ async def chat(req: Request, request: dict = Body(...)):
 
 
 @router.get("/chat/history")
-async def get_chat_history(session_id: str = Query(None), limit: int = Query(50)):
+def get_chat_history(session_id: str = Query(None), limit: int = Query(50)):
     """Get chat history."""
     db = get_session(state.engine)
     try:
@@ -1242,7 +1276,7 @@ async def get_chat_history(session_id: str = Query(None), limit: int = Query(50)
 
 
 @router.get("/chat/sessions")
-async def get_chat_sessions():
+def get_chat_sessions():
     """Get all chat sessions with their latest message timestamp and first message as title."""
     db = get_session(state.engine)
     try:

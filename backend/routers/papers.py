@@ -401,6 +401,12 @@ def _document_needs_ocr(doc) -> bool:
 # ─── Paper Import ────────────────────────────────────────────────
 
 
+def _copy_upload_to_path(source, destination: Path) -> None:
+    """Copy an uploaded file without holding the async event loop."""
+    with open(destination, "wb") as output:
+        shutil.copyfileobj(source, output)
+
+
 @router.post("/import")
 async def import_document(
     file: UploadFile = File(...),
@@ -420,8 +426,7 @@ async def import_document(
     job_id = _create_import_job(safe_name)
     _update_import_job(job_id, status="saved", stage="saved", progress=10, paper_id=file_id, file_path=str(save_path))
 
-    with open(save_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    await asyncio.to_thread(_copy_upload_to_path, file.file, save_path)
 
     is_image = ext in IMAGE_EXTENSIONS
     if is_image:
@@ -1422,7 +1427,7 @@ async def retry_import_job(job_id: str, background_tasks: BackgroundTasks):
 
 
 @router.get("")
-async def list_papers(
+def list_papers(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     status: str = Query(None),
@@ -1448,15 +1453,10 @@ async def list_papers(
         if starred is not None:
             query = query.filter(Paper.starred == (1 if starred else 0))
         if collection_id:
-            paper_ids = [
-                row.paper_id
-                for row in session.query(CollectionPaper.paper_id)
-                .filter(CollectionPaper.collection_id == collection_id)
-                .all()
-            ]
-            if not paper_ids:
-                return {"total": 0, "page": page, "limit": limit, "papers": []}
-            query = query.filter(Paper.id.in_(paper_ids))
+            collection_papers = session.query(CollectionPaper.paper_id).filter(
+                CollectionPaper.collection_id == collection_id
+            )
+            query = query.filter(Paper.id.in_(collection_papers))
         if author:
             query = query.filter(Paper.authors.ilike(f"%{author}%"))
         if year_from:
@@ -1502,7 +1502,7 @@ async def list_papers(
 
 
 @router.get("/{paper_id}")
-async def get_paper(paper_id: str):
+def get_paper(paper_id: str):
     """Get paper details."""
     session = get_session(state.engine)
     try:
@@ -1824,7 +1824,7 @@ async def save_highlighted_pdf_endpoint(paper_id: str, body: dict = Body(...)):
 
 
 @router.get("/{paper_id}/related")
-async def find_related_papers(paper_id: str, limit: int = Query(5)):
+def find_related_papers(paper_id: str, limit: int = Query(5)):
     """
     Find papers related to a given paper based on embedding similarity.
     """
@@ -1907,7 +1907,7 @@ async def find_related_papers(paper_id: str, limit: int = Query(5)):
 
 
 @router.get("/{paper_id}/related/{other_paper_id}/matches")
-async def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: int = Query(10)):
+def get_related_paper_matches(paper_id: str, other_paper_id: str, limit: int = Query(10)):
     """
     Get detailed chunk-level matches between a paper and a related paper.
     Returns the matching chunks with content, similarity scores, and page numbers.
