@@ -109,7 +109,7 @@ jobs:
           printf '%s' "$LICENSE_PUBLIC_KEY" > backend/config/license_public_key.txt
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
