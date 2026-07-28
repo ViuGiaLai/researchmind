@@ -228,6 +228,17 @@ fn apply_backend_env(command: &mut Command, cwd: Option<&Path>) {
     }
 }
 
+#[cfg(all(target_os = "windows", not(debug_assertions)))]
+fn configure_backend_process(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(any(not(target_os = "windows"), debug_assertions))]
+fn configure_backend_process(_command: &mut Command) {}
+
 /// Try to spawn the backend (bundled exe or python main.py).
 fn spawn_backend(
     app: &tauri::AppHandle,
@@ -263,6 +274,7 @@ fn spawn_backend(
     let mut command = Command::new(&program);
     command.args(&args);
     apply_backend_env(&mut command, cwd.as_deref());
+    configure_backend_process(&mut command);
     if let Some(cwd) = cwd {
         info!("Starting backend with working directory: {:?}", cwd);
         command.current_dir(cwd);

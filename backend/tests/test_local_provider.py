@@ -1,10 +1,8 @@
 """Unit tests for local_provider.py helpers and mixin functionality."""
 
-import pytest
 from chat.generator_v2 import Generator
 from chat.providers.local_provider import (
     LOCAL_MODE_CAPS,
-    LOCAL_TASK_CAPS,
     MAX_LOCAL_NTOKENS,
     MIN_LOCAL_NTOKENS,
     _filter_think_tags,

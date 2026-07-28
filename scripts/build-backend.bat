@@ -26,6 +26,7 @@ echo.
 
 pyinstaller ^
     --onefile ^
+    --noconsole ^
     --name backend ^
     --distpath apps\desktop\src-tauri\resources ^
     --workpath build_pyinstaller ^

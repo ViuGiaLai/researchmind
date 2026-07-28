@@ -51,7 +51,7 @@ async def _retrieve_fairly_across_papers(query: str, paper_ids: list[str], top_k
             papers_used = []
             total_chunks = 0
         return EmptyRes()
-        
+
     top_k_per_paper = max(2, top_k_total // len(paper_ids))
     tasks = [
         asyncio.to_thread(
@@ -62,24 +62,24 @@ async def _retrieve_fairly_across_papers(query: str, paper_ids: list[str], top_k
         )
         for pid in paper_ids
     ]
-    
+
     results = await asyncio.gather(*tasks)
-    
+
     combined_context = []
     papers_used = set()
     total_chunks = 0
-    
+
     for res in results:
         if res.context_text:
             combined_context.append(res.context_text)
         papers_used.update(res.papers_used)
         total_chunks += res.total_chunks
-        
+
     class FairRetrievalResult:
         context_text = "\n\n".join(combined_context)
         papers_used = list(papers_used)
         total_chunks = total_chunks
-        
+
     return FairRetrievalResult()
 
 

@@ -110,7 +110,7 @@ def get_language_instruction(user_text: str = "", requested_language: str = "") 
     return (
         "## OUTPUT LANGUAGE\n"
         + f"You MUST respond entirely in {lang_name}. "
-        + f"NEVER write in another language. "
+        + "NEVER write in another language. "
         + f"If the user's message contains a mix of languages, still respond in {lang_name}. "
         + "Keep proper nouns, citations, identifiers, code, and quoted source text unchanged. "
         + "This is the MOST IMPORTANT instruction. Follow it above all others."

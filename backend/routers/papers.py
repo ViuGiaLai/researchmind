@@ -1610,7 +1610,7 @@ async def regenerate_summary(paper_id: str):
         is_local = settings.llm_mode == "local"
         chunk_limit = 1 if is_local else 3
         target_lang = get_prompt_language()
-        
+
         intro_chunks = (
             session.query(Chunk).filter(Chunk.paper_id == paper_id).order_by(Chunk.chunk_index.asc()).limit(chunk_limit).all()
         )
