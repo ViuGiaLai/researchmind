@@ -63,8 +63,8 @@ jobs:
         run: python -m pytest tests -q --timeout=180 -m "integration" || echo "⚠️ Integration tests had failures (non-blocking for release)"
         working-directory: backend
 
-      - name: Benchmark tests
-        run: python -m pytest tests -q --timeout=300 -m "benchmark"
+      - name: RAG benchmark quality gate
+        run: python -m evaluation.benchmark evaluation/fixtures/rag_smoke.json --min-recall 0.7 --min-mrr 0.6
         working-directory: backend
 
   build:
