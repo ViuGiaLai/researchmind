@@ -169,9 +169,14 @@ jobs:
             exit 1
           fi
 
-          cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend
-          cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend.exe
-          chmod +x apps/desktop/src-tauri/resources/backend || true
+          rm -f apps/desktop/src-tauri/resources/backend \
+                apps/desktop/src-tauri/resources/backend.exe
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend.exe
+          else
+            cp "$BACKEND_BIN" apps/desktop/src-tauri/resources/backend
+            chmod +x apps/desktop/src-tauri/resources/backend
+          fi
           ls -la apps/desktop/src-tauri/resources/
 
       - name: Install Rust toolchain
